@@ -249,6 +249,9 @@ const api = {
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),
     likeList: () => ipcRenderer.invoke('netease:likeList'),
 
+    discover: (kind: string, limit?: number) =>
+      ipcRenderer.invoke('netease:discover', { kind, limit }),
+
     getQuality: () => ipcRenderer.invoke('netease:getQuality'),
     setQuality: (quality: string) => ipcRenderer.invoke('netease:setQuality', quality)
   },

@@ -3,9 +3,16 @@ import type { Palette } from '../features/library/palette'
 import type { Track } from '../types'
 import { useProgressPosition } from '../features/player/Bar'
 import { formatTime } from '../ui/format'
-import { ChevronLeft, Pause, Play } from '../ui/icons'
+import { ChevronLeft, Note, Next, Pause, Play, Prev, Volume, VolumeMute } from '../ui/icons'
+import { Artwork } from '../ui/Artwork'
+import { artworkFor } from '../features/library/source'
 import { usePlayer } from '../features/player/store'
+import { player } from '../features/player/actions'
+import type { CSSProperties } from 'react'
 import { Visualizer } from './Visualizer'
+import { Backdrop } from '../features/wallpaper/Backdrop'
+import { chooseEntry } from '../features/wallpaper/pure'
+import { useWallpaper } from '../features/wallpaper/store'
 
 /** Lines shown above and below the active one. Fixed, so centring is exact. */
 const SPAN = 4
@@ -149,20 +156,78 @@ export function LyricsStage({
   onToggle,
   onClose
 }: LyricsStageProps) {
+  /*
+   * 沉浸页用和外壳同一张壁纸。
+   *
+   * 两条背景路径互斥：极光带是「没有壁纸时」的背景，壁纸开着的时候它会把
+   * 壁纸整个盖掉 —— 那正是用户说的「播放页也得接上壁纸」。所以壁纸优先，
+   * 极光带让位，而不是两层叠在一起。
+   *
+   * 封面主色仍然要用上：壁纸之上压一层极淡的封面色调（见 CSS 的 ::after），
+   * 否则换歌时整块背景和这首歌没有任何关系。
+   */
+  const wallpaperEnabled = useWallpaper((state) => state.enabled)
+  const wallpaperSelection = useWallpaper((state) => state.selection)
+  const wallpaperInfo = useWallpaper((state) => state.info)
+  const wallpaperList = useWallpaper((state) => state.list)
+  const wallpaperStrength = useWallpaper((state) => state.strength)
+  const wallpaper = chooseEntry({
+    enabled: wallpaperEnabled,
+    selection: wallpaperSelection,
+    info: wallpaperInfo,
+    list: wallpaperList
+  })
+
+  /*
+   * 换歌和音量留在这个页面上。
+   *
+   * 原来的底栏只有一个播放键：想换下一首必须退出沉浸页，回到队列再点一次。
+   * 这两个值是播放器的全局状态，订阅它们不会跟着进度条每秒重渲染。
+   */
+  const volume = usePlayer((state) => state.volume)
+  const muted = usePlayer((state) => state.muted)
+
   return (
-    <div className="stage">
-      <Visualizer getSpectrum={getSpectrum} palette={palette} />
+    <div
+      className={wallpaper ? 'stage stage--wallpaper' : 'stage'}
+      // --wp-level 同时喂给壁纸的遮罩和舞台自己的渐变，和外壳用的是同一个值。
+      style={
+        wallpaper
+          ? ({ '--wp-level': String(wallpaperStrength), '--stage-tint': palette.colors[0] } as CSSProperties)
+          : undefined
+      }
+    >
+      {wallpaper ? <Backdrop entry={wallpaper} /> : <Visualizer getSpectrum={getSpectrum} palette={palette} />}
 
       <header className="stage__top">
         <button className="stage__back" onClick={onClose} aria-label="退出沉浸模式">
           <ChevronLeft size={18} />
           <span>退出</span>
         </button>
+        {/*
+          * 歌名放在这里，而不是只藏在歌词里。
+          *
+          * 歌词第一行常常是「作词 : …」「作曲 : …」，而且没有歌词时整页只剩
+          * 一个「没有歌词」——用户当时根本认不出在放哪首歌。
+          */}
         <div className="stage__meta">
           {track ? (
             <>
-              <span className="stage__album">{track.album}</span>
-              <span className="stage__artist">{track.artist}</span>
+              <span className="stage__kicker">正在播放</span>
+              <h1 className="stage__title" title={track.title}>
+                {track.title}
+              </h1>
+              <p className="stage__sub">
+                <span className="stage__artist">{track.artist}</span>
+                {track.album ? (
+                  <>
+                    <span className="stage__sep" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="stage__album">{track.album}</span>
+                  </>
+                ) : null}
+              </p>
             </>
           ) : (
             <span className="stage__artist">没有在播放</span>
@@ -171,9 +236,16 @@ export function LyricsStage({
       </header>
 
       {lyrics.empty ? (
-        <div className="stage__lyrics">
+        <div className="stage__lyrics stage__lyrics--empty">
           <div className="stage__nolyrics">
-            <p>没有歌词</p>
+            {/* 没有歌词时至少让人认出是哪首歌：封面 + 歌名。 */}
+            {track ? (
+              <div className="stage__cover">
+                <Artwork src={artworkFor(track)} alt="" fallback={<Note size={30} />} />
+              </div>
+            ) : null}
+            {track ? <p className="stage__nolyrics-title">{track.title}</p> : null}
+            <p className="stage__nolyrics-note">这首歌没有可显示的歌词。</p>
 
             {onlineEnabled ? null : (
               <>
@@ -193,16 +265,57 @@ export function LyricsStage({
       )}
 
       <footer className="stage__bottom">
-        <button
-          className="stage__play"
-          onClick={onToggle}
-          disabled={!track}
-          aria-label={playing ? '暂停' : '播放'}
-        >
-          {playing ? <Pause size={20} /> : <Play size={20} />}
-        </button>
+        <div className="stage__controls">
+          <button
+            className="stage__ctrl"
+            onClick={() => player.prev()}
+            disabled={!track}
+            aria-label="上一首"
+            title="上一首"
+          >
+            <Prev size={18} />
+          </button>
+          <button
+            className="stage__play"
+            onClick={onToggle}
+            disabled={!track}
+            aria-label={playing ? '暂停' : '播放'}
+          >
+            {playing ? <Pause size={22} /> : <Play size={22} />}
+          </button>
+          <button
+            className="stage__ctrl"
+            onClick={() => player.next()}
+            disabled={!track}
+            aria-label="下一首"
+            title="下一首"
+          >
+            <Next size={18} />
+          </button>
+        </div>
 
         <StageProgress duration={duration} onSeekRatio={onSeekRatio} />
+
+        <div className="stage__vol">
+          <button
+            type="button"
+            className="stage__mute"
+            onClick={() => usePlayer.getState().setMuted(!muted)}
+            aria-label={muted ? '取消静音' : '静音'}
+            title={muted ? '取消静音' : '静音'}
+          >
+            {muted || volume === 0 ? <VolumeMute size={16} /> : <Volume size={16} />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round((muted ? 0 : volume) * 100)}
+            aria-label="音量"
+            onChange={(event) => usePlayer.getState().setVolume(Number(event.target.value) / 100)}
+          />
+        </div>
       </footer>
     </div>
   )

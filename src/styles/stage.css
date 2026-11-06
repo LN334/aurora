@@ -53,7 +53,7 @@
   }
 }
 
-.stage > *:not(.viz) {
+.stage > *:not(.viz):not(.wallpaper) {
   position: relative;
   z-index: 1;
 }
@@ -64,7 +64,9 @@
   display: flex;
   align-items: center;
   gap: var(--s4);
-  padding: var(--s5) var(--s5) 0;
+  /* 右侧这条缝是 Windows 画最小化/最大化/关闭的地方：标题栏让出 148px，
+     舞台是全屏覆盖层，同样得让，否则「正在播放」会压在按钮底下。 */
+  padding: var(--s5) 148px 0 var(--s5);
 }
 
 .stage__back {
@@ -91,19 +93,43 @@
   text-align: right;
   min-width: 0;
 }
-.stage__album {
+/* 小字在上、歌名在中、艺术家与专辑在下：一屏之内先认出歌，再认出人。 */
+.stage__kicker {
   display: block;
-  font-size: var(--fs-meta);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.16em;
+  color: var(--text-low);
+}
+.stage__title {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 40vw;
+  max-width: 46vw;
 }
-.stage__artist {
-  display: block;
-  font-size: var(--fs-micro);
+.stage__sub {
+  margin: 4px 0 0;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46vw;
+}
+.stage__sep {
+  margin: 0 6px;
   color: var(--text-low);
+}
+.stage__album,
+.stage__artist {
+  font-size: inherit;
+  color: inherit;
 }
 
 /* --- the lyric column ---------------------------------------------------- */
@@ -117,6 +143,8 @@
   padding: 0 var(--s6);
   /* Lyrics are the whole point here; nothing should be selectable chrome. */
   overflow: hidden;
+  /* 上下渐隐：歌词像从雾里进出，而不是被容器边缘硬切一刀。 */
+  mask-image: linear-gradient(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
 }
 
 /*
@@ -192,14 +220,46 @@
 }
 
 .stage__nolyrics {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   color: var(--text-mid);
   max-width: 46ch;
 }
-.stage__nolyrics p {
+/* 没有歌词时画面的主角：封面。它有影子，才不会在半透的壁纸上飘着。 */
+.stage__cover {
+  display: grid;
+  place-items: center;
+  width: clamp(140px, 19vh, 210px);
+  aspect-ratio: 1;
+  margin-bottom: var(--s5);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+  color: var(--text-low);
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.45);
+}
+.stage__cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.stage__nolyrics-title {
   margin: 0 0 var(--s2);
+  font-family: var(--font-display);
+  font-size: clamp(18px, 1.8vw, 24px);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.stage__nolyrics-note {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--text-low);
 }
 .stage__nolyrics-hint {
+  margin: 0;
   font-size: var(--fs-meta);
   color: var(--text-low);
 }
@@ -223,30 +283,103 @@
 /* --- bottom bar ---------------------------------------------------------- */
 
 .stage__bottom {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--s5);
   padding: 0 var(--s5) var(--s5);
 }
 
+/* 上一首 / 播放 / 下一首。两个副按钮比主按钮轻一档，视线还是落在播放键上。 */
+.stage__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.stage__ctrl {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 999px;
+  color: var(--text-mid);
+  background: rgb(255 255 255 / 0.05);
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.stage__ctrl:hover:not(:disabled) {
+  color: var(--text-hi);
+  background: rgb(255 255 255 / 0.12);
+}
+.stage__ctrl:disabled {
+  color: var(--text-low);
+  background: transparent;
+}
 .stage__play {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   flex: none;
+  margin: 0 var(--s1);
   border-radius: 999px;
   color: var(--ink-1000);
   background: var(--text-hi);
   transition: scale 140ms var(--ease-out), background 200ms var(--ease-out);
 }
-.stage__play:hover {
+.stage__play:hover:not(:disabled) {
   scale: 1.06;
 }
 .stage__play:disabled {
   background: var(--ink-600);
   color: var(--text-low);
   scale: 1;
+}
+
+/* 音量：在沉浸页里也要能调，否则耳机/音箱切换时得退出两层。 */
+.stage__vol {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+}
+.stage__mute {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-control);
+  color: var(--text-mid);
+  transition: color 140ms var(--ease-out);
+}
+.stage__mute:hover {
+  color: var(--text-hi);
+}
+.stage__vol input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 96px;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+.stage__vol input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+}
+.stage__vol input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: var(--text-hi);
+}
+.stage__vol input[type='range']:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
 }
 
 .stage__progress {
@@ -292,4 +425,51 @@
   background: var(--accent);
   box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.75);
   transition: background 620ms var(--ease-out);
+}
+
+/* --- wallpaper background ------------------------------------------------- */
+
+/*
+ * 壁纸模式下舞台不再自己铺黑底：Backdrop 自带不透明底和遮罩，舞台只负责在
+ * 壁纸之上再压一层「上下深、中间透」的渐变 —— 顶部返回按钮、底部时间这类
+ * 小字要在亮色壁纸上也站得住，中间那一大片留给歌词和壁纸本身。
+ */
+.stage--wallpaper {
+  background: transparent;
+}
+
+.stage--wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 88% at 50% 22%,
+      color-mix(in srgb, var(--stage-tint, #000) 22%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(6 8 10 / 0.6) 0%,
+      rgb(6 8 10 / 0.16) 32%,
+      rgb(6 8 10 / 0.22) 66%,
+      rgb(6 8 10 / 0.7) 100%
+    );
+}
+
+/*
+ * Backdrop 的遮罩是按外壳的列表行调的；舞台这一屏是标题级大字，壁纸可以比
+ * 侧栏里再透出一些，靠上面那层渐变补上下两端的对比。
+ */
+.stage--wallpaper .wallpaper__veil {
+  --veil: calc(0.68 - 0.5 * var(--wp-level, 0.62));
+}
+
+/* 壁纸是亮的，顶栏和底栏的小字得自己带一点影子才立得住。歌词行不在这里加，
+   它的光晕由 .lyr--d0 单独负责，叠上去会糊。 */
+.stage--wallpaper .stage__top,
+.stage--wallpaper .stage__bottom {
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
 }

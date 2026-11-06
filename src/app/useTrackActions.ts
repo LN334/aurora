@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { player } from '../features/player/actions'
 import { tracksUnder } from '../features/library/tree'
 import { usePlaylists } from '../features/playlists/store'
+import type { Route } from './routing'
 import type { Album, Track } from '../types'
 
 /**
@@ -17,7 +18,7 @@ export function useTrackActions(options: {
   tracks: Track[]
   albums: Album[]
   trackById: Map<string, Track>
-  navigate(route: { view: 'playlists'; playlistId: string }): void
+  navigate(route: Route): void
 }) {
   const { tracks, albums, trackById, navigate } = options
 

@@ -828,40 +828,8 @@ input::placeholder {
   min-height: 0;
 }
 
-.search-view__tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--s1);
-  border-bottom: var(--line-soft);
-}
-
-.search-view__tab {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  height: 32px;
-  padding: 0 var(--s3);
-  color: var(--text-mid);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 120ms var(--ease-out);
-}
-.search-view__tab:hover {
-  color: var(--text-hi);
-}
-.search-view__tab.is-active {
-  color: var(--text-hi);
-  border-bottom-color: var(--accent);
-}
-/* The count answers "is this tab empty, or merely not asked yet" - it is not
-   meant to be read before the name. */
-.search-view__tab em {
-  font-style: normal;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  font-variant-numeric: tabular-nums;
-}
-
+/* 搜索页的范围标签用的是与音乐库同一组 .tabs/.tab 规则：一页里只有一种 tab 画法。
+   这里只剩「搜索」按钮要靠在右边。 */
 .search-view__go {
   margin-left: auto;
 }
@@ -1515,4 +1483,222 @@ input::placeholder {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+
+/* --- 一级导航（四项，按意图分） ----------------------------------------- */
+
+/*
+ * 一级入口是「你要去哪」，不是「东西从哪来」。给它比条目更松的行高与更黑的
+ * 字色，是因为它下面不再有子项：这四行本身就是整张地图。
+ */
+.rail__group--primary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail__group--primary .nav-item {
+  height: 36px;
+  font-size: var(--fs-body);
+  color: var(--text-mid);
+}
+
+.rail__group--primary .nav-item.is-active {
+  color: var(--text-hi);
+}
+
+/* --- 标签页（来源 / 栏目） ---------------------------------------------- */
+
+/*
+ * 音乐库与发现页都用这一组标签页，因为两页问的是同一类问题：
+ * 「哪一边」和「哪一块」。第一排（来源）是这一页的第一层选择，所以它带分隔线、
+ * 行高更大；第二排（栏目）是同一来源内部的细分，所以它更轻。
+ */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  flex: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs--sources {
+  border-bottom: var(--line-soft);
+  margin-bottom: var(--s1);
+}
+
+.tabs--sources .tab {
+  height: 34px;
+  font-size: var(--fs-body);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  height: 30px;
+  padding: 0 var(--s3);
+  color: var(--text-mid);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms var(--ease-out), border-color 120ms var(--ease-out);
+}
+
+.tab:hover {
+  color: var(--text-hi);
+}
+
+.tab.is-active {
+  color: var(--text-hi);
+  border-bottom-color: var(--accent);
+}
+
+.tab em {
+  font-style: normal;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 栏目一排不画自己的底线：它和来源那排之间只隔一点间距，
+   两条线会让人以为这里是两个互不相干的区域。 */
+.tabs--sub {
+  margin-bottom: var(--s2);
+}
+
+.tabs--sub .tab {
+  height: 28px;
+  padding: 0 var(--s2);
+}
+
+/* --- 音乐库 -------------------------------------------------------------- */
+
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-height: 100%;
+}
+
+.library__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/*
+ * 壁纸模式下界面是一层很淡的暗底，壁纸本身保持清晰。
+ *
+ * 这块被推翻过三次，结论写在前面：不要模糊、不要提亮、不要把面板压黑。
+ * 模糊会把壁纸糊成一块脏色，压黑会把它整个挡住 —— 用户的原话是「把壁纸挡住了」。
+ * 所以现在壁纸原样铺满，四块区域只盖一层薄暗色兜住文字；文字再用很轻的阴影补。
+ *
+ * alpha 试过 0.23：壁纸是透了，但平台页那几段说明文字直接糊在图上，用户说
+ * 「看不清了现在」。现在停在 0.37（level .5），是「看得见壁纸」和「读得清字」
+ * 之间能同时成立的那一档 —— 再往下文字就没了，再往上壁纸就没了。
+ */
+.shell.has-wallpaper > .titlebar,
+.shell.has-wallpaper > .rail,
+.shell.has-wallpaper > .main {
+  background: rgb(8 10 12 / calc(0.52 - 0.3 * var(--wp-level, 0.62)));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+
+/* 播放条上有要看清的小字，比主区实一点点，但一样不做模糊。 */
+.shell.has-wallpaper > .player {
+  background: rgb(8 10 12 / calc(0.58 - 0.3 * var(--wp-level, 0.62)));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+
+/* 壁纸自己的遮罩几乎全撤掉，只留一层很薄的统一压暗，避免亮部吃掉白字。 */
+.shell.has-wallpaper .wallpaper__veil {
+  --veil: calc(0.4 - 0.3 * var(--wp-level, 0.62));
+}
+
+/* 壁纸压上来以后发丝线会显得很硬，换成一层几乎看不见的白线。 */
+.shell.has-wallpaper > .titlebar {
+  border-bottom-color: rgb(255 255 255 / 0.06);
+}
+.shell.has-wallpaper > .rail {
+  border-right-color: rgb(255 255 255 / 0.06);
+}
+
+/*
+ * 壁纸模式下，列表里凡是用不透明纯黑画出来的小块都要换掉。
+ *
+ * 大面板已经调成很淡的一层，但这些小块还是实心的 var(--ink-850/900)：
+ * 表头一条黑带、鼠标经过的一行一条黑带 —— 在壁纸上看起来像被抠掉的两块，
+ * 也就是用户说的「有些地方太黑了」。这里统一换成半透明的白/黑，壁纸能透
+ * 过去，文字靠更淡的底色和已有的阴影站住。
+ */
+.shell.has-wallpaper .tracks__head {
+  background: rgb(10 13 17 / 0.55);
+}
+.shell.has-wallpaper .trk:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+.shell.has-wallpaper .trk__more:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+.shell.has-wallpaper .trk.is-current {
+  background: rgb(var(--accent-rgb) / 0.12);
+}
+.shell.has-wallpaper .row:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+.shell.has-wallpaper .settings__notice {
+  background: rgb(255 255 255 / 0.04);
+}
+
+/* 分段控件与提示块同理：壁纸模式下不能是实心黑。 */
+.shell.has-wallpaper .seg {
+  background: rgb(255 255 255 / 0.08);
+}
+.shell.has-wallpaper .seg button.is-active {
+  background: rgb(255 255 255 / 0.18);
+}
+.shell.has-wallpaper .notice {
+  background: rgb(8 10 12 / 0.32);
+  color: var(--text-mid);
+}
+
+/*
+ * 壁纸模式下最要命的一条：这些次要文字用的是 --text-low（给纯黑底设计的灰），
+ * 压到浅色壁纸上就没了。这里只把「壁纸模式」下需要读的字提亮，不动全局 token。
+ */
+.shell.has-wallpaper .trk__muted,
+.shell.has-wallpaper .tracks__idx,
+.shell.has-wallpaper .tracks__time,
+.shell.has-wallpaper .card__meta {
+  color: rgb(198 206 216);
+}
+.shell.has-wallpaper .tracks {
+  background: rgb(8 10 12 / 0.14);
+}
+.shell.has-wallpaper .notice {
+  background: rgb(8 10 12 / 0.46);
+  color: rgb(214 220 228);
+}
+.shell.has-wallpaper .notice,
+.shell.has-wallpaper .trk__muted,
+.shell.has-wallpaper .card__meta {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+}
+
+/*
+ * 壁纸模式的可读性总闸：一切小字都吃 tokens 里的 --text-hi/mid/low，
+ * 那就是给纯黑底选的（--text-low #5f6875 压在花壁纸上等于隐形）。
+ * 与其逐类打补丁，不如在壁纸模式下把这三个值整体提亮——层级关系不变，
+ * 只是把整条灰阶往上抬。
+ */
+.shell.has-wallpaper {
+  --text-hi: #f5f8fc;
+  --text-mid: #ccd6e2;
+  --text-low: #aeb9c8;
 }

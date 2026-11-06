@@ -1,26 +1,20 @@
-import type { ReactNode } from 'react'
-import { useAvailableProviders } from '../features/online/hooks'
-import { platformView } from '../features/online/registry'
-import { useOnlineStore } from '../features/online/store'
-import type { OnlineCollectionKind, OnlineMusicProvider } from '../features/online/types'
+import type { ComponentType } from 'react'
+import { navGroupOf, type NavGroup } from './routing'
 import type { ViewId } from '../types'
-import { Album, Folder, List, Mic, Note, Refresh, Search, Settings, Sidebar, Sliders, User, Wave } from '../ui/icons'
+import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
 
 /**
- * The rail: one section per platform, with the local library as its own group.
+ * The rail: four destinations, one per intent.
  *
- * The structure follows `docs/ui-design.md` - online is the main body and local
- * files are the supplement - but the *number* of online sections is no longer one.
- * Each platform in the registry gets a peer entry of its own ("网易云音乐",
- * "QQ 音乐"), which is what "本地分那么多、网易云怎么就一个" was really asking for.
+ * 以前这里按平台和媒体类型分组：网易云一组（含每日推荐、红心、云盘、歌单）、
+ * QQ 一组、歌单一组、本地音乐四项、设置三项。平台数和本地分类数都在长，而这个
+ * 栏位不区分「你要去哪」和「东西从哪来」——于是本地音乐看起来像一个和网易云
+ * 平级的应用，设置被切成三页。
  *
- * Two rules make that work without the rail knowing any platform by name:
- *
- * - the platform list comes from `useAvailableProviders()`, so a build without a
- *   given client shows no entry for it rather than a dead one;
- * - each platform's generated collections come from its own `collections` field,
- *   so "每日推荐 / 红心 / 云盘" appear because Netease declares them, and QQ's rail
- *   section is short because QQ declares less. No branch here tests for a platform.
+ * 现在一级只有三项：发现（有什么可听）、音乐库（我的东西，按来源切）、设置。
+ * 平台与本地文件都退到「音乐库」里做来源标签页；搜索是标题栏那一个搜索框的动作，
+ * 不占一级；详情页（专辑/艺术家/歌单）在路由里，但不在导航里——它们是从某一层
+ * 进去的，靠返回键回来。
  */
 
 interface RailProps {
@@ -28,108 +22,66 @@ interface RailProps {
   onView: (view: ViewId) => void
   collapsed: boolean
   onToggleCollapsed: () => void
-  counts: { albums: number; artists: number; songs: number }
-  /** Name of the profile in use, shown at the foot of the rail. */
+  /** 当前档案名，显示在底部；档案是设置的第一个分区，不是导航项。 */
   profileLabel: string | null
-  onOpenPlaylist(id: string): void
-  localPlaylists: { id: string; name: string }[]
-  activePlaylistId: string | null
+  onOpenProfile: () => void
 }
 
-export function Rail({
-  view,
-  onView,
-  collapsed,
-  onToggleCollapsed,
-  counts,
-  profileLabel,
-  onOpenPlaylist,
-  localPlaylists,
-  activePlaylistId
-}: RailProps) {
-  const providers = useAvailableProviders()
+interface PrimaryItem {
+  group: NavGroup
+  /** 点了之后落到的视图。 */
+  view: ViewId
+  label: string
+  icon: ComponentType<{ size?: number }>
+}
+
+/*
+ * 搜索不在这里。
+ *
+ * 它曾经是第四个入口，但同一个窗口里还有一个常驻搜索框：两个入口通向同一件事，
+ * 看上去就像有两个搜索栏。参考的三个播放器里，搜索都是「动作」而不是「目的地」——
+ * 唯一的搜索框在标题栏，回车就把结果页打开。
+ *
+ * 所以这里只剩三项，搜索页仍然存在（它是结果页，有自己的来源标签页），只是不再
+ * 占一个一级位置。
+ */
+const PRIMARY: PrimaryItem[] = [
+  { group: 'discover', view: 'discover', label: '发现', icon: Compass },
+  { group: 'library', view: 'library', label: '音乐库', icon: Library },
+  { group: 'settings', view: 'settings', label: '设置', icon: Settings }
+]
+
+export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel, onOpenProfile }: RailProps) {
+  const group = navGroupOf(view)
 
   return (
     <nav className="rail" aria-label="主导航">
       <div className="rail__scroll">
-        {/*
-          Search sits above both sources because it spans them: it answers from
-          whichever catalogue its tabs name. Putting it inside one section would say
-          it belongs to that one.
-        */}
-        <div className="rail__group">
-          <NavRow view={view} own="search" onView={onView} icon={<Search size={17} />} label="搜索" collapsed={collapsed} />
-        </div>
-
-        {/*
-          One group per platform. The heading is the platform's name, which is the
-          only place a platform is named in this file - and it comes from the
-          provider rather than from a literal.
-        */}
-        {providers.map((provider) => (
-          <PlatformSection
-            key={provider.id}
-            provider={provider}
-            view={view}
-            onView={onView}
-            collapsed={collapsed}
-          />
-        ))}
-
-        {/*
-          One group, two sources of playlists. A playlist is a playlist whether its
-          songs are files or a remote collection, and the row looks the same either
-          way - which is the merge the app was missing.
-        */}
-        <div className="rail__group">
-          <div className="rail__heading">歌单</div>
-          <button
-            className={`nav-item${view === 'playlists' && !activePlaylistId ? ' is-active' : ''}`}
-            onClick={() => onView('playlists')}
-            title={collapsed ? '管理歌单' : undefined}
-          >
-            <List size={17} />
-            <span className="nav-item__label">播放列表</span>
-            {localPlaylists.length > 0 ? <span className="nav-item__count">{localPlaylists.length}</span> : null}
-          </button>
-
-          {localPlaylists.map((playlist) => (
-            <button
-              key={playlist.id}
-              className={`nav-item nav-item--sub${
-                view === 'playlists' && activePlaylistId === playlist.id ? ' is-active' : ''
-              }`}
-              onClick={() => onOpenPlaylist(playlist.id)}
-              title={collapsed ? playlist.name : `${playlist.name}（本机歌单）`}
-            >
-              <span className="nav-item__dot" aria-hidden="true" />
-              <span className="nav-item__label">{playlist.name}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="rail__group">
-          <div className="rail__heading">本地音乐</div>
-          <NavRow view={view} own="songs" onView={onView} icon={<Note size={17} />} label="歌曲" count={counts.songs} collapsed={collapsed} />
-          <NavRow view={view} own="albums" onView={onView} icon={<Album size={17} />} label="专辑" count={counts.albums} collapsed={collapsed} />
-          <NavRow view={view} own="artists" onView={onView} icon={<Mic size={17} />} label="艺术家" count={counts.artists} collapsed={collapsed} />
-          <NavRow view={view} own="folders" onView={onView} icon={<Folder size={17} />} label="文件夹" collapsed={collapsed} />
-        </div>
-
-        <div className="rail__group">
-          <div className="rail__heading">设置</div>
-          <NavRow view={view} own="accounts" onView={onView} icon={<User size={17} />} label="档案" collapsed={collapsed} />
-          <NavRow view={view} own="sources" onView={onView} icon={<Sliders size={17} />} label="音源" collapsed={collapsed} />
-          <NavRow view={view} own="settings" onView={onView} icon={<Settings size={17} />} label="偏好设置" collapsed={collapsed} />
+        <div className="rail__group rail__group--primary">
+          {PRIMARY.map((item) => {
+            const active = group === item.group
+            return (
+              <button
+                key={item.group}
+                className={`nav-item${active ? ' is-active' : ''}`}
+                onClick={() => onView(item.view)}
+                aria-current={active ? 'page' : undefined}
+                title={collapsed ? item.label : undefined}
+              >
+                <item.icon size={17} />
+                <span className="nav-item__label">{item.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <div className="rail-toggle">
-        {/* A profile system needs a permanent "who is active" indicator; without
-            one, switching profiles is invisible and therefore untrustworthy. */}
+        {/* 档案是设置里的第一个分区；这里只留一个「当前是谁」的指示，
+            点它去设置。放在导航里会让人以为它是一个独立的目的地。 */}
         <button
           className="nav-item rail__profile"
-          onClick={() => onView('accounts')}
+          onClick={onOpenProfile}
           title={profileLabel ? `当前档案：${profileLabel}` : '选择档案'}
         >
           <User size={17} />
@@ -147,134 +99,5 @@ export function Rail({
         </button>
       </div>
     </nav>
-  )
-}
-
-/**
- * One platform's section.
- *
- * The named entry comes first - it is where the platform's own screen lives - and
- * its declared collections follow as indented rows. A platform whose collections
- * all require an account shows a single sign-in row while signed out instead of a
- * list of doors that all lead to the same dialog.
- */
-function PlatformSection({
-  provider,
-  view,
-  onView,
-  collapsed
-}: {
-  provider: OnlineMusicProvider
-  view: ViewId
-  onView: (view: ViewId) => void
-  collapsed: boolean
-}) {
-  const store = useOnlineStoreFor(provider)
-  const account = store.account
-  const collections = provider.collections ?? []
-
-  const openCollection = (kind: OnlineCollectionKind) => {
-    onView(platformView(provider))
-    // A collection that needs an account is still listed, because "sign in to get
-    // your daily recommendations" is information. The sign-in row below it is the
-    // action, so this one only selects what it can serve.
-    if (!account) return
-    void store.openCollection(kind)
-  }
-
-  return (
-    <div className="rail__group">
-      <div className="rail__heading">{provider.displayName}</div>
-
-      <button
-        className={`nav-item${view === platformView(provider) ? ' is-active' : ''}`}
-        onClick={() => onView(platformView(provider))}
-        aria-current={view === platformView(provider) ? 'page' : undefined}
-        title={collapsed ? provider.displayName : provider.summary}
-      >
-        <Wave size={17} />
-        <span className="nav-item__label">{provider.shortName ?? provider.displayName}</span>
-      </button>
-
-      {collections.map((collection) => (
-        <button
-          key={collection.kind}
-          className={`nav-item nav-item--sub${
-            view === platformView(provider) && store.collectionKind === collection.kind ? ' is-active' : ''
-          }`}
-          onClick={() => openCollection(collection.kind)}
-          title={collection.requiresAccount && !account ? `登录后查看${collection.label}` : collection.label}
-        >
-          <span className="nav-item__dot" aria-hidden="true" />
-          <span className="nav-item__label">{collection.label}</span>
-        </button>
-      ))}
-
-      {!account && collections.some((collection) => collection.requiresAccount) ? (
-        <div className="rail__note">登录后显示{collections.map((item) => item.label).join('、')}</div>
-      ) : null}
-
-      {account ? (
-        <button
-          className="rail__note rail__note--action"
-          onClick={() => void store.loadPlaylists()}
-          disabled={store.playlistsLoading}
-        >
-          <Refresh size={12} />
-          {store.playlistsLoading ? '读取中…' : '刷新歌单'}
-        </button>
-      ) : null}
-
-      {/* Online playlists live with the platform they belong to, so a section can
-          be read on its own without consulting another. */}
-      {account
-        ? store.playlists.map((playlist) => (
-            <button
-              key={`${provider.id}-${playlist.id}`}
-              className={`nav-item nav-item--sub${
-                view === platformView(provider) && store.openId === playlist.id ? ' is-active' : ''
-              }`}
-              onClick={() => {
-                onView(platformView(provider))
-                void store.openPlaylist(playlist.id)
-              }}
-              title={collapsed ? playlist.name : `${playlist.name} · ${playlist.creator || provider.displayName}`}
-            >
-              <span className="nav-item__dot" aria-hidden="true" />
-              <span className="nav-item__label">{playlist.name}</span>
-            </button>
-          ))
-        : null}
-    </div>
-  )
-}
-
-/** The store for a platform, subscribed so the section re-renders with it. */
-function useOnlineStoreFor(provider: OnlineMusicProvider) {
-  return useOnlineStore(provider.id)()
-}
-
-interface NavRowProps {
-  view: ViewId
-  own: ViewId
-  onView: (view: ViewId) => void
-  icon: ReactNode
-  label: string
-  count?: number
-  collapsed: boolean
-}
-
-function NavRow({ view, own, onView, icon, label, count, collapsed }: NavRowProps) {
-  return (
-    <button
-      className={`nav-item${view === own ? ' is-active' : ''}`}
-      onClick={() => onView(own)}
-      aria-current={view === own ? 'page' : undefined}
-      title={collapsed ? label : undefined}
-    >
-      {icon}
-      <span className="nav-item__label">{label}</span>
-      {count ? <span className="nav-item__count">{count}</span> : null}
-    </button>
   )
 }

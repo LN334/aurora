@@ -42,19 +42,25 @@ const EXE = args.get('exe') ? path.resolve(ROOT, args.get('exe')) : null
 /** A music folder to index before the walk, so the shelves are not empty. */
 const LIBRARY = args.get('library') ? path.resolve(ROOT, args.get('library')) : null
 
-/** The screens in rail order, with the label the rail actually prints. */
+/**
+ * The walk, in the order a person would take it: the four intents, then the two
+ * rows of tabs inside the library, then search.
+ *
+ * `kind` says which control carries the label. The rail and the library both
+ * print short labels, and a walk that clicked the wrong row would still
+ * screenshot a page that looks perfectly fine - it would just never have proved
+ * the navigation it claims to prove.
+ */
 const JOURNEY = [
-  { view: 'albums', label: '专辑', title: '专辑' },
-  { view: 'songs', label: '歌曲', title: '歌曲' },
-  { view: 'artists', label: '艺术家', title: '艺术家' },
-  { view: 'folders', label: '文件夹', title: '文件夹' },
-  { view: 'playlists', label: '播放列表', title: '播放列表' },
-  { view: 'accounts', label: '档案', title: '档案' },
-  { view: 'sources', label: '音源', title: '音源' },
-  { view: 'settings', label: '偏好设置', title: '偏好设置' },
-  { view: 'netease', label: '网易云', title: '网易云音乐' },
-  { view: 'qq', label: 'QQ 音乐', title: 'QQ 音乐' },
-  { view: 'search', label: '搜索', title: '搜索' }
+  { view: 'discover', kind: 'rail', label: '发现', title: '发现' },
+  { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' },
+  { view: 'library-albums', kind: 'tab', label: '专辑', title: '音乐库' },
+  { view: 'library-artists', kind: 'tab', label: '艺术家', title: '音乐库' },
+  { view: 'library-playlists', kind: 'tab', label: '歌单', title: '音乐库' },
+  { view: 'library-folders', kind: 'tab', label: '文件夹', title: '音乐库' },
+  { view: 'library-netease', kind: 'source', label: '网易云', title: '未登录' },
+  { view: 'library-qq', kind: 'source', label: 'QQ 音乐', title: 'QQ 音乐' },
+  { view: 'settings', kind: 'rail', label: '设置', title: '设置' }
 ]
 
 function fail(message) {
@@ -109,14 +115,21 @@ async function evaluate(cdp, expression) {
   return result.result.value
 }
 
-/** Click the rail row whose printed label is this one, and say whether it existed. */
-async function clickRail(cdp, label) {
+/** Where each kind of step keeps its clickable rows. */
+const STEP_SELECTORS = {
+  rail: '.rail .nav-item',
+  tab: '.tabs--sub .tab',
+  source: '.tabs--sources .tab'
+}
+
+/** Click the control this step names, and say whether it existed. */
+async function clickStep(cdp, step) {
   const expression = [
     '(() => {',
-    "  const rows = Array.from(document.querySelectorAll('.rail .nav-item'))",
-    // A row can carry a count next to the label, so match the label itself and not
-    // the row's whole text.
-    "  const row = rows.find((node) => (node.querySelector('.nav-item__label')?.textContent || '').trim() === " + JSON.stringify(label) + ')',
+    '  const rows = Array.from(document.querySelectorAll(' + JSON.stringify(STEP_SELECTORS[step.kind]) + '))',
+    // A row can carry a count next to its label (the rail prints one for songs, the
+    // section tabs print one each), so match the label prefix, not the whole text.
+    "  const row = rows.find((node) => (node.querySelector('.nav-item__label')?.textContent || node.textContent || '').trim().startsWith(" + JSON.stringify(step.label) + '))',
     '  if (!row) return false',
     '  row.click()',
     '  return true',
@@ -262,8 +275,8 @@ async function main() {
     for (let index = 0; index < JOURNEY.length; index += 1) {
       const step = JOURNEY[index]
       const mark = cdp.events.length
-      if (!(await clickRail(cdp, step.label))) {
-        rows.push({ ...step, ok: false, why: 'no rail row labelled ' + step.label })
+      if (!(await clickStep(cdp, step))) {
+        rows.push({ ...step, ok: false, why: 'no ' + step.kind + ' labelled ' + step.label })
         continue
       }
       const reached = await waitForHeading(cdp, step.title, 6000)
@@ -319,8 +332,8 @@ async function main() {
      */
     {
       const mark = cdp.events.length
-      await clickRail(cdp, "偏好设置")
-      await waitForHeading(cdp, "偏好设置", 6000)
+      await clickStep(cdp, { kind: 'rail', label: '设置' })
+      await waitForHeading(cdp, '设置', 6000)
 
       // The row ships with the switch on; turn it on if a saved setting said off.
       const switchState = await evaluate(
@@ -519,15 +532,15 @@ async function main() {
       if (typed) {
         const screenDeadline = Date.now() + 8000
         while (Date.now() < screenDeadline) {
-          if (await evaluate(cdp, 'Boolean(document.querySelector(".search-view__tab"))')) break
+          if (await evaluate(cdp, 'Boolean(document.querySelector(".tabs--sources .tab[data-remote]"))')) break
           await sleep(200)
         }
         picked = await evaluate(
           cdp,
           [
             '(() => {',
-            '  const tabs = Array.from(document.querySelectorAll(".search-view__tab"))',
-            '  const remote = tabs.find((tab) => (tab.getAttribute("title") || "").startsWith("联网搜索"))',
+            '  const tabs = Array.from(document.querySelectorAll(".tabs--sources .tab[data-remote]"))',
+            '  const remote = tabs[0]',
             '  if (!remote) return "no remote tab"',
             '  remote.click()',
             '  return (remote.textContent || "").trim()',
@@ -621,7 +634,7 @@ async function main() {
       let bar = ''
       let moved = false
       if (clicked === 'clicked') {
-        const deadline = Date.now() + 20000
+        const deadline = Date.now() + 35000
         while (Date.now() < deadline) {
           bar = await evaluate(
             cdp,

@@ -77,6 +77,23 @@ export const Album = (p: IconProps) => (
   </Svg>
 )
 
+/** 发现：罗盘——「去别处看看」，不是某一个平台。 */
+export const Compass = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m15.2 8.8-1.9 4.5-4.5 1.9 1.9-4.5z" />
+  </Svg>
+)
+
+/** 音乐库：书架——收藏本身，和它来自哪里无关。 */
+export const Library = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 4.5h3.5v15H4z" />
+    <path d="M9.25 4.5h3.5v15h-3.5z" />
+    <path d="M14.6 6.1l3.3-.9 3.1 13.3-3.3.8z" />
+  </Svg>
+)
+
 export const Mic = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 3.5a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0v-5a3 3 0 0 1 3-3Z" />

@@ -307,6 +307,32 @@ export interface NeteasePlaylistSummary {
   subscribed: boolean
 }
 
+/** 发现页三个板块的标识。 */
+export type NeteaseDiscoverKind = 'newsongs' | 'playlists' | 'quality'
+
+/**
+ * 发现页的一张歌单卡片。
+ *
+ * 与 `NeteasePlaylistSummary` 分开：那个是「我拥有的歌单」，带 `subscribed`；
+ * 推荐的歌单没有归属，带的是上游一句话推荐语。
+ */
+export interface NeteaseDiscoverPlaylist {
+  id: number
+  name: string
+  coverUrl: string | null
+  trackCount: number
+  playCount: number
+  creator: string
+  note: string
+}
+
+/** 发现页一个板块的结果；两个列表只会有一个非空。 */
+export interface NeteaseDiscoverResult {
+  kind: NeteaseDiscoverKind
+  songs: NeteaseSong[]
+  playlists: NeteaseDiscoverPlaylist[]
+}
+
 export interface NeteaseAccount {
   userId: number
   nickname: string
@@ -381,6 +407,14 @@ export interface NeteaseApi {
   ): Promise<{ ok: boolean; account?: NeteaseAccount; message?: string }>
   loginStatus(): Promise<NeteaseAccount | null>
   logout(): Promise<boolean>
+
+  /**
+   * 发现页的公开内容：不需要登录，匿名 cookie 就够。
+   *
+   * 可选：浏览器预览与部分构建没有主进程的这条通道，页面据此显示空态而不是
+   * 每个操作都报一次网络错误。`bridge.ts` 的回退对象没有实现它。
+   */
+  discover?(kind: NeteaseDiscoverKind, limit?: number): Promise<NeteaseDiscoverResult>
 
   /** Personal music. Empty arrays (not errors) when signed out. */
   myPlaylists(): Promise<NeteasePlaylistSummary[]>

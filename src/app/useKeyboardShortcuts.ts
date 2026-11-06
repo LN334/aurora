@@ -9,20 +9,26 @@ import { player } from '../features/player/actions'
  * reader needs to check - "does this shortcut fire while I am typing?" - was two
  * screens away from the key list.
  *
- * There are no shortcuts for the online screen or for navigation on purpose: the
- * bar's back and forward buttons already have a meaning here, and Overlay/Stage
- * are the only panels worth a bare letter.
+ * There are no shortcuts for the online screen or for jumping to a page on purpose:
+ * the rail already says where you can go, and Overlay/Stage are the only panels
+ * worth a bare letter. Escape is the exception: it is the one key people press
+ * without looking, so it unwinds whatever sits on top of the page first (a panel),
+ * and only then walks back through history.
  */
 export function useKeyboardShortcuts(options: {
   stageOpen: boolean
   eqOpen: boolean
   queueOpen: boolean
   volume: number
+  /** True when there is a page behind this one to walk back to. */
+  canGoBack: boolean
+  goBack(): void
   setStageOpen(update: (open: boolean) => boolean): void
   setEqOpen(update: (open: boolean) => boolean): void
   setQueueOpen(update: (open: boolean) => boolean): void
 }) {
-  const { stageOpen, eqOpen, queueOpen, volume, setStageOpen, setEqOpen, setQueueOpen } = options
+  const { stageOpen, eqOpen, queueOpen, volume, canGoBack, goBack, setStageOpen, setEqOpen, setQueueOpen } =
+    options
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -40,11 +46,20 @@ export function useKeyboardShortcuts(options: {
         document.getElementById('global-search')?.focus()
         return
       }
-      /* Escape closes the most recently opened panel, outermost first. */
+      /*
+       * Escape unwinds one layer per press, topmost first: the most recently opened
+       * panel, then the page itself. Without the last step, opening an album from a
+       * search result was a one-way trip - the only way back was the small chevron in
+       * the header, which is exactly the thing nobody looks for after pressing Esc.
+       */
       if (event.key === 'Escape') {
         if (stageOpen) setStageOpen(() => false)
         else if (eqOpen) setEqOpen(() => false)
         else if (queueOpen) setQueueOpen(() => false)
+        else if (canGoBack) {
+          event.preventDefault()
+          goBack()
+        }
         return
       }
       if (event.key.toLowerCase() === 'l') {
@@ -80,5 +95,5 @@ export function useKeyboardShortcuts(options: {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [stageOpen, eqOpen, queueOpen, volume, setStageOpen, setEqOpen, setQueueOpen])
+  }, [stageOpen, eqOpen, queueOpen, volume, canGoBack, goBack, setStageOpen, setEqOpen, setQueueOpen])
 }

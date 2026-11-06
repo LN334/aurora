@@ -1,9 +1,24 @@
-﻿/**
+/**
  * Domain model. These shapes are shared with the main process over IPC, so
  * they are deliberately plain data - no class instances, no Dates.
  */
 
 export type ViewId =
+  /**
+   * 发现：平台推荐内容。
+   *
+   * 一级入口之一。它回答的是「有什么可听的」，所以不属于任何一个平台，
+   * 也不属于本机曲库——平台与本地在它里面都是内容的来源。
+   */
+  | 'discover'
+  /**
+   * 音乐库：来源（本机 / 各在线平台）+ 栏目。
+   *
+   * 一级入口之一。本地文件与在线平台在这里是平级的来源标签页，而不是
+   * 侧栏里两组并列的入口——那正是「本地音乐分类太怪」的由来。
+   * 专辑/艺术家/歌单的详情页仍是独立视图，因为它们有自己的返回与历史。
+   */
+  | 'library'
   | 'albums'
   | 'artists'
   | 'songs'

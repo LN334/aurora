@@ -96,6 +96,36 @@ export interface NeteasePlaylistSummary {
   subscribed: boolean
 }
 
+/** Which front-page block a discover request fills. */
+export type NeteaseDiscoverKind = 'newsongs' | 'playlists' | 'quality'
+
+/**
+ * A playlist card on the discover page.
+ *
+ * Separate from `NeteasePlaylistSummary` because that one is "a playlist the
+ * account owns" and carries a `subscribed` flag, while a recommended card has
+ * no owner and instead carries upstream's one-line pitch (`copywriter`). The
+ * two shapes would drift apart if merged.
+ */
+export interface NeteaseDiscoverPlaylist {
+  id: number
+  name: string
+  coverUrl: string | null
+  trackCount: number
+  playCount: number
+  /** Editor or owner nickname; empty on the personalised route, which omits it. */
+  creator: string
+  /** Upstream's short pitch, when the route sends one. */
+  note: string
+}
+
+/** One discover block. Exactly one of the two lists is populated. */
+export interface NeteaseDiscoverResult {
+  kind: NeteaseDiscoverKind
+  songs: NeteaseSong[]
+  playlists: NeteaseDiscoverPlaylist[]
+}
+
 export interface NeteaseAccount {
   userId: number
   nickname: string

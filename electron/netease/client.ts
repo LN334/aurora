@@ -16,6 +16,9 @@ import type {
   NeteaseAlbum,
   NeteaseAlbumRef,
   NeteaseArtist,
+  NeteaseDiscoverKind,
+  NeteaseDiscoverPlaylist,
+  NeteaseDiscoverResult,
   NeteaseLoginResult,
   NeteaseLyricsResult,
   NeteasePlaylistSummary,
@@ -84,6 +87,13 @@ interface Upstream {
   user_level: UpstreamCall
   logout: UpstreamCall
   register_anonimous: UpstreamCall
+  /**
+   * The discover page's three blocks. All three answer without a real login:
+   * they are the platform's public front page, not the account's own music.
+   */
+  personalized_newsong: UpstreamCall
+  personalized: UpstreamCall
+  top_playlist_highquality: UpstreamCall
 }
 
 let upstream: Upstream | null = null
@@ -911,6 +921,133 @@ export async function neteaseDailySongs(): Promise<NeteaseSong[]> {
   const body = asRecord(res.body)
   const data = asRecord(body.data)
   return toSongs(asArray(data.dailySongs).length > 0 ? data.dailySongs : body.recommend)
+}
+
+// --- discover ------------------------------------------------------------
+
+/**
+ * The three blocks the discover page asks for, all from the public front page.
+ *
+ * Measured against the live service: all three answer `code: 200` without a
+ * real login, which is the point - the page has to be worth opening before the
+ * user has signed in anywhere. They do need the bootstrap below, though: the
+ * request signing key is minted there, and without it the package's own request
+ * layer fails before it reaches upstream.
+ *
+ * 12 is what one upstream page holds; the cap keeps a stale renderer from
+ * asking for a page size upstream never fills.
+ */
+const DISCOVER_DEFAULT_LIMIT = 12
+const DISCOVER_MAX_LIMIT = 30
+
+/**
+ * A row from either route, keyed by the list's own name.
+ *
+ * `payloadOf` is tried first because some v1 routes nest the list one level
+ * deeper, but the older routes put it directly on the body - and the front page
+ * is exactly the mix of both that makes guessing wrong.
+ */
+function discoverRows(body: unknown, keys: readonly string[]): unknown[] {
+  const payload = payloadOf(body)
+  const root = asRecord(body)
+  // 同一批端点在不同版本里把列表放在 result / playlists / recommend 下，按顺序找第一个非空的。
+  for (const key of keys) {
+    const nested = asArray(payload[key])
+    if (nested.length > 0) return nested
+    const direct = asArray(root[key])
+    if (direct.length > 0) return direct
+  }
+  return []
+}
+
+/**
+ * `personalized_newsong` wraps each song in a recommendation object
+ * (`{ id, name, picUrl, song }`), and the nested song uses the old spellings
+ * (`artists`/`album`) with a millisecond `duration` and no `dt`. `toSong`
+ * reads neither, so this reads both shapes and normalises to the one contract
+ * the renderer knows.
+ */
+function toDiscoverSong(value: unknown): NeteaseSong | null {
+  const wrapper = asRecord(value)
+  const nested = asRecord(wrapper.song)
+  const raw = Object.keys(nested).length > 0 ? nested : wrapper
+
+  const id = asNumber(raw.id) || asNumber(wrapper.id)
+  if (!id) return null
+
+  const artistSource = asArray(raw.ar).length > 0 ? asArray(raw.ar) : asArray(raw.artists)
+  const artists: NeteaseArtist[] = artistSource
+    .map((entry) => ({ id: asNumber(asRecord(entry).id), name: asString(asRecord(entry).name) }))
+    .filter((artist) => artist.name.length > 0)
+
+  const albumSource = asRecord(raw.al ?? raw.album)
+  const durationMs = asNumber(raw.dt) || asNumber(raw.duration)
+
+  return {
+    id,
+    name: asString(raw.name) || asString(wrapper.name) || '未知歌曲',
+    artists,
+    album: {
+      id: asNumber(albumSource.id),
+      name: asString(albumSource.name),
+      picUrl: asNullableString(albumSource.picUrl) ?? asNullableString(wrapper.picUrl)
+    },
+    // Both shapes report milliseconds; the bridge contract is seconds.
+    duration: Math.round(durationMs / 1000),
+    fee: asNumber(raw.fee)
+  }
+}
+
+function toDiscoverPlaylist(value: unknown): NeteaseDiscoverPlaylist | null {
+  const raw = asRecord(value)
+  const id = asNumber(raw.id)
+  if (!id) return null
+
+  return {
+    id,
+    name: asString(raw.name) || '未命名歌单',
+    // `personalized` spells the cover `picUrl`, the editor route `coverImgUrl`.
+    coverUrl: asNullableString(raw.coverImgUrl) ?? asNullableString(raw.picUrl),
+    trackCount: asNumber(raw.trackCount),
+    playCount: asNumber(raw.playCount),
+    creator: asString(asRecord(raw.creator).nickname),
+    note: asString(raw.copywriter)
+  }
+}
+
+/**
+ * One block of the discover page, for anonymous visitors as well as accounts.
+ *
+ * Never throws for a normal upstream failure: the caller replaces a rejected
+ * `invoke` with nothing at all, so a network error would reach the page as an
+ * unhandled rejection in the middle of a render. The IPC layer turns this into
+ * an empty block plus a retry button instead.
+ */
+export async function neteaseDiscover(
+  kind: NeteaseDiscoverKind,
+  limit?: number
+): Promise<NeteaseDiscoverResult> {
+  const size = clamp(asNumber(limit) || DISCOVER_DEFAULT_LIMIT, 1, DISCOVER_MAX_LIMIT)
+  await bootstrapOnce()
+
+  if (kind === 'newsongs') {
+    const res = await call('personalized_newsong', { limit: size })
+    const songs = discoverRows(res.body, ['result'])
+      .map(toDiscoverSong)
+      .filter((song): song is NeteaseSong => song !== null)
+      .slice(0, size)
+    return { kind, songs, playlists: [] }
+  }
+
+  const endpoint = kind === 'quality' ? 'top_playlist_highquality' : 'personalized'
+  // 精品歌单走 body.playlists；「推荐歌单」(personalized) 把列表直接放在 body.result。
+  const listKeys = kind === 'quality' ? ['playlists'] : ['result', 'recommend', 'playlists']
+  const res = await call(endpoint, { limit: size })
+  const playlists = discoverRows(res.body, listKeys)
+    .map(toDiscoverPlaylist)
+    .filter((playlist): playlist is NeteaseDiscoverPlaylist => playlist !== null)
+    .slice(0, size)
+  return { kind, songs: [], playlists }
 }
 
 export async function neteaseCloudSongs(): Promise<NeteaseSong[]> {

@@ -1,0 +1,111 @@
+/*
+ * 「发现」页自己的排布。
+ *
+ * 页面主体复用既有基元（.grid / .card / .tabs / .btn），这里只补三处结构
+ * 差异：第一张卡做成横版精选位、登录提示的正文排版、歌单详情头。颜色全部
+ * 走 tokens.css 的变量，不出现字面色值。
+ */
+
+/* 精选大卡：占据网格前两列，横向 2:1，和后面方形的卡片区分开。 */
+.discover__lead {
+  grid-column: span 2;
+}
+
+.discover__lead .card__art {
+  aspect-ratio: 2 / 1;
+}
+
+@media (max-width: 760px) {
+  .discover__lead {
+    grid-column: span 1;
+  }
+
+  .discover__lead .card__art {
+    aspect-ratio: 1;
+  }
+}
+
+/* 加载中：一行安静的字，不占满整块内容区。 */
+.discover__loading {
+  padding: var(--s4) 0;
+  color: var(--text-low);
+  font-size: var(--fs-body);
+}
+
+/* 需要登录时的说明块：标题 + 两行解释 + 一个按钮。 */
+.discover__gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+  max-width: 58ch;
+  padding: var(--s2) 0;
+}
+
+.discover__gate-title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.discover__gate-note {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--text-mid);
+}
+
+/* 读取失败：一句话 + 重试。失败文案用正文色，不喧哗。 */
+.discover__fail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+  max-width: 60ch;
+  padding: var(--s2) 0;
+}
+
+.discover__fail-text {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--text-mid);
+}
+
+/* 歌单详情：一行头（返回 / 名称 / 播放全部）+ 曲目列表。 */
+.discover__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.discover__detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.discover__detail-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.discover__detail-name {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.discover__detail-meta {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}

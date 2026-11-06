@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { bridge, isNative } from '../../bridge'
 import { usePlaylists } from './store'
 import { buildM3u, parseM3u, resolveEntries } from './m3u'
+import type { Route } from '../../app/routing'
 import type { Track } from '../../types'
 
 /**
@@ -19,7 +20,7 @@ export function usePlaylistFiles(options: {
   tracks: Track[]
   activePlaylist: { id: string; name: string } | null
   playlistTracks: Track[]
-  navigate(route: { view: 'playlists'; playlistId: string }): void
+  navigate(route: Route): void
   onMessage(message: string): void
 }) {
   const { tracks, activePlaylist, playlistTracks, navigate, onMessage } = options

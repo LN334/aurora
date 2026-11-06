@@ -128,15 +128,6 @@
   min-width: 0;
 }
 
-.online__footnote {
-  margin-top: var(--s5);
-  padding-top: var(--s3);
-  border-top: var(--line-soft);
-  font-size: var(--fs-micro);
-  line-height: 1.6;
-  color: var(--text-low);
-  max-width: 72ch;
-}
 
 /* --- account -------------------------------------------------------------- */
 
@@ -336,3 +327,94 @@
   inset: 0;
   z-index: 59;
 }
+
+/*
+ * 壁纸模式下，平台页里那些实心黑块也要让壁纸透过去。
+ *
+ * 未登录卡片、栏目按钮、音质条原来是 var(--ink-700/800/850)：没有壁纸时它们
+ * 是层级，有壁纸时它们就是在图上抠出来的几块黑。这里统一改成半透明的白/黑。
+ * 说明文字本来靠深底兜着，底变浅之后补一点文字阴影。
+ */
+.shell.has-wallpaper .online__account {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.1);
+}
+.shell.has-wallpaper .online__avatar {
+  background: rgb(255 255 255 / 0.12);
+}
+.shell.has-wallpaper .online__collection,
+.shell.has-wallpaper .online__quality-btn {
+  background: rgb(255 255 255 / 0.08);
+}
+.shell.has-wallpaper .online__collection:hover,
+.shell.has-wallpaper .online__quality-btn:hover {
+  background: rgb(255 255 255 / 0.14);
+}
+.shell.has-wallpaper .online__collection.is-active {
+  background: rgb(255 255 255 / 0.16);
+}
+.shell.has-wallpaper .online__hint,
+.shell.has-wallpaper .online__welcome-note,
+.shell.has-wallpaper .online__warn,
+.shell.has-wallpaper .online__fail-text {
+  color: var(--text-mid);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+.shell.has-wallpaper .online__fail {
+  background: rgb(8 10 12 / 0.42);
+}
+
+/* 说明段落同理：提亮到能读，阴影加厚一点。 */
+.shell.has-wallpaper .online__welcome-note,
+.shell.has-wallpaper .online__hint {
+  color: rgb(206 213 222);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+/*
+ * A 方案说的「局部加深」就是这里。
+ *
+ * 整块面板提暗会把壁纸一起压掉（用户否过两次），但长段小字直接压在花壁纸上
+ * 又读不了。折中：只给这几段文字自己垫一块很薄的黑底，壁纸在它们周围照旧。
+ */
+.shell.has-wallpaper .online__hint {
+  background: rgb(8 10 12 / 0.5);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-panel);
+  color: rgb(216 222 230);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+.shell.has-wallpaper .online__quality-note,
+.shell.has-wallpaper .online__account-note {
+  color: rgb(198 206 216);
+}
+
+/* 账号卡里的那行小字也压在白底上，直接用 --text-low 会糊掉。 */
+.shell.has-wallpaper .online__account-meta {
+  color: rgb(198 206 216);
+}
+
+/*
+ * 几段说明文字原来是三种宽度（整宽横条 / 72ch 小卡 / 裸文字），看着像贴了
+ * 三张不同的纸条。壁纸模式下把它们收成同一种小卡：同宽、同内边距、同底色。
+ */
+.shell.has-wallpaper .notice {
+  width: 100%;
+  max-width: 72ch;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-panel);
+  background: rgb(8 10 12 / 0.46);
+  color: rgb(216 222 230);
+  border: 0;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+/* 栏目按钮上的「需登录」小字：壁纸模式下 --text-low 几乎看不见。 */
+.shell.has-wallpaper .online__collection em {
+  color: rgb(178 187 199);
+}
+.shell.has-wallpaper .online__quality-name,
+.shell.has-wallpaper .online__quality-btn {
+  color: rgb(206 213 222);
+}
+

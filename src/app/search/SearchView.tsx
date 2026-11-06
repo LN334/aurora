@@ -55,15 +55,18 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
 
   return (
     <div className="search-view">
-      <div className="search-view__tabs" role="tablist" aria-label="搜索范围">
+      {/* 搜索页的「范围」和音乐库的「来源」问的是同一个问题，所以用同一组标签页
+          样式：一页里不该有第二种画法的 tab。 */}
+      <div className="tabs tabs--sources" role="tablist" aria-label="搜索范围">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
             aria-selected={source === tab.id}
-            className={`search-view__tab${source === tab.id ? ' is-active' : ''}`}
+            className={`tab${source === tab.id ? ' is-active' : ''}`}
             onClick={() => switchTo(tab.id)}
             title={tab.note}
+            data-remote={tab.remote ? 'true' : undefined}
           >
             {tab.label}
             {/* A count only once that source has answered, so "0" never means

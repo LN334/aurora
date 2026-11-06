@@ -7,6 +7,8 @@ import { isNeteaseQuality, isUsableId } from './types'
 import type {
   NeteaseAccount,
   NeteaseAlbum,
+  NeteaseDiscoverKind,
+  NeteaseDiscoverResult,
   NeteaseLoginResult,
   NeteasePlaylistSummary,
   NeteaseQrResult,
@@ -35,8 +37,10 @@ import type {
 
 const MAX_KEYWORDS = 100
 const MAX_IDS = 1000
+const MAX_DISCOVER_LIMIT = 30
 const SEARCH_TYPES = ['song', 'album', 'artist'] as const
 type SearchType = (typeof SEARCH_TYPES)[number]
+const DISCOVER_KINDS = ['newsongs', 'playlists', 'quality'] as const
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -67,6 +71,24 @@ function asSearchType(value: unknown): SearchType {
   return typeof value === 'string' && (SEARCH_TYPES as readonly string[]).includes(value)
     ? (value as SearchType)
     : 'song'
+}
+
+/**
+ * A discover block name, or null.
+ *
+ * Strict on purpose: the renderer only ever sends one of three literals, so
+ * anything else is a bug or a stale build. Guessing a block would mean showing
+ * the wrong catalogue under the right tab.
+ */
+function asDiscoverKind(value: unknown): NeteaseDiscoverKind | null {
+  return typeof value === 'string' && (DISCOVER_KINDS as readonly string[]).includes(value)
+    ? (value as NeteaseDiscoverKind)
+    : null
+}
+
+function asDiscoverLimit(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.min(MAX_DISCOVER_LIMIT, Math.max(1, Math.trunc(value)))
 }
 
 function asIds(value: unknown): number[] {
@@ -250,6 +272,20 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:dailySongs', () =>
     guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())
   )
+
+  ipcMain.handle('netease:discover', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const kind = asDiscoverKind(args.kind)
+    const empty: NeteaseDiscoverResult = {
+      kind: kind ?? 'playlists',
+      songs: [],
+      playlists: []
+    }
+    if (!kind) return empty
+    return guard<NeteaseDiscoverResult>('discover', empty, () =>
+      client.neteaseDiscover(kind, asDiscoverLimit(args.limit))
+    )
+  })
 
   ipcMain.handle('netease:cloudSongs', () =>
     guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())

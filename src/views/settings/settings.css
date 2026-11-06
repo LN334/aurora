@@ -1,40 +1,207 @@
 /* 设置页专属样式。
-   复用 tokens.css 的变量与 app.css 既有组件（.btn/.seg/.switch/.row/.specs），
-   这里只放这一页自己的排版：分区、行、滑块、危险操作区。 */
+   复用 tokens.css 的变量与 app.css 既有组件（.btn/.seg/.switch/.icon-btn/.specs），
+   这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
 
 .settings {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
-  max-width: 720px;
-  padding-bottom: var(--s6);
+  gap: var(--s6);
+  max-width: 800px;
+  padding-bottom: var(--s7);
 }
 
-.settings__section {
+/* =============================================================================
+   编号分区（01 / 02 / 03 / 04）
+
+   版式借自参考项目的 SYSTEM SETTINGS：编号方块、英文小标、中文名，右边一条发丝线
+   把抬头收住；行内 label 左、控件右。颜色与字号全部来自 tokens。
+   ========================================================================== */
+
+.set-part {
   display: flex;
   flex-direction: column;
 }
 
-.settings__heading {
+/* 分区之间只用一条发丝线加留白分开：四个分区是同一页的四段，不是四个卡片。 */
+.set-part + .set-part {
+  padding-top: var(--s6);
+  border-top: var(--line-soft);
+}
+
+.set-part__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+
+/* 编号方块：深色小块 + 浅色数字。18px 高与 11px 字对齐，读起来像一个标签而不是按钮。 */
+.set-part__num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--ink-700);
+  color: var(--text-hi);
   font-size: var(--fs-micro);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-low);
-  margin-bottom: var(--s3);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
 }
 
-.settings__group {
+.set-part__en {
+  flex-shrink: 0;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-low);
+  white-space: nowrap;
+}
+
+.set-part__title {
+  flex-shrink: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+  white-space: nowrap;
+}
+
+/* 右侧发丝线：把「编号 + 英文 + 中文」这一行收住，视线自然回到左侧。 */
+.set-part__rule {
+  flex: 1;
+  min-width: var(--s4);
+  border-top: var(--line-soft);
+}
+
+.set-part__body {
   display: flex;
   flex-direction: column;
 }
+
+/* 分区小标题：沿用 app 里 .accounts__heading 的做法（11px / 500 / text-low）。 */
+.set-sub {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--s4);
+}
+
+.set-sub:first-child {
+  padding-top: 0;
+}
+
+.set-sub__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: 0 2px var(--s2);
+}
+
+.set-sub__title {
+  flex-shrink: 0;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--text-low);
+}
+
+.set-sub__hint {
+  min-width: 0;
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: var(--text-low);
+}
+
+.set-sub__body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 一组的行容器：行自己只画下边线，第一行靠 .settings__row:first-child 补上边线。 */
+.set-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 行下方的一排操作：按钮 + 一句说明。 */
+.set-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: var(--s3) 2px 0;
+}
+
+.set-actions .settings__hint {
+  margin-top: 0;
+}
+
+/* 空态：比 hint 更明显一点，但仍然是一句话，不是一张卡片。 */
+.set-empty {
+  padding: var(--s3) 2px;
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+  color: var(--text-low);
+}
+
+/* 状态徽标（已登录/未登录、在线/本地）：小、方、只用现有色板。 */
+.set-badge,
+.set-state {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--s2);
+  border-radius: 3px;
+  background: var(--ink-700);
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.set-badge--online {
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--accent-strong);
+}
+
+.set-state--on {
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--accent-strong);
+}
+
+/* GitHub 这类外链按钮：外观与 .btn 一致，但要去掉链接下划线。 */
+.set-link {
+  text-decoration: none;
+}
+
+/* 档案那一节直接复用 AccountsView；它的 max-width 是为整页准备的，在分区里放开。 */
+.set-accounts .accounts {
+  max-width: none;
+}
+
+/* update 面板自带的上边距与边线是为旧分组写的；放进分区抬头下面时去掉。 */
+.set-part__body .update {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* 更新结果里那句进度/就绪提示与行之间留一点距离。 */
+.set-part__body .update ~ .settings__hint,
+.set-part__body .update ~ .settings__danger {
+  margin-top: var(--s3);
+}
+
+/* =============================================================================
+   行
+   ========================================================================== */
 
 /* 行之间用发丝线分隔：--line-soft 是完整的 border 简写，不是颜色。 */
 .settings__row {
   display: flex;
   align-items: center;
   gap: var(--s5);
-  padding: var(--s3) 2px;
+  padding: var(--s4) 2px;
   border-bottom: var(--line-soft);
 }
 

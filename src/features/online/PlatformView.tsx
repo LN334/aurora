@@ -109,14 +109,7 @@ export function PlatformView({
         currentId={currentId}
         playing={playing}
         onMenu={setMenu}
-        onLogin={onLogin}
       />
-
-      {/*
-        The disclosure belongs at the foot of the page: it matters, but it is not
-        navigation, and it used to take a whole column away from the music.
-      */}
-      <p className="online__footnote">{provider.disclosure}</p>
 
       {menu ? (
         <SongMenu provider={provider} request={menu} onClose={() => setMenu(null)} />
@@ -393,8 +386,7 @@ function Results({
   rows,
   currentId,
   playing,
-  onMenu,
-  onLogin
+  onMenu
 }: {
   provider: OnlineMusicProvider
   state: OnlineStore
@@ -402,7 +394,6 @@ function Results({
   currentId: string | null
   playing: boolean
   onMenu(request: TrackMenuRequest): void
-  onLogin?(): void
 }) {
   const tabs: { kind: OnlineSearchKind; label: string; count: number }[] = []
   if (providerSupports(provider, 'search') && provider.search) {
@@ -476,32 +467,27 @@ function Results({
     )
   }
 
-  return <FrontPage provider={provider} state={state} onLogin={onLogin} />
+  return <FrontPage provider={provider} state={state} />
 }
 
 /** Nothing chosen yet: the platform's own playlists, or a statement of what is here. */
 function FrontPage({
   provider,
-  state,
-  onLogin
+  state
 }: {
   provider: OnlineMusicProvider
   state: OnlineStore
-  onLogin?(): void
 }) {
   const canUsePersonal = Boolean(state.account)
+
+  // 未登录时这里不再写一段说明：账号卡上已经有「登录」，栏目上也标着「需登录」，
+  // 再说一遍只会变成压在壁纸上的一块黑。空着比重复说好。
+  if (!canUsePersonal) return null
 
   return (
     <div className="online__welcome">
       <p className="online__welcome-note">
-        {canUsePersonal
-          ? `已连接${provider.displayName}，当前「${QUALITY_LABELS[state.quality]}」音质。上面选一个列表，也可以直接搜索。`
-          : provider.anonymousNote}{' '}
-        {!canUsePersonal && onLogin ? (
-          <button className="online__link" onClick={onLogin}>
-            登录{provider.displayName}
-          </button>
-        ) : null}
+        {`已连接${provider.displayName}，当前「${QUALITY_LABELS[state.quality]}」音质。上面选一个列表，也可以直接搜索。`}
       </p>
 
       {canUsePersonal && state.playlists.length > 0 ? (

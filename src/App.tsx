@@ -56,6 +56,8 @@ import {
 } from './app/preview'
 import { usePlaylistFiles } from './features/playlists/io'
 import { EmptyLibrary } from './views/EmptyLibrary'
+import { LibraryView } from './views/LibraryView'
+import { DiscoverView } from './features/discover/DiscoverView'
 import { Sources } from './views/Sources'
 
 /**
@@ -199,7 +201,11 @@ export function App() {  if (!isNative) {
         current &&
         current.view === next.view &&
         current.artistId === next.artistId &&
-        current.playlistId === next.playlistId
+        current.playlistId === next.playlistId &&
+        current.albumId === next.albumId &&
+        // 音乐库的来源与栏目都住在路由里，所以它们变了就是一次真的导航。
+        current.source === next.source &&
+        current.tab === next.tab
       ) {
         return
       }
@@ -403,6 +409,8 @@ export function App() {  if (!isNative) {
     eqOpen,
     queueOpen,
     volume,
+    canGoBack: cursor > 0,
+    goBack,
     setStageOpen,
     setEqOpen,
     setQueueOpen
@@ -534,6 +542,21 @@ export function App() {  if (!isNative) {
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
+    // 一级入口：发现（有什么可听，未登录也有内容）。
+    if (view === 'discover') return <DiscoverView />
+    // 一级入口：音乐库（我的东西，按来源切；本地只是来源之一）。
+    if (view === 'library') {
+      return (
+        <LibraryView
+          source={route.source ?? 'local'}
+          tab={route.tab ?? 'songs'}
+          onNavigate={navigate}
+          onMenu={setTrackMenu}
+          onAddFolders={addFolders}
+          onFlash={setFlash}
+        />
+      )
+    }
     // The online source stands on its own: its tracks never enter the library
     // store, so it must stay reachable with an empty local library - hence
     // before the `tracks.length === 0` check below.
@@ -691,7 +714,12 @@ export function App() {  if (!isNative) {
         // The veil opacity is CSS's business; the level itself is data.
         style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
       >
-        <Backdrop entry={wallpaperEntry} />
+        {/*
+          The stage paints the same wallpaper over the whole window, so the
+          shell's copy is dropped while it is open: two WebGL scene instances
+          at 30fps each would double the GPU bill for one visible picture.
+        */}
+        {stageOpen ? null : <Backdrop entry={wallpaperEntry} />}
         {backdrop ? (
           <div
             className="shell__backdrop"
@@ -717,15 +745,8 @@ export function App() {  if (!isNative) {
           onView={(next) => navigate({ view: next })}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
-          counts={{
-            albums: albums.length,
-            artists: artists.length,
-            songs: tracks.length
-          }}
           profileLabel={activeAccount?.label ?? null}
-          onOpenPlaylist={(id) => navigate({ view: 'playlists', playlistId: id })}
-          localPlaylists={playlists.map((playlist) => ({ id: playlist.id, name: playlist.name }))}
-          activePlaylistId={route.playlistId ?? null}
+          onOpenProfile={() => navigate({ view: 'settings' })}
         />
 
         <main className="main">
@@ -733,7 +754,7 @@ export function App() {  if (!isNative) {
             {route.artistId ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'artists' })}
+                onClick={() => navigate({ view: 'library', source: 'local', tab: 'artists' })}
                 title="返回艺术家列表"
                 aria-label="返回艺术家列表"
               >
@@ -744,7 +765,7 @@ export function App() {  if (!isNative) {
             {route.playlistId ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'playlists' })}
+                onClick={() => navigate({ view: 'library', source: 'local', tab: 'playlists' })}
                 title="返回播放列表"
                 aria-label="返回播放列表"
               >
@@ -755,7 +776,7 @@ export function App() {  if (!isNative) {
             {route.albumId ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'albums' })}
+                onClick={() => navigate({ view: 'library', source: 'local', tab: 'albums' })}
                 title="返回专辑列表"
                 aria-label="返回专辑列表"
               >
