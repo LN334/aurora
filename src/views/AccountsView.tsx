@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { providerOf } from '../features/accounts/providers'
 import type { Account } from '../features/accounts/store'
-import { isNative } from '../bridge'
-import type { NeteaseAccount } from '../env'
-import { netease } from '../features/netease/api'
+import { useOnlineBindings } from '../features/accounts/bindings'
 import { Check, Pencil, Plus, Trash } from '../ui/icons'
+import { Artwork } from '../ui/Artwork'
+import { remoteImageUrl } from '../features/player/urls'
 
 interface AccountsViewProps {
   accounts: Account[]
@@ -15,35 +15,36 @@ interface AccountsViewProps {
   onRemove(id: string): void
   /** Unbinds the online account from a profile. */
   onUnbindOnline(id: string): void
+  /** 换档案头像；null 表示用回在线头像或首字。 */
+  onSetAvatar(id: string, avatar: string | null): void
 }
 
+
 /**
- * Which Netease account each profile is signed in as.
+ * 把用户选的图片裁成方形的 96×96 JPEG。
  *
- * Asked once per profile on open. This is the screen where the two halves of
- * "an account" used to look unrelated - a local profile list that never
- * mentioned the online session at all - so the binding is shown on the profile
- * row itself rather than on a separate page.
+ * 头像最后存在 localStorage 里（跟着档案走），原图动辄几 MB，不缩就没法存；
+ * 96 足够 26–40px 的圆形显示，2 倍屏也不糊。
  */
-function useOnlineBindings(accounts: Account[]): Record<string, NeteaseAccount | null> {
-  const [bindings, setBindings] = useState<Record<string, NeteaseAccount | null>>({})
-
-  useEffect(() => {
-    if (!isNative || !netease.accountFor) return
-    let cancelled = false
-    void (async () => {
-      const next: Record<string, NeteaseAccount | null> = {}
-      for (const account of accounts) {
-        next[account.id] = await netease.accountFor(account.id)
-      }
-      if (!cancelled) setBindings(next)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [accounts])
-
-  return bindings
+async function toAvatarDataUrl(file: File): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const size = 96
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    const scale = Math.max(size / bitmap.width, size / bitmap.height)
+    const width = bitmap.width * scale
+    const height = bitmap.height * scale
+    context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height)
+    bitmap.close()
+    return canvas.toDataURL('image/jpeg', 0.85)
+  } catch {
+    // 不是图片、或是损坏的文件：当作没选，界面保持原样。
+    return null
+  }
 }
 
 function formatDate(ms: number): string {
@@ -71,12 +72,23 @@ export function AccountsView({
   onActivate,
   onRename,
   onRemove,
-  onUnbindOnline
+  onUnbindOnline,
+  onSetAvatar
 }: AccountsViewProps) {
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
   const bindings = useOnlineBindings(accounts)
+
+  /*
+   * 每行一个 <label> 包着隐藏的 file input：点头像就是原生地「打开文件选择」，
+   * 不需要在组件里记「这次点的是哪一行」，也不存在列表重建后 ref 指错行的可能。
+   */
+  const pickAvatar = async (id: string, file: File | undefined) => {
+    if (!file) return
+    const avatar = await toAvatarDataUrl(file)
+    if (avatar) onSetAvatar(id, avatar)
+  }
 
   const commitNew = () => {
     const label = draft.trim()
@@ -97,9 +109,35 @@ export function AccountsView({
         <ul className="profile-rows">
           {accounts.map((account) => {
             const isActive = account.id === activeId
+            const bound = bindings[account.id] ?? null
             return (
               <li className={`profile-row${isActive ? ' is-active' : ''}`} key={account.id}>
-                <span className="profile-row__avatar">{account.label.slice(0, 1)}</span>
+                <label
+                  className={`profile-row__avatar${account.avatar || bound?.avatarUrl ? ' has-image' : ''}`}
+                  title="换头像"
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      // 先清空 value，否则同一个文件连选两次不会再触发 change。
+                      event.target.value = ''
+                      void pickAvatar(account.id, file)
+                    }}
+                  />
+                  {account.avatar ? (
+                    <img src={account.avatar} alt="" />
+                  ) : bound?.avatarUrl ? (
+                    <Artwork
+                      src={remoteImageUrl(bound.avatarUrl)}
+                      fallback={account.label.slice(0, 1)}
+                    />
+                  ) : (
+                    account.label.slice(0, 1)
+                  )}
+                </label>
 
                 {editing === account.id ? (
                   <input
@@ -118,13 +156,32 @@ export function AccountsView({
                 ) : (
                   <button
                     className="profile-row__name"
-                    onClick={() => onActivate(account.id)}
-                    title={isActive ? '当前档案' : `切换到 ${account.label}`}
+                    onClick={() => {
+                      /*
+                       * 只有一个档案时「点名字」不可能是切换（切到自己没意义），
+                       * 那里最自然的动作是改名；多档案时才保持切换。
+                       */
+                      if (accounts.length === 1) {
+                        setEditing(account.id)
+                        setEditLabel(account.label)
+                      } else {
+                        onActivate(account.id)
+                      }
+                    }}
+                    title={
+                      accounts.length === 1
+                        ? '改档案名'
+                        : `切换到 ${account.label}`
+                    }
                   >
                     <span className="profile-row__label">{account.label}</span>
                     <span className="profile-row__meta">
-                      {providerOf(account.provider).name}
-                      {account.createdAt ? `，创建于 ${formatDate(account.createdAt)}` : ''}
+                      {bound
+                        ? `${bound.nickname}${bound.vip ? ' · 会员' : ''}`
+                        : providerOf(account.provider).name}
+                      {account.createdAt && !bound
+                        ? `，创建于 ${formatDate(account.createdAt)}`
+                        : ''}
                     </span>
                   </button>
                 )}
@@ -172,17 +229,24 @@ export function AccountsView({
           which account it is signed in as, and can be unbound on its own.
         */}
         <section className="accounts__group">
-          <h2 className="accounts__heading">网易云账号</h2>
-          <p className="accounts__hint">
-            每个档案各自绑定一个网易云账号，切换档案就会切换在线歌单、每日推荐与云盘。
-            登录要在该档案为当前档案时进行。
-          </p>
+          {/*
+            * 这里原本有「网易云账号」小标题和一段解释「每个档案各自绑定一个…」。
+            * 删掉的理由和平台页那两段一样：绑定行自己就写着「谁 · 未登录 / 昵称」，
+            * 标题与规则说明只是在重复用户已经从行里读到的东西。
+            */}
           <ul className="binding-rows">
             {accounts.map((account) => {
               const bound = bindings[account.id]
               return (
                 <li className="binding-row" key={account.id}>
-                  <span className="binding-row__profile">{account.label}</span>
+                  {/*
+                    * 只有一个档案时，行首再写一遍档案名就是「我 / 我」两行叠着——
+                    * 上面那张档案卡已经说了是谁。这里改成平台名，读起来是
+                    * 「网易云音乐 · 未登录」，而不是把档案名重复两次。
+                    */}
+                  <span className="binding-row__profile">
+                    {accounts.length > 1 ? account.label : '网易云音乐'}
+                  </span>
                   {bound ? (
                     <>
                       <span className="binding-row__account">
@@ -195,8 +259,7 @@ export function AccountsView({
                     </>
                   ) : (
                     <span className="binding-row__empty">
-                      {account.id === activeId ? '未登录（点侧栏的登录，或这里的登录）' : '未绑定'}
-                      {account.id === activeId ? null : '——切到此档案后登录'}
+                      {account.id === activeId ? '未登录' : '未绑定'}
                     </span>
                   )}
                 </li>

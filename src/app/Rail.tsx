@@ -1,6 +1,10 @@
 import type { ComponentType } from 'react'
 import { navGroupOf, type NavGroup } from './routing'
 import type { ViewId } from '../types'
+import { useAccounts } from '../features/accounts/store'
+import { useOnlineBindings } from '../features/accounts/bindings'
+import { remoteImageUrl } from '../features/player/urls'
+import { Artwork } from '../ui/Artwork'
 import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
 
 /**
@@ -54,6 +58,24 @@ const PRIMARY: PrimaryItem[] = [
 export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel, onOpenProfile }: RailProps) {
   const group = navGroupOf(view)
 
+  /*
+   * 侧栏底部这一行的头像跟设置页档案卡必须是同一张：先看档案自己设的头像，
+   * 没设过就用该档案绑定的在线账号头像（网易云那种彩色头像是账号最有辨识度的部分），
+   * 都没有才回落到档案名首字。这样同一个档案在两个位置看起来是同一个人。
+   */
+  const accounts = useAccounts((state) => state.accounts)
+  const activeId = useAccounts((state) => state.activeId)
+  const bindings = useOnlineBindings(accounts)
+  const active = accounts.find((account) => account.id === activeId) ?? null
+  const boundAvatar = activeId ? (bindings[activeId]?.avatarUrl ?? null) : null
+  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(boundAvatar) : null)
+
+  const fallbackAvatar = active ? (
+    <span className="rail__avatar-letter">{active.label.slice(0, 1)}</span>
+  ) : (
+    <User size={17} />
+  )
+
   return (
     <nav className="rail" aria-label="主导航">
       <div className="rail__scroll">
@@ -84,7 +106,13 @@ export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel,
           onClick={onOpenProfile}
           title={profileLabel ? `当前档案：${profileLabel}` : '选择档案'}
         >
-          <User size={17} />
+          <span className="rail__avatar">
+            {avatar ? (
+              <Artwork src={avatar} fallback={fallbackAvatar} />
+            ) : (
+              fallbackAvatar
+            )}
+          </span>
           <span className="nav-item__label">{profileLabel ?? '未选择档案'}</span>
         </button>
 

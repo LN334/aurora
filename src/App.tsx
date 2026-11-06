@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AccountsView } from './views/AccountsView'
+import { AccountView } from './views/AccountView'
 import { AlbumDetail } from './views/AlbumDetail'
 import { AlbumGrid } from './views/AlbumGrid'
 import { ArtistList } from './views/ArtistList'
@@ -564,24 +564,9 @@ export function App() {  if (!isNative) {
     // A second platform is the same kind of destination: one line here, because the
     // screen itself is shared and driven by the provider's declared capabilities.
     if (view === 'qq') return <QqView />
-    if (view === 'accounts') {
-      return (
-        <AccountsView
-          accounts={accounts}
-          activeId={activeAccountId}
-          onCreate={(label) => useAccounts.getState().create(label)}
-          onActivate={(id) => useAccounts.getState().activate(id)}
-          onRename={(id, label) => useAccounts.getState().rename(id, label)}
-          onRemove={(id) => useAccounts.getState().remove(id)}
-          onUnbindOnline={(id) => {
-            void bridge.netease.logoutProfile(id)
-            // The account shown on this screen is cached per render; drop the
-            // online state so a rebind is reflected without a reload.
-            if (id === activeAccountId) void useNetease.getState().init()
-          }}
-        />
-      )
-    }
+    // 账号（谁在用、登了哪些平台）是单独一页：它不是偏好设置，而是侧栏底部
+    // 那张头像点进来的地方。页面内容见 src/views/AccountView.tsx。
+    if (view === 'accounts') return <AccountView />
 
     // Playlists come before the empty-library check: a playlist can hold tracks
     // from a folder that is not currently in the library, and the management UI
@@ -746,7 +731,7 @@ export function App() {  if (!isNative) {
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           profileLabel={activeAccount?.label ?? null}
-          onOpenProfile={() => navigate({ view: 'settings' })}
+          onOpenProfile={() => navigate({ view: 'accounts' })}
         />
 
         <main className="main">

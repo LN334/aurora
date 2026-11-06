@@ -16,6 +16,15 @@ export interface Account {
   label: string
   config: Record<string, string>
   createdAt: number
+  /**
+   * 档案自己的头像，一张已经缩到 96×96 的 data URL。
+   *
+   * 为什么是 data URL 而不是文件路径：档案本身存在 localStorage 里（见下面的 persist），
+   * 头像要是落到 userData 目录，就得在主进程再开一套「谁的头像」的映射，还要处理档案
+   * 删除后的清理。96×96 的 JPEG 大约 4–8 KB，直接跟着档案走最省事，删档案也就一起没了。
+   * 没设过这一项时留空，界面回落到在线账号的头像，再回落到档案名首字。
+   */
+  avatar?: string
 }
 
 interface AccountsState {
@@ -26,6 +35,8 @@ interface AccountsState {
   rename(id: string, label: string): void
   remove(id: string): void
   activate(id: string): void
+  /** 设成 null 就是「用回默认的在线头像或首字」。 */
+  setAvatar(id: string, avatar: string | null): void
   /** Creates the first profile on a fresh install. Idempotent. */
   ensureDefault(): void
   active(): Account | null
@@ -76,6 +87,20 @@ export const useAccounts = create<AccountsState>()(
       activate(id) {
         if (!get().accounts.some((a) => a.id === id)) return
         set({ activeId: id })
+      },
+
+      setAvatar(id, avatar) {
+        set((state) => ({
+          accounts: state.accounts.map((account) => {
+            if (account.id !== id) return account
+            if (!avatar) {
+              // 删掉这一项而不是留空串：序列化后文件里不该多一个空字段。
+              const { avatar: _drop, ...rest } = account
+              return rest
+            }
+            return { ...account, avatar }
+          })
+        }))
       },
 
       ensureDefault() {

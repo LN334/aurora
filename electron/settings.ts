@@ -18,6 +18,8 @@ export interface AppSettings {
   updateLastCheck: number
   autoInstallUpdates: boolean
   desktopLyrics: { size: number; min: number; max: number }
+  /** 点窗口的关闭按钮时收进托盘，而不是退出应用。默认 true。 */
+  closeToTray: boolean
 }
 
 export interface StorageUsage {
@@ -78,6 +80,13 @@ export interface Settings {
    */
   onlineLyrics: boolean
   /**
+   * 关闭按钮的含义。
+   *
+   * 音乐播放器关掉窗口还在放歌是习惯，所以默认收进托盘；但托盘在有些机器上被
+   * 安全软件吞掉，那种情况下「关不掉」会变成真正的麻烦，所以留一个明确的退出开关。
+   */
+  closeToTray: boolean
+  /**
    * Preferred quality for Netease playback.
    *
    * `exhigh` by default, not `lossless`: 320kbps is the best level an account
@@ -99,6 +108,7 @@ const DEFAULTS: Settings = {
   autoInstallUpdates: false,
   desktopLyricsSize: 34,
   onlineLyrics: false,
+  closeToTray: true,
   neteaseQuality: 'exhigh'
 }
 
@@ -124,7 +134,8 @@ export function loadSettings(): Settings {
       // update checks, and a size outside the range would render a strip that
       // cannot be read.
       updateInterval: isUpdateInterval(raw.updateInterval) ? raw.updateInterval : migrateInterval(raw),
-      desktopLyricsSize: clampLyricSize(raw.desktopLyricsSize)
+      desktopLyricsSize: clampLyricSize(raw.desktopLyricsSize),
+      closeToTray: raw.closeToTray !== false
     }
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
@@ -162,6 +173,7 @@ export function appSettings(): AppSettings {
     updateInterval: settings.updateInterval,
     updateLastCheck: settings.lastUpdateCheck,
     autoInstallUpdates: settings.autoInstallUpdates,
+    closeToTray: settings.closeToTray !== false,
     desktopLyrics: {
       size: clampLyricSize(settings.desktopLyricsSize),
       min: LYRIC_SIZE_MIN,

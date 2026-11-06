@@ -3,7 +3,6 @@ import { bridge, isNative } from '../../../bridge'
 import { useAccounts } from '../../../features/accounts/store'
 import { useRoots } from '../../../features/library/roots'
 import { runScan } from '../../../features/library/scan'
-import { SOURCES } from '../../../features/library/source'
 import { useAvailableProviders } from '../../../features/online/hooks'
 import { useOnlineStore } from '../../../features/online/store'
 import type { OnlineMusicProvider } from '../../../features/online/types'
@@ -17,7 +16,7 @@ import { openPlatformLogin } from './PlatformSignIn'
  *
  * 这一块以前是三个独立的导航项：档案页（本地档案 + 每档案绑定的网易云账号）、
  * 音源页（能播什么 + 本地文件夹）、设置页里零散的在线开关。它们其实是同一个问题
- * ——「谁在用、能用哪些来源」——所以合并成一个分区，按「档案 → 平台 → 来源 → 文件夹」
+ * ——「谁在用、能用哪些来源」——所以合并成一个分区，按「档案 → 平台 → 文件夹」
  * 的顺序排：先是谁，再是能用什么。
  *
  * 档案列表直接复用 AccountsView（它的受控 props 与本页需要的完全一致），不复制一份
@@ -61,7 +60,7 @@ export function AccountPane() {
 
   return (
     <>
-      <Sub title="本地档案" hint="切换档案会同时切换它绑定的在线账号、歌单与每日推荐。">
+      <Sub title="本地档案">
         <div className="set-accounts">
           <AccountsView
             key={bindingKey}
@@ -72,35 +71,22 @@ export function AccountPane() {
             onRename={(id, label) => useAccounts.getState().rename(id, label)}
             onRemove={(id) => useAccounts.getState().remove(id)}
             onUnbindOnline={unbind}
+            onSetAvatar={(id, avatar) => useAccounts.getState().setAvatar(id, avatar)}
           />
         </div>
       </Sub>
 
-      <Sub title="在线平台" hint="登录状态按档案分别保存，退出只影响当前档案。">
+      <Sub title="在线平台">
         <OnlinePlatformRows />
-      </Sub>
-
-      <Sub title="音乐来源" hint="曲库里的每一首都来自这两个来源之一。">
-        <Rows>
-          {SOURCES.map((source) => (
-            <Row key={source.id} label={source.name} hint={source.summary}>
-              <span className={`set-badge${source.online ? ' set-badge--online' : ''}`}>
-                {source.online ? '在线' : '本地'}
-              </span>
-            </Row>
-          ))}
-        </Rows>
       </Sub>
 
       <Sub
         title="本地音乐文件夹"
-        hint={
-          roots.length > 0 ? `已加入 ${roots.length} 个，扫描后进入曲库。` : undefined
-        }
+        hint={roots.length > 0 ? `${roots.length} 个文件夹` : undefined}
       >
         {folderError ? <p className="settings__error">{folderError}</p> : null}
         {roots.length === 0 ? (
-          <p className="set-empty">还没有加入任何文件夹。加一个，Aurora 会扫描里面的音频。</p>
+          <p className="set-empty">还没有加入文件夹。</p>
         ) : (
           <Rows>
             {roots.map((root) => (
@@ -123,7 +109,6 @@ export function AccountPane() {
             <Plus size={15} />
             添加文件夹
           </button>
-          <span className="settings__hint">可以多次添加；移出的文件夹只是不再进曲库，磁盘上的文件不动。</span>
         </div>
       </Sub>
     </>
@@ -171,7 +156,7 @@ function OnlinePlatformRow({ provider }: { provider: OnlineMusicProvider }) {
     : blocked
       ? (detail ?? `${provider.displayName} 的后端现在连不上。`)
       : ready
-        ? provider.anonymousNote
+        ? undefined
         : '正在确认登录状态…'
 
   return (

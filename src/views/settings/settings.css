@@ -425,3 +425,79 @@
   color: var(--text-hi);
   backdrop-filter: blur(4px);
 }
+
+
+/* ---- 04 快捷键 ----
+ * 键帽用中性底 + 一像素高光，颜色全部走 token，壁纸模式下跟着灰阶一起抬亮。
+ */
+.set-keygroup {
+  display: flex;
+  flex-direction: column;
+}
+.set-keygroup + .set-keygroup {
+  margin-top: var(--s4);
+}
+.set-keygroup__title {
+  margin: 0 0 var(--s1);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text-low);
+}
+.set-keyrow {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.set-keygroup__title + .set-keyrow {
+  border-top: 0;
+}
+.set-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+.set-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-bottom-width: 2px;
+  background: rgb(255 255 255 / 0.08);
+  font: inherit;
+  font-size: var(--fs-meta);
+  line-height: 1;
+  color: var(--text-hi);
+}
+.set-keys__plus {
+  margin: 0 5px 0 3px;
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}
+.set-keyrow__what {
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+}
+.set-keyhint {
+  margin: var(--s4) 0 0;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+}
+
+/* 账号页：与设置页同一个版心宽度与分区间距，只是分区少、抬头是页面标题。 */
+.account-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+  max-width: 800px;
+  padding-bottom: var(--s7);
+}

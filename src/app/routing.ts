@@ -22,7 +22,7 @@ export const VIEW_TITLES: Record<ViewId, string> = {
   songs: '歌曲',
   folders: '文件夹',
   playlists: '播放列表',
-  accounts: '档案',
+  accounts: '账号',
   sources: '音源',
   netease: '网易云音乐',
   qq: 'QQ 音乐',
@@ -33,10 +33,13 @@ export const VIEW_TITLES: Record<ViewId, string> = {
 /** 侧栏上的四个一级入口。详情页按它被打开的那一层归类。 */
 export type NavGroup = 'discover' | 'library' | 'search' | 'settings'
 
-export function navGroupOf(view: ViewId): NavGroup {
+export function navGroupOf(view: ViewId): NavGroup | null {
   if (view === 'discover') return 'discover'
   if (view === 'search') return 'search'
-  if (view === 'settings' || view === 'accounts' || view === 'sources') return 'settings'
+  if (view === 'settings') return 'settings'
+  // 账号页没有对应的一级入口：它从侧栏底部那张头像进去，不是第四个目的地。
+  // 返回 null 表示「这三个一级项这次都不要点亮」。
+  if (view === 'accounts' || view === 'sources') return null
   // albums / artists / songs / folders / playlists / library / 各平台页面
   return 'library'
 }

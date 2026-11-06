@@ -113,8 +113,19 @@ const api = {
       ipcRenderer.invoke('settings:setOnlineLyrics', enabled) as Promise<AppSettings>,
     setDesktopLyricsSize: (size: number) =>
       ipcRenderer.invoke('settings:setDesktopLyricsSize', size) as Promise<AppSettings>,
+    setCloseToTray: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setCloseToTray', enabled) as Promise<AppSettings>,
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
     clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>
+  },
+
+  /**
+   * 窗口层面的动作，不属于「设置」：全屏不落盘，关闭行为是设置的一部分但由主进程兑现。
+   * 单独一组，是为了让渲染层一眼看出哪些调用会动到窗口本身。
+   */
+  window: {
+    toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen') as Promise<boolean>,
+    isFullscreen: () => ipcRenderer.invoke('window:isFullscreen') as Promise<boolean>
   },
 
   updates: {

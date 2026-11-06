@@ -1702,3 +1702,40 @@ input::placeholder {
   --text-mid: #ccd6e2;
   --text-low: #aeb9c8;
 }
+
+
+/* ---- 动态效果关闭（设置 → 外观与桌面 → 动态效果）----
+ * 只收 CSS 的过渡与动画，不碰 WebGL 场景：那是壁纸自己的节奏，
+ * 想省电的人会把壁纸一起关掉，而不是让场景变成一张静止的糊图。
+ */
+.is-reduced-motion *,
+.is-reduced-motion *::before,
+.is-reduced-motion *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
+}
+
+
+/* ---- 壁纸模式下的设置页小标 ----
+ * 「本地档案」「网易云账号」「任何页面」这些是 11px 的低对比小标，为纯黑底设计的
+ * --text-low 压在壁纸的浅色块上会整片消失。整条灰阶上抬（.shell.has-wallpaper 的
+ * --text-low）解决了大半，小标还需要走到 mid 一档才立得住。
+ */
+.shell.has-wallpaper .set-sub__title,
+.shell.has-wallpaper .set-sub__hint,
+.shell.has-wallpaper .set-part__en,
+.shell.has-wallpaper .set-keygroup__title {
+  color: var(--text-mid);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+}
+
+.shell.has-wallpaper .accounts__heading {
+  color: var(--text-mid);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+}
+.shell.has-wallpaper .accounts__hint {
+  color: var(--text-mid);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}

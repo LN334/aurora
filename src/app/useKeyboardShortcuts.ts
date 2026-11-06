@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { bridge } from '../bridge'
 import { player } from '../features/player/actions'
 
 /**
@@ -60,6 +61,15 @@ export function useKeyboardShortcuts(options: {
           event.preventDefault()
           goBack()
         }
+        return
+      }
+      /*
+       * 全屏由主进程切：渲染层没有 BrowserWindow，也不该有。和窗口自己的
+       * F11 同一个动作，所以快捷键与设置页那个按钮不会各说各的。
+       */
+      if (event.key === 'F11') {
+        event.preventDefault()
+        void bridge.window.toggleFullscreen()
         return
       }
       if (event.key.toLowerCase() === 'l') {

@@ -33,7 +33,8 @@ let previewSettings: AppSettings = {
   updateInterval: 'manual',
   updateLastCheck: 0,
   autoInstallUpdates: false,
-  desktopLyrics: { size: 34, min: 18, max: 64 }
+  desktopLyrics: { size: 34, min: 18, max: 64 },
+  closeToTray: true
 }
 
 /**
@@ -134,6 +135,7 @@ const webFallback: AuroraApi = {
         ...previewSettings,
         desktopLyrics: { ...previewSettings.desktopLyrics, size }
       }),
+    setCloseToTray: async (enabled) => (previewSettings = { ...previewSettings, closeToTray: enabled }),
     // A browser has no userData directory, so "nothing to measure" is the
     // honest answer rather than a made-up zero.
     getStorage: async () => ({
@@ -261,6 +263,15 @@ const webFallback: AuroraApi = {
       engineDir: null
     }),
     list: async () => []
+  },
+
+  /*
+   * 浏览器里没有窗口可切：报告「没进全屏」比抛错诚实，
+   * 设置页那一行因此在预览里也画得出来。
+   */
+  window: {
+    toggleFullscreen: async () => false,
+    isFullscreen: async () => false
   }
 }
 

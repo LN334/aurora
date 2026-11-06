@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
 import { useSettingsPage } from '../../../features/settings/store'
+import { bridge } from '../../../bridge'
 import { useWallpaper } from '../../../features/wallpaper/store'
 import { Refresh } from '../../../ui/icons'
 import { Row, Rows, Toggle } from '../parts'
@@ -23,7 +25,10 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const wallpaperList = useWallpaper((state) => state.list)
   const wallpaperLoading = useWallpaper((state) => state.loading)
   const refreshWallpaper = useWallpaper((state) => state.refresh)
-  const { desktopLyrics } = page.settings
+  const { desktopLyrics, closeToTray } = page.settings
+
+  // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
+  const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
 
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
@@ -74,6 +79,50 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
           <span className="settings__number">{previewSize}px</span>
         </div>
       </div>
+
+      <Row
+        label="窗口显示"
+        hint="全屏之后标题栏消失，用同一个按钮或 F11 切回来。下一次启动仍然是普通窗口——全屏是动作，不是被记住的状态。"
+      >
+        <button className="btn" onClick={() => void bridge.window.toggleFullscreen()}>
+          切换全屏 / F11
+        </button>
+      </Row>
+
+      <Row
+        label="点关闭按钮时"
+        hint="收进托盘：窗口消失，歌继续放，从任务栏托盘的小图标点回来。退出应用：立刻结束，正在播的歌也停。"
+      >
+        <div className="seg">
+          <button
+            className={closeToTray ? 'is-active' : ''}
+            aria-pressed={closeToTray}
+            onClick={() => void page.setCloseToTray(true)}
+          >
+            收进托盘
+          </button>
+          <button
+            className={closeToTray ? '' : 'is-active'}
+            aria-pressed={!closeToTray}
+            onClick={() => void page.setCloseToTray(false)}
+          >
+            退出应用
+          </button>
+        </div>
+      </Row>
+      <Row
+        label="动态效果"
+        hint="关掉之后，面板展开、页面切换、歌词滚动都直接到位，不再有过渡。壁纸场景本身仍会运行（那是它自己的节奏），想省电就把壁纸也关掉。"
+      >
+        <Toggle
+          checked={reduceMotion}
+          label="动态效果"
+          onChange={(next) => {
+            setReduceMotion(next)
+            writeReduceMotion(next)
+          }}
+        />
+      </Row>
 
       <Row label="Wallpaper Engine 动态背景" hint={wallpaperHint}>
         <Toggle

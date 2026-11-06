@@ -23,7 +23,8 @@ const FALLBACK_SETTINGS: AppSettings = {
   updateInterval: 'manual',
   updateLastCheck: 0,
   autoInstallUpdates: false,
-  desktopLyrics: { size: 34, min: 18, max: 64 }
+  desktopLyrics: { size: 34, min: 18, max: 64 },
+  closeToTray: true
 }
 
  interface SettingsPage {
@@ -42,6 +43,8 @@ const FALLBACK_SETTINGS: AppSettings = {
   setLyricsSize(size: number): Promise<void>
   setUpdateInterval(interval: UpdateInterval): Promise<void>
   setAutoInstall(enabled: boolean): Promise<void>
+  /** 关闭按钮：收进托盘（true）或退出应用（false）。 */
+  setCloseToTray(enabled: boolean): Promise<void>
   checkForUpdates(): Promise<void>
   installUpdate(): Promise<void>
   clearCache(): Promise<void>
@@ -137,6 +140,16 @@ export function useSettingsPage(): SettingsPage {
       write(
         () => bridge.updates.setAutoInstall(enabled),
         (next) => setPrefs(next)
+      ),
+
+    /*
+     * 关闭行为由主窗口的 close 处理兑现，所以这里只是把意愿写下去；
+     * 返回值是整个 AppSettings，照抄服务端的答案而不是本地猜。
+     */
+    setCloseToTray: (enabled) =>
+      write(
+        () => bridge.settings.setCloseToTray(enabled),
+        (next) => setSettings(next)
       ),
 
     async checkForUpdates() {

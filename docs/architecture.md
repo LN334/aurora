@@ -18,9 +18,13 @@ src/
     lyrics/       歌词解析（LRC）
     player/       播放内核：engine、driver、queue、urls、进度条
     playlists/    歌单：m3u 读写、存储、导入导出的流程
-    settings/     设置状态的读写
+    discover/     发现页：平台公开内容（推荐歌单/新歌速递/精品歌单）+ 它的纯函数与 store
+    settings/     设置状态的读写；motion.ts 是「动态效果」开关（只有渲染层，存 localStorage）
     wallpaper/    动态背景：选择规则的纯函数、开关与可见度的存储、场景挂载
-  views/        页面与面板，一个文件一个屏幕或一块面板
+  views/        页面与面板，一个文件一个屏幕或一块面板；views/settings/ 是单页设置的
+                四个编号分区（parts.tsx 是排版零件，panes/ 每段一个文件）；
+                AccountView.tsx 是账号页（档案 + 在线平台 + 本地文件夹），
+                settings/panes/AccountPane.tsx 是它的内容，两者共用同一份零件
   ui/           共享基元：ArtCard、Artwork、icons、TrackList、format、UpdatePanel
   stage/        歌词舞台与可视化
   overlay/      桌面歌词窗口（独立入口 overlay.html）
@@ -37,6 +41,34 @@ electron/
 scripts/        开发与审计工具（见下方「审计」）
 tests/          单元测试，主要覆盖纯逻辑
 ```
+
+### 单页设置（`src/views/settings/`）
+
+设置曾经是三个导航项（档案 / 音源 / 偏好设置），各有一半答案。现在是一页四个编号分区，
+按「你会为什么来这里」排：01 播放与音质、02 外观与桌面、03 快捷键、04 更新与关于。
+
+**账号不在这**：`src/views/AccountView.tsx` 是独立一页（入口是侧栏底部的头像），
+内容是 `settings/panes/AccountPane.tsx`。它和设置页共用 `parts.tsx` 的排版零件与
+`settings.css`，所以两页看起来是同一个系统的两屏，而不是两套界面。把它留在设置里会
+让「换档案 / 扫码登录」这种高频动作埋进低频页面。
+
+- **排版零件**在 `parts.tsx`：`Part`（编号方块 + 英文小标 + 中文名 + 发丝线）、`Sub`、`Rows`、
+  `Row`（左标签右控件）、`Toggle`、`Actions`。设置页的四个 pane 与账号页只用这些零件，
+  不再各写一套行样式。
+- **每项只有一个真源**：能播什么、音质、歌词开关在 `features/settings/store.ts`（主进程持有）；
+  「动态效果」在 `features/settings/motion.ts`（纯渲染层，localStorage + `.is-reduced-motion`）；
+  壁纸在 `features/wallpaper/store.ts`。设置页只接线，不另存一份。
+- **窗口行为由主进程兑现**：`closeToTray` 写进主进程设置文件，主窗口的 `close` 处理读它决定
+  隐藏还是真关；全屏走 `window:toggleFullscreen` IPC（`F11` 与设置页按钮是同一个调用）。
+  渲染层永远拿不到 BrowserWindow，也就不该假装能控制它。
+- **档案头像**（`src/features/accounts/store.ts` 的 `avatar?`）：用户选的图在渲染层用
+  canvas 缩成 96×96 的 JPEG data URL（约 4–8 KB），直接存在档案对象里——档案本身就在
+  localStorage，头像跟着它一起存、一起删，不需要在主进程再维护一套「谁的头像文件」映射。
+  显示优先级在 `useOnlineBindings` 之上：自设头像 → 该档案绑定的平台账号头像（经
+  `remoteImageUrl` 走主进程代理，跨源图片直连会被 CSP 拦）→ 档案名首字。侧栏底部的
+  档案入口与账号页共用同一份判断（`features/accounts/bindings.ts`），两处必须是同一张脸。
+- **快捷键是只读清单**（`panes/HotkeysPane.tsx`）：键位写死在 `src/app/useKeyboardShortcuts.ts`，
+  做可录制键位要连带处理冲突、持久化与重载，收益小于风险。改键位时同时改这个 pane 与 README 的表。
 
 ### 平台层（`src/features/online/`）
 

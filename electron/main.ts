@@ -345,6 +345,12 @@ function createWindow(): void {
      * a running process with no way back to its window.
      */
     if (isQuitting || !hasTray()) return
+    /*
+     * 设置里选了「关掉窗口就退出」的，关闭按钮必须真的关掉：托盘还在，
+     * 但它不再是这个按钮的含义。不 preventDefault 就是让窗口真的销毁，
+     * window-all-closed 随后 quit。
+     */
+    if (!loadSettings().closeToTray) return
     event.preventDefault()
     mainWindow?.hide()
     refreshTrayMenu(trayHandlers())
@@ -713,11 +719,29 @@ function registerIpc(): void {
     return appSettings()
   })
 
+  ipcMain.handle('settings:setCloseToTray', (_event, enabled: unknown) => {
+    saveSettings({ closeToTray: Boolean(enabled) })
+    return appSettings()
+  })
+
   ipcMain.handle('settings:storage', () => storageUsage())
 
   ipcMain.handle('settings:clearCache', () => clearCache())
 
   // --- updates ------------------------------------------------------------
+
+  /*
+   * 全屏是一个动作，不是一个「记住」的状态：和窗口自身的 F11 一样，
+   * 下次启动回到普通窗口，用户不会遇到一个自己没设过的全屏播放器。
+   */
+  ipcMain.handle('window:toggleFullscreen', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false
+    const next = !mainWindow.isFullScreen()
+    mainWindow.setFullScreen(next)
+    return next
+  })
+
+  ipcMain.handle('window:isFullscreen', () => Boolean(mainWindow?.isFullScreen()))
 
   ipcMain.handle('updates:getPrefs', () => updatePrefs())
 

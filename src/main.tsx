@@ -22,6 +22,7 @@ import './features/online/register'
 import { useNetease } from './features/netease/store'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
+import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
 
 /*
  * Establish the profile before anything renders.
@@ -33,6 +34,7 @@ import { useAccounts } from './features/accounts/store'
  * by the time any component mounts, there is a profile and the stores are
  * already pointing at its slot.
  */
+applyReduceMotion(readReduceMotion())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
 

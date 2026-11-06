@@ -223,12 +223,20 @@ export interface AppSettings {
   updateLastCheck: number
   autoInstallUpdates: boolean
   desktopLyrics: DesktopLyricsSettings
+  /**
+   * 点关闭按钮时收进托盘（true）还是退出应用（false）。
+   *
+   * 这个值只有主进程能兑现（它才知道托盘图标是否真的建起来了），
+   * 所以渲染层只负责把它写下去，行为在主进程的 close 处理里。
+   */
+  closeToTray: boolean
 }
 
  interface SettingsApi {
   getAll(): Promise<AppSettings>
   setOnlineLyrics(enabled: boolean): Promise<AppSettings>
   setDesktopLyricsSize(size: number): Promise<AppSettings>
+  setCloseToTray(enabled: boolean): Promise<AppSettings>
   /** Bytes on disk for the cache and data directories; null when unmeasurable. */
   getStorage(): Promise<StorageUsage>
   /**
@@ -605,6 +613,13 @@ export interface WallpaperApi {
   list(force?: boolean): Promise<WallpaperEntry[]>
 }
 
+/** 窗口层面的动作：全屏不落盘，下次启动回到普通窗口。 */
+export interface WindowApi {
+  /** 切换全屏，返回切换之后的状态。 */
+  toggleFullscreen(): Promise<boolean>
+  isFullscreen(): Promise<boolean>
+}
+
 export interface AuroraApi {
   info(): Promise<{
     version: string
@@ -625,6 +640,7 @@ export interface AuroraApi {
   netease: NeteaseApi
   qq: QqApi
   wallpaper: WallpaperApi
+  window: WindowApi
 }
 
 declare global {

@@ -60,7 +60,9 @@ const JOURNEY = [
   { view: 'library-folders', kind: 'tab', label: '文件夹', title: '音乐库' },
   { view: 'library-netease', kind: 'source', label: '网易云', title: '未登录' },
   { view: 'library-qq', kind: 'source', label: 'QQ 音乐', title: 'QQ 音乐' },
-  { view: 'settings', kind: 'rail', label: '设置', title: '设置' }
+  { view: 'settings', kind: 'rail', label: '设置', title: '设置' },
+  // 账号页不在侧栏的一级项里：它是底部那张头像点进来的，所以单独一种 kind。
+  { view: 'account', kind: 'profile', label: '', title: '账号' }
 ]
 
 function fail(message) {
@@ -119,7 +121,9 @@ async function evaluate(cdp, expression) {
 const STEP_SELECTORS = {
   rail: '.rail .nav-item',
   tab: '.tabs--sub .tab',
-  source: '.tabs--sources .tab'
+  source: '.tabs--sources .tab',
+  // 侧栏底部的档案入口：只此一个，不需要按名字匹配（档案名由用户改）。
+  profile: '.rail__profile'
 }
 
 /** Click the control this step names, and say whether it existed. */
