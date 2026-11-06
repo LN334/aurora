@@ -295,7 +295,7 @@ window.__auroraPerf = { store: {...}, ipc: {...} }
 ### 7.2 store 通知次数：一个新文件 + 一行受保护调用
 
 ```ts
-// 新增 src/perf-probe.ts（唯一的新文件）
+// 新增一个 preview-only 探针模块（唯一的新文件）
 import { useLibrary } from './library/store'
 import { usePlayer } from './player/store'
 // …其余 store
@@ -322,7 +322,7 @@ if (!isNative) installPerfProbe()
 ```
 
 - **不需要改任何 store 文件**，因为探针自己 import store 并订阅。
-- **可移除性**：删掉 `src/perf-probe.ts` + 删掉那一行即可，没有第二个改动点。
+- **可移除性**：删掉那个探针模块 + 删掉那一行即可，没有第二个改动点。
 - **观察者效应**：多一个订阅者，每次通知多两次 `++`（实测应 <0.1% 单核，落地后本装置能量出来）。
 
 ### 7.3 IPC 条数：只能来自 Electron 侧

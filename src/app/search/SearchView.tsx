@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useLibrary } from '../../features/library/store'
 import { player } from '../../features/player/actions'
 import { usePlayer } from '../../features/player/store'
@@ -28,6 +28,12 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
   const tracks = useLibrary((s) => s.tracks)
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
+
+  // Opening the screen is what decides the source on a first visit; the store
+  // cannot decide it earlier without guessing at import order.
+  useEffect(() => {
+    useSearch.getState().resolveSource()
+  }, [])
 
   const tabs = searchSources()
   const active = tabs.find((tab) => tab.id === source) ?? tabs[0]

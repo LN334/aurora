@@ -1332,6 +1332,22 @@ input::placeholder {
   padding: 1px 4px;
 }
 
+/* A row's origin, printed only by a list that mixes origins (see TrackList).
+   The words carry the meaning - the fill only separates "a platform" from "a
+   file". A platform's brand colour would be the one chromatic value in the shell
+   that did not come from the artwork, which is the one rule the tokens exist to
+   keep. */
+.badge.trk__src {
+  background: var(--ink-700);
+  border-color: transparent;
+  color: var(--text-mid);
+}
+.badge.trk__src--local {
+  background: transparent;
+  border-color: var(--ink-600);
+  color: var(--text-low);
+}
+
 .tracks__empty {
   display: flex;
   align-items: center;

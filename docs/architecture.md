@@ -91,6 +91,27 @@ node scripts/audit-exports.mjs        # 找只在本文件内使用的导出
 （`` `lyr--d${n}` ``）、CSS 注释里提到的文件名（`tokens.css`）、以及 HTML 入口里的类名
 （`overlay.html` 的 `overlay-body`）。脚本已处理这三类。
 
+## 真实窗口巡检
+
+测试只覆盖纯逻辑，所以界面另有一条走真实 Electron 窗口的巡检：
+
+```bash
+npm run smoke                          # 空曲库，走完 13 个页面
+npm run smoke -- --library=<文件夹>     # 先播种曲库再走，能查到扫描结果
+```
+
+它启动的是 `node_modules/electron/dist/electron.exe`（不是打包产物），参数里带自己的
+`--user-data-dir`，因此 `app.getPath('userData')` 也跟着指到临时目录——**不会碰用户真实的
+settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写进那份临时 settings.json。
+
+每一步点侧栏、等标题出现、截图，并用 Runtime 收集控制台错误与未捕获异常；空屏、破图、
+标题没出现都算失败。最后两步走出纯本地：联网搜一次（校验确实落到在线标签、行数大于 0），
+再点开第一首在线歌（校验播放条时间走过了 0:00，失败时会停在 0:00 并弹错误提示）。
+
+`aurora-media://art/…` 的 404 不算失败：扫描器不解码封面，`hasArt` 是乐观值，没有内嵌封面的
+文件本来就会走到「请求失败 → 用占位图」这条路，Chromium 只是把这次失败记进控制台。巡检把它
+单独计数，其余控制台错误仍然算失败。
+
 ## 搬迁工具
 
 `scripts/move-files.mjs` 移动文件并改写所有相对 import（静态、动态、type-only、
@@ -119,7 +140,7 @@ node scripts/move-files.mjs --plan scripts/moves/features.json --apply  # 执行
 
 按「值不值得」排序，附当前行数（2026-10，平台抽象之后）：
 
-- **`src/App.tsx`（830 行）**仍是最大的渲染层文件：键盘快捷键、播放/导航动作、
+- **`src/App.tsx`（891 行）**仍是最大的渲染层文件：键盘快捷键、播放/导航动作、
   六段视图分发的 JSX 都在其中。`useKeyboardShortcuts` 与 `usePlaybackActions` 已经抽出
   （曾经约 1180 行），剩下的主要是视图分发与头部接线，可以再拆，但收益已经不如从前。
 - **`electron/netease/client.ts`（840 行）**按 bootstrap / 会话 / 搜索 / 播放 / 登录拆分。

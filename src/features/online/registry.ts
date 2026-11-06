@@ -1,4 +1,4 @@
-﻿import type { Track } from '../../types'
+import type { Track } from '../../types'
 import type { ViewId } from '../../types'
 import type {
   OnlineMusicProvider,
@@ -120,5 +120,44 @@ export function getPlaybackSourceRef(track: Track | null | undefined): PlaybackS
  */
 export function sourceLabelFor(track: Track | null | undefined): string | null {
   return providerForTrack(track)?.shortName ?? providerForTrack(track)?.displayName ?? null
+}
+
+/**
+ * A track's origin, as a row should print it.
+ *
+ * The plain label answers "which platform", which is only half the question a
+ * mixed list raises: a local file returns null there, so a list of files and
+ * Netease songs said nothing at all about the files. The tag answers the whole
+ * question - a platform's short name, or 本机 - and carries the origin as a
+ * second field so the row can tint it without testing for platforms.
+ *
+ * `listIsMixed` is what keeps the label honest instead of noisy. A screen that
+ * speaks with one voice - only files (the songs page, an album), or only one
+ * platform's songs (that platform's own list) - never prints anything, because
+ * the page title and the "结果来自" line already answer it. A screen that mixes
+ * origins (a playlist, the queue) prints one on every row, including the files.
+ */
+export interface SourceTag {
+  /** What the row prints: the platform's short name, or 本机. */
+  label: string
+  /** Origin key: a provider id, or 'local'. Used as a CSS modifier, never branched on. */
+  kind: string
+}
+
+export function sourceTagFor(
+  track: Track | null | undefined,
+  listIsMixed: boolean
+): SourceTag | null {
+  if (!track || !listIsMixed) return null
+  const label = sourceLabelFor(track)
+  const source = track?.source
+  const online = Boolean(source) && source !== 'local'
+  if (online) {
+    // A provider that is registered always names itself; one that is not (a track
+    // saved by a build that had it, an id from a future platform) still prints
+    // its own id rather than claiming to be a local file.
+    return { label: label ?? (source as string), kind: source as string }
+  }
+  return { label: '本机', kind: 'local' }
 }
 

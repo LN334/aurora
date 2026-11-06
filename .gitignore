@@ -52,3 +52,12 @@ desktop.ini
 docs/shots/
 docs/gpu-composite-probe.json
 docs/gpu-screen-inventory.json
+
+# Real-window smoke output.
+#
+# The walk writes one screenshot per screen and keeps a throwaway user-data-dir so
+# it never touches the settings the app is actually using. Both are regenerated on
+# every run; the seeded library is a handful of synthetic one-second files.
+.smoke/
+shots/
+.probe-*

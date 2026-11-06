@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { sourceTagFor } from '../features/online/registry'
 import { formatTime } from './format'
 import { Note } from './icons'
 import type { Track } from '../types'
@@ -26,6 +27,20 @@ interface TrackListProps {
  */
 export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
   const currentRow = useRef<HTMLDivElement | null>(null)
+
+  /*
+   * Whether a row needs to say where it came from.
+   *
+   * A screen of files, or a screen of one platform's songs, is already answered by
+   * its own title; a badge on every row there is furniture. A list that genuinely
+   * mixes origins - a playlist, the queue, cross-platform search - is the case the
+   * README used to describe as unsolved, and there every row (the files too) gets
+   * one label so the column reads as an answer rather than a scattering.
+   */
+  const origins = new Set(
+    tracks.map((track) => (Boolean(track.source) && track.source !== 'local' ? track.source : 'local'))
+  )
+  const mixed = origins.size > 1
 
   /*
    * Keep the playing track on screen.
@@ -69,6 +84,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
 
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentId
+        const srcTag = sourceTagFor(track, mixed)
         return (
           <div
             key={track.id}
@@ -108,6 +124,11 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
             </span>
             <span className="trk__title" role="cell">
               <span className="trk__title-text">{track.title || '（无标题）'}</span>
+              {srcTag ? (
+                <span className={`badge trk__src trk__src--${srcTag.kind}`} title={`来自${srcTag.label}`}>
+                  {srcTag.label}
+                </span>
+              ) : null}
               {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
             </span>
             <span className="trk__muted" role="cell">

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { searchLocalTracks } from '../../features/library/search'
 import { getProvider, listAvailableProviders } from '../../features/online/registry'
 import type { Track } from '../../types'
+import { chooseInitialSource } from './initial-source'
 import { readRememberedSource, rememberSource, type SearchSource } from './remembered-source'
 
 /**
@@ -54,11 +55,6 @@ export function searchSources(): SearchSourceTab[] {
   return tabs
 }
 
-/** The default tab: the first remote catalogue, or local when there is none. */
- function defaultSource(): SearchSource {
-  return searchSources().find((tab) => tab.remote)?.id ?? 'local'
-}
-
 interface SearchState {
   query: string
   source: SearchSource
@@ -70,7 +66,16 @@ interface SearchState {
   error: string | null
   /** Whether the current query has been submitted for the active source. */
   submitted: boolean
+  /**
+   * False until the source has been chosen against the live registry.
+   *
+   * See `resolveSource`: the choice cannot be made while this module is being
+   * evaluated, so it is made on first use instead.
+   */
+  sourceResolved: boolean
 
+  /** Pick the remembered or default source, once, against the live registry. */
+  resolveSource(): void
   setQuery(query: string): void
   setSource(source: SearchSource): void
   /** Run the query for whichever source is active. */
@@ -80,10 +85,20 @@ interface SearchState {
 
 export const useSearch = create<SearchState>((set, get) => ({
   query: '',
-  // Whatever was used last, or the first platform on a first visit. A remembered
-  // platform that this build cannot serve falls back rather than leaving the screen
-  // pointed at a tab that is not drawn.
-  source: resolveInitialSource(),
+  /*
+   * Not resolved here on purpose.
+   *
+   * This used to call the registry during store creation, which reads better than it
+   * behaves: the platforms register themselves when their module runs, and whether
+   * that has happened by the time this store is first imported is decided by import
+   * order, not by intent. The observable symptom was a fresh install opening the
+   * search screen on "本机曲库" while the code below claims the first platform is the
+   * default - local wins only because the registry still looked empty. Choosing on
+   * first use makes the answer depend on the registry as it actually is, and keeps
+   * the documented default honest.
+   */
+  source: 'local',
+  sourceResolved: false,
   searching: false,
   results: {},
   error: null,
@@ -100,14 +115,30 @@ export const useSearch = create<SearchState>((set, get) => ({
     set({ query, submitted: false })
   },
 
+  resolveSource() {
+    if (get().sourceResolved) return
+    const tabs = searchSources()
+    // Whatever was used last, or the first platform on a first visit. A remembered
+    // platform this build cannot serve falls back rather than leaving the screen
+    // pointed at a tab that is not drawn.
+    const remembered = readRememberedSource(tabs.map((tab) => tab.id))
+    set({
+      source: chooseInitialSource(tabs, remembered) as SearchSource,
+      sourceResolved: true
+    })
+  },
+
   setSource(source) {
     // Persisted because the choice is a preference, not a per-visit decision:
     // whoever searches one catalogue nearly always wants that same one next time.
     rememberSource(source)
-    set({ source, submitted: false })
+    set({ source, sourceResolved: true, submitted: false })
   },
 
   async submit(tracks) {
+    // A submit from the title bar can be the first thing that asks what "search"
+    // means, and there may be no screen mounted yet to do it.
+    get().resolveSource()
     const { query, source } = get()
     const trimmed = query.trim()
 
@@ -171,16 +202,7 @@ export const useSearch = create<SearchState>((set, get) => ({
   }
 }))
 
-/** The platform's song -> track mapping, which is where the id prefix lives. */
-function resolveInitialSource(): SearchSource {
-  const tabs = searchSources()
-  // Validated against the live registry, so a remembered platform this build cannot
-  // serve falls back rather than leaving the screen pointed at a tab that is not
-  // drawn.
-  const remembered = readRememberedSource(tabs.map((tab) => tab.id))
-  if (remembered && tabs.some((tab) => tab.id === remembered)) return remembered
-  return defaultSource()
-}
+
 
 /** The rows to show for the active source. */
 export function searchResultsFor(state: Pick<SearchState, 'source' | 'results'>): Track[] {

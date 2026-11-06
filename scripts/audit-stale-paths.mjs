@@ -46,8 +46,17 @@ const scanned = tracked.filter(
 /** Files whose `usage:` examples show made-up paths. */
 const EXAMPLE_FILES = new Set(['scripts/move-files.mjs', 'scripts/audit-stale-paths.mjs'])
 
-/** Longest meaningful source path in a string. */
-const PATH_PATTERN = /(?:^|[\s'"(=`])((?:src|electron)\/[A-Za-z0-9_./-]+\.(?:ts|tsx|css|mjs|cjs))/g
+/*
+ * Longest meaningful source path in a string.
+ *
+ * The extension alternation is written `tsx?`, not `ts|tsx`: this pattern is
+ * not anchored at the end, so a shorter `ts` alternative would match the first
+ * two letters of `foo.tsx` and the audit would report every `.tsx` reference as
+ * a stale `.ts` one. That is the false-positive class this ordering removes, and
+ * it is load-bearing rather than cosmetic: those reports can never be fixed by
+ * editing the referenced text.
+ */
+const PATH_PATTERN = /(?:^|[\s'"(=`])((?:src|electron)\/[A-Za-z0-9_./-]+\.(?:tsx?|css|mjs|cjs))/g
 
 const stale = []
 for (const file of scanned) {
