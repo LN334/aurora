@@ -125,6 +125,23 @@ node scripts/audit-exports.mjs        # 找只在本文件内使用的导出
 （`` `lyr--d${n}` ``）、CSS 注释里提到的文件名（`tokens.css`）、以及 HTML 入口里的类名
 （`overlay.html` 的 `overlay-body`）。脚本已处理这三类。
 
+## 桌面歌词
+
+`overlay.html` 是一个独立的无边框透明置顶窗口（`electron/lyrics-overlay.ts`）。页面只负责画，
+「鼠标现在是不是在歌词上」由主进程判断，原因是一条实测结论：锁定（鼠标穿透）时窗口设的是
+`setIgnoreMouseEvents(true, { forward: true })`，但 `forward` 转发的 `mousemove` 根本到不了页面
+（`window` 上的计数为 0，而 `document.elementFromPoint(中心)` 却能命中歌词行）。所以页面 hover
+不可靠。
+
+现在改成：页面用 `ResizeObserver` 量出文字板矩形，通过 `overlay:hit-area` 上报；主进程每 70ms
+读一次 `screen.getCursorScreenPoint()`，与窗口 bounds 加这块矩形比较（四周留 10px 容差），命中就
+把穿透关掉并发 `overlay:hover`，页面收到后浮出控制条。鼠标移开立刻恢复穿透——于是锁定状态下
+不用先解锁也能拖动和点按钮。
+
+视觉上不画底板：静止态只有文字与一圈径向暗晕（`::before`，`opacity: .92`），悬停时才淡入一层
+34% 的深色卡片（`::after`）承托控制条。顶部的 28px 内边距就是给控制条留的座位，不然按钮会压在
+第一行歌词上。
+
 ## 真实窗口巡检
 
 测试只覆盖纯逻辑，所以界面另有一条走真实 Electron 窗口的巡检：

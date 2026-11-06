@@ -51,6 +51,32 @@ const MIN_HEIGHT = 88
 
 let overlay: BrowserWindow | null = null
 let locked = true
+/**
+ * Whether the pointer is currently over the lyrics.
+ *
+ * This is polled in the main process rather than reported by the page: a locked
+ * window ignores the mouse, and on Windows the forwarded mouse-move events do
+ * not arrive at all in that state (measured, not assumed). Polling the cursor is
+ * the only way to know the user is aiming at the strip.
+ *
+ * It matters because "locked" is not the same thing as "unusable": the window
+ * ignores the mouse so it never eats a click meant for the app underneath, but
+ * the moment the pointer is actually on the lyrics the buttons should work.
+ * Without this the only way to reach them was a keyboard shortcut, which is the
+ * "weird to operate" part of a floating widget whose controls are invisible.
+ */
+let hovering = false
+
+/**
+ * Where the words are, in window-local CSS px.
+ *
+ * The window is much wider than the line it draws. Handing the whole rectangle
+ * to the mouse would make an invisible 980x150 area swallow clicks aimed at the
+ * desktop, so the page reports the plate's own box and only that counts.
+ */
+let hitArea: { x: number; y: number; width: number; height: number } | null = null
+
+let hoverTimer: NodeJS.Timeout | undefined
 /** Held while the window is closed so it renders instantly when reopened. */
 let latest: OverlayState | null = null
 let notify: (status: OverlayStatus) => void = () => undefined
@@ -95,7 +121,44 @@ function clampBounds(bounds: Rectangle): Rectangle {
 
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
-  overlay.setIgnoreMouseEvents(locked, { forward: true })
+  overlay.setIgnoreMouseEvents(locked && !hovering, { forward: true })
+}
+
+/** Tell the strip what the pointer is doing so it can reveal its controls. */
+function notifyHover(): void {
+  if (!overlay || overlay.isDestroyed()) return
+  overlay.webContents.send('overlay:hover', hovering)
+}
+
+function stopHoverPolling(): void {
+  if (hoverTimer) clearInterval(hoverTimer)
+  hoverTimer = undefined
+}
+
+/**
+ * Watch the cursor while the strip is locked.
+ *
+ * 70ms is well under the time it takes to move a pointer onto the strip, and
+ * the check itself is two rectangle tests against a cached bounds read.
+ */
+function startHoverPolling(): void {
+  stopHoverPolling()
+  hoverTimer = setInterval(() => {
+    if (!overlay || overlay.isDestroyed() || !locked) return
+    const point = screen.getCursorScreenPoint()
+    const bounds = overlay.getBounds()
+    const area = hitArea ?? { x: 0, y: 0, width: bounds.width, height: bounds.height }
+    // A few px of slack on each edge: the plate is rounded and thin, and
+    // aiming at a target that only answers when you are exactly on it feels
+    // broken.
+    const pad = 10
+    const inside =
+      point.x >= bounds.x + area.x - pad &&
+      point.x <= bounds.x + area.x + area.width + pad &&
+      point.y >= bounds.y + area.y - pad &&
+      point.y <= bounds.y + area.y + area.height + pad
+    setHovering(inside)
+  }, 70)
 }
 
 function sendState(): void {
@@ -204,10 +267,14 @@ function open(): void {
     overlay?.showInactive()
     sendState()
     sendSize(true)
+    notifyHover()
   })
+
+  startHoverPolling()
 
   overlay.on('closed', () => {
     overlay = null
+    hovering = false
     notifyStatus()
   })
 
@@ -238,8 +305,11 @@ function close(): void {
     return
   }
   persistBounds()
+  stopHoverPolling()
   overlay.destroy()
   overlay = null
+  hovering = false
+  hitArea = null
   notifyStatus()
 }
 
@@ -259,6 +329,35 @@ export function setLocked(next: boolean): boolean {
 
 export function isLocked(): boolean {
   return locked
+}
+
+/**
+ * The strip tells us when the pointer enters or leaves it.
+ *
+ * Only meaningful while locked - an unlocked window always takes the mouse.
+ * Returns the state actually applied.
+ */
+export function setHovering(next: boolean): boolean {
+  if (hovering === next) return hovering
+  hovering = next
+  applyLock()
+  notifyHover()
+  return hovering
+}
+
+/** The strip's own box, so hovering only counts on the words themselves. */
+export function setHitArea(rect: unknown): boolean {
+  if (!rect || typeof rect !== 'object') return false
+  const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
+  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
+  const area = {
+    x: num(candidate.x),
+    y: num(candidate.y),
+    width: Math.max(1, num(candidate.width)),
+    height: Math.max(1, num(candidate.height))
+  }
+  hitArea = area
+  return true
 }
 
 /** Forward the current lyric state. Safe to call whether or not the window is open. */

@@ -189,6 +189,21 @@ export interface OverlayStatus {
   toggle(enabled?: boolean): Promise<OverlayStatus>
   getStatus(): Promise<OverlayStatus>
   setLocked(locked: boolean): Promise<boolean>
+  /**
+   * Where the words are, in window-local CSS px.
+   *
+   * Only that box counts as "on the lyrics": the window is much wider than the
+   * line it draws, and a locked window must not swallow clicks aimed at the
+   * transparent space around the words.
+   */
+  setHitArea(rect: { x: number; y: number; width: number; height: number }): Promise<boolean>
+  /**
+   * True while the pointer is over the lyrics.
+   *
+   * The main process polls the cursor - a locked window ignores the mouse, so
+   * the page cannot observe hover on its own - and this drives the controls.
+   */
+  onHover(handler: (hovering: boolean) => void): () => void
   close(): Promise<OverlayStatus>
   push(state: OverlayState): Promise<boolean>
   onState(handler: (state: OverlayState) => void): () => void

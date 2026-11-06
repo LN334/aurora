@@ -192,6 +192,23 @@ const api = {
     getStatus: () => ipcRenderer.invoke('overlay:status') as Promise<OverlayStatus>,
     setLocked: (locked: boolean) =>
       ipcRenderer.invoke('overlay:setLocked', locked) as Promise<boolean>,
+    /**
+     * Where the words are, in window-local CSS px.
+     *
+     * The window is far wider than the line it draws, so the main process needs
+     * the plate's own box to decide whether the pointer is "on the lyrics" or
+     * just over empty transparent space.
+     */
+    setHitArea: (rect: { x: number; y: number; width: number; height: number }) =>
+      ipcRenderer.invoke('overlay:hit-area', rect) as Promise<boolean>,
+    /** True while the pointer is over the lyrics; drives the control strip. */
+    onHover: (handler: (hovering: boolean) => void) => {
+      const listener = (_event: IpcRendererEvent, hovering: boolean) => handler(hovering)
+      ipcRenderer.on('overlay:hover', listener)
+      return () => {
+        ipcRenderer.removeListener('overlay:hover', listener)
+      }
+    },
     close: () => ipcRenderer.invoke('overlay:close') as Promise<OverlayStatus>,
     push: (state: OverlayState) => ipcRenderer.invoke('overlay:push', state) as Promise<boolean>,
     /** The settings page resizes the strip; the overlay's own buttons do too. */

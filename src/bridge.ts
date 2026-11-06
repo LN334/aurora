@@ -172,6 +172,8 @@ const webFallback: AuroraApi = {
     toggle: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
     getStatus: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
     setLocked: async () => true,
+    setHitArea: async () => true,
+    onHover: () => () => undefined,
     close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
     push: async () => true,
     setSize: async (size) => {

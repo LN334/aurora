@@ -17,26 +17,91 @@ body.overlay-body {
   cursor: default;
 }
 
-.stage-lyric {
+/*
+ * The window is deliberately larger than the words (a strip, roughly 980x150).
+ * The wrapper fills it and stays click-through so that only the lyrics take the
+ * pointer - see Overlay.tsx.
+ */
+.stage-lyric__wrap {
   display: flex;
+  width: 100%;
   height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.stage-lyric {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  max-width: 100%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 8px 14px;
   /*
-   * A translucent plate behind the words. Without it the lyric has to survive
-   * every possible wallpaper, and white-on-a-white-photo is unreadable no matter
-   * how good the text shadow is. This is the one place blur is worth its cost in
-   * a floating widget: it keeps the text legible without hiding the desktop.
+   * The top padding is the control strip's seat. Reserving it keeps the words
+   * from being covered when the controls fade in - the old layout parked the
+   * buttons over the first line.
    */
-  background: rgb(8 10 12 / 0.42);
-  backdrop-filter: blur(14px) saturate(1.2);
+  padding: 28px 22px 10px;
   border-radius: 14px;
-  border: 1px solid rgb(255 255 255 / 0.08);
+  pointer-events: auto;
   /* Draggable, except for the controls, which opt out below. */
   -webkit-app-region: drag;
+}
+
+/*
+ * A soft halo behind the words instead of a black slab.
+ *
+ * The old plate (42% black plus a backdrop blur) read as a dark rectangle
+ * floating on the desktop: it was legible but it looked like a bug. What the
+ * text actually needs is local contrast, so this darkens only what sits
+ * directly behind the line, fades to nothing, and lets the wallpaper show
+ * through everywhere else.
+ */
+.stage-lyric::before {
+  content: '';
+  position: absolute;
+  inset: -14% -8%;
+  z-index: -1;
+  border-radius: 26px;
+  background: radial-gradient(
+    68% 128% at 50% 50%,
+    rgb(0 0 0 / 0.42),
+    rgb(0 0 0 / 0.2) 58%,
+    rgb(0 0 0 / 0) 100%
+  );
+  filter: blur(16px);
+  opacity: 0.92;
+  pointer-events: none;
+}
+
+/*
+ * The interactive plate. Invisible at rest, it fades in while the pointer is on
+ * the strip so the controls have something to sit on and the whole thing reads
+ * as "you can use this".
+ */
+.stage-lyric::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 14px;
+  background: rgb(8 10 12 / 0);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0);
+  transition:
+    background 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out);
+  pointer-events: none;
+}
+
+.stage-lyric.is-active::after {
+  background: rgb(8 10 12 / 0.34);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
 }
 
 .stage-lyric__line {
@@ -50,51 +115,70 @@ body.overlay-body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 2px 14px rgb(0 0 0 / 0.85), 0 0 2px rgb(0 0 0 / 0.9);
+  /*
+   * Strong enough to hold up over a white page, soft enough not to look like an
+   * outline: a tight dark ring plus two wide drops does the work that the black
+   * plate used to.
+   */
+  text-shadow:
+    0 0 2px rgb(0 0 0 / 0.55),
+    0 1px 3px rgb(0 0 0 / 0.65),
+    0 3px 14px rgb(0 0 0 / 0.55),
+    0 8px 32px rgb(0 0 0 / 0.4);
 }
 
 .stage-lyric__next {
   max-width: 100%;
   font-size: calc(var(--lyric-size, 34px) * 0.5);
   font-weight: 400;
-  color: rgb(255 255 255 / 0.5);
+  color: rgb(255 255 255 / 0.62);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 0.8);
+  text-shadow:
+    0 0 2px rgb(0 0 0 / 0.5),
+    0 1px 6px rgb(0 0 0 / 0.7);
 }
 
 .stage-lyric__idle {
   font-size: calc(var(--lyric-size, 34px) * 0.55);
   font-weight: 400;
-  color: rgb(255 255 255 / 0.55);
+  color: rgb(255 255 255 / 0.7);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 0.8);
+  text-shadow:
+    0 0 2px rgb(0 0 0 / 0.5),
+    0 1px 6px rgb(0 0 0 / 0.7);
 }
 
 /* --- controls ------------------------------------------------------------ */
 
 .stage-lyric__controls {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
-  background: rgb(8 10 12 / 0.7);
+  background: rgb(8 10 12 / 0.62);
   border: 1px solid rgb(255 255 255 / 0.1);
   opacity: 0;
-  transition: opacity 140ms var(--ease-out);
+  visibility: hidden;
+  transition:
+    opacity 140ms var(--ease-out),
+    visibility 140ms var(--ease-out);
   /* Buttons must receive clicks, so they cannot be part of the drag region. */
   -webkit-app-region: no-drag;
 }
-.stage-lyric:hover .stage-lyric__controls,
+
+.stage-lyric.is-active .stage-lyric__controls,
 .stage-lyric__controls:focus-within {
   opacity: 1;
+  visibility: visible;
 }
 
 .stage-lyric__button {
@@ -104,7 +188,9 @@ body.overlay-body {
   height: 24px;
   border-radius: 6px;
   color: rgb(255 255 255 / 0.72);
-  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+  transition:
+    background 120ms var(--ease-out),
+    color 120ms var(--ease-out);
 }
 .stage-lyric__button:hover {
   background: rgb(255 255 255 / 0.14);
@@ -116,9 +202,4 @@ body.overlay-body {
 }
 .stage-lyric__button:disabled:hover {
   background: none;
-}
-
-/* Locked: the whole thing is click-through, so the controls are meaningless. */
-.stage-lyric.is-locked .stage-lyric__controls {
-  display: none;
 }

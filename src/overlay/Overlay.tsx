@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Close, Lock, Minus, Plus, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
 import type { OverlayState } from '../env'
@@ -14,15 +14,23 @@ const IDLE: OverlayState = { text: null, next: null, title: '', artist: '', play
 /**
  * The desktop lyric strip.
  *
- * Renders in its own transparent, always-on-top window. Two states matter:
- * locked means the window ignores the mouse entirely so it never blocks a click
- * on whatever is underneath; unlocked means it can be dragged and the control
- * strip is reachable.
+ * Renders in its own transparent, always-on-top window. Three states matter:
+ *
+ *  - **locked** the window ignores the mouse, so it never eats a click meant
+ *    for the app underneath. While the pointer is over the lyrics the window
+ *    takes the mouse back, which is what makes the buttons reachable without
+ *    unlocking first;
+ *  - **hovered** the pointer is on the strip - the plate and the control strip
+ *    appear so it is obvious the thing can be operated;
+ *  - **unlocked** the window takes the mouse everywhere it covers, for dragging
+ *    it around deliberately.
  */
 export function Overlay() {
   const [state, setState] = useState<OverlayState>(IDLE)
   const [locked, setLocked] = useState(true)
   const [size, setSize] = useState(DEFAULT_SIZE)
+  const [hovering, setHovering] = useState(false)
+  const plate = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => bridge.overlay.onState(setState), [])
 
@@ -53,6 +61,40 @@ export function Overlay() {
     return stop
   }, [])
 
+  /*
+   * Hover is reported by the main process, not measured here.
+   *
+   * A locked window ignores the mouse entirely, so the page sees no pointer
+   * events at all - it cannot tell whether the cursor is on the words. The main
+   * process polls the cursor against the box this window reports below.
+   */
+  useEffect(() => bridge.overlay.onHover(setHovering), [])
+
+  /*
+   * Report the plate's box whenever it changes size.
+   *
+   * The window is a strip (about 980x150) and the words are a small box inside
+   * it. Telling the main process where that box is means the invisible margins
+   * stay click-through even when the lyrics themselves are interactive.
+   */
+  useEffect(() => {
+    const element = plate.current
+    if (!element) return
+    const report = () => {
+      const rect = element.getBoundingClientRect()
+      void bridge.overlay.setHitArea({
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height
+      })
+    }
+    report()
+    const observer = new ResizeObserver(report)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [size, state.text, state.next, state.title])
+
   const applySize = (next: number) => {
     const clamped = Math.min(MAX_SIZE, Math.max(MIN_SIZE, next))
     setSize(clamped)
@@ -64,64 +106,69 @@ export function Overlay() {
     setLocked(applied)
   }
 
-  return (
-    <div
-      className={`stage-lyric${locked ? ' is-locked' : ''}`}
-      style={{ ['--lyric-size' as string]: `${size}px` }}
-    >
-      <div className="stage-lyric__controls">
-        <button
-          className="stage-lyric__button"
-          onClick={() => applySize(size - 2)}
-          disabled={size <= MIN_SIZE}
-          title="缩小字号"
-          aria-label="缩小字号"
-        >
-          <Minus size={14} />
-        </button>
-        <button
-          className="stage-lyric__button"
-          onClick={() => applySize(size + 2)}
-          disabled={size >= MAX_SIZE}
-          title="放大字号"
-          aria-label="放大字号"
-        >
-          <Plus size={14} />
-        </button>
-        <button
-          className="stage-lyric__button"
-          onClick={() => void setLock(!locked)}
-          title={locked ? '解锁（解锁后才能拖动）' : '锁定（锁定后鼠标穿透）'}
-          aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
-        >
-          {locked ? <Lock size={14} /> : <Unlock size={14} />}
-        </button>
-        <button
-          className="stage-lyric__button"
-          onClick={() => void bridge.overlay.close()}
-          title="关闭桌面歌词"
-          aria-label="关闭桌面歌词"
-        >
-          <Close size={14} />
-        </button>
-      </div>
+  const active = hovering || !locked
 
-      {state.text ? (
-        <>
-          <div className="stage-lyric__line">{state.text}</div>
-          {state.next ? <div className="stage-lyric__next">{state.next}</div> : null}
-        </>
-      ) : state.title ? (
-        // Lyrics are not the only useful thing to show: this keeps the strip
-        // meaningful for instrumentals and untagged files.
-        <div className="stage-lyric__idle">
-          {state.playing ? '♪ ' : '❙❙ '}
-          {state.title}
-          {state.artist ? ` — ${state.artist}` : ''}
+  return (
+    <div className="stage-lyric__wrap">
+      <div
+        ref={plate}
+        className={`stage-lyric${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}`}
+        style={{ ['--lyric-size' as string]: `${size}px` }}
+      >
+        <div className="stage-lyric__controls">
+          <button
+            className="stage-lyric__button"
+            onClick={() => applySize(size - 2)}
+            disabled={size <= MIN_SIZE}
+            title="缩小字号"
+            aria-label="缩小字号"
+          >
+            <Minus size={14} />
+          </button>
+          <button
+            className="stage-lyric__button"
+            onClick={() => applySize(size + 2)}
+            disabled={size >= MAX_SIZE}
+            title="放大字号"
+            aria-label="放大字号"
+          >
+            <Plus size={14} />
+          </button>
+          <button
+            className="stage-lyric__button"
+            onClick={() => void setLock(!locked)}
+            title={locked ? '解锁：一直可以拖动和点按' : '锁定：鼠标穿透，不挡下面的窗口'}
+            aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
+          >
+            {locked ? <Lock size={14} /> : <Unlock size={14} />}
+          </button>
+          <button
+            className="stage-lyric__button"
+            onClick={() => void bridge.overlay.close()}
+            title="关闭桌面歌词"
+            aria-label="关闭桌面歌词"
+          >
+            <Close size={14} />
+          </button>
         </div>
-      ) : (
-        <div className="stage-lyric__idle">Aurora 桌面歌词</div>
-      )}
+
+        {state.text ? (
+          <>
+            <div className="stage-lyric__line">{state.text}</div>
+            {state.next ? <div className="stage-lyric__next">{state.next}</div> : null}
+          </>
+        ) : state.title ? (
+          // Lyrics are not the only useful thing to show: this keeps the strip
+          // meaningful for instrumentals and untagged files.
+          <div className="stage-lyric__idle">
+            {state.playing ? '♪ ' : '❙❙ '}
+            {state.title}
+            {state.artist ? ` — ${state.artist}` : ''}
+          </div>
+        ) : (
+          <div className="stage-lyric__idle">Aurora 桌面歌词</div>
+        )}
+      </div>
     </div>
   )
 }

@@ -50,6 +50,7 @@ import {
   initOverlay,
   isLocked as isOverlayLocked,
   pushOverlayState,
+  setHitArea as setOverlayHitArea,
   setLocked as setOverlayLocked,
   setLyricSize,
   status as overlayStatus,
@@ -619,6 +620,10 @@ function registerIpc(): void {
   ipcMain.handle('overlay:status', () => overlayStatus())
 
   ipcMain.handle('overlay:setLocked', (_event, locked: unknown) => setOverlayLocked(Boolean(locked)))
+
+  // The strip reports where its words are; the main process polls the cursor
+  // against that box so a locked window takes the mouse only over the lyrics.
+  ipcMain.handle('overlay:hit-area', (_event, rect: unknown) => setOverlayHitArea(rect))
 
   ipcMain.handle('overlay:close', () => {
     toggleOverlay(false)
