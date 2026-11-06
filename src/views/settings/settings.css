@@ -144,3 +144,117 @@
   color: var(--text-hi);
   font-size: var(--fs-meta);
 }
+
+
+/* =============================================================================
+   Wallpaper Engine picker
+   ========================================================================== */
+
+.wp-picker {
+  margin-top: var(--s4);
+}
+
+.wp-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+/*
+ * A vertical scroller, not a wrapping wall.
+ *
+ * The list can be hundreds of entries long (a workshop subscription folder is
+ * routinely 100+ projects), so it gets its own bounded viewport instead of
+ * pushing the rest of the settings page out of reach.
+ */
+.wp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  gap: var(--s3);
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--s2);
+  scrollbar-width: thin;
+}
+
+.wp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  text-align: left;
+  border-radius: var(--r-panel);
+}
+
+.wp-card__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--r-panel);
+  background: var(--ink-800);
+  border: 1px solid var(--line-soft);
+  transition: border-color 120ms var(--ease-out);
+}
+
+.wp-card__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wp-card:hover .wp-card__art {
+  border-color: var(--ink-500);
+}
+
+.wp-card.is-active .wp-card__art {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.wp-card__art--follow {
+  color: var(--text-low);
+}
+
+.wp-card__noart {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.wp-card__badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.5;
+  background: rgb(var(--accent-rgb) / 0.92);
+  color: var(--ink-1000);
+}
+
+.wp-card__title {
+  font-size: var(--fs-meta);
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-card__kind-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.5;
+  background: #080a0cb8;
+  color: var(--text-hi);
+  backdrop-filter: blur(4px);
+}

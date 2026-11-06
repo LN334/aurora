@@ -1401,3 +1401,118 @@ input::placeholder {
 }
 
 
+
+
+/* =============================================================================
+   Wallpaper Engine backdrop
+   ========================================================================== */
+
+/*
+ * A wallpaper is a fifth backdrop layer, so it reuses the same z-index 0 slot the
+ * artwork scrim occupies. Only one of them can be visible at a time - the artwork
+ * scrim is opaque marble over an image, so leaving it mounted under a wallpaper
+ * would hide the wallpaper entirely. `.has-wallpaper` is the switch between them.
+ */
+.wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--ink-1000);
+}
+
+.wallpaper__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+  /* Slightly overscanned so a drifting video never exposes an edge. */
+  transform: scale(1.06);
+}
+
+/* A still preview standing in for a scene drifts, so it does not read as frozen. */
+.wallpaper--scene .wallpaper__media {
+  animation: wallpaper-drift 60s ease-in-out infinite alternate;
+}
+
+@keyframes wallpaper-drift {
+  from {
+    transform: scale(1.06) translate3d(-1.5%, -1%, 0);
+  }
+  to {
+    transform: scale(1.06) translate3d(1.5%, 1%, 0);
+  }
+}
+
+/*
+ * The veil is what makes a wallpaper usable as a background.
+ *
+ * Text contrast cannot depend on which wallpaper the user picked, so the layer
+ * darkens the whole frame by a fixed amount derived from --wp-level, and adds a
+ * vertical gradient so the top (where the title bar and search field sit) is
+ * darker than the middle.
+ */
+.wallpaper__veil {
+  position: absolute;
+  inset: 0;
+  --veil: calc(0.82 - 0.6 * var(--wp-level, 0.62));
+  background: linear-gradient(
+      180deg,
+      rgb(8 10 12 / calc(var(--veil) * 0.85)),
+      rgb(8 10 12 / var(--veil))
+    ),
+    radial-gradient(
+      120% 90% at 50% 0%,
+      rgb(8 10 12 / calc(var(--veil) * 0.2)),
+      rgb(8 10 12 / calc(var(--veil) * 0.7))
+    );
+}
+
+/* Same reasoning as the artwork scrim: users who asked for contrast get a flat veil. */
+@media (prefers-contrast: more) {
+  .wallpaper__veil {
+    background: #080a0ce6;
+  }
+}
+
+/* Exactly one backdrop is visible. */
+.shell.has-wallpaper::before,
+.shell.has-wallpaper .shell__backdrop {
+  display: none;
+}
+
+/*
+ * The three planes turn translucent over a wallpaper.
+ *
+ * Each opacity is a function of the same --wp-level the veil uses, so the slider
+ * moves both together and a low visibility never produces a bright window with a
+ * dark strip. The player stays the most opaque of the three: it is the control
+ * surface, and losing the play button into a busy wallpaper is the one failure
+ * this feature must not have.
+ */
+.shell.has-wallpaper > .rail {
+  background: rgb(17 21 26 / calc(0.82 - 0.54 * var(--wp-level, 0.62)));
+}
+
+.shell.has-wallpaper > .main {
+  background: rgb(13 16 19 / calc(0.84 - 0.56 * var(--wp-level, 0.62)));
+}
+
+.shell.has-wallpaper > .player {
+  background: rgb(17 21 26 / calc(0.88 - 0.34 * var(--wp-level, 0.62)));
+}
+
+/* The WebGL canvas has to fill the host box; the engine sizes in device pixels. */
+.wallpaper__scene {
+  position: absolute;
+  inset: 0;
+}
+
+.wallpaper__scene canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

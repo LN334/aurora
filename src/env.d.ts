@@ -526,6 +526,51 @@ export interface QqApi {
   setQuality(quality: QqQuality): Promise<QqQuality>
 }
 
+/**
+ * Wallpaper Engine 背景：主进程读它自己安装目录的工程，渲染层只管挑一张。
+ *
+ * 三个字段是三个问题：装没装（found）、现在这张是什么（kind/title/src）、
+ * 为什么要退化成没有（note）。渲染层不解析 note 之外的任何主进程语义。
+ */
+export interface WallpaperInfo {
+  found: boolean
+  kind: WallpaperKind
+  title: string
+  /** 能直接放进 <img>/<video>/<iframe> 的地址；场景壁纸这里是预览图。 */
+  src: string | null
+  note: string
+  engineDir: string | null
+}
+
+export type WallpaperKind = 'none' | 'scene' | 'video' | 'web' | 'image'
+
+/** 壁纸库里的一项。URL 已经是 `aurora-wallpaper://` 地址，渲染层不碰文件系统。 */
+export interface WallpaperEntry {
+  id: string
+  title: string
+  kind: WallpaperKind
+  /** 列表缩略图；没有预览的工程为 null。 */
+  previewUrl: string | null
+  /** 工程目录的根 URL：场景引擎把它当作包内相对路径的基准。 */
+  sourceUrl: string
+  /** 视频/网页/图片壁纸的入口文件；场景壁纸为 null（整包交给场景引擎）。 */
+  entryUrl: string | null
+  /** 场景壁纸是否以 .pkg 形式发布（没有 .pkg 时只能用预览图，见 Backdrop）。 */
+  hasPackage: boolean
+  /** 是否是 Wallpaper Engine 当前在桌面上用的那一张。 */
+  current: boolean
+}
+
+export interface WallpaperApi {
+  /**
+   * 当前壁纸。`force` 会绕过主进程的 30 秒扫描缓存——用户可以在播放器开着的时候
+   * 去 Wallpaper Engine 里换壁纸，回到窗口时我们得看到新的那张。
+   */
+  info(force?: boolean): Promise<WallpaperInfo>
+  /** 全部可用的工程，设置页的壁纸库用它铺格子。 */
+  list(force?: boolean): Promise<WallpaperEntry[]>
+}
+
 export interface AuroraApi {
   info(): Promise<{
     version: string
@@ -545,6 +590,7 @@ export interface AuroraApi {
   overlay: OverlayApi
   netease: NeteaseApi
   qq: QqApi
+  wallpaper: WallpaperApi
 }
 
 declare global {

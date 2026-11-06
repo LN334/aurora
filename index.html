@@ -12,10 +12,15 @@
       The online audio deliberately does NOT reach music.126.net directly: a
       cross-origin <audio> routed through Web Audio plays silence, so the main
       process proxies every stream over `aurora-remote:` with CORS headers.
+
+      `aurora-wallpaper:` serves the Wallpaper Engine library (thumbnails, video
+      files, and the project bytes the scene engine fetches). It needs all three
+      of img/media/connect: a preview is an image, a video wallpaper is a media
+      element, and a scene wallpaper is read over fetch() by the WebGL renderer.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file: aurora-media: aurora-remote:; media-src 'self' file: blob: aurora-media: aurora-remote:; font-src 'self' data:; connect-src 'self' aurora-media: aurora-remote: ws://127.0.0.1:5173 http://127.0.0.1:5173"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file: aurora-media: aurora-remote: aurora-wallpaper:; media-src 'self' file: blob: aurora-media: aurora-remote: aurora-wallpaper:; font-src 'self' data: blob:; connect-src 'self' aurora-media: aurora-remote: aurora-wallpaper: ws://127.0.0.1:5173 http://127.0.0.1:5173"
     />
     <title>Aurora</title>
   </head>

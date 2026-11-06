@@ -40,6 +40,15 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react'
+          /*
+           * The Wallpaper Engine scene engine is a megabyte of WebGL and is only
+           * reached through a dynamic import in features/wallpaper/Backdrop.tsx.
+           * Forcing it into the shared vendor chunk would make every launch - and
+           * every user who never turns a wallpaper on - download it. Returning
+           * undefined leaves the decision to Rollup, which keeps it in the lazy
+           * chunk that import() creates.
+           */
+          if (/[\\/]node_modules[\\/](webwallgl|mediabunny)[\\/]/.test(id)) return undefined
           return 'vendor'
         }
       }

@@ -19,6 +19,7 @@ src/
     player/       播放内核：engine、driver、queue、urls、进度条
     playlists/    歌单：m3u 读写、存储、导入导出的流程
     settings/     设置状态的读写
+    wallpaper/    动态背景：选择规则的纯函数、开关与可见度的存储、场景挂载
   views/        页面与面板，一个文件一个屏幕或一块面板
   ui/           共享基元：ArtCard、Artwork、icons、TrackList、format、UpdatePanel
   stage/        歌词舞台与可视化
@@ -28,9 +29,10 @@ src/
 electron/
   pure/         零 Electron 依赖、可在裸 Node 下测试的纯逻辑（含 netease-bootstrap 的
                 重试策略）
-  protocols/    三个私有协议：aurora-app:// aurora-media:// aurora-remote://
+  protocols/    私有协议：aurora-app:// aurora-media:// aurora-remote:// aurora-wallpaper://
   netease/      网易云客户端与 IPC
   qq/           QQ 音乐客户端与 IPC，按 transport / normalize / reasons / session 分文件
+  wallpaper.ts  Wallpaper Engine 库扫描与 aurora-wallpaper:// 协议（只读，不改对方文件）
   main.ts       Electron 主进程
 scripts/        开发与审计工具（见下方「审计」）
 tests/          单元测试，主要覆盖纯逻辑
@@ -111,6 +113,38 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
 `aurora-media://art/…` 的 404 不算失败：扫描器不解码封面，`hasArt` 是乐观值，没有内嵌封面的
 文件本来就会走到「请求失败 → 用占位图」这条路，Chromium 只是把这次失败记进控制台。巡检把它
 单独计数，其余控制台错误仍然算失败。
+
+`aurora-wallpaper://…/scene.json` 的 404 同理：场景引擎先探测旧式的 JSON 工程，只带 `scene.pkg`
+的工坊项目本来就没有这个文件。两类 404 一起计数。
+
+末尾还有一步条件性的壁纸验证：偏好设置里确实列出了壁纸时，点一张、等背景层挂上 scene canvas
+（或视频/图片元素）、连拍两帧确认场景在动；列表为空就把这一步记为「没有壁纸」，不算失败。
+
+## 动态背景（Wallpaper Engine）
+
+壁纸不是自研格式，也不去驱动 Wallpaper Engine：主进程只读地读它的数据，渲染层把同一份
+工程交给 WebGL 场景引擎。
+
+- **主进程**（`electron/wallpaper.ts` + `electron/pure/wallpaper-rules.ts`）：从注册表
+  （HKCU 的 `SteamPath`、两个 HKLM 的 `InstallPath`）与每个库的 `libraryfolders.vdf` 找出
+  Steam 根，用 `steamapps/common/wallpaper_engine/config.json` 判定引擎在，再扫
+  `steamapps/workshop/content/431960/*` 与引擎自带的 `projects/*`。当前壁纸只取
+  `<账号>.general.wallpaperconfig.selectedwallpapers`（每显示器一条、值是**文件**路径），
+  刻意不读 `wallpaperconfigrecent`——那是历史，盲扫会把上次用过的当成正在用的。扫描结果
+  缓存 30 秒，全程只读：不启动、不修改 Wallpaper Engine。
+- **协议**（`aurora-wallpaper://wp/<id>/<相对路径>`）：把 id 映射回扫描到的项目目录、拒绝
+  越界（`isInside`）、支持 Range 206，缩略图和视频都从这条协议取。
+- **渲染层**（`src/features/wallpaper/`）：`pure.ts` 是选择规则的纯函数（存了什么、跟随当前、
+  项目里挑哪个入口文件），`store.ts` 把开关/选择/可见度写进 localStorage
+  （`aurora.backdrop.wallpaper`、`.id`、`.strength`），`Backdrop.tsx` 对场景壁纸动态
+  `import('webwallgl')` 挂载 `.pkg`，其余 kind 直接出 `<video>` / `<iframe>` / `<img>`。
+  外壳加 `has-wallpaper` 类，CSS 用 `--wp-level` 把 rail / main / player 的底色改成半透明，
+  再用一层 veil 压暗背景，保证文字对比不被壁纸吃掉。
+- **CSP**：`index.html` 的 `img-src` / `media-src` / `connect-src` 必须列出
+  `aurora-wallpaper:`，否则 Chromium 在协议处理器之前就拒绝缩略图、视频与场景包的 fetch。
+  场景里动态加载的字体是 `blob:`，所以 `font-src` 要带上 `blob:`。
+- **体积**：`webwallgl`（约 1.1 MB）只能经 `Backdrop.tsx` 的动态 import 到达；
+  `vite.config.ts` 的 manualChunks 明确把它排除在共享 vendor 之外，不用壁纸的人不下载它。
 
 ## 搬迁工具
 

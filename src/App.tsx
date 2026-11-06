@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccountsView } from './views/AccountsView'
 import { AlbumDetail } from './views/AlbumDetail'
 import { AlbumGrid } from './views/AlbumGrid'
@@ -33,6 +33,9 @@ import { useNetease } from './features/netease/store'
 import { DesktopLyricsBridge } from './overlay/DesktopLyricsBridge'
 import { SettingsView } from './views/settings/SettingsView'
 import { useWindowVisibility } from './visibility'
+import { Backdrop } from './features/wallpaper/Backdrop'
+import { chooseEntry } from './features/wallpaper/pure'
+import { useWallpaper } from './features/wallpaper/store'
 import { LyricsStage } from './stage/LyricsStage'
 import type { OverlayStatus } from './env'
 import type { Track } from './types'
@@ -156,6 +159,38 @@ export function App() {  if (!isNative) {
   } = useLyrics(track)
   const backdrop = artworkFor(track)
   const windowVisibility = useWindowVisibility()
+
+  /*
+   * The wallpaper and the artwork scrim are two different backdrops. When a
+   * Wallpaper Engine wallpaper is painting, the artwork one would sit on top of it
+   * and hide it, so the CSS hides one while the other is on (`.shell.has-wallpaper`).
+   */
+  const wallpaperEnabled = useWallpaper((s) => s.enabled)
+  const wallpaperSelection = useWallpaper((s) => s.selection)
+  const wallpaperInfo = useWallpaper((s) => s.info)
+  const wallpaperList = useWallpaper((s) => s.list)
+  const wallpaperStrength = useWallpaper((s) => s.strength)
+  const refreshWallpaper = useWallpaper((s) => s.refresh)
+  const wallpaperEntry = chooseEntry({
+    enabled: wallpaperEnabled,
+    selection: wallpaperSelection,
+    info: wallpaperInfo,
+    list: wallpaperList
+  })
+
+  /*
+   * Wallpaper Engine can be reconfigured while the player stays open, so the
+   * library is re-read whenever the window regains focus. The probe forces past
+   * the main process's 30 second scan cache - a user who just switched wallpaper
+   * in Wallpaper Engine and came back to Aurora should see the new one.
+   */
+  useEffect(() => {
+    if (!wallpaperEnabled) return
+    refreshWallpaper(true)
+    const onFocus = () => refreshWallpaper(true)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [wallpaperEnabled, refreshWallpaper])
 
   const navigate = useCallback(
     (next: Route) => {
@@ -649,7 +684,14 @@ export function App() {  if (!isNative) {
 
   return (
     <>
-      <div className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}`}>
+      <div
+        className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
+          wallpaperEntry ? ' has-wallpaper' : ''
+        }`}
+        // The veil opacity is CSS's business; the level itself is data.
+        style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
+      >
+        <Backdrop entry={wallpaperEntry} />
         {backdrop ? (
           <div
             className="shell__backdrop"

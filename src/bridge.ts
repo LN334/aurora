@@ -244,6 +244,23 @@ const webFallback: AuroraApi = {
     logout: async () => true,
     getQuality: async () => 'exhigh',
     setQuality: async () => 'exhigh'
+  },
+  wallpaper: {
+    /*
+     * A browser tab has no main process, so there is no Wallpaper Engine
+     * library to read. Saying "not found" is the accurate answer: the settings
+     * row then explains why instead of showing an empty library the user cannot
+     * use, and the preview shell simply paints without a backdrop.
+     */
+    info: async () => ({
+      found: false,
+      kind: 'none',
+      title: '',
+      src: null,
+      note: '浏览器预览模式没有主进程，读不到 Wallpaper Engine。',
+      engineDir: null
+    }),
+    list: async () => []
   }
 }
 

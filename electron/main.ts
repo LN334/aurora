@@ -13,6 +13,7 @@ import {
 } from './settings'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
+import { handleWallpaperProtocol, registerWallpaperScheme, wallpaperInfo, wallpaperList } from './wallpaper'
 import { registerNeteaseIpc, warmUpNetease } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
@@ -75,6 +76,10 @@ registerAppScheme()
 // Registering it here keeps it in the same privileged position as the local
 // media scheme: range requests and CORS both depend on it.
 registerRemoteScheme()
+// `aurora-wallpaper:` serves the active Wallpaper Engine project so the app can
+// use it as a backdrop. Same privileged position: a video wallpaper loops with
+// range requests just like local audio does.
+registerWallpaperScheme()
 
 interface WinState {
   width: number
@@ -457,6 +462,19 @@ function registerIpc(): void {
   ipcMain.handle('library:getRoots', () => loadSettings().roots)
 
   /**
+   * What Wallpaper Engine currently has on the desktop.
+   *
+   * Read on demand rather than at startup: the user can switch wallpapers while
+   * the player stays open, and `wallpaperInfo(true)` re-probes. The renderer
+   * calls this when the backdrop setting is on and again when the window
+   * regains focus.
+   */
+  ipcMain.handle('wallpaper:info', (_event, force) => wallpaperInfo(force === true))
+
+  /** The tiled library the settings page shows, with previews. */
+  ipcMain.handle('wallpaper:list', (_event, force) => wallpaperList(force === true))
+
+  /**
    * Folders already on this machine, added once.
    *
    * Only ever runs for a profile that has no folders *and* no record of having
@@ -756,6 +774,7 @@ if (!app.requestSingleInstanceLock()) {
     handleMediaProtocol()
     handleAppProtocol()
     handleRemoteProtocol()
+    handleWallpaperProtocol()
     initOverlay((status) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('overlay:status', status)

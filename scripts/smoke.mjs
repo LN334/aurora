@@ -147,18 +147,24 @@ async function shoot(cdp, filePath) {
 }
 
 /**
- * A 404 on aurora-media://art/ is the documented "this track has no embedded
- * cover" answer, not a fault: the scanner never decodes pictures, so it assumes
- * artwork exists and the artwork request settles the question. Chromium logs
- * every failed subresource, so those are counted separately from real errors.
+ * Subresource failures the application expects, counted instead of failed.
+ *
+ * Two of them, both 404s Chromium logs as errors:
+ *
+ *  - aurora-media://art/ is the documented "this track has no embedded cover"
+ *    answer. The scanner never decodes pictures, so it assumes artwork exists and
+ *    the artwork request settles the question.
+ *  - aurora-wallpaper://…/scene.json is the scene engine probing for the older
+ *    JSON project format before falling back to scene.pkg. Workshop projects that
+ *    ship a package have no scene.json at all.
+ *
+ * Everything else is still a real error, so these are counted apart.
  */
-function isArt404(event) {
+function isQuietMiss(event) {
   const entry = event.params?.entry
-  return (
-    entry?.level === 'error' &&
-    String(entry.url || '').startsWith('aurora-media://art/') &&
-    / 404 /.test(String(entry.text || ''))
-  )
+  if (entry?.level !== 'error' || !/ 404 /.test(String(entry.text || ''))) return false
+  const url = String(entry.url || '')
+  return url.startsWith('aurora-media://art/') || url.startsWith('aurora-wallpaper://')
 }
 
 async function waitForHeading(cdp, title, timeoutMs) {
@@ -207,7 +213,7 @@ async function main() {
   const rows = []
   const errors = []
   /** Cover requests that 404'd because the file simply has no embedded art. */
-  let artMisses = 0
+  let quietMisses = 0
 
   try {
     await waitForDevtools(PORT, { timeoutMs: 60000 })
@@ -271,9 +277,9 @@ async function main() {
       const fresh = cdp.events.slice(mark)
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
-        .filter((event) => !isArt404(event))
+        .filter((event) => !isQuietMiss(event))
         .map((event) => event.params.entry.text)
-      artMisses += fresh.filter(isArt404).length
+      quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
         .map(
@@ -297,6 +303,182 @@ async function main() {
         images: probe.images,
         broken: probe.brokenCount,
         brokenSrcs: probe.broken,
+        shot: path.relative(ROOT, shotPath)
+      })
+    }
+
+    /*
+     * The wallpaper backdrop, when this machine can offer one.
+     *
+     * Wallpaper Engine is optional and Windows-only, so this is a conditional
+     * assertion: if the settings screen lists no wallpapers, the walk says so and
+     * moves on. When one is listed, picking it has to actually paint the shell -
+     * the scene engine (webwallgl) mounting a real .pkg, or a video/image element
+     * for the other kinds. A wallpaper that is listed but mounts nothing is the
+     * failure this step exists to catch.
+     */
+    {
+      const mark = cdp.events.length
+      await clickRail(cdp, "偏好设置")
+      await waitForHeading(cdp, "偏好设置", 6000)
+
+      // The row ships with the switch on; turn it on if a saved setting said off.
+      const switchState = await evaluate(
+        cdp,
+        [
+          "(() => {",
+          "  const row = Array.from(document.querySelectorAll('.settings__row')).find((node) => (node.textContent || '').includes('Wallpaper Engine'))",
+          "  if (!row) return 'no row'",
+          '  const box = row.querySelector("input") || row.querySelector("[role=switch]")',
+          "  if (!box) return 'no switch'",
+          "  const on = box.checked === true || box.getAttribute('aria-checked') === 'true'",
+          "  if (!on) box.click()",
+          "  return on ? 'already on' : 'turned on'",
+          "})()"
+        ].join("\n")
+      )
+
+      let cards = 0
+      if (switchState !== "no row" && switchState !== "no switch") {
+        const deadline = Date.now() + 25000
+        while (Date.now() < deadline) {
+          cards = await evaluate(cdp, 'document.querySelectorAll(".wp-card").length')
+          if (cards > 0) break
+          await sleep(400)
+        }
+      }
+
+      // Thumbnails are files on disk served over aurora-wallpaper://, so they
+      // settle quickly; a 404 or a decode failure leaves naturalWidth at 0.
+      let thumbs = { total: 0, pending: 0, broken: 0 }
+      if (cards > 0) {
+        const deadline = Date.now() + 25000
+        while (Date.now() < deadline) {
+          thumbs = JSON.parse(
+            await evaluate(
+              cdp,
+              [
+                "(() => {",
+                "  const imgs = Array.from(document.querySelectorAll('.wp-grid img'))",
+                "  return JSON.stringify({",
+                "    total: imgs.length,",
+                "    pending: imgs.filter((img) => !img.complete).length,",
+                "    broken: imgs.filter((img) => img.complete && img.naturalWidth === 0).length",
+                "  })",
+                "})()"
+              ].join("\n")
+            )
+          )
+          if (thumbs.total > 0 && thumbs.pending === 0) break
+          await sleep(500)
+        }
+      }
+
+      const picked =
+        cards > 0
+          ? await evaluate(
+              cdp,
+              [
+                "(() => {",
+                "  const all = Array.from(document.querySelectorAll('.wp-card'))",
+                "  const pick = all.find((card) => card.querySelector('.wp-card__art img'))",
+                "  if (!pick) return ''",
+                "  pick.scrollIntoView({ block: 'center' })",
+                "  pick.click()",
+                "  const title = pick.querySelector('.wp-card__title')",
+                "  return title ? title.textContent.trim() : '(untitled)'",
+                "})()"
+              ].join("\n")
+            )
+          : ""
+
+      let stage = { present: false, className: "", shellHasWallpaper: false, level: "", canvas: 0, video: 0, frames: [] }
+      if (picked) {
+        const deadline = Date.now() + 20000
+        while (Date.now() < deadline) {
+          stage = JSON.parse(
+            await evaluate(
+              cdp,
+              [
+                "(() => {",
+                "  const shell = document.querySelector('.shell')",
+                "  const wall = document.querySelector('.wallpaper')",
+                "  const kids = wall ? Array.from(wall.children).map((node) => node.tagName) : []",
+                "  return JSON.stringify({",
+                "    present: Boolean(wall),",
+                "    className: wall ? wall.className : '',",
+                "    shellHasWallpaper: shell ? shell.classList.contains('has-wallpaper') : false,",
+                "    level: shell ? shell.style.getPropertyValue('--wp-level') : '',",
+                "    canvas: wall ? wall.querySelectorAll('canvas').length : 0,",
+                "    video: wall ? wall.querySelectorAll('video').length : 0,",
+                "    frames: kids",
+                "  })",
+                "})()"
+              ].join("\n")
+            )
+          )
+          const painted = stage.canvas > 0 || stage.video > 0 || stage.frames.includes("IMG") || stage.frames.includes("IFRAME")
+          if (stage.present && painted) break
+          await sleep(500)
+        }
+      }
+
+      // A scene is a WebGL animation, so two captures a second apart must differ.
+      // A still picture is allowed to be identical, hence a record and not a rule.
+      let framesDiffer = null
+      if (stage.canvas > 0) {
+        const before = await cdp.send("Page.captureScreenshot", { format: "png" })
+        await sleep(900)
+        const after = await cdp.send("Page.captureScreenshot", { format: "png" })
+        framesDiffer = before.data !== after.data
+      }
+
+      await sleep(400)
+      const shotPath = path.join(SHOTS, "08b-settings-wallpaper.png")
+      const shotOk = await shoot(cdp, shotPath)
+
+      const fresh = cdp.events.slice(mark)
+      const logged = fresh
+        .filter((event) => event.method === "Log.entryAdded" && event.params.entry.level === "error")
+        .filter((event) => !isQuietMiss(event))
+        .map((event) => event.params.entry.text)
+      quietMisses += fresh.filter(isQuietMiss).length
+      const thrown = fresh
+        .filter((event) => event.method === "Runtime.exceptionThrown")
+        .map(
+          (event) =>
+            event.params.exceptionDetails.exception?.description ?? event.params.exceptionDetails.text
+        )
+      errors.push(...logged, ...thrown)
+
+      const problems = []
+      if (!shotOk) problems.push("screenshot failed")
+      if (thumbs.broken > 0 && !NO_NETWORK) problems.push(thumbs.broken + " broken wallpaper thumbnail(s)")
+      if (picked && !stage.present) problems.push("picking a wallpaper painted no backdrop")
+      if (picked && stage.present && !stage.canvas && !stage.video && !stage.frames.includes("IMG") && !stage.frames.includes("IFRAME"))
+        problems.push("the backdrop mounted no scene canvas and no media element")
+      if (picked && !stage.shellHasWallpaper) problems.push("the shell never took the has-wallpaper state")
+      if (logged.length) problems.push(logged.length + " console error(s)")
+      if (thrown.length) problems.push(thrown.length + " uncaught exception(s)")
+
+      const note =
+        cards === 0
+          ? "no wallpaper listed (" + switchState + ") - Wallpaper Engine not installed, or still scanning"
+          : ""
+      console.log(
+        "smoke: wallpapers switch=" + switchState + ", cards=" + cards + ", picked=" + (picked || "-") +
+          ", backdrop=" + (stage.present ? stage.className + " canvas=" + stage.canvas + " video=" + stage.video : "none") +
+          (framesDiffer === null ? "" : ", frames differ=" + framesDiffer)
+      )
+
+      rows.push({
+        view: "wallpaper",
+        label: "壁纸背景",
+        ok: problems.length === 0,
+        why: problems.length ? problems.join("; ") : note,
+        images: thumbs.total,
+        broken: thumbs.broken,
+        brokenSrcs: [],
         shot: path.relative(ROOT, shotPath)
       })
     }
@@ -384,9 +566,9 @@ async function main() {
       const fresh = cdp.events.slice(mark)
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
-        .filter((event) => !isArt404(event))
+        .filter((event) => !isQuietMiss(event))
         .map((event) => event.params.entry.text)
-      artMisses += fresh.filter(isArt404).length
+      quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
         .map(
@@ -461,9 +643,9 @@ async function main() {
       const fresh = cdp.events.slice(mark)
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
-        .filter((event) => !isArt404(event))
+        .filter((event) => !isQuietMiss(event))
         .map((event) => event.params.entry.text)
-      artMisses += fresh.filter(isArt404).length
+      quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
         .map(
@@ -532,8 +714,8 @@ async function main() {
   const failed = rows.filter((row) => !row.ok)
   console.log('')
   console.log('smoke: ' + (rows.length - failed.length) + '/' + rows.length + ' screens passed')
-  if (artMisses) {
-    console.log('smoke: ' + artMisses + ' cover request(s) 404ed - files without embedded art, expected')
+  if (quietMisses) {
+    console.log('smoke: ' + quietMisses + ' expected 404(s) - art for files without a cover, scene.json probes')
   }
   console.log('smoke: screenshots in ' + SHOTS)
   for (const row of failed) {

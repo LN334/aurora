@@ -6,6 +6,7 @@ import type { LyricsHit, LyricsQuery } from './lyrics'
 import type { OverlayState, OverlayStatus } from './lyrics-overlay'
 import type { MediaCommand } from './tray'
 import type { WindowVisibilityState } from './pure/scan-progress'
+import type { WallpaperEntry, WallpaperInfo } from './wallpaper'
 
 /**
  * The only surface the renderer gets. Everything crossing this bridge is an
@@ -41,6 +42,24 @@ const api = {
         ipcRenderer.removeListener('app:visibility', listener)
       }
     }
+  },
+
+  /**
+   * Wallpaper Engine, as a backdrop source.
+   *
+   * The renderer never touches the file system: the main process resolves the
+   * active wallpaper project and serves its files over `aurora-wallpaper:`.
+   * `force` re-reads the engine config, which is what the settings page does on
+   * refresh and what the backdrop does when the window regains focus. The types
+   * are imported with `import type`, so the preload bundle stays free of the
+   * main-process module they come from.
+   */
+  wallpaper: {
+    info: (force?: boolean) =>
+      ipcRenderer.invoke('wallpaper:info', force === true) as Promise<WallpaperInfo>,
+    /** The tiled library: every project Wallpaper Engine has installed. */
+    list: (force?: boolean) =>
+      ipcRenderer.invoke('wallpaper:list', force === true) as Promise<WallpaperEntry[]>
   },
 
   library: {

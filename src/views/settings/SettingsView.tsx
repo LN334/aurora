@@ -6,6 +6,8 @@ import { QUALITY_LABELS as TIER_LABELS, type OnlineMusicProvider, type QualityTi
 import { usePlayer } from '../../features/player/store'
 import { UpdatePanel } from '../../ui/UpdatePanel'
 import { Refresh } from '../../ui/icons'
+import { useWallpaper } from '../../features/wallpaper/store'
+import { WallpaperGrid } from './WallpaperGrid'
 import { formatBytes, formatCheckedAt, useSettingsPage } from '../../features/settings/store'
 import './settings.css'
 
@@ -108,6 +110,23 @@ export function SettingsView() {
   const eqEnabled = usePlayer((state) => state.eqEnabled)
   const setEqEnabled = usePlayer((state) => state.setEqEnabled)
 
+  /*
+   * The wallpaper is the one setting on this page that is *not* in the main
+   * process settings file: it is a per-window presentation choice, so the shell
+   * can read it synchronously on first paint instead of waiting for an IPC round
+   * trip and repainting. See features/wallpaper/store.ts.
+   */
+  const wallpaperEnabled = useWallpaper((state) => state.enabled)
+  const setWallpaperEnabled = useWallpaper((state) => state.setEnabled)
+  const wallpaperSelection = useWallpaper((state) => state.selection)
+  const setWallpaperSelection = useWallpaper((state) => state.setSelection)
+  const wallpaperStrength = useWallpaper((state) => state.strength)
+  const setWallpaperStrength = useWallpaper((state) => state.setStrength)
+  const wallpaperInfo = useWallpaper((state) => state.info)
+  const wallpaperList = useWallpaper((state) => state.list)
+  const wallpaperLoading = useWallpaper((state) => state.loading)
+  const refreshWallpaper = useWallpaper((state) => state.refresh)
+
   const { desktopLyrics, onlineLyrics, updateInterval } = page.settings
 
   /*
@@ -124,6 +143,28 @@ export function SettingsView() {
   useEffect(() => {
     setPreviewSize(desktopLyrics.size)
   }, [desktopLyrics.size])
+
+  /*
+   * Opening this page is the moment the user is most likely to want a different
+   * wallpaper, and Wallpaper Engine may have been reconfigured since launch. This
+   * reuses the main process's 30 second cache, so it costs nothing when the window
+   * already refreshed a moment ago.
+   */
+  useEffect(() => {
+    if (wallpaperEnabled) refreshWallpaper()
+  }, [wallpaperEnabled, refreshWallpaper])
+
+  const wallpaperHint =
+    wallpaperInfo && !wallpaperInfo.found
+      ? wallpaperInfo.note
+      : '把 Wallpaper Engine 的壁纸当作播放器的背景。场景壁纸（.pkg）由内置的 WebGL 场景引擎渲染，和 Wallpaper Engine 里看到的是同一份工程；视频与网页壁纸直接播放。'
+
+  const wallpaperLibraryHint =
+    wallpaperList.length === 0
+      ? wallpaperLoading
+        ? '正在扫描 Wallpaper Engine 壁纸库…'
+        : '没有读到壁纸：可能没有安装 Wallpaper Engine，或创意工坊目录是空的。'
+      : `${wallpaperList.length} 张可用，滚轮翻看，点一下就是背景。场景壁纸由内置的 WebGL 场景引擎渲染；网页与视频壁纸直接播放。`
 
   return (
     <div className="settings">
@@ -270,6 +311,67 @@ export function SettingsView() {
             </div>
           </div>
 
+          <Row label="Wallpaper Engine 动态背景" hint={wallpaperHint}>
+            <Toggle
+              checked={wallpaperEnabled}
+              label="Wallpaper Engine 动态背景"
+              onChange={(next) => setWallpaperEnabled(next)}
+            />
+          </Row>
+
+          {wallpaperEnabled ? (
+            <>
+              {/*
+                The grid is inside a stacked row rather than a control: a picker
+                needs the full width, and squeezing thumbnails into the right-hand
+                column would show four cards per row on a wide window.
+              */}
+              <div className="settings__row settings__row--stacked">
+                <div className="wp-picker">
+                  <div className="wp-picker__head">
+                    <div className="settings__text">
+                      <div className="settings__label">壁纸库</div>
+                      <p className="settings__hint">{wallpaperLibraryHint}</p>
+                    </div>
+                    <button
+                      className="btn"
+                      title="重新读取壁纸库"
+                      onClick={() => refreshWallpaper(true)}
+                    >
+                      <Refresh size={14} />
+                      {wallpaperLoading ? '读取中…' : '重新读取'}
+                    </button>
+                  </div>
+                  <WallpaperGrid
+                    list={wallpaperList}
+                    selection={wallpaperSelection}
+                    onSelect={setWallpaperSelection}
+                  />
+                </div>
+              </div>
+
+              <div className="settings__row settings__row--stacked">
+                <div className="settings__text">
+                  <div className="settings__label">壁纸可见度</div>
+                  <p className="settings__hint">
+                    往右壁纸更清楚，往左界面文字更清楚。壁纸看不清时先调这里。
+                  </p>
+                </div>
+                <div className="settings__slider">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round(wallpaperStrength * 100)}
+                    aria-label="壁纸可见度"
+                    onChange={(event) => setWallpaperStrength(Number(event.target.value) / 100)}
+                  />
+                  <span className="settings__number">{Math.round(wallpaperStrength * 100)}%</span>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
 
