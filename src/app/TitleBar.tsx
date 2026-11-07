@@ -22,6 +22,8 @@ interface TitleBarProps {
   onQuery: (query: string) => void
   /** Enter. For modes where searching is a request rather than live filtering. */
   onSubmit?: () => void
+  /** Focus. The results panel opens on the field being used, not on a page change. */
+  onFocus?: () => void
   /** What this field searches right now, as the placeholder. */
   placeholder: string
   /** Keyboard hint; omit for modes with no shortcut worth teaching. */
@@ -36,6 +38,7 @@ export function TitleBar({
   query,
   onQuery,
   onSubmit,
+  onFocus,
   placeholder,
   shortcut,
   onBack,
@@ -86,6 +89,7 @@ export function TitleBar({
           value={query}
           placeholder={placeholder}
           aria-label={placeholder}
+          onFocus={onFocus}
           onChange={(event) => onQuery(event.target.value)}
         />
         {shortcut ? <kbd>{shortcut}</kbd> : null}

@@ -60,6 +60,7 @@ import {
 } from './app/shell'
 import { useKeyboardShortcuts } from './app/useKeyboardShortcuts'
 import { useTrackActions } from './app/useTrackActions'
+import { QuickSearch } from './app/search/QuickSearch'
 import { SearchView } from './app/search/SearchView'
 import { useSearch } from './app/search/store'
 import { useLibraryData } from './app/useLibraryData'
@@ -134,6 +135,8 @@ export function App() {  if (!isNative) {
   const [stageOpen, setStageOpen] = useState(false)
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
+  // 顶栏那个框自己的结果浮层。搜索不再是「跳去一个页面」。
+  const [quickOpen, setQuickOpen] = useState(false)
   /** Mirrors the desktop lyric window's state, owned by the main process. */
   const [overlayStatus, setOverlayStatus] = useState<OverlayStatus>({
     open: false,
@@ -621,12 +624,16 @@ export function App() {  if (!isNative) {
     useSearch.getState().setQuery(next)
   }, [])
 
+  /*
+   * 回车就地出结果，不再换页。
+   *
+   * 换页那一步是多余的：搜索框本来就在眼前，跳走只会让人再按一次「搜索」，
+   * 还要自己找路回来。范围标签与「看全部」放在浮层页脚，需要时才去搜索页。
+   */
   const submitSearch = useCallback(() => {
-    navigate({ view: 'search' })
-    // The screen submits for its active source; the library is what the local
-    // source searches, so it has to be handed over here rather than read there.
+    setQuickOpen(true)
     void useSearch.getState().submit(useLibrary.getState().tracks)
-  }, [navigate])
+  }, [])
 
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
@@ -872,12 +879,30 @@ export function App() {  if (!isNative) {
           query={searchValue}
           onQuery={onSearchInput}
           onSubmit={submitSearch}
+          onFocus={() => setQuickOpen(true)}
           placeholder={searchPlaceholder}
           shortcut={view === 'netease' ? undefined : 'Ctrl K'}
           onBack={goBack}
           onForward={goForward}
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
+        />
+
+        {/*
+          浮层挂在标题栏后面而不是某个页面里：它属于那个输入框，
+          不属于当前是被谁打开的。
+        */}
+        <QuickSearch
+          open={quickOpen}
+          localTracks={tracks}
+          currentId={track?.id ?? null}
+          playing={playing}
+          onMenu={setTrackMenu}
+          onClose={() => setQuickOpen(false)}
+          onSeeAll={() => {
+            setQuickOpen(false)
+            navigate({ view: 'search' })
+          }}
         />
 
         <Rail

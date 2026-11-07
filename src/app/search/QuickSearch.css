@@ -1,0 +1,84 @@
+.qs {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 0.26);
+}
+
+/* 与顶栏搜索框对齐：框在中间，面板也从中间落下。 */
+.qs__panel {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(880px, calc(100vw - 320px));
+  max-height: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(18 20 24 / 0.96);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(24px) saturate(115%);
+  overflow: hidden;
+}
+
+.qs__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.qs__scope {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--text-mid, rgb(255 255 255 / 0.62));
+}
+
+.qs__count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-low, rgb(255 255 255 / 0.42));
+}
+
+.qs__close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text-mid, rgb(255 255 255 / 0.66));
+  cursor: pointer;
+}
+
+.qs__close:hover { background: rgb(255 255 255 / 0.1); }
+
+.qs__note {
+  margin: 0;
+  padding: 22px 16px;
+  font-size: 13px;
+  color: var(--text-mid, rgb(255 255 255 / 0.6));
+}
+
+.qs__note--warn { color: #e7a08a; }
+
+/* 结果多时面板自己滚，顶栏与页脚固定。 */
+.qs__body {
+  overflow: auto;
+  max-height: min(56vh, 540px);
+  padding: 0 8px;
+}
+
+.qs__body .tracks { margin-top: 0; }
+
+.qs__foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 10px 16px 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.07);
+}
