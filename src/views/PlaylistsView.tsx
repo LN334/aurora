@@ -1,10 +1,24 @@
 import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useLibrary } from '../features/library/store'
+import type { ProviderId } from '../features/online/types'
 import { usePlaylists } from '../features/playlists/store'
 import { formatTime } from '../ui/format'
 import { Note, Play, Plus } from '../ui/icons'
 import { NameModal } from './NameModal'
+import { OnlineShelf } from './OnlineShelf'
+
+/**
+ * 平台歌单挂在同一个页面上，不各开一页。
+ *
+ * 平台是「歌从哪来」，不是「你去哪一页」；分成三页之后，找一张歌单得先去对
+ * 的平台，等于让人先记住数据来源。这里只按来源分了三段，卡片、点开的样子都
+ * 和本地歌单一样。
+ */
+const ONLINE_SHELVES: { id: ProviderId; label: string }[] = [
+  { id: 'netease', label: '网易云音乐' },
+  { id: 'qq', label: 'QQ 音乐' }
+]
 
 /**
  * 歌单。
@@ -80,6 +94,10 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
       {playlists.length === 0 ? (
         <p className="pg-note">还没有歌单。新建一个，把喜欢的歌收进去。</p>
       ) : null}
+
+      {ONLINE_SHELVES.map((item) => (
+        <OnlineShelf key={item.id} providerId={item.id} heading={`${item.label} · 歌单`} />
+      ))}
 
       {naming ? (
         <NameModal

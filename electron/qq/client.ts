@@ -1,8 +1,11 @@
 import {
   mergeTranslation,
   normalizeLyrics,
+  normalizePlaylistTracks,
+  normalizePlaylists,
   normalizeQr,
   normalizeSearch,
+  normalizeSongCollection,
   readAccountProbe,
   readQrCheck,
   readVipProbe
@@ -16,10 +19,14 @@ import {
   loadSdk,
   playInfoOf,
   requestAccount,
+  requestDailyRecommend,
+  requestLikedSongs,
   requestLoginQr,
   requestLoginQrCheck,
   requestLyric,
+  requestMyPlaylists,
   requestPlay,
+  requestPlaylistTracks,
   requestSearch,
   requestVipInfo,
   tierLadder,
@@ -27,10 +34,12 @@ import {
 } from './transport'
 import type {
   QqAccount,
+  QqPlaylistSummary,
   QqQuality,
   QqQrResult,
   QqQrSession,
   QqSearchResult,
+  QqSong,
   QqStatusResult,
   QqStreamResult
 } from './types'
@@ -481,3 +490,81 @@ function accountFrom(state: {
     level: state.level
   }
 }
+// --- library ------------------------------------------------------------
+
+/**
+ * The profile's own playlists.
+ *
+ * Signed out there is nothing to list, so the cookie check comes first and costs
+ * no request. A failure answers `[]` rather than throwing, for the same reason
+ * every other method here does: a library that cannot be read must look empty,
+ * not like a dead screen.
+ */
+export async function qqMyPlaylists(limit = 60): Promise<QqPlaylistSummary[]> {
+  const state = readState(activeProfileId)
+  if (!state.cookie) return []
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return []
+
+  try {
+    const response = await requestMyPlaylists({ uin, cookie: state.cookie, limit })
+    return normalizePlaylists(response)
+  } catch (error) {
+    console.error('[aurora] qq playlist list failed', messageOf(error))
+    return []
+  }
+}
+
+/** One playlist's songs. Rows are remembered like search results, so they play. */
+export async function qqPlaylistTracks(disstid: string | number): Promise<QqSong[]> {
+  const id = String(disstid ?? '').trim()
+  if (!id) return []
+  const state = readState(activeProfileId)
+
+  try {
+    const response = await requestPlaylistTracks({ disstid: id, cookie: state.cookie })
+    return rememberAll(normalizePlaylistTracks(response))
+  } catch (error) {
+    console.error('[aurora] qq playlist detail failed', messageOf(error))
+    return []
+  }
+}
+
+/** The account's daily recommendation. Same envelope family as the liked list. */
+export async function qqDaily(): Promise<QqSong[]> {
+  const state = readState(activeProfileId)
+  try {
+    const response = await requestDailyRecommend({ cookie: state.cookie })
+    return rememberAll(normalizeSongCollection(response))
+  } catch (error) {
+    console.error('[aurora] qq daily failed', messageOf(error))
+    return []
+  }
+}
+
+/** "我喜欢的音乐" on this account. */
+export async function qqLiked(): Promise<QqSong[]> {
+  const state = readState(activeProfileId)
+  if (!state.cookie) return []
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return []
+
+  try {
+    const response = await requestLikedSongs({ uin, cookie: state.cookie })
+    return rememberAll(normalizeSongCollection(response))
+  } catch (error) {
+    console.error('[aurora] qq liked list failed', messageOf(error))
+    return []
+  }
+}
+
+/** Record every row so a list fetched in one call can be played from another. */
+function rememberAll(songs: QqSong[]): QqSong[] {
+  for (const song of songs) remember(song.id, song.songmid, song.mediaMid, song.paid)
+  return songs
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+

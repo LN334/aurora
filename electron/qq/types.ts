@@ -183,3 +183,21 @@ export interface QqQrResult {
   account?: QqAccount
   message?: string
 }
+
+/**
+ * One of the user's own playlists, as the profile page reports it.
+ *
+ * Kept small on purpose: the list screen only needs something to draw and
+ * something to open. The track list is fetched separately, because upstream
+ * charges one request for the contents and the interface rarely opens them all.
+ */
+export interface QqPlaylistSummary {
+  /** `dissid`, the profile-scoped id the detail route takes. */
+  id: number
+  name: string
+  /** `imgurl`; upstream sometimes sends none, so this stays nullable. */
+  coverUrl: string | null
+  /** `song_cnt`. 0 means "not reported", never "empty". */
+  trackCount: number
+  creator: string
+}

@@ -631,6 +631,32 @@ export interface QqApi {
 
   getQuality(): Promise<QqQuality>
   setQuality(quality: QqQuality): Promise<QqQuality>
+
+  /** 当前档案自己的歌单（需要登录；未登录返回空数组）。 */
+  myPlaylists(limit?: number): Promise<QqPlaylistSummary[]>
+  /** 一个歌单里的歌。 */
+  playlistTracks(id: string | number): Promise<QqSong[]>
+  /** 每日推荐。 */
+  daily(): Promise<QqSong[]>
+  /** 我喜欢的音乐。 */
+  liked(): Promise<QqSong[]>
+}
+
+/**
+ * QQ 音乐里「我的歌单」的一行。
+ *
+ * 只有列表要用的字段：封面、名字、首数。歌单内容另外取——上游一次只给一份，
+ * 而用户多数时候不会把它们全点开。
+ */
+export interface QqPlaylistSummary {
+  /** `dissid`，详情接口按它取。 */
+  id: number
+  name: string
+  /** 上游有时不给封面，所以这里可以是 null。 */
+  coverUrl: string | null
+  /** `song_cnt`；0 表示上游没报，不是「空歌单」。 */
+  trackCount: number
+  creator: string
 }
 
 /**

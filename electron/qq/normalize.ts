@@ -1,4 +1,4 @@
-import type { QqArtist, QqSearchResult, QqSong } from './types'
+import type { QqArtist, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
 
 /**
  * QQ upstream responses -> Aurora's shapes. Pure functions, no Electron, no
@@ -591,4 +591,137 @@ function yearOf(value: unknown): number | null {
   if (!match) return null
   const year = Number(match[0])
   return year >= 1900 && year <= 2200 ? year : null
+}
+
+// --- library (playlists / daily / likes) --------------------------------
+
+/**
+ * A user's own playlists -> `QqPlaylistSummary[]`.
+ *
+ * Read off `fcg_get_profile_homepage.fcg`, whose payload is
+ * `{body: {data: {mydiss: {list: [{dissid, dissname, imgurl, song_cnt}]}}}}`.
+ * The older shape keeps the same rows under `data.disslist`, so both are read.
+ *
+ * `song_cnt` is what the card prints. `listennum` (play count) sits next to it
+ * and is deliberately *not* used: showing plays where the interface says "songs"
+ * would be a wrong number in the one place a user can check it.
+ */
+export function normalizePlaylists(response: unknown): QqPlaylistSummary[] {
+  const body = record(record(response).body ?? response)
+  const data = record(body.data)
+  const response1 = record(body.response)
+  const fromResponse = record(response1.data)
+  const mydiss = record(data.mydiss)
+  /*
+   * 三种信封都实测见过：新版是 `body.response.data.playlists[]`，旧版把同一批行
+   * 放在 `data.mydiss.list`。后来的人换了一层壳，字段名跟着从 `dissname` 变成
+   * `title`，所以每样都读两个名字，不按某一个写死。
+   */
+  const rows = firstList(fromResponse.playlists, data.playlists, mydiss.list, data.disslist, body.disslist)
+
+  const seen = new Set<number>()
+  const playlists: QqPlaylistSummary[] = []
+  for (const row of rows) {
+    const entry = record(row)
+    const id = integer(pick(entry, 'dissid', 'tid', 'disstid', 'id'))
+    const name = text(pick(entry, 'title', 'dissname', 'name'))
+    if (!id || !name || seen.has(id)) continue
+    seen.add(id)
+    // 新版不给 song_cnt，只在 subtitle 里写「389首    0次播放    国语」。
+    const subtitle = text(pick(entry, 'subtitle', 'sub', 'desc'))
+    playlists.push({
+      id,
+      name,
+      coverUrl: text(pick(entry, 'picurl', 'imgurl', 'logo', 'cover')) || null,
+      trackCount:
+        integer(pick(entry, 'song_cnt', 'songnum', 'songCount')) || countFromSubtitle(subtitle),
+      creator: text(record(entry.creator).name) || text(pick(entry, 'nick', 'nickname'))
+    })
+  }
+  return playlists
+}
+
+/** 「389首    0次播放」里只取第一个数：那才是首数，后面是播放量。 */
+function countFromSubtitle(value: string): number {
+  const match = /(\d+)\s*首/.exec(value)
+  return match ? Number(match[1]) : 0
+}
+
+/** One playlist's contents: `body.cdlist[0].songlist`. */
+export function normalizePlaylistTracks(response: unknown): QqSong[] {
+  return songsFrom(response, [
+    (body) => record(list(body.cdlist)[0]).songlist,
+    (body) => body.songlist
+  ])
+}
+
+/**
+ * The daily recommendation, and the liked list.
+ *
+ * Both arrive from the musicu-style routes, which wrap the answer in
+ * request-numbered envelopes (`body.req_1.data.body.songlist`) whose numbering
+ * changes between upstream builds. Rather than encode one build's wrapper, the
+ * known shapes are tried first and a bounded scan of the payload is the fallback
+ * - see `songsFrom`.
+ */
+export function normalizeSongCollection(response: unknown): QqSong[] {
+  return songsFrom(response, [
+    (body) => record(body.data).songlist,
+    (body) => body.songlist,
+    (body) => record(record(body.data).body).songlist,
+    (body) => record(record(body.req_1).data).songlist,
+    (body) => record(record(record(body.req_1).data).body).songlist
+  ])
+}
+
+function songsFrom(
+  response: unknown,
+  paths: Array<(body: Record<string, unknown>) => unknown>
+): QqSong[] {
+  const body = record(record(response).body ?? response)
+  const seen = new Set<string>()
+  const songs: QqSong[] = []
+  const push = (raw: unknown): void => {
+    const song = normalizeSong(raw)
+    if (!song) return
+    const key = song.songmid || String(song.id)
+    if (seen.has(key)) return
+    seen.add(key)
+    songs.push(song)
+  }
+
+  for (const read of paths) {
+    for (const entry of list(read(body))) push(entry)
+  }
+  if (songs.length > 0) return songs
+
+  for (const entry of scanSongArrays(body, 0)) push(entry)
+  return songs
+}
+
+/**
+ * Every array in the payload that holds objects with a `songmid`.
+ *
+ * Bounded to four levels and never returned as anything but song data: it is a
+ * last resort so a renamed wrapper costs one empty screen instead of a broken
+ * feature. Interpreting the *envelope* is never delegated to it.
+ */
+function scanSongArrays(value: unknown, depth: number): unknown[] {
+  if (depth > 4 || value === null || typeof value !== 'object') return []
+  if (Array.isArray(value)) {
+    const rows = value.filter((entry) => 'songmid' in record(entry))
+    if (rows.length > 0) return rows
+    return value.flatMap((entry) => scanSongArrays(entry, depth + 1))
+  }
+  return Object.values(value as Record<string, unknown>).flatMap((entry) =>
+    scanSongArrays(entry, depth + 1)
+  )
+}
+
+function firstList(...values: unknown[]): unknown[] {
+  for (const value of values) {
+    const rows = list(value)
+    if (rows.length > 0) return rows
+  }
+  return []
 }

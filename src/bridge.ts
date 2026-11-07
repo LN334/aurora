@@ -261,7 +261,12 @@ const webFallback: AuroraApi = {
     loginStatus: async () => null,
     logout: async () => true,
     getQuality: async () => 'exhigh',
-    setQuality: async () => 'exhigh'
+    setQuality: async () => 'exhigh',
+    // 浏览器里没有账号可读，四个库方法都如实返回空列表。
+    myPlaylists: async () => [],
+    playlistTracks: async () => [],
+    daily: async () => [],
+    liked: async () => []
   },
   wallpaper: {
     /*

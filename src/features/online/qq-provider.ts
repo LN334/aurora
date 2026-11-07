@@ -1,7 +1,7 @@
-﻿import type { QqApi, QqSong } from '../../env'
+import type { QqApi, QqSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
-import { normalizeSearchResult } from './normalize'
+import { normalizeSearchResult, normalizeSong } from './normalize'
 import { registerProvider } from './registry'
 import type { PlatformBackend } from './store'
 import {
@@ -54,24 +54,27 @@ const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless']
 /**
  * What QQ offers, and nothing more.
  *
- * Declared, not inferred. The client exposes search, playback, lyrics, session and
- * quality; it exposes no playlist, album or artist endpoint, and no daily
- * recommendation, likes or cloud list. Those entries are therefore absent rather
- * than rendered and then found empty - the rail and the screen read this list,
- * which is what keeps "the platform does not have it" from looking like "the
- * platform has it and it is empty".
+ * Declared, not inferred. The client now exposes the account's own playlists, the
+ * daily recommendation and the liked list, so those three are declared below. It
+ * still has no album or artist page, and no cloud drive, so those stay absent
+ * rather than rendered and then found empty - the rail and the screen read this
+ * list, which is what keeps "the platform does not have it" from looking like
+ * "the platform has it and it is empty".
  */
-const COLLECTIONS: OnlineCollection[] = []
+const COLLECTIONS: OnlineCollection[] = [
+  { kind: 'daily', label: '每日推荐', requiresAccount: true },
+  { kind: 'likes', label: '我喜欢的音乐', requiresAccount: true }
+]
 
 const CAPABILITIES: ProviderCapabilities = {
   search: true,
   playback: true,
   lyrics: true,
   auth: true,
-  playlists: false,
+  playlists: true,
   albums: false,
   artists: false,
-  recommendations: false,
+  recommendations: true,
   userCloud: false,
   likes: false
 }
@@ -188,6 +191,42 @@ const qqBackend: PlatformBackend = {
   async bindProfile(profileId) {
     if (!profileId) return
     await client()?.setProfile(profileId)
+  },
+
+  /*
+   * The account's own catalogue.
+   *
+   * All three answer `[]` when the bridge has nothing to give (signed out, or an
+   * upstream that cannot be read): an empty shelf is the honest picture, and the
+   * screen already explains a signed-out visitor what signing in would add.
+   */
+  async myPlaylists() {
+    const rows = (await client()?.myPlaylists()) ?? []
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      coverUrl: row.coverUrl,
+      trackCount: row.trackCount,
+      // The profile route reports plays elsewhere, so this stays 0 rather than
+      // being filled from a different endpoint that would mean something else.
+      playCount: 0,
+      creator: row.creator,
+      // Every row here belongs to the account - that is what the screen means.
+      subscribed: true
+    }))
+  },
+
+  async playlistTracks(id) {
+    const rows = (await client()?.playlistTracks(id)) ?? []
+    return rows.map((song) => normalizeSong(song))
+  },
+
+  async collection(kind, limit) {
+    const bridge = client()
+    if (!bridge) return []
+    const rows =
+      kind === 'likes' ? await bridge.liked() : kind === 'daily' ? await bridge.daily() : []
+    return rows.slice(0, limit).map((song) => normalizeSong(song))
   }
 }
 
@@ -240,6 +279,20 @@ const qqBackend: PlatformBackend = {
       // The client returns finished LRC text, translation already merged.
       return (await client()?.lyrics(songId)) ?? null
     }
+  },
+
+  catalog: {
+    // No album or artist page upstream: answering "nothing" is the whole story,
+    // and `capabilities` above keeps the interface from asking.
+    album: async () => null,
+    artistTopSongs: async () => [],
+    playlistTracks: (id) => qqBackend.playlistTracks!(id),
+    myPlaylists: () => qqBackend.myPlaylists!()
+  },
+
+  recommendations: {
+    dailySongs: () => qqBackend.collection!('daily', 200),
+    likeList: () => qqBackend.collection!('likes', 200)
   },
 
   auth: {

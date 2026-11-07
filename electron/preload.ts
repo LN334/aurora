@@ -334,7 +334,14 @@ const api = {
     logout: () => ipcRenderer.invoke('qq:logout'),
 
     getQuality: () => ipcRenderer.invoke('qq:getQuality'),
-    setQuality: (quality: string) => ipcRenderer.invoke('qq:setQuality', quality)
+    setQuality: (quality: string) => ipcRenderer.invoke('qq:setQuality', quality),
+
+    // The account's own catalogue. Each answers an empty list rather than an
+    // error when upstream cannot be read, so the interface can stay quiet.
+    myPlaylists: (limit?: number) => ipcRenderer.invoke('qq:myPlaylists', limit),
+    playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
+    daily: () => ipcRenderer.invoke('qq:daily'),
+    liked: () => ipcRenderer.invoke('qq:liked')
   }
 }
 

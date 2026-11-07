@@ -272,6 +272,10 @@ interface QqSdk {
 interface QqServices {
   getUserDetail: (params: Record<string, unknown>) => Promise<unknown>
   getVipInfo: (params: Record<string, unknown>) => Promise<unknown>
+  getUserPlaylists: (params: Record<string, unknown>) => Promise<unknown>
+  songListDetail: (params: Record<string, unknown>) => Promise<unknown>
+  getDailyRecommend: (params: Record<string, unknown>) => Promise<unknown>
+  getUserLikedSongs: (params: Record<string, unknown>) => Promise<unknown>
 }
 
 const SDK_PACKAGE = '@sansenjian/qq-music-api/sdk'
@@ -361,4 +365,49 @@ export async function requestAccount(params: { uin: string; cookie: string }): P
 
 export async function requestVipInfo(params: { cookie: string }): Promise<unknown> {
   return await loadServices().getVipInfo({ cookie: params.cookie })
+}
+
+// --- library ------------------------------------------------------------
+
+/**
+ * The profile's own playlists, and the three catalogue reads the bridge needs.
+ *
+ * All four go through `./services` rather than `./sdk`: the SDK wraps only the
+ * seven calls the original web player used, while the service bundle exports the
+ * whole client surface. The cookie is passed the way each route reads it -
+ * `cookie` for the profile page and the recommend routes, an explicit
+ * `option.headers.Cookie` for the playlist detail route, which would otherwise
+ * answer an anonymous payload.
+ */
+export async function requestMyPlaylists(params: {
+  uin: string
+  cookie: string
+  offset?: number
+  limit?: number
+}): Promise<unknown> {
+  return await loadServices().getUserPlaylists({
+    uin: params.uin,
+    offset: params.offset ?? 0,
+    limit: params.limit ?? 60,
+    cookie: params.cookie
+  })
+}
+
+export async function requestPlaylistTracks(params: {
+  disstid: string
+  cookie: string
+}): Promise<unknown> {
+  return await loadServices().songListDetail({
+    method: 'get',
+    params: { disstid: params.disstid },
+    option: { headers: { Cookie: params.cookie } }
+  })
+}
+
+export async function requestDailyRecommend(params: { cookie: string }): Promise<unknown> {
+  return await loadServices().getDailyRecommend({ cookie: params.cookie })
+}
+
+export async function requestLikedSongs(params: { uin: string; cookie: string }): Promise<unknown> {
+  return await loadServices().getUserLikedSongs({ uin: params.uin, cookie: params.cookie })
 }

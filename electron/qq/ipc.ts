@@ -1,14 +1,16 @@
-﻿import { ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { isQqQuality } from './types'
 import type {
   QqAccount,
+  QqPlaylistSummary,
   QqQuality,
   QqQrResult,
   QqQrSession,
   QqSearchResult,
+  QqSong,
   QqStatusResult,
   QqStreamResult
 } from './types'
@@ -177,4 +179,23 @@ export function registerQqIpc(): void {
     if (!quality) return client.qqGetQuality()
     return client.qqSetQuality(quality)
   })
+
+  // A library read is not a failure when it answers nothing: signed out, or an
+  // upstream blip, both mean "nothing to list right now", and the interface shows
+  // an empty shelf rather than an error it cannot act on.
+  ipcMain.handle('qq:myPlaylists', (_event, value: unknown) => {
+    const limit = typeof value === 'number' && value > 0 ? Math.min(Math.trunc(value), 200) : 60
+    return guard<QqPlaylistSummary[]>('myPlaylists', [], () => client.qqMyPlaylists(limit))
+  })
+
+  ipcMain.handle('qq:playlistTracks', (_event, value: unknown) => {
+    // Playlist ids are numeric upstream but arrive as either shape.
+    const id = typeof value === 'number' ? String(value) : asText(value, 32)
+    if (!id) return Promise.resolve<QqSong[]>([])
+    return guard<QqSong[]>('playlistTracks', [], () => client.qqPlaylistTracks(id))
+  })
+
+  ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
+
+  ipcMain.handle('qq:liked', () => guard<QqSong[]>('liked', [], () => client.qqLiked()))
 }
