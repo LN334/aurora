@@ -13,6 +13,7 @@ import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { usePlaylists } from '../features/playlists/store'
 import { openOnlinePlaylist } from '../features/refs/navigate'
+import { usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { interleaveByProvider, useShelves, windowOf } from '../features/online/shelves'
 import { mergeVersions } from '../features/online/unify'
@@ -154,18 +155,23 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     return out
   }, [recent])
 
+  const order = useSourceOrder()
+  const platformDaily = usePlatformDaily()
+
   /**
    * 今天听什么。
    *
    * 别人的主页第一屏几乎都是这个东西：一个「今天不用想，点开就有」的入口。
-   * 网易云的每日推荐要登录接口，这里先用曲库自己生成——按日期做种子洗一遍，
-   * 同一天打开是同一批，明天换掉。接口接上以后换数据源，版式不用动。
+   * 池子是本机曲库 + 已登录平台的每日推荐，按日期做种子洗一遍，同一天打开是
+   * 同一批，明天换掉。平台推荐放在这里而不是另起一块，是因为它和曲库本来就是
+   * 同一种东西——「今天听哪些」，平台不该独占一个分区。
    */
   const daily = useMemo(() => {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
-    const pool = tracks.length > 0 ? tracks : recentAll
-    return dailyTracks(pool)
-  }, [tracks, recentAll])
+    const base = tracks.length > 0 ? tracks : recentAll
+    // 合并会把同曲的两个平台版本并在同一行，播放时由音源优先级挑一个。
+    return dailyTracks(mergeVersions([...base, ...platformDaily], order))
+  }, [tracks, recentAll, platformDaily, order])
 
   /**
    * 一批十二张，正好两行六列。
@@ -183,7 +189,6 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
    * 取前六行：再多就要往下滚，首屏的重点是歌单。
    */
-  const order = useSourceOrder()
   const platformFresh = usePlatformNewSongs(20)
   const freshTracks = useMemo(() => {
     const base = newBlock.songs.map((song) => toTrack(song))
@@ -313,7 +318,12 @@ export function HomeView({ onNavigate }: HomeViewProps) {
             <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
             <h2>今天听什么</h2>
             <p>
-              {tracks.length > 0 ? '从你的曲库里挑' : '从最近听过的歌里挑'} {daily.length} 首，明天换一批
+              {platformDaily.length > 0
+                ? '从曲库和平台推荐里挑'
+                : tracks.length > 0
+                  ? '从你的曲库里挑'
+                  : '从最近听过的歌里挑'}{' '}
+              {daily.length} 首，明天换一批
             </p>
             <div className="rh-daily__acts">
               <button

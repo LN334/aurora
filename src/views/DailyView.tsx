@@ -1,5 +1,8 @@
 import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
+import { usePlatformDaily } from '../features/online/daily'
+import { mergeVersions } from '../features/online/unify'
+import { useSourceOrder } from '../features/settings/source-order'
 import { dailyLabel, dailyTracks } from '../features/library/daily'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
@@ -34,9 +37,15 @@ export function DailyView({
     return out
   }, [recent])
 
-  // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
-  const pool = tracks.length > 0 ? tracks : recentAll
-  const daily = useMemo(() => dailyTracks(pool), [pool])
+  const order = useSourceOrder()
+  const platformDaily = usePlatformDaily()
+
+  const daily = useMemo(() => {
+    // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
+    const base = tracks.length > 0 ? tracks : recentAll
+    // 和首页那块用同一份数据：平台每日推荐也在这池子里，页面与卡片不会对不上。
+    return dailyTracks(mergeVersions([...base, ...platformDaily], order))
+  }, [tracks, recentAll, platformDaily, order])
 
   if (daily.length === 0) {
     return (
