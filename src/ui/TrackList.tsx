@@ -269,17 +269,20 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                    */
                   const targets = likeTargets(track)
                   if (targets.length > 1) {
+                    /*
+                     * 一行里有好几个版本就先列出来。不能写的平台也列，并写明
+                     * 「没有收藏接口」——只列能写的，用户会以为另一家不见了。
+                     */
                     const rect = event.currentTarget.getBoundingClientRect()
                     useLikeMenu.getState().show({ track, x: rect.left - 12, y: rect.bottom + 6 })
                     return
                   }
                   /*
-                   * 只有一个落点时直接写，但写的是「能写的那一版」而不是主行。
-                   * 主行是 QQ（没有收藏接口）而另一版在网易云时，点红心应该落到
-                   * 网易云，而不是回一句「这个平台还不支持」。
+                   * 只有一个版本时直接写，但只写能写的：主行是 QQ（没有收藏接口）
+                   * 而这一版就是它时，给一句实话，而不是发一个注定失败的请求。
                    */
                   const target = targets[0]
-                  if (!target) {
+                  if (!target || !target.writable) {
                     showFlash('这首歌所在的平台还没有收藏接口')
                     return
                   }

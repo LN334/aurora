@@ -44,6 +44,16 @@
   fill: currentColor;
 }
 
+.lk-menu__item.is-off {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lk-menu__item.is-off:hover {
+  background: transparent;
+  color: var(--text-mid);
+}
+
 .lk-menu__name {
   flex: 1;
 }

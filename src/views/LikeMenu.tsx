@@ -69,9 +69,11 @@ export function LikeMenu() {
         return (
           <button
             key={target.source}
-            className={'lk-menu__item' + (liked ? ' is-liked' : '')}
+            className={'lk-menu__item' + (liked ? ' is-liked' : '') + (target.writable ? '' : ' is-off')}
             role="menuitemcheckbox"
             aria-checked={liked}
+            disabled={!target.writable}
+            title={target.writable ? undefined : '这家还没有收藏接口'}
             onClick={() => {
               void toggleLiked(target.track).then((result) => {
                 if (!result.ok) {
@@ -85,7 +87,9 @@ export function LikeMenu() {
           >
             <Heart size={13} />
             <span className="lk-menu__name">{target.label}</span>
-            <span className="lk-menu__state">{liked ? '已喜欢' : '未喜欢'}</span>
+            <span className="lk-menu__state">
+              {target.writable ? (liked ? '已喜欢' : '未喜欢') : '没有收藏接口'}
+            </span>
           </button>
         )
       })}

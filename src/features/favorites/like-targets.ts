@@ -1,14 +1,16 @@
 import type { Track } from '../../types'
+import { sourceLabelById } from '../online/registry'
 import { likeProviders } from './likes'
 import type { LikeSource } from './like-source'
 
 /**
- * 一首歌能收藏到哪几个地方。
+ * 一首歌的每个版本，以及这个版本能不能被收藏。
  *
- * 合并行里一首歌常常同时存在本机文件与两三个平台，喜欢只写一个落点。
- * 这里把这一行里的每个版本摊开，按同一顺序给出「平台名 + 那一版」。
- * 平台只在「有喜欢接口且此刻可用」时出现，未接入或未就绪的平台不列，
- * 免得点下去只换来一句失败。
+ * 两个用途、两种过滤：
+ * - 行上的心形按钮只关心「能写到几个地方」，可写的为 0 就提示、为 1 就直接切、
+ *   多于 1 才让用户选（`writableTargets`）；
+ * - 选落点的面板要把不能写的平台也列出来并说明原因，否则用户会以为那家平台
+ *   「不见了」，而实际是它没有收藏接口（`likeTargets`）。
  */
 
 export interface LikeTarget {
@@ -17,6 +19,8 @@ export interface LikeTarget {
   label: string
   /** 要写进那个来源的那一版。 */
   track: Track
+  /** 这家有没有「加入我喜欢的歌」的接口。本机收藏恒为真。 */
+  writable: boolean
 }
 
 export function likeTargets(track: Track): LikeTarget[] {
@@ -27,18 +31,26 @@ export function likeTargets(track: Track): LikeTarget[] {
   for (const version of [track, ...(track.versions ?? [])]) {
     const source = version.source && version.source !== 'local' ? version.source : 'local'
     if (seen.has(source)) continue
+    seen.add(source)
 
     if (source === 'local') {
-      seen.add(source)
-      out.push({ source, label: '本机收藏', track: version })
+      out.push({ source, label: '本机收藏', track: version, writable: true })
       continue
     }
 
     const provider = platforms.get(source)
-    if (!provider) continue
-    seen.add(source)
-    out.push({ source, label: provider.shortName ?? provider.displayName, track: version })
+    out.push({
+      source,
+      label: provider?.shortName ?? provider?.displayName ?? sourceLabelById(source),
+      track: version,
+      writable: Boolean(provider)
+    })
   }
 
   return out
+}
+
+/** 真正能写的那几个落点。行上按这个数量决定「直接切」还是「先选」。 */
+export function writableTargets(track: Track): LikeTarget[] {
+  return likeTargets(track).filter((target) => target.writable)
 }
