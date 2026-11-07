@@ -287,7 +287,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 type="button"
                 onClick={() => onNavigate({ view: 'daily' })}
               >
-                今天这一批
+                全部 {daily.length} 首
                 <ChevronRight size={13} />
               </button>
             </div>

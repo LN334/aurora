@@ -63,6 +63,10 @@ import { useTrackActions } from './app/useTrackActions'
 import { SearchView } from './app/search/SearchView'
 import { useSearch } from './app/search/store'
 import { useLibraryData } from './app/useLibraryData'
+import { loadPlatformLiked } from './features/online/platform-liked'
+import { mergeVersions } from './features/online/unify'
+import { useHistory } from './features/player/history-store'
+import { sourceOrder } from './features/settings/source-order'
 import {
   MENU_TEST_MODE,
   PERF_MODE,
@@ -256,18 +260,24 @@ export function App() {  if (!isNative) {
   }, [goShell])
 
   /**
-   * 漫游：把整个曲库洗一遍，从头放。
+   * 漫游：把手上所有能放的东西洗一遍，从头放。
    *
-   * 不做「猜你喜欢」——那要听歌数据才准，这里没有。随机恰好是曲库够大时最好
-   * 用的东西：你总有一批忘了的歌。播的是真实队列，所以「下一首」照常可用。
+   * 不只是本机那几百个文件：各平台喜欢的歌、最近听过的在线曲都算「我的」。
+   * 同一首在几家都有时先合并成一行，播到它时按音源优先级挑一个——和列表页
+   * 里点它是一回事。不做「猜你喜欢」，那要听歌数据才准；随机恰好是曲库够大
+   * 时最好用的东西：你总有一批忘了的歌。
    */
-  const roam = useCallback(() => {
-    const all = useLibrary.getState().tracks
-    if (all.length === 0) {
-      setFlash('曲库还是空的，先添加一个音乐文件夹')
+  const roam = useCallback(async () => {
+    const local = useLibrary.getState().tracks
+    const recent = useHistory
+      .getState()
+      .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
+    const liked = await loadPlatformLiked().catch(() => [])
+    const pool = mergeVersions([...local, ...recent, ...liked], sourceOrder())
+    if (pool.length === 0) {
+      setFlash('曲库还是空的，先添加一个音乐文件夹，或者登录一个平台')
       return
     }
-    const pool = all.slice()
     for (let i = pool.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1))
       const swap = pool[i]
