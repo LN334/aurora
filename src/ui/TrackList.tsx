@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { sourceTagFor } from '../features/online/registry'
+import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { formatTime } from './format'
+import { showFlash } from './flash'
 import { Heart, Note } from './icons'
 import type { Track } from '../types'
 
@@ -18,14 +20,6 @@ interface TrackListProps {
   onPlayAt(index: number): void
   /** Opens the per-track actions menu. Omit to leave the affordance out. */
   onMenu?(request: TrackMenuRequest): void
-  /**
-   * 已喜欢的曲目 id。
-   *
-   * 这里只做标记、不做按钮：行里已经有播放、标题、来源徽标和操作钮，再塞一个
-   * 点击目标会和整行点击抢位置。喜欢 / 取消喜欢走操作菜单，标记只负责让收藏
-   * 状态在列表里可见（收藏页自己也用同一份集合）。
-   */
-  likedIds?: ReadonlySet<string>
 }
 
 /**
@@ -33,8 +27,13 @@ interface TrackListProps {
  * short, columns are aligned on tabular figures, and everything that is not the
  * title is quiet enough to skim past.
  */
-export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu, likedIds }: TrackListProps) {
+export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
   const currentRow = useRef<HTMLDivElement | null>(null)
+  /*
+   * 每一行右侧那颗心。收藏页、歌单、搜索结果、平台歌单都是同一份列表组件，
+   * 所以「能不能喜欢」在这里做一次，所有列表就地都有了收藏键。
+   */
+  const likedIds = useLikedIds()
 
   /*
    * Whether a row needs to say where it came from.
@@ -138,11 +137,6 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu, likedI
                 </span>
               ) : null}
               {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
-              {likedIds?.has(track.id) ? (
-                <span className="trk__liked" title="已喜欢">
-                  <Heart size={13} />
-                </span>
-              ) : null}
             </span>
             <span className="trk__muted" role="cell">
               {track.artist}
@@ -154,23 +148,42 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu, likedI
               {formatTime(track.duration)}
             </span>
 
-            {onMenu ? (
+            <span className="trk__acts">
+              {/*
+                心形是独立按钮，压在整行点击层之上。已喜欢的常显，未喜欢的
+                悬停才出现——一行里只有它在乎「我喜不喜欢」，不该一直吵。
+              */}
               <button
-                className="trk__more"
+                className={`trk__like${likedIds.has(track.id) ? ' is-liked' : ''}`}
                 onClick={(event) => {
-                  // Anchor the menu to the button rather than the pointer, so a
-                  // keyboard activation opens it somewhere sensible too.
-                  const rect = event.currentTarget.getBoundingClientRect()
-                  openMenu(track, rect.right - 6, rect.bottom + 4)
+                  event.stopPropagation()
+                  void toggleLiked(track).then((result) => {
+                    if (!result.ok && result.message) showFlash(result.message)
+                  })
                 }}
-                title="更多操作"
-                aria-label={`${track.title} 的更多操作`}
+                title={likedIds.has(track.id) ? '取消喜欢' : '喜欢'}
+                aria-label={`${likedIds.has(track.id) ? '取消喜欢' : '喜欢'} ${track.title}`}
+                aria-pressed={likedIds.has(track.id)}
               >
-                ⋯
+                <Heart size={14} />
               </button>
-            ) : (
-              <span />
-            )}
+
+              {onMenu ? (
+                <button
+                  className="trk__more"
+                  onClick={(event) => {
+                    // Anchor the menu to the button rather than the pointer, so a
+                    // keyboard activation opens it somewhere sensible too.
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    openMenu(track, rect.right - 6, rect.bottom + 4)
+                  }}
+                  title="更多操作"
+                  aria-label={`${track.title} 的更多操作`}
+                >
+                  ⋯
+                </button>
+              ) : null}
+            </span>
           </div>
         )
       })}

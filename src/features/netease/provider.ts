@@ -1,4 +1,4 @@
-﻿import type { NeteaseQuality, NeteaseSong } from '../../env'
+import type { NeteaseQuality, NeteaseSong } from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
 import { mergeTranslation } from './lrc'
@@ -247,6 +247,15 @@ export const neteaseBackend: PlatformBackend = {
     dailySongs: () => netease.dailySongs(),
     likeList: () => netease.likeList(),
     cloudSongs: () => netease.cloudSongs()
+  },
+
+  /*
+   * 喜欢的读写。写操作走主进程的 netease:like，它先确认登录再发请求——未登录
+   * 的写会被上游拒绝，提前拦下来可以给界面一句「先登录」。
+   */
+  likes: {
+    list: () => netease.likeList(),
+    set: (songId, liked) => netease.like(songId, liked)
   }
 }
 

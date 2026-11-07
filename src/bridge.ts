@@ -236,6 +236,8 @@ const webFallback: AuroraApi = {
     dailySongs: async () => [],
     cloudSongs: async () => [],
     likeList: async () => [],
+    // 浏览器里没有主进程可写，写操作如实返回「没做成」。
+    like: async () => false,
     getQuality: async () => 'exhigh',
     setQuality: async () => 'exhigh'
   },

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isNative } from '../bridge'
-import { useFavorites } from '../features/favorites/store'
+import { toggleLiked, useLiked } from '../features/favorites/likes'
+import { showFlash } from '../ui/flash'
 import type { Track } from '../types'
 
 interface TrackMenuProps {
@@ -35,7 +36,8 @@ export function TrackMenu({
   onReveal
 }: TrackMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const liked = useFavorites((state) => state.liked.some((entry) => entry.id === track.id))
+  // 本地和在线来源共用同一条判断，菜单不再自己翻收藏数组。
+  const liked = useLiked(track)
   const [pos, setPos] = useState({ left: x, top: y })
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
@@ -98,13 +100,15 @@ export function TrackMenu({
         下一首播放
       </button>
 
-      {/* 喜欢是收藏页唯一的入口；菜单里给一条，列表里只显示标记。 */}
       <button
         className="menu__item"
         role="menuitem"
         onClick={() => {
-          useFavorites.getState().toggle(track)
           onClose()
+          // 在线歌要写平台账号，失败必须说一句，不能点了没变化。
+          void toggleLiked(track).then((result) => {
+            if (!result.ok && result.message) showFlash(result.message)
+          })
         }}
       >
         {liked ? '取消喜欢' : '喜欢'}

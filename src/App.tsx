@@ -15,6 +15,7 @@ import { QueuePanel } from './views/QueuePanel'
 import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
 import { TrackList, type TrackMenuRequest } from './ui/TrackList'
+import { useFlash } from './ui/flash'
 import { TrackMenu } from './views/TrackMenu'
 import { ChevronLeft, Close, Plus, Refresh } from './ui/icons'
 import { bridge, isNative } from './bridge'
@@ -116,7 +117,12 @@ export function App() {  if (!isNative) {
     size: 34
   })
   /** Transient result message for import/export, dismissed on navigation. */
-  const [flash, setFlash] = useState<string | null>(null)
+  /*
+   * 顶部提示放在共享 store 里：列表行里的喜欢动作也要能说一句「没改成」。
+   * 名字仍叫 flash/setFlash，App 里原来的调用点不用改。
+   */
+  const flash = useFlash((state) => state.message)
+  const setFlash = useFlash((state) => state.show)
   /** The open per-track actions menu, if any. */
   const [trackMenu, setTrackMenu] = useState<TrackMenuRequest | null>(null)
 
@@ -547,7 +553,7 @@ export function App() {  if (!isNative) {
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
     // 一级入口：发现（有什么可听，未登录也有内容）。
-    if (view === 'discover') return <HomeView onNavigate={navigate} section={route.tab} />
+    if (view === 'discover') return <HomeView onNavigate={navigate} />
     // 一级入口：音乐库（磁盘上的文件：歌曲 / 专辑 / 艺术家 / 文件夹）。
     if (view === 'library') {
       return (

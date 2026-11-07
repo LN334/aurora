@@ -79,6 +79,8 @@ interface Upstream {
   user_cloud: UpstreamCall
   user_playlist: UpstreamCall
   likelist: UpstreamCall
+  /** 喜欢/取消喜欢一首歌：写操作，需要真登录。 */
+  like: UpstreamCall
   login_qr_key: UpstreamCall
   login_qr_create: UpstreamCall
   login_qr_check: UpstreamCall
@@ -1189,4 +1191,20 @@ export async function neteaseLikeList(): Promise<NeteaseSong[]> {
     songs.push(...(await neteaseSongDetail(ids.slice(index, index + 500))))
   }
   return songs
+}
+
+/**
+ * 喜欢或取消喜欢一首歌。
+ *
+ * 这是写操作，和读接口不一样：匿名 cookie 会被上游拒绝，所以先确认登录，
+ * 未登录返回 false 让页面去提示登录，而不是发一个注定失败的请求。上游只回
+ * `code === 200`，没有别的字段能判真伪，就直接把这一条当结果。
+ */
+export async function neteaseLike(songId: number, liked: boolean): Promise<boolean> {
+  if (!Number.isSafeInteger(songId) || songId <= 0) return false
+  await bootstrapOnce()
+  if (!(await safeAccount())) return false
+
+  const res = await call('like', { id: songId, like: liked ? 'true' : 'false' })
+  return asNumber(asRecord(res.body).code) === 200
 }

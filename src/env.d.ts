@@ -493,6 +493,8 @@ export interface NeteaseApi {
   dailySongs(): Promise<NeteaseSong[]>
   cloudSongs(): Promise<NeteaseSong[]>
   likeList(): Promise<NeteaseSong[]>
+  /** 喜欢/取消喜欢一首歌；未登录或上游失败返回 false。 */
+  like(songId: number, liked: boolean): Promise<boolean>
 
   getQuality(): Promise<NeteaseQuality>
   setQuality(quality: NeteaseQuality): Promise<NeteaseQuality>

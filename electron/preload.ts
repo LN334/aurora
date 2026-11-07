@@ -292,6 +292,7 @@ const api = {
     dailySongs: () => ipcRenderer.invoke('netease:dailySongs'),
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),
     likeList: () => ipcRenderer.invoke('netease:likeList'),
+    like: (id: number, liked: boolean) => ipcRenderer.invoke('netease:like', { id, liked }),
 
     discover: (kind: string, limit?: number, offset?: number) =>
       ipcRenderer.invoke('netease:discover', { kind, limit, offset }),

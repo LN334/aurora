@@ -308,6 +308,18 @@ export function registerNeteaseIpc(): void {
     guard<NeteaseSong[]>('likeList', [], () => client.neteaseLikeList())
   )
 
+  /*
+   * 写操作：喜欢/取消喜欢。和其它通道一样不 reject——页面拿到 false 就说明
+   * 「这次没改成」，可以提示登录或稍后重试，而不是在播放中途抛一个未处理异常。
+   */
+  ipcMain.handle('netease:like', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    if (!id) return false
+    const liked = args.liked === true
+    return guard<boolean>('like', false, () => client.neteaseLike(id, liked))
+  })
+
   ipcMain.handle('netease:getQuality', () => currentQuality())
 
   ipcMain.handle('netease:setQuality', (_event, value: unknown) => {

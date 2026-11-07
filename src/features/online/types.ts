@@ -1,4 +1,4 @@
-﻿import type { NeteaseFailureReason, NeteaseQuality } from '../../env'
+import type { NeteaseFailureReason, NeteaseQuality } from '../../env'
 
 /**
  * The online-platform contract.
@@ -253,6 +253,20 @@ export function takenDown(label?: string): ProviderSongAvailability {
   cloudSongs?(): Promise<OnlineSong[]>
 }
 
+/**
+ * 「喜欢」是一个账号动作，所以单独一支：读列表 + 写一条。
+ *
+ * 和 `recommendations.likeList` 的区别是方向：那个是「给我看你喜欢什么」的
+ * 只读推荐入口，这里是收藏页和列表里的心形按钮真正会调用的写操作。两者都存
+ * 在，是因为推荐位只需要读，不该为了一个列表被迫实现写。
+ */
+export interface ProviderLikesApi {
+  /** 账号里已喜欢的歌。未登录返回空数组，由页面判断要不要提示登录。 */
+  list(): Promise<OnlineSong[]>
+  /** 喜欢（true）或取消喜欢（false）。返回是否真的写成功。 */
+  set(songId: number, liked: boolean): Promise<boolean>
+}
+
 export interface OnlineMusicProvider {
   id: ProviderId
   displayName: string
@@ -296,6 +310,8 @@ export interface OnlineMusicProvider {
   auth?: ProviderAuthApi
   catalog?: ProviderCatalogApi
   recommendations?: ProviderRecommendationsApi
+  /** 喜欢的读写。`capabilities.likes` 决定界面给不给入口，这里才是调用。 */
+  likes?: ProviderLikesApi
 
   /** Collections this platform offers, in the order they should be listed. */
   collections?: OnlineCollection[]

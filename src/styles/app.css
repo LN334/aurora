@@ -1235,7 +1235,8 @@ input::placeholder {
 .tracks {
   display: flex;
   flex-direction: column;
-  --trk-cols: 34px minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.6fr) 54px 24px;
+  /* 最后一列同时放「喜欢」和「更多」两颗按钮，所以是 52px 而不是一颗的宽度。 */
+  --trk-cols: 34px minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.6fr) 54px 52px;
 }
 
 .tracks__head,
@@ -1274,6 +1275,44 @@ input::placeholder {
   z-index: 1;
   width: 100%;
   border-radius: inherit;
+}
+
+/* 行尾两颗按钮的容器。整行点击层在下面，这里抬到它上面。 */
+.trk__acts {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.trk__like {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-control);
+  color: var(--text-low);
+  opacity: 0;
+  transition: opacity 120ms var(--ease-out), color 120ms var(--ease-out), background 120ms var(--ease-out);
+}
+/* 已喜欢的常显；未喜欢的跟着行悬停出现，和「更多」同一拍。 */
+.trk:hover .trk__like,
+.trk__like:focus-visible,
+.trk__like.is-liked {
+  opacity: 1;
+}
+.trk__like:hover {
+  background: var(--ink-700);
+  color: var(--text-hi);
+}
+.trk__like.is-liked {
+  color: var(--accent);
+}
+/* fill 覆盖 SVG 上 fill="none" 这个展示属性：喜欢了就把心填实。 */
+.trk__like.is-liked svg {
+  fill: currentColor;
 }
 
 .trk__more {
@@ -1860,15 +1899,6 @@ input::placeholder {
   height: 26px;
 }
 
-/* 行内的「已喜欢」标记。只是标记，不是按钮：整行点击是播放，喜欢/取消走右键菜单。 */
-.trk__liked {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 2px;
-  color: var(--accent);
-  opacity: 0.9;
-}
-
 .collection__liked {
   display: flex;
   flex-direction: column;
@@ -1897,3 +1927,35 @@ input::placeholder {
 .collection__empty .notice {
   margin: 0;
 }
+/* 来源筛选：收藏页顶部的「全部 / 本机 / 平台」，用与其它筛选处同一套 .chip。 */
+.collection__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.collection__chip-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.collection__refresh {
+  flex: none;
+}
+
+/* 登录 / 失败这类「这块内容为什么是空的」的一句话，跟在筛选行下面。 */
+.collection__hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+  line-height: 1.6;
+}
+
+.collection__empty-acts {
+  display: flex;
+  gap: var(--s3);
+}
+
