@@ -63,14 +63,14 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const wallpaperHint =
     wallpaperInfo && !wallpaperInfo.found
       ? wallpaperInfo.note
-      : '把 Wallpaper Engine 的壁纸当作播放器的背景。场景壁纸（.pkg）由内置的 WebGL 场景引擎渲染，和 Wallpaper Engine 里看到的是同一份工程；视频与网页壁纸直接播放。'
+      : '把 Wallpaper Engine 的壁纸当作播放器背景，场景、视频、网页壁纸都能放。'
 
   const wallpaperLibraryHint =
     wallpaperList.length === 0
       ? wallpaperLoading
         ? '正在扫描 Wallpaper Engine 壁纸库…'
         : '没有读到壁纸：可能没有安装 Wallpaper Engine，或创意工坊目录是空的。'
-      : `${wallpaperList.length} 张可用，滚轮翻看，点一下就是背景。场景壁纸由内置的 WebGL 场景引擎渲染；网页与视频壁纸直接播放。`
+      : `${wallpaperList.length} 张可用，点一下就是背景。`
 
   return (
     <Rows>
@@ -78,7 +78,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         <div className="settings__text">
           <div className="settings__label">桌面歌词字号</div>
           <p className="settings__hint">
-            桌面歌词窗口是独立窗口，这里改的是它的字号；歌词窗口自己也能调，两边始终一致。
+            桌面歌词窗口的字号。
           </p>
         </div>
         <div className="settings__preview" style={{ fontSize: previewSize }}>
@@ -102,7 +102,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="窗口显示"
-        hint="全屏之后标题栏消失，用同一个按钮或 F11 切回来。下一次启动仍然是普通窗口——全屏是动作，不是被记住的状态。"
+        hint="全屏不会记住，下次启动仍是普通窗口。"
       >
         <button className="btn" onClick={() => void bridge.window.toggleFullscreen()}>
           切换全屏 / F11
@@ -111,7 +111,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="点关闭按钮时"
-        hint="收进托盘：窗口消失，歌继续放，从任务栏托盘的小图标点回来。退出应用：立刻结束，正在播的歌也停。"
+        hint="收进托盘时窗口消失、继续播放。"
       >
         <div className="seg">
           <button
@@ -132,7 +132,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
       </Row>
       <Row
         label="动态效果"
-        hint="关掉之后，面板展开、页面切换、歌词滚动都直接到位，不再有过渡。壁纸场景本身仍会运行（那是它自己的节奏），想省电就把壁纸画质调低或直接关掉。"
+        hint="关掉后界面动画直接跳过。"
       >
         <Toggle
           checked={reduceMotion}
@@ -207,7 +207,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
               <div className="settings__text">
                 <div className="settings__label">壁纸画质</div>
                 <p className="settings__hint">
-                  场景壁纸一直在出帧，档位越高越清晰，也越吃显卡和电。省电档 20 帧；清晰档按屏幕物理像素渲染、最高 60 帧。
+                  越高越清晰，也越费显卡和电。
                 </p>
               </div>
               <div className="seg">
@@ -235,7 +235,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             <div className="settings__text">
               <div className="settings__label">壁纸可见度</div>
               <p className="settings__hint">
-                往右壁纸更清楚，往左界面文字更清楚。壁纸看不清时先调这里。
+                往右壁纸更清楚，往左文字更清楚。
               </p>
             </div>
             <div className="settings__slider">

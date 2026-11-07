@@ -37,7 +37,7 @@ export function WallpaperProps({
         <div className="settings__text">
           <div className="settings__label">这张壁纸的可调项</div>
           <p className="settings__hint">
-            工程自带的选项。只改播放器里的背景，不动 Wallpaper Engine 的工程。
+            只改播放器背景，不动 Wallpaper Engine 工程。
           </p>
         </div>
         {changed ? (

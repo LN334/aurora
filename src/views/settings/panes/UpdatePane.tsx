@@ -28,7 +28,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
   return (
     <>
-      <Sub title="更新" hint="检查由主进程做；安装包未签名，所以下载与安装都交给你决定。">
+      <Sub title="更新" hint="安装包未签名，下载与安装都由你确认。">
         <UpdatePanel />
         <Rows>
           <Row
@@ -62,8 +62,8 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             label="自动下载并安装"
             hint={
               page.prefs.autoInstallAvailable
-                ? '开启后，发现新版本会自动下载并在退出时安装。这意味着跳过浏览器与 SmartScreen 的提示：安装包未签名，Aurora 无法验证它将要替换成的那个文件。'
-                : '开发模式（源码目录里 npm run dev）用不了自动安装：它要读打包时写下的更新配置。装好的应用里这一项会自动变成可用。'
+                ? '开启后自动下载并在退出时安装，会跳过浏览器的安全提示。'
+                : '开发模式用不了自动安装，装好的应用里会自动可用。'
             }
           >
             <Toggle
@@ -79,7 +79,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
         ) : null}
       </Sub>
 
-      <Sub title="关于" hint="这个应用是什么、跑在什么上、源码在哪。">
+      <Sub title="关于">
         <About />
       </Sub>
     </>
@@ -150,9 +150,7 @@ function About() {
   return (
     <>
       <p className="settings__notice">
-        Aurora 是 AI 制作、以试验为目的的作品，不是成熟产品：代码与文案全部由 AI 生成，功能与界面可能随时改动。
-        Windows 上有一遍真实窗口的自动巡检（npm run smoke），但它只走主路径；扫码登录、会员歌曲、托盘、桌面歌词与自动更新仍靠人点。
-        请勿用于重要数据。
+        Aurora 由 AI 生成，是试验性作品而非成熟产品，功能与界面可能随时改动。请勿用于重要数据。
       </p>
       <dl className="specs">
         <dt>版本</dt>
@@ -179,20 +177,20 @@ function About() {
         ) : null}
       </dl>
       <Rows>
-        <Row label="项目主页" hint="源码、更新日志与全部发行版。">
+        <Row label="项目主页" hint="源码与全部发行版。">
           <button className="btn btn--small" onClick={() => open(REPO_URL)}>
             github.com/LN334/aurora ↗
           </button>
         </Row>
-        <Row label="反馈问题" hint="在 GitHub 提 issue；正文会自动带上版本与运行环境。">
+        <Row label="反馈问题" hint="提 issue，自动带上版本与环境。">
           <button className="btn btn--small" onClick={() => open(issueUrl(facts))}>
             反馈 ↗
           </button>
         </Row>
-        <Row label="开源协议" hint="MIT：可以自用、修改与再分发，保留版权声明即可。">
+        <Row label="开源协议" hint="MIT，可自用与再分发。">
           <span className="specs__path">MIT</span>
         </Row>
-        <Row label="已提的问题" hint="看看别人遇到过什么，避免重复提交。">
+        <Row label="已提的问题">
           <button className="btn btn--small" onClick={() => open(ISSUES_URL)}>
             打开 Issue 列表 ↗
           </button>

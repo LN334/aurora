@@ -22,7 +22,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         <Rows>
           <Row
             label="释放内存"
-            hint="把当前用不到的页面内存交还系统。播放不会中断，切回某个页面时它会重新加载。"
+            hint="把空闲页面的内存还给系统。"
           >
             {memory ? (
               <span className="settings__number">
@@ -42,7 +42,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         </Rows>
       </Sub>
 
-      <Sub title="垃圾文件" hint="缓存、日志与崩溃转储。删掉只是要重新下载，不会动曲库、歌单、档案与登录状态。">
+      <Sub title="垃圾文件" hint="缓存、日志与崩溃转储，不影响曲库与登录。">
         {junk ? (
           <Rows>
             {junk.parts.map((part) => (
@@ -54,14 +54,14 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
               <span className="settings__number">{formatBytes(junk.totalBytes)}</span>
             </Row>
             {junk.cleanedBytes > 0 ? (
-              <Row label="已清理" hint="这部分已经真的让出来了。">
+              <Row label="已清理">
                 <span className="settings__number">{formatBytes(junk.cleanedBytes)}</span>
               </Row>
             ) : null}
             {junk.deferredBytes > 0 ? (
               <Row
                 label="下次启动再清"
-                hint="GPU 缓存被播放器一直打开，Windows 不让删。下次启动会先清掉它再进界面。"
+                hint="播放器占用中，下次启动前清掉。"
               >
                 <span className="settings__number">{formatBytes(junk.deferredBytes)}</span>
               </Row>
@@ -69,14 +69,14 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           </Rows>
         ) : (
           <p className="settings__hint">
-            {page.junkBusy ? '正在测量…' : '还没有测量。点「扫描」看看占了多少。'}
+            {page.junkBusy ? '正在测量…' : '还没有测量。'}
           </p>
         )}
 
         {confirming ? (
           <>
             <p className="settings__confirm">
-              日志与崩溃转储现在删掉；缓存被播放器占着文件，会在下次启动前清掉。曲库索引、播放列表、档案和登录状态不会被动。
+              立即删除日志与崩溃转储；缓存下次启动前清掉。曲库与登录状态不受影响。
             </p>
             <div className="settings__danger">
               <button

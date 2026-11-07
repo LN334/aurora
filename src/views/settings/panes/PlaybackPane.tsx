@@ -29,7 +29,7 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         <div className="settings__text">
           <div className="settings__label">交叉淡化</div>
           <p className="settings__hint">
-            切歌时前一首淡出、后一首淡入的重叠时长。0 表示直接切换。
+            切歌时两首歌重叠的秒数，0 为直接切换。
           </p>
         </div>
         <div className="settings__slider">
@@ -46,7 +46,7 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         </div>
       </div>
 
-      <Row label="均衡器" hint="开关本身在这里；10 段推子在播放界面按 E 打开。">
+      <Row label="均衡器" hint="10 段推子在播放界面按 E 打开。">
         <Toggle
           checked={eqEnabled}
           label="均衡器"
@@ -58,7 +58,7 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="在线歌词"
-        hint="本地没有 .lrc 时，把歌名与歌手发送到 lrclib.net 查询。关闭后歌词完全来自本机文件。"
+        hint="本地没有歌词时向 lrclib.net 查询。"
       >
         <Toggle
           checked={onlineLyrics}
@@ -85,7 +85,7 @@ function PlatformQualityRows() {
 
   if (providers.length === 0) {
     return (
-      <Row label="在线音质" hint="这一版没有可用的在线平台，所以没有音质可选。">
+      <Row label="在线音质" hint="当前没有可用的在线平台。">
         <span className="settings__number">—</span>
       </Row>
     )
@@ -127,7 +127,7 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
       hint={
         quality
           ? TIER_LABELS[quality]
-          : `${provider.displayName}还没有回答当前档位；上游给不了所选档位时会自动回退，并在播放提示里说明。`
+          : `${provider.displayName}还没有回答当前档位，给不了时会自动回退。`
       }
     >
       <div className="seg">
