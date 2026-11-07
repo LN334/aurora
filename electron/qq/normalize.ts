@@ -675,6 +675,28 @@ export function normalizeSongCollection(response: unknown): QqSong[] {
   ])
 }
 
+/**
+ * 新歌速递：body.response.new_song.data.songlist[]（实测，不需要登录）。
+ *
+ * 行结构和搜索给的一样（id / mid / name / singer[] / album / interval），所以
+ * 直接喂给 normalizeSong；lanlist 只是标签页，这里不读。
+ */
+export function normalizeNewSongs(response: unknown, limit = 20): QqSong[] {
+  const response1 = record(record(record(response).body ?? response).response)
+  const data = record(record(response1.new_song).data)
+  const rows = firstList(data.songlist, record(response1.new_song).songlist)
+  const songs: QqSong[] = []
+  const seen = new Set<number>()
+  for (const row of rows) {
+    const song = normalizeSong(row)
+    if (!song || seen.has(song.id)) continue
+    seen.add(song.id)
+    songs.push(song)
+    if (songs.length >= limit) break
+  }
+  return songs
+}
+
 function songsFrom(
   response: unknown,
   paths: Array<(body: Record<string, unknown>) => unknown>

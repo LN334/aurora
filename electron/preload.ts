@@ -350,6 +350,7 @@ const api = {
     // error when upstream cannot be read, so the interface can stay quiet.
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qq:myPlaylists', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
+    newSongs: (limit?: number) => ipcRenderer.invoke('qq:newSongs', limit),
     daily: () => ipcRenderer.invoke('qq:daily'),
     liked: () => ipcRenderer.invoke('qq:liked'),
     collectedAlbums: (limit?: number) => ipcRenderer.invoke('qq:collectedAlbums', limit),
@@ -385,6 +386,7 @@ const api = {
     setQuality: (quality: string) => ipcRenderer.invoke('kugou:setQuality', quality),
 
     myPlaylists: (limit?: number) => ipcRenderer.invoke('kugou:myPlaylists', limit),
+    newSongs: (limit?: number) => ipcRenderer.invoke('kugou:newSongs', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id)
   },
 

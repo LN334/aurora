@@ -274,6 +274,7 @@ const webFallback: AuroraApi = {
     // 浏览器里没有账号可读，四个库方法都如实返回空列表。
     myPlaylists: async () => [],
     playlistTracks: async () => [],
+    newSongs: async () => [],
     daily: async () => [],
     liked: async () => [],
     collectedAlbums: async () => [],
@@ -298,6 +299,7 @@ const webFallback: AuroraApi = {
     getQuality: async () => 'exhigh',
     setQuality: async () => 'exhigh',
     myPlaylists: async () => [],
+    newSongs: async () => [],
     playlistTracks: async () => []
   },
   qishui: {

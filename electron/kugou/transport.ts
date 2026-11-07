@@ -185,6 +185,9 @@ export function readSongRow(value: unknown): KugouSong | null {
   if (!name) return null
 
   const singers = asArray(row.singerinfo).map(asRecord)
+  // 新歌速递（/top/song）不走 singerinfo，而是 authors[]：
+  // { author_id, author_name, sizable_avatar }。
+  const authors = asArray(row.authors).map(asRecord)
   const singerIds = asArray(row.SingerId)
 
   const artists = singers.length
@@ -193,10 +196,16 @@ export function readSongRow(value: unknown): KugouSong | null {
         name: asString(singer.name) || '未知歌手',
         avatar: sizedImage(asString(singer.avatar) || null, 240)
       }))
-    : splitSingers(
-        asString(row.SingerName) || asString(row.singername),
-        singerIds.length ? singerIds : asArray(row.singerid)
-      )
+    : authors.length
+      ? authors.map((author) => ({
+          id: numberOr(author.author_id, 0),
+          name: asString(author.author_name) || '未知歌手',
+          avatar: sizedImage(asString(author.sizable_avatar) || null, 240)
+        }))
+      : splitSingers(
+          asString(row.SingerName) || asString(row.singername),
+          singerIds.length ? singerIds : asArray(row.singerid)
+        )
 
   // 「歌手 - 歌名」：只拆第一段，歌手名里本来就可能带「-」。
   const combined = name.split(' - ')
@@ -217,7 +226,10 @@ export function readSongRow(value: unknown): KugouSong | null {
   if (!hash) return null
 
   const albumInfo = asRecord(row.albuminfo)
-  const durationMsOrSec = numberOr(row.Duration, numberOr(row.timelen, 0))
+  const durationMsOrSec = numberOr(
+    row.Duration,
+    numberOr(row.timelength, numberOr(row.timelen, 0))
+  )
   // 搜索给秒（269），歌单给毫秒（228911）。大于 3600 只可能是毫秒。
   const duration = durationMsOrSec > 3600 ? Math.round(durationMsOrSec / 1000) : durationMsOrSec
 
@@ -240,10 +252,12 @@ export function readSongRow(value: unknown): KugouSong | null {
     artists,
     album: {
       id: String(row.AlbumID ?? row.album_id ?? albumInfo.id ?? ''),
-      name: asString(row.AlbumName) || asString(albumInfo.name),
+      name: asString(row.AlbumName) || asString(row.album_name) || asString(albumInfo.name),
       picUrl: sizedImage(
         asString(row.Image) ||
           asString(row.cover) ||
+          asString(row.album_sizable_cover) ||
+          asString(row.album_cover) ||
           asString(row.album_image) ||
           asString(asRecord(row.trans_param).union_cover) ||
           null,
@@ -281,6 +295,11 @@ function readSongRows(value: unknown): KugouSong[] {
   return asArray(value)
     .map(readSongRow)
     .filter((song): song is KugouSong => song !== null)
+}
+
+/** 新歌速递（/top/song）实测：{ total, error_code: 0, data: [...] }。 */
+export function readNewSongs(raw: unknown): KugouSong[] {
+  return readSongRows(asRecord(raw).data)
 }
 
 // --- 歌单 ---------------------------------------------------------------

@@ -6,19 +6,22 @@ import { dailyTracks } from '../features/library/daily'
 import { useFavorites } from '../features/favorites/store'
 import { artworkFor } from '../features/library/source'
 import { groupAlbums, useLibrary } from '../features/library/store'
-import { useNetease } from '../features/netease/store'
+import { toTrack } from '../features/netease/track'
 import { player } from '../features/player/actions'
 import { useRecentEntries, useToday } from '../features/player/history-store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { usePlaylists } from '../features/playlists/store'
 import { openOnlinePlaylist } from '../features/refs/navigate'
+import { usePlatformNewSongs } from '../features/online/news'
 import { interleaveByProvider, useShelves, windowOf } from '../features/online/shelves'
+import { mergeVersions } from '../features/online/unify'
+import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
+import { TrackList } from '../ui/TrackList'
 import { ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
-import type { NeteaseSong } from '../env'
 
 /**
  * 推荐页。
@@ -173,7 +176,38 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   const PER_BATCH = ROW * 2
   const picks = useMemo(() => windowOf(deck, batch * PER_BATCH, PER_BATCH), [deck, batch])
   const more = useMemo(() => windowOf(deck, batch * PER_BATCH + PER_BATCH, 12), [deck, batch])
-  const fresh = newBlock.songs.slice(0, 6)
+  /**
+   * 新歌不再只有网易云一家。
+   *
+   * 网易云那份来自发现页的缓存，QQ 与酷狗从各自的新歌榜现取（都不需要登录）；
+   * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
+   * 取前六行：再多就要往下滚，首屏的重点是歌单。
+   */
+  const order = useSourceOrder()
+  const platformFresh = usePlatformNewSongs(20)
+  const freshTracks = useMemo(() => {
+    const base = newBlock.songs.map((song) => toTrack(song))
+    const merged = mergeVersions([...base, ...platformFresh], order)
+
+    // 按源轮转取六行。直接按优先级排会变成「网易云前十首」，另外两家永远
+    // 进不了首屏——那和只接一家看起来没有区别。
+    const buckets = new Map<string, Track[]>()
+    for (const track of merged) {
+      const key = track.source ?? 'local'
+      const bucket = buckets.get(key)
+      if (bucket) bucket.push(track)
+      else buckets.set(key, [track])
+    }
+
+    const out: Track[] = []
+    for (let at = 0; out.length < 6 && at < 24; at += 1) {
+      for (const bucket of buckets.values()) {
+        const next = bucket[at]
+        if (next && out.length < 6) out.push(next)
+      }
+    }
+    return out
+  }, [newBlock.songs, platformFresh, order])
 
   const now = new Date()
   const hasRecommend = picks.length > 0
@@ -362,24 +396,17 @@ export function HomeView({ onNavigate }: HomeViewProps) {
         </section>
       ) : null}
 
-      {fresh.length > 0 ? (
+      {freshTracks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>新歌</h3>
-            <button className="rh-more" type="button" onClick={() => onNavigate({ view: 'netease' })}>
-              更多
-              <ChevronRight size={13} />
-            </button>
           </header>
-          <div className="rh-songs">
-            {fresh.map((song, at) => (
-              <SongRow
-                key={song.id}
-                song={song}
-                onPlay={() => void useNetease.getState().playSongsAt(newBlock.songs, at)}
-              />
-            ))}
-          </div>
+          <TrackList
+            tracks={freshTracks}
+            currentId={current?.id ?? null}
+            playing={playing}
+            onPlayAt={(at) => player.playQueue(freshTracks, at)}
+          />
         </section>
       ) : null}
 
@@ -414,26 +441,6 @@ export function HomeView({ onNavigate }: HomeViewProps) {
         </section>
       ) : null}
     </div>
-  )
-}
-
-function SongRow({ song, onPlay }: { song: NeteaseSong; onPlay(): void }) {
-  const cover = song.album?.picUrl
-  return (
-    <button className="rh-song" type="button" onClick={onPlay} title={'播放 ' + song.name}>
-      <span className="rh-song__art" style={cover ? undefined : tintOf(String(song.id))}>
-        {cover ? (
-          <img src={remoteImageUrl(sizedImage(cover, 120))} alt="" loading="lazy" decoding="async" />
-        ) : (
-          <Note size={15} />
-        )}
-      </span>
-      <span className="rh-song__text">
-        <b>{song.name}</b>
-        <span>{song.artists.map((artist) => artist.name).join(' / ')}</span>
-      </span>
-      <Play size={14} />
-    </button>
   )
 }
 

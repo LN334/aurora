@@ -275,6 +275,7 @@ interface QqServices {
   getUserPlaylists: (params: Record<string, unknown>) => Promise<unknown>
   songListDetail: (params: Record<string, unknown>) => Promise<unknown>
   getDailyRecommend: (params: Record<string, unknown>) => Promise<unknown>
+  getNewSongs: (areaId?: number, limit?: number) => Promise<unknown>
   getUserLikedSongs: (params: Record<string, unknown>) => Promise<unknown>
   getUserCollectedAlbums: (params: Record<string, unknown>) => Promise<unknown>
   getAlbumInfo: (params: Record<string, unknown>) => Promise<unknown>
@@ -405,6 +406,17 @@ export async function requestPlaylistTracks(params: {
     params: { disstid: params.disstid },
     option: { headers: { Cookie: params.cookie } }
   })
+}
+
+/**
+ * The new-song shelf.
+ *
+ * Unlike most of this bundle, `getNewSongs` takes positional arguments
+ * (`areaId, limit`) rather than `{ method, params }`. Passing an object there
+ * makes the service treat it as an area id and come back empty.
+ */
+export async function requestNewSongs(params: { areaId?: number; limit: number }): Promise<unknown> {
+  return await loadServices().getNewSongs(params.areaId, params.limit)
 }
 
 export async function requestDailyRecommend(params: { cookie: string }): Promise<unknown> {

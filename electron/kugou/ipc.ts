@@ -8,6 +8,7 @@ import {
   kugouLogout,
   kugouLogoutProfile,
   kugouMyPlaylists,
+  kugouNewSongs,
   kugouPlaylistTracks,
   kugouQrCheck,
   kugouQrCreate,
@@ -96,6 +97,11 @@ export function registerKugouIpc(): void {
       if (!keywords) return { songs: [], albums: [], artists: [] }
       return await kugouSearch(keywords, type, limit)
     })
+  })
+
+  ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => {
+    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 60) : 20
+    return await guard('newSongs', [], async () => kugouNewSongs(count))
   })
 
   ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => {

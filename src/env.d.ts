@@ -664,6 +664,8 @@ export interface QqApi {
   /** 一个歌单里的歌。 */
   playlistTracks(id: string | number): Promise<QqSong[]>
   /** 每日推荐。 */
+  /** 新歌速递；不需要登录。 */
+  newSongs(limit?: number): Promise<QqSong[]>
   daily(): Promise<QqSong[]>
   /** 我喜欢的音乐。 */
   liked(): Promise<QqSong[]>
@@ -944,6 +946,8 @@ export interface KugouApi {
 
   /** 当前档案的歌单；未登录时是公开榜单，读不到就是空数组。 */
   myPlaylists(limit?: number): Promise<KugouPlaylistSummary[]>
+  /** 新歌速递；不需要登录。 */
+  newSongs(limit?: number): Promise<KugouSong[]>
   /** 一张歌单里的歌。`id` 是列表里那个数字别名。 */
   playlistTracks(id: string | number): Promise<KugouSong[]>
 }

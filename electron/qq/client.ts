@@ -4,6 +4,7 @@ import {
   normalizeAlbumSongs,
   normalizeCollectedAlbums,
   normalizeLyrics,
+  normalizeNewSongs,
   normalizePlaylistTracks,
   normalizePlaylists,
   normalizeQr,
@@ -32,6 +33,7 @@ import {
   requestLoginQrCheck,
   requestLyric,
   requestMyPlaylists,
+  requestNewSongs,
   requestPlay,
   requestPlaylistTracks,
   requestSearch,
@@ -603,6 +605,23 @@ export async function qqAlbum(
   } catch (error) {
     log('qq album failed ' + messageOf(error))
     return null
+  }
+}
+
+/**
+ * The new-song shelf, signed in or not.
+ *
+ * The route is public, so this is the one "recommendation" that works for a
+ * signed-out library - which makes it worth showing on the home page even when
+ * the account card says "not signed in".
+ */
+export async function qqNewSongs(limit = 20): Promise<QqSong[]> {
+  try {
+    const response = await requestNewSongs({ limit })
+    return rememberAll(normalizeNewSongs(response, limit))
+  } catch (error) {
+    log('qq new songs failed ' + messageOf(error))
+    return []
   }
 }
 

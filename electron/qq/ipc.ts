@@ -197,6 +197,11 @@ export function registerQqIpc(): void {
     return guard<QqSong[]>('playlistTracks', [], () => client.qqPlaylistTracks(id))
   })
 
+  ipcMain.handle('qq:newSongs', (_event, value: unknown) => {
+    const limit = typeof value === 'number' ? Math.min(Math.max(Math.trunc(value), 1), 60) : 20
+    return guard<QqSong[]>('newSongs', [], () => client.qqNewSongs(limit))
+  })
+
   ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
 
   ipcMain.handle('qq:liked', () => guard<QqSong[]>('liked', [], () => client.qqLiked()))

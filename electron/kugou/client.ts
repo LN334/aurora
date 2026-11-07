@@ -12,6 +12,7 @@ import {
   hashForTier,
   cookieHeader,
   readAccount,
+  readNewSongs,
   readPlaylistTracks,
   readQrCheck,
   readQrImage,
@@ -321,6 +322,18 @@ export async function kugouSearch(
   })
   const songs = rememberAll(readSearchSongs(response.body))
   return { songs, albums: [], artists: [] }
+}
+
+/**
+ * 新歌速递。
+ *
+ * 上游 /top/song 不需要登录（实测匿名可读），所以首页的「新歌」块能在没登录
+ * 的情况下也混进这一家；点播放仍然走取流那套，未登录会得到诚实的失败原因。
+ */
+export async function kugouNewSongs(limit = 20): Promise<KugouSong[]> {
+  if (!(await ensureServer())) return []
+  const response = await request('/top/song', { query: { page: 1, pagesize: limit } })
+  return rememberAll(readNewSongs(response.body))
 }
 
 // --- 歌单 ---------------------------------------------------------------
