@@ -71,11 +71,8 @@ export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel,
   // 头像只显示 20px，按 96px 取就够；原图往往是几百 KB 的方形大图。
   const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96)) : null)
 
-  const fallbackAvatar = active ? (
-    <span className="rail__avatar-letter">{active.label.slice(0, 1)}</span>
-  ) : (
-    <User size={17} />
-  )
+  // 旁边这一行本来就写着档案名，头像里再放一次首字只会读成「我 我」。
+  const fallbackAvatar = <User size={17} />
 
   return (
     <nav className="rail" aria-label="主导航">

@@ -88,6 +88,12 @@
   color: var(--text-low);
 }
 
+/* 没有封面时只有一个图标；别让上面那条 width:100% 把它拉成整块。 */
+.home-hero__art svg {
+  width: 42px;
+  height: 42px;
+}
+
 /* --- quick cards --------------------------------------------------------- */
 
 .home-quick {
