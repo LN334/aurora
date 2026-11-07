@@ -94,7 +94,7 @@ The avatar at the bottom of the sidebar opens the account page: local profiles, 
 
 The app opens here. One screen answers three questions: what to play next, what's in the library, how much you've listened today.
 
-The top card is the current track, or the last one you played when nothing is playing, with a play button. Below it, four shortcut cards: continue, library, picks, recently played. Then today's listening (time, track count, most played artist) and the recent list. At the bottom are platform recommendations: recommended songs, recommended playlists, curated playlists. These work signed out, and "shuffle" loads another batch.
+The top card is the current track, or the last one you played when nothing is playing, with play/pause, library and search buttons. Below it: My music (each platform's account state, with a sign-in button while signed out), Picks for you (recommended songs, recommended playlists, curated playlists, no sign-in needed, with "shuffle" for another batch), today's listening next to what's queued, and finally the recent list.
 
 Listening history stays on disk: daily totals, the last 60 entries, with repeats within three minutes counted once. It's flushed on pause, track change and window close; scrubbing the progress bar doesn't count.
 
