@@ -1,41 +1,20 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, globalShortcut, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
-import {
-  appSettings,
-  clearCache,
-  isInsideRoots,
-  loadSettings,
-  LYRIC_SIZE_MAX,
-  LYRIC_SIZE_MIN,
-  saveSettings,
-  storageUsage
-} from './settings'
+import { loadSettings } from './settings'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
-import { handleWallpaperProtocol, registerWallpaperScheme, wallpaperInfo, wallpaperList } from './wallpaper'
+import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
 import { registerNeteaseIpc, warmUpNetease } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
-import { loadIndex, scanLibrary, type ScanProgress } from './library-scan'
-import { discoverMusicFolders } from './library-discovery'
 import {
   configureProgressTransport,
   mainWindowVisibility,
-  sendProgress,
   type WindowVisibilityState
 } from './pure/scan-progress'
-import {
-  autoCheck,
-  checkForUpdate,
-  installPendingUpdate,
-  onUpdateStatus,
-  openReleasePage,
-  updatePrefs,
-  type UpdateResult
-} from './updates'
-import { lookupLyrics, type LyricsQuery } from './lyrics'
+import { autoCheck, onUpdateStatus, type UpdateResult } from './updates'
 import {
   createTray,
   destroyTray,
@@ -49,14 +28,19 @@ import {
   destroyOverlay,
   initOverlay,
   isLocked as isOverlayLocked,
-  pushOverlayState,
-  setHitArea as setOverlayHitArea,
   setLocked as setOverlayLocked,
-  setLyricSize,
   status as overlayStatus,
-  toggleOverlay,
-  type OverlayState
+  toggleOverlay
 } from './lyrics-overlay'
+import { registerAppIpc } from './ipc/app'
+import { registerLibraryIpc } from './ipc/library'
+import { registerWallpaperIpc } from './ipc/wallpaper'
+import { registerOverlayIpc } from './ipc/overlay'
+import { registerUpdatesIpc } from './ipc/updates'
+import { registerLyricsIpc } from './ipc/lyrics'
+import { registerPlayerIpc } from './ipc/player'
+import { registerSettingsIpc } from './ipc/settings'
+import type { IpcHost, ScanControl } from './ipc/host'
 
 const isDev = process.argv.includes('--dev')
 const DEV_URL = 'http://127.0.0.1:5173'
@@ -93,7 +77,7 @@ interface WinState {
 let mainWindow: BrowserWindow | null = null
 
 /** Set while a scan is running so it can be abandoned from the UI. */
-let activeScan: { cancelled: boolean } | null = null
+let activeScan: ScanControl | null = null
 
 /** Set on the way out, so the close handler stops hiding the window. */
 let isQuitting = false
@@ -255,27 +239,6 @@ function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => fn(...args), ms)
   }) as T
-}
-
-/**
- * Decode a lyrics file. Chinese `.lrc` files are still very often GBK-encoded
- * rather than UTF-8, and a strict UTF-8 decode is the only reliable way to tell
- * the difference before falling back.
- */
-function decodeText(buffer: Buffer): string {
-  const body =
-    buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf
-      ? buffer.subarray(3)
-      : buffer
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(body)
-  } catch {
-    try {
-      return new TextDecoder('gbk').decode(body)
-    } catch {
-      return body.toString('utf8')
-    }
-  }
 }
 
 /**
@@ -456,313 +419,46 @@ function createWindow(): void {
   })
 }
 
-function registerIpc(): void {
-  ipcMain.handle('app:info', () => ({
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    chrome: process.versions.chrome,
-    node: process.versions.node,
-    platform: process.platform,
-    userData: app.getPath('userData')
-  }))
-
-  ipcMain.handle('library:getRoots', () => loadSettings().roots)
-
-  /**
-   * What Wallpaper Engine currently has on the desktop.
-   *
-   * Read on demand rather than at startup: the user can switch wallpapers while
-   * the player stays open, and `wallpaperInfo(true)` re-probes. The renderer
-   * calls this when the backdrop setting is on and again when the window
-   * regains focus.
-   */
-  ipcMain.handle('wallpaper:info', (_event, force) => wallpaperInfo(force === true))
-
-  /** The tiled library the settings page shows, with previews. */
-  ipcMain.handle('wallpaper:list', (_event, force) => wallpaperList(force === true))
-
-  /**
-   * Folders already on this machine, added once.
-   *
-   * Only ever runs for a profile that has no folders *and* no record of having
-   * had any: `library:getRoots` returning `[]` is also what a user sees after
-   * deliberately removing every folder, and re-adding them on the next launch
-   * would make the remove button look broken. The flag makes this a first-run
-   * action rather than a recurring opinion.
-   */
-  ipcMain.handle('library:autoDiscover', () => {
-    const settings = loadSettings()
-    if (settings.roots.length > 0 || settings.rootsDiscovered) return { added: [] as string[], roots: settings.roots }
-
-    const found = discoverMusicFolders()
-    saveSettings({ roots: found, rootsDiscovered: true })
-    return { added: found, roots: found }
-  })
-
-  ipcMain.handle('library:addRoots', async () => {
-    const current = loadSettings().roots
-    if (!mainWindow) return current
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: '选择音乐文件夹',
-      buttonLabel: '加入曲库',
-      properties: ['openDirectory', 'multiSelections', 'dontAddToRecent']
-    })
-    if (result.canceled || result.filePaths.length === 0) return current
-    const merged = Array.from(new Set([...current, ...result.filePaths.map((p) => path.resolve(p))]))
-    saveSettings({ roots: merged })
-    return merged
-  })
-
-  ipcMain.handle('library:removeRoot', (_event, root: string) => {
-    const next = loadSettings().roots.filter((candidate) => candidate !== root)
-    saveSettings({ roots: next })
-    return next
-  })
-
-  /**
-   * Show a track in the OS file manager.
-   *
-   * The path arrives from the renderer, so it is checked against the folders the
-   * user actually added. Without that, a compromised renderer could ask the shell
-   * to reveal any path on the machine.
-   */
-  ipcMain.handle('library:reveal', (_event, trackPath: unknown) => {
-    if (typeof trackPath !== 'string' || !trackPath) return false
-    if (!isInsideRoots(trackPath)) return false
-    shell.showItemInFolder(trackPath)
-    return true
-  })
-
-  ipcMain.handle('library:readLyrics', async (_event, trackPath: unknown) => {
-    if (typeof trackPath !== 'string' || !isInsideRoots(trackPath)) return null
-    const directory = path.dirname(trackPath)
-    const stem = path.basename(trackPath, path.extname(trackPath))
-    const candidates = [
-      path.join(directory, `${stem}.lrc`),
-      path.join(directory, `${stem}.LRC`),
-      // One shared lyric file for a folder, for albums ripped as a single file.
-      path.join(directory, 'lyrics.lrc')
-    ]
-    for (const candidate of candidates) {
-      try {
-        return decodeText(await fs.promises.readFile(candidate))
-      } catch {
-        // A missing candidate is the normal case, not an error.
-      }
-    }
-    return null
-  })
-
-  ipcMain.handle('library:getIndex', () => loadIndex())
-
-  ipcMain.handle('playlists:import', async () => {
-    if (!mainWindow) return null
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: '导入 m3u 播放列表',
-      filters: [{ name: '播放列表', extensions: ['m3u', 'm3u8'] }],
-      properties: ['openFile', 'dontAddToRecent']
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-
-    const file = result.filePaths[0]
-    try {
-      // The directory travels with the text so relative entries in the
-      // playlist can be resolved by the renderer.
-      return {
-        name: path.basename(file, path.extname(file)),
-        dir: path.dirname(file),
-        text: decodeText(await fs.promises.readFile(file))
-      }
-    } catch (error) {
-      console.error('[aurora] could not read the playlist', error)
-      return null
-    }
-  })
-
-  ipcMain.handle('playlists:export', async (_event, payload: { name: string; text: string }) => {
-    if (!mainWindow || typeof payload?.text !== 'string') return false
-    const safeName = (payload.name || 'playlist').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120)
-    const result = await dialog.showSaveDialog(mainWindow, {
-      title: '导出 m3u 播放列表',
-      defaultPath: `${safeName}.m3u`,
-      filters: [{ name: '播放列表', extensions: ['m3u'] }]
-    })
-    if (result.canceled || !result.filePath) return false
-    try {
-      await fs.promises.writeFile(result.filePath, payload.text, 'utf8')
-      return true
-    } catch (error) {
-      console.error('[aurora] could not write the playlist', error)
-      return false
-    }
-  })
-
-  ipcMain.handle('library:scan', async () => {
-    const controller = { cancelled: false }
-    activeScan = controller
-    try {
-      return await scanLibrary({
-        cancelled: () => controller.cancelled,
-        // Progress is advisory; a closed window must not fail the scan. It is
-        // coalesced in `scan-progress` because one message per file would wake
-        // the whole renderer for every file in the library.
-        onProgress: (progress: ScanProgress) => sendProgress(progress)
-      })
-    } finally {
-      if (activeScan === controller) activeScan = null
-    }
-  })
-
-  ipcMain.handle('overlay:toggle', (_event, enabled: unknown) =>
-    toggleOverlay(typeof enabled === 'boolean' ? enabled : undefined)
-  )
-
-  ipcMain.handle('overlay:status', () => overlayStatus())
-
-  ipcMain.handle('overlay:setLocked', (_event, locked: unknown) => setOverlayLocked(Boolean(locked)))
-
-  // The strip reports where its words are; the main process polls the cursor
-  // against that box so a locked window takes the mouse only over the lyrics.
-  ipcMain.handle('overlay:hit-area', (_event, rect: unknown) => setOverlayHitArea(rect))
-
-  ipcMain.handle('overlay:close', () => {
-    toggleOverlay(false)
-    return overlayStatus()
-  })
-
-  ipcMain.handle('overlay:push', (_event, state: unknown) => {
-    // Renderer input crossing a trust boundary, so the shape is rebuilt here
-    // rather than trusted from the message.
-    if (!state || typeof state !== 'object') return false
-    const candidate = state as Partial<OverlayState>
-    pushOverlayState({
-      text: typeof candidate.text === 'string' ? candidate.text : null,
-      next: typeof candidate.next === 'string' ? candidate.next : null,
-      title: typeof candidate.title === 'string' ? candidate.title : '',
-      artist: typeof candidate.artist === 'string' ? candidate.artist : '',
-      playing: Boolean(candidate.playing)
-    })
-    return true
-  })
-
-  ipcMain.handle('updates:check', () => checkForUpdate())
-
-  /*
-   * Whether the player window is actually on screen. The renderer asks once at
-   * startup and then follows `app:visibility`; see notifyVisibility().
-   */
-  ipcMain.handle('app:visibility', () => mainWindowVisibility(mainWindow))
-
-  ipcMain.handle('lyrics:isOnlineEnabled', () => loadSettings().onlineLyrics)
-
-  ipcMain.handle('lyrics:setOnlineEnabled', (_event, enabled: unknown) => {
-    saveSettings({ onlineLyrics: Boolean(enabled) })
-    return loadSettings().onlineLyrics
-  })
-
-  ipcMain.handle('lyrics:lookup', (_event, query: unknown) => {
-    // The setting is enforced here, not in the renderer: the network egress is
-    // the thing being gated, so the gate belongs on the side that does it.
-    if (!loadSettings().onlineLyrics) return null
-    if (!query || typeof query !== 'object') return null
-
-    const candidate = query as Partial<LyricsQuery>
-    if (typeof candidate.title !== 'string' || !candidate.title.trim()) return null
-
-    return lookupLyrics({
-      title: candidate.title,
-      artist: typeof candidate.artist === 'string' ? candidate.artist : '',
-      album: typeof candidate.album === 'string' ? candidate.album : '',
-      duration: typeof candidate.duration === 'number' ? candidate.duration : 0
-    })
-  })
-
-  ipcMain.handle('player:reportState', (_event, state: { playing?: boolean } | null) => {
-    const playing = Boolean(state?.playing)
-    if (playing === lastPlaying) return true
+/**
+ * The one owner of the mutable facts the IPC modules need.
+ *
+ * Each field reads main.ts's own variable at call time, so a handler sees a
+ * recreated window, a scan that has finished, or a playback-state change
+ * immediately. Nothing here is a second copy of the state.
+ */
+const ipcHost: IpcHost = {
+  window: () => mainWindow,
+  scan: () => activeScan,
+  setScan: (scan) => {
+    activeScan = scan
+  },
+  playing: () => lastPlaying,
+  setPlaying: (playing) => {
     lastPlaying = playing
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      installThumbar(mainWindow, playing, sendMediaCommand)
-    }
-    return true
-  })
+  },
+  sendCommand: sendMediaCommand
+}
 
-  ipcMain.handle('updates:open', (_event, url: unknown) => {
-    if (typeof url !== 'string') return false
-    return openReleasePage(url).then(() => true)
-  })
-
-  ipcMain.handle('updates:getAutoCheck', () => loadSettings().autoCheckUpdates)
-
-  ipcMain.handle('updates:setAutoCheck', (_event, enabled: unknown) => {
-    saveSettings({ autoCheckUpdates: Boolean(enabled) })
-    return loadSettings().autoCheckUpdates
-  })
-
-  ipcMain.handle('library:cancelScan', () => {
-    if (activeScan) activeScan.cancelled = true
-    return true
-  })
-
-  // --- settings -----------------------------------------------------------
-
-  /*
-   * One narrow setter per field, deliberately. A generic `settings:set(key,
-   * value)` would make the renderer able to write any key into the main
-   * process's config, including ones it has no business touching.
-   */
-  ipcMain.handle('settings:getAll', () => appSettings())
-
-  ipcMain.handle('settings:setOnlineLyrics', (_event, enabled: unknown) => {
-    saveSettings({ onlineLyrics: Boolean(enabled) })
-    return appSettings()
-  })
-
-  ipcMain.handle('settings:setDesktopLyricsSize', (_event, size: unknown) => {
-    const value = typeof size === 'number' && Number.isFinite(size) ? size : LYRIC_SIZE_MIN
-    setLyricSize(Math.min(LYRIC_SIZE_MAX, Math.max(LYRIC_SIZE_MIN, value)))
-    return appSettings()
-  })
-
-  ipcMain.handle('settings:setCloseToTray', (_event, enabled: unknown) => {
-    saveSettings({ closeToTray: Boolean(enabled) })
-    return appSettings()
-  })
-
-  ipcMain.handle('settings:storage', () => storageUsage())
-
-  ipcMain.handle('settings:clearCache', () => clearCache())
-
-  // --- updates ------------------------------------------------------------
-
-  /*
-   * 全屏是一个动作，不是一个「记住」的状态：和窗口自身的 F11 一样，
-   * 下次启动回到普通窗口，用户不会遇到一个自己没设过的全屏播放器。
-   */
-  ipcMain.handle('window:toggleFullscreen', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return false
-    const next = !mainWindow.isFullScreen()
-    mainWindow.setFullScreen(next)
-    return next
-  })
-
-  ipcMain.handle('window:isFullscreen', () => Boolean(mainWindow?.isFullScreen()))
-
-  ipcMain.handle('updates:getPrefs', () => updatePrefs())
-
-  ipcMain.handle('updates:setInterval', (_event, interval: unknown) => {
-    const next =
-      interval === 'manual' || interval === 'daily' || interval === 'weekly' ? interval : 'daily'
-    saveSettings({ updateInterval: next })
-    return updatePrefs()
-  })
-
-  ipcMain.handle('updates:setAutoInstall', (_event, enabled: unknown) => {
-    saveSettings({ autoInstallUpdates: Boolean(enabled) })
-    return updatePrefs()
-  })
-
-  ipcMain.handle('updates:install', () => installPendingUpdate())
+/**
+ * Handler registration, split by business domain.
+ *
+ * Called once from `whenReady`, in the same position the inline handlers used to
+ * occupy: before the window exists, so no renderer invoke can race ahead of its
+ * handler. Domains are called in the order their first handler appeared in the
+ * old single function, and every domain keeps its channels in their original
+ * order. The order *between* domains is not observable: each channel is
+ * registered exactly once, and no handler body runs until the renderer invokes
+ * it.
+ */
+function registerIpc(): void {
+  registerAppIpc(ipcHost)
+  registerLibraryIpc(ipcHost)
+  registerWallpaperIpc()
+  registerOverlayIpc()
+  registerUpdatesIpc()
+  registerLyricsIpc()
+  registerPlayerIpc(ipcHost)
+  registerSettingsIpc(ipcHost)
 }
 
 // Single instance: a second launch focuses the running player instead of

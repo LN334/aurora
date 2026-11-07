@@ -1,6 +1,7 @@
 import { bridge, isNative } from '../../bridge'
 import { sourceFor } from '../library/source'
 import type { Track } from '../../types'
+import { useHistory } from './history-store'
 import { EQ_BANDS, usePlayer } from './store'
 
 const FADE_IN_MS = 220
@@ -105,6 +106,15 @@ class AudioEngine {
   private loadedPath: string | null = null
   /** Invalidates in-flight fades when the user interrupts one. */
   private fadeToken = 0
+  /**
+   * The track the clock is currently crediting, plus the unstored seconds
+   * seen since it started. Kept here rather than in the store because this is
+   * the only place that knows how much audio really played (a seek is not
+   * listening time, and neither is a paused player).
+   */
+  private playingTrack: Track | null = null
+  private lastProgressAt = 0
+  private pendingSeconds = 0
 
   private build(): void {
     if (this.ctx) return
@@ -161,6 +171,7 @@ class AudioEngine {
     })
     el.addEventListener('ended', () => {
       this.stopTicker()
+      useHistory.getState().flush()
       engineHooks.next(true)
     })
 
@@ -267,6 +278,10 @@ class AudioEngine {
     this.applyEq()
     this.applyVolume()
     this.updateMediaSession(track)
+    this.playingTrack = track
+    this.lastProgressAt = 0
+    this.pendingSeconds = 0
+    useHistory.getState().noteStart(track)
 
     if (autoplay) await this.play()
     else store.setLoading(false)
@@ -303,6 +318,7 @@ class AudioEngine {
       el.pause()
       usePlayer.getState().setPlaying(false)
       this.stopTicker()
+      useHistory.getState().flush()
     }, FADE_OUT_MS)
   }
 
@@ -329,6 +345,29 @@ class AudioEngine {
     return this.spectrum
   }
 
+  /**
+   * Credit listened seconds to the history.
+   *
+   * Called from the position ticker, which runs at 60 Hz on screen and 4 Hz
+   * off screen. A frame-sized delta is accumulated until it makes a whole
+   * second, because a write per frame would be absurd; a large delta means the
+   * user seeked, which is not listening time, so it is dropped rather than
+   * counted.
+   */
+  private recordProgress(el: HTMLAudioElement): void {
+    const track = this.playingTrack
+    if (!track) return
+    const now = el.currentTime
+    const delta = now - this.lastProgressAt
+    this.lastProgressAt = now
+    if (!(delta > 0) || delta > 3) return
+    this.pendingSeconds += delta
+    if (this.pendingSeconds < 1) return
+    const whole = Math.floor(this.pendingSeconds)
+    this.pendingSeconds -= whole
+    useHistory.getState().noteSeconds(track, whole)
+  }
+
   // --- position reporting --------------------------------------------------
 
   private startTicker(): void {
@@ -350,6 +389,7 @@ class AudioEngine {
     if (isWindowVisible()) {
       const tick = () => {
         usePlayer.getState().setPosition(el.currentTime)
+        this.recordProgress(el)
         this.raf = requestAnimationFrame(tick)
       }
       this.raf = requestAnimationFrame(tick)
@@ -361,7 +401,10 @@ class AudioEngine {
      * while still being called every frame would keep the renderer waking up
      * sixty times a second, which is the cost worth removing here.
      */
-    const tick = () => usePlayer.getState().setPosition(el.currentTime)
+    const tick = () => {
+      usePlayer.getState().setPosition(el.currentTime)
+      this.recordProgress(el)
+    }
     // Publish once immediately so the desktop lyric window is not a quarter
     // second stale for the whole first interval after the window is hidden.
     tick()

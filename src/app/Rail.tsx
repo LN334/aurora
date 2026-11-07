@@ -3,7 +3,7 @@ import { navGroupOf, type NavGroup } from './routing'
 import type { ViewId } from '../types'
 import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
-import { remoteImageUrl } from '../features/player/urls'
+import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
 import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
 
@@ -15,7 +15,7 @@ import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
  * 栏位不区分「你要去哪」和「东西从哪来」——于是本地音乐看起来像一个和网易云
  * 平级的应用，设置被切成三页。
  *
- * 现在一级只有三项：发现（有什么可听）、音乐库（我的东西，按来源切）、设置。
+ * 现在一级只有三项：主页（接着听什么）、音乐库（我的东西，按来源切）、设置。
  * 平台与本地文件都退到「音乐库」里做来源标签页；搜索是标题栏那一个搜索框的动作，
  * 不占一级；详情页（专辑/艺术家/歌单）在路由里，但不在导航里——它们是从某一层
  * 进去的，靠返回键回来。
@@ -50,7 +50,7 @@ interface PrimaryItem {
  * 占一个一级位置。
  */
 const PRIMARY: PrimaryItem[] = [
-  { group: 'discover', view: 'discover', label: '发现', icon: Compass },
+  { group: 'discover', view: 'discover', label: '主页', icon: Compass },
   { group: 'library', view: 'library', label: '音乐库', icon: Library },
   { group: 'settings', view: 'settings', label: '设置', icon: Settings }
 ]
@@ -68,7 +68,8 @@ export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel,
   const bindings = useOnlineBindings(accounts)
   const active = accounts.find((account) => account.id === activeId) ?? null
   const boundAvatar = activeId ? (bindings[activeId]?.avatarUrl ?? null) : null
-  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(boundAvatar) : null)
+  // 头像只显示 20px，按 96px 取就够；原图往往是几百 KB 的方形大图。
+  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96)) : null)
 
   const fallbackAvatar = active ? (
     <span className="rail__avatar-letter">{active.label.slice(0, 1)}</span>

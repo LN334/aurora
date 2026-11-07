@@ -52,7 +52,7 @@ const LIBRARY = args.get('library') ? path.resolve(ROOT, args.get('library')) : 
  * the navigation it claims to prove.
  */
 const JOURNEY = [
-  { view: 'discover', kind: 'rail', label: '发现', title: '发现' },
+  { view: 'discover', kind: 'rail', label: '主页', title: '主页' },
   { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' },
   { view: 'library-albums', kind: 'tab', label: '专辑', title: '音乐库' },
   { view: 'library-artists', kind: 'tab', label: '艺术家', title: '音乐库' },

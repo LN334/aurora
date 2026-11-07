@@ -15,7 +15,7 @@ import type { ViewId } from '../types'
  */
 
 export const VIEW_TITLES: Record<ViewId, string> = {
-  discover: '发现',
+  discover: '主页',
   library: '音乐库',
   albums: '专辑',
   artists: '艺术家',

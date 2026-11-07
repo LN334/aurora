@@ -57,7 +57,7 @@ import {
 import { usePlaylistFiles } from './features/playlists/io'
 import { EmptyLibrary } from './views/EmptyLibrary'
 import { LibraryView } from './views/LibraryView'
-import { DiscoverView } from './features/discover/DiscoverView'
+import { HomeView } from './features/home/HomeView'
 import { Sources } from './views/Sources'
 
 /**
@@ -543,7 +543,7 @@ export function App() {  if (!isNative) {
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
     // 一级入口：发现（有什么可听，未登录也有内容）。
-    if (view === 'discover') return <DiscoverView />
+    if (view === 'discover') return <HomeView onNavigate={navigate} />
     // 一级入口：音乐库（我的东西，按来源切；本地只是来源之一）。
     if (view === 'library') {
       return (
