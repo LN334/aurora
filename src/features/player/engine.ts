@@ -1,4 +1,5 @@
 import { bridge, isNative } from '../../bridge'
+import { coverDataUrl } from './artwork'
 import { sourceFor } from '../library/source'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
@@ -106,6 +107,13 @@ class AudioEngine {
   private loadedPath: string | null = null
   /** Invalidates in-flight fades when the user interrupts one. */
   private fadeToken = 0
+
+  /**
+   * Which metadata update the cover being encoded belongs to. The cover is read
+   * asynchronously, and skipping tracks quickly must not let a late image land on
+   * the next track's card.
+   */
+  private artworkToken = 0
   /**
    * The track the clock is currently crediting, plus the unstored seconds
    * seen since it started. Kept here rather than in the store because this is
@@ -486,16 +494,24 @@ class AudioEngine {
 
   private updateMediaSession(track: Track | null): void {
     if (!('mediaSession' in navigator)) return
+    const token = ++this.artworkToken
     if (!track) {
       navigator.mediaSession.metadata = null
       return
     }
-    const artwork = sourceFor(track).artUrl(track)
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: track.title,
-      artist: track.artist,
-      album: track.album,
-      artwork: artwork ? [{ src: artwork, sizes: '512x512' }] : []
+    const text = { title: track.title, artist: track.artist, album: track.album }
+    // Text first, cover second: the card is correct the moment the track
+    // changes, and the thumbnail fills in as soon as the image has been read.
+    navigator.mediaSession.metadata = new MediaMetadata({ ...text, artwork: [] })
+
+    const src = sourceFor(track).artUrl(track)
+    if (!src) return
+    void coverDataUrl(src).then((data) => {
+      if (!data || token !== this.artworkToken) return
+      navigator.mediaSession.metadata = new MediaMetadata({
+        ...text,
+        artwork: [{ src: data, sizes: '512x512', type: 'image/jpeg' }]
+      })
     })
   }
 }

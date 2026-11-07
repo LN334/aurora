@@ -145,6 +145,19 @@ node scripts/audit-exports.mjs        # 找只在本文件内使用的导出
 （`` `lyr--d${n}` ``）、CSS 注释里提到的文件名（`tokens.css`）、以及 HTML 入口里的类名
 （`overlay.html` 的 `overlay-body`）。脚本已处理这三类。
 
+## 系统媒体卡片上的封面
+
+`navigator.mediaSession.metadata.artwork` 不会原样交给系统：Chromium 自己再去下载这张图，而它只认
+http(s)、data、blob 三种地址。Aurora 的封面走的是应用私有协议（`aurora-media://art/...`、
+`aurora-remote://image/...`），于是 Windows 侧拿到的是一个有标题、有艺术家、没有缩略图的会话——
+媒体控制面板一片空白，任务栏歌词条这类读系统会话的工具只能画一个音符占位。
+
+修法在 `src/features/player/artwork.ts`：用 `<img>`（`crossOrigin = 'anonymous'`，两个私有协议都带
+`access-control-allow-origin: *`）加载封面，居中裁成正方形，画到 512px 的 canvas 上，再
+`toDataURL('image/jpeg', 0.85)` 交给 `MediaMetadata`。文字先写、封面后补，所以切歌那一刻卡片就是对的；
+`engine.ts` 用 `artworkToken` 丢弃迟到的旧封面。转好的结果按 URL 缓存 40 条，同一首歌在队列里来回切
+不会重复编码。没有封面的本地文件走到 `img.onerror` 就是 null，系统卡片退回只有文字，和以前一样。
+
 ## 桌面歌词
 
 `overlay.html` 是一个独立的无边框透明置顶窗口（`electron/lyrics-overlay.ts`）。页面只负责画，
