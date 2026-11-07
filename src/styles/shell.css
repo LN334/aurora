@@ -1994,301 +1994,118 @@
   font-size: 12px;
   color: var(--text-low);
 }
+
 .nm__input {
   display: block;
   width: 100%;
   margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 9px;
+  padding: 9px 11px;
   border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 9px;
   background: rgb(255 255 255 / 0.05);
-  font-size: 14px;
   color: var(--text-hi);
-  outline: none;
+  font: inherit;
+  font-size: 13.5px;
 }
 .nm__input:focus {
-  border-color: rgb(var(--accent-rgb) / 0.6);
-  background: rgb(255 255 255 / 0.07);
+  border-color: var(--accent);
+  outline: none;
 }
 .nm__acts {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-
-/* --- 扩展页：跟新页面同一套（页面留白交给 .main__body，这里只管卡） ------ */
-.mods {
-  max-width: 1120px;
-  padding: 0;
-  overflow: visible;
-}
-.mods__group + .mods__group {
-  margin-top: 26px;
-}
-.mods__stitle {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  margin: 0 0 10px;
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  margin-top: 18px;
+}
+
+/* 在线专辑 / 艺人 / 歌单：一页，顶上一个大封面说「打开了什么」，下面是曲目。 */
+.pg-back {
+  align-self: flex-start;
+  margin: 0 0 14px;
+  padding: 4px 10px 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
   color: var(--text-mid);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
-.mods__gcount {
-  font-size: 11px;
-  color: var(--text-low);
-  font-variant-numeric: tabular-nums;
-}
-.mods .mod-row {
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.05);
-  background: rgb(255 255 255 / 0.04);
-  backdrop-filter: blur(14px);
-  transition: background 140ms var(--ease-out);
-}
-.mods .mod-row:hover {
+.pg-back:hover {
   background: rgb(255 255 255 / 0.06);
+  color: var(--text-hi);
 }
-.mods .mod-row + .mod-row {
+.ol-hero {
+  display: flex;
+  gap: 26px;
+  align-items: flex-end;
+  margin: 0 0 26px;
+}
+.ol-hero__art {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 190px;
+  height: 190px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.06);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 0.42);
+  color: var(--text-low);
+}
+.ol-hero__art.is-round {
+  border-radius: 50%;
+}
+.ol-hero__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ol-hero__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.ol-hero__kicker {
+  color: var(--text-low);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.ol-hero__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-hi);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ol-hero__meta {
+  margin: 0;
+  color: var(--text-mid);
+  font-size: 13px;
+}
+.ol-hero__acts {
+  display: flex;
+  gap: 10px;
   margin-top: 8px;
 }
-.mods .mod-row__name {
-  font-size: 14px;
-}
-.mods .mod-row__note {
-  margin-top: 3px;
-  font-size: 12px;
-}
-.mods .perm {
-  background: rgb(255 255 255 / 0.05);
-  color: var(--text-low);
-}
 
-
-/* 本机音乐：四个看法是一排页签，不占一整条工具行。 */
-.lm-head {
-  align-items: center;
-  margin-bottom: 18px;
-}
-.lm-tabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.lm-count {
-  white-space: nowrap;
-}
-
-
-/* 本机音乐：专辑墙跟首页同一档密度，不再用四列大卡。 */
-.lm-head + .rh-row .rh-card__title {
-  margin-top: 10px;
-  font-size: 13.5px;
-}
-.lm-head + .rh-row .rh-card__art {
-  border-radius: 9px;
-}
-
-
-/* 艺人跟专辑一样是墙，圆形封面。 */
-.rh-card__art--round {
-  border-radius: 999px;
-}
-.rh-card__art--round img {
-  border-radius: 999px;
-}
-
-
-.rh-card__art--round {
-  border-radius: 999px;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-
-
-/* 一页里堆好几段时，段与段之间要有呼吸。 */
-.rh-sec + .rh-sec {
-  margin-top: 34px;
-}
-
-/* 空态：说一句能照做的话，不摆一个大绿块按钮。 */
-.pg-empty {
-  padding-top: 12vh;
-  max-width: 430px;
-}
-.pg-empty h2 {
-  margin: 0 0 8px;
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  color: var(--text-hi);
-}
-.pg-empty p {
-  margin: 0 0 18px;
-  font-size: 13px;
-  line-height: 1.75;
-  color: var(--text-mid);
-}
-
-
-/* 收藏页：歌单封面跟专辑同尺寸，只是中间放个列表图标。 */
-.rh-card__art--pl {
-  color: var(--text-mid);
-}
-/* 喜欢页头右侧的两颗按钮。 */
-.lk-head__acts {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-}
-
-
-/* 本机音乐的文件夹：一排方块，不是一个贴左的长列表。 */
-.lm-folders {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 14px;
-}
-.lm-folder {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  grid-template-areas:
-    'icon name meta'
-    'icon path path';
-  align-items: center;
-  gap: 2px 12px;
-  padding: 14px 16px;
-  border: 1px solid rgb(255 255 255 / 0.05);
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.04);
-  backdrop-filter: blur(14px);
-  text-align: left;
-}
-.lm-folder:hover {
-  background: rgb(255 255 255 / 0.065);
-}
-.lm-folder__icon {
-  grid-area: icon;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgb(255 255 255 / 0.06);
-  color: var(--text-mid);
-}
-.lm-folder__name {
-  grid-area: name;
-  font-size: 14px;
-  color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lm-folder__meta {
-  grid-area: meta;
-  font-size: 11.5px;
-  color: var(--text-low);
-}
-.lm-folder__path {
-  grid-area: path;
-  font-size: 11.5px;
-  color: var(--text-low);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.lm-folder--add {
-  grid-template-areas: 'body body body';
-  grid-template-columns: minmax(0, 1fr);
-  border-style: dashed;
+/* 曲目行里的专辑 / 艺人名字：能点，但不该长得像按钮。 */
+.trk__ref {
+  padding: 0;
+  border: 0;
   background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.lm-folder--add .pg-note {
-  margin: 0 0 10px;
-}
-
-
-.lm-folder--add {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  min-height: 104px;
-}
-.lm-folder--add .pg-note {
-  max-width: 30ch;
-}
-
-
-/* 每日推荐卡：两个入口并排，主按钮 + 文字链。 */
-.rh-daily__acts {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-/* 每日推荐页的一句说明，跟列表拉开一点。 */
-.dl-note {
-  margin: 0 0 16px;
-}
-
-
-/* --- 在线歌单的曲目弹窗 ---------------------------------------------------
-   平台歌单和本地歌单挤在同一页，点开一张不该换页：弹窗盖住页面，关掉原地。
-   高度封顶、内部滚动，列表再长也不会把弹窗撑出屏幕。 */
-.sheet__scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 40px 24px;
-  background: rgb(4 6 9 / 0.62);
-  backdrop-filter: blur(6px);
-}
-.sheet {
-  display: flex;
-  flex-direction: column;
-  width: min(760px, 100%);
-  max-height: min(78vh, 780px);
-  border-radius: 16px;
-  border: 1px solid rgb(255 255 255 / 0.07);
-  background: rgb(18 21 27 / 0.97);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 0.55);
-  overflow: hidden;
-}
-.sheet__head {
-  display: flex;
-  align-items: flex-end;
-  gap: 20px;
-  padding: 22px 24px 16px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.05);
-}
-.sheet__ident { flex: 1; min-width: 0 }
-.sheet__kicker {
-  margin: 0 0 6px;
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  color: var(--text-low);
-}
-.sheet__title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
+.trk__ref:hover {
   color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.sheet__meta { margin: 6px 0 0; font-size: 12px; color: var(--text-low) }
-.sheet__acts { display: flex; align-items: center; gap: 8px; flex: none }
-.sheet__body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 16px }
-.sheet__body .pg-note { margin: 20px 12px }
-.shelf { margin-top: 44px }

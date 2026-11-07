@@ -27,6 +27,10 @@ export type ShellView =
   | 'album'
   | 'artist'
   | 'playlist'
+  /* 在线侧的同级三页：id 是 `provider/numericId`，与本地那三页分开走。 */
+  | 'onlinealbum'
+  | 'onlineartist'
+  | 'onlineplaylist'
   | 'track'
   | 'nowplaying'
   | 'stage'
@@ -63,6 +67,10 @@ export const SHELL_TITLES: Record<ShellView, string> = {
   album: '专辑',
   artist: '艺人',
   playlist: '歌单',
+  // 这三页自己的封面旁边就写着是什么，外壳再打一行标题就是重复。
+  onlinealbum: '',
+  onlineartist: '',
+  onlineplaylist: '',
   track: '歌曲',
   nowplaying: '正在播放',
   stage: '舞台',
@@ -82,7 +90,9 @@ export const SHELL_TITLES: Record<ShellView, string> = {
  * 会被当成路径的一部分，后退时也难读。两段式最稳，刷新后还能落回同一张专辑。
  */
 export function shellToHash(route: ShellRoute): string {
-  return route.id ? `${route.view}/${encodeURIComponent(route.id)}` : route.view
+  // 在线详情页的 id 是两段（`netease/123`），逐段编码才能保持地址可读。
+  const id = route.id?.split('/').map(encodeURIComponent).join('/')
+  return id ? `${route.view}/${id}` : route.view
 }
 
 /** 解析地址栏；不认识的片段返回 null，交给调用方决定回落。 */
@@ -97,7 +107,15 @@ export function shellFromHash(raw: string): ShellRoute | null {
   const id = decodeURIComponent(rest.join('/'))
   if (!id) return { view }
   // 只有详情类页面吃 id；其余片段带了 id 也不该悄悄变成另一个页面。
-  if (view !== 'album' && view !== 'artist' && view !== 'playlist' && view !== 'track') {
+  if (
+    view !== 'album' &&
+    view !== 'artist' &&
+    view !== 'playlist' &&
+    view !== 'track' &&
+    view !== 'onlinealbum' &&
+    view !== 'onlineartist' &&
+    view !== 'onlineplaylist'
+  ) {
     return { view }
   }
   return { view, id }
@@ -163,6 +181,10 @@ export function shellToRoute(route: ShellRoute): Route {
       return { view: 'netease' }
     case 'qq':
       return { view: 'qq' }
+    // 在线三页自己取数，旧视图表里没有对应项，给一个安全的落点。
+    case 'onlinealbum':
+    case 'onlineartist':
+    case 'onlineplaylist':
     // 这三页还没有对应的旧视图，页面自己处理，这里给一个安全的落点。
     case 'recent':
     case 'nowplaying':

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { sourceTagFor } from '../features/online/registry'
+import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { formatTime } from './format'
 import { showFlash } from './flash'
@@ -92,6 +93,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentId
         const srcTag = sourceTagFor(track, mixed)
+        const refs = refOfTrack(track)
         return (
           <div
             key={track.id}
@@ -139,10 +141,37 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
               {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
             </span>
             <span className="trk__muted" role="cell">
-              {track.artist}
+              {refs.artist ? (
+                <button
+                  className="trk__ref"
+                  onClick={(event) => {
+                    // 行本身是一整块播放热区，名字要跳页就得自己截住这次点击。
+                    event.stopPropagation()
+                    openOnlineArtist(track.source ?? '', refs.artist as number)
+                  }}
+                  title={`去 ${track.albumArtist || track.artist} 的页面`}
+                >
+                  {track.artist}
+                </button>
+              ) : (
+                track.artist
+              )}
             </span>
             <span className="trk__muted tracks__album" role="cell" title={track.album}>
-              {track.album}
+              {refs.album ? (
+                <button
+                  className="trk__ref"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openOnlineAlbum(track.source ?? '', refs.album as number)
+                  }}
+                  title={`去《${track.album}》`}
+                >
+                  {track.album}
+                </button>
+              ) : (
+                track.album
+              )}
             </span>
             <span className="tracks__time tnum" role="cell">
               {formatTime(track.duration)}

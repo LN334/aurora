@@ -101,6 +101,14 @@ export interface Track {
    * same song comes back without a cover on the next launch.
    */
   coverUrl?: string
+  /**
+   * The upstream album / artist this row came from, when the source reports them.
+   *
+   * Kept as numbers (the platforms' own ids) so a row can jump to that album or
+   * artist page without re-searching by name — names collide, ids do not.
+   */
+  albumId?: number
+  artistId?: number
   /** ReplayGain, when the tags carry it. */
   gainDb: number | null
   peak: number | null

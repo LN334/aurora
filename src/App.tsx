@@ -10,6 +10,8 @@ import { FolderTree } from './views/FolderTree'
 import { DailyView } from './views/DailyView'
 import { LikedView } from './views/LikedView'
 import { LocalView } from './views/LocalView'
+import { OnlinePage } from './views/OnlinePage'
+import { bindDetailNavigate } from './features/refs/navigate'
 import { PlaylistsView } from './views/PlaylistsView'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/PlayerBar'
@@ -246,6 +248,11 @@ export function App() {  if (!isNative) {
 
   /** 页面组件仍按旧 `Route` 说话；这里翻译成外壳路由。 */
   const navigate = useCallback((next: Route) => goShell(routeToShell(next)), [goShell])
+
+  // 歌曲行里点专辑 / 艺人要能跳页，但行不该知道外壳怎么导航，所以把导航交出去一次。
+  useEffect(() => {
+    bindDetailNavigate(goShell)
+  }, [goShell])
 
   /**
    * 漫游：把整个曲库洗一遍，从头放。
@@ -623,6 +630,9 @@ export function App() {  if (!isNative) {
 
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
+    if (shell.view === 'onlinealbum' || shell.view === 'onlineartist' || shell.view === 'onlineplaylist') {
+      return <OnlinePage route={shell} onNavigate={goShell} />
+    }
     if (shell.view === 'home') {
       return <HomeView onNavigate={goShell} />
     }
@@ -927,7 +937,7 @@ export function App() {  if (!isNative) {
             ) : null}
 
             <div className="main__titles">
-              <h1 className="main__title">{headTitle}</h1>
+              {headTitle ? <h1 className="main__title">{headTitle}</h1> : null}
               {headStatus ? <div className="main__sub">{headStatus}</div> : null}
             </div>
 

@@ -647,9 +647,10 @@ function countFromSubtitle(value: string): number {
   return match ? Number(match[1]) : 0
 }
 
-/** One playlist's contents: `body.cdlist[0].songlist`. */
+/** One playlist's contents: `body.response.cdlist[0].songlist` (实测结构). */
 export function normalizePlaylistTracks(response: unknown): QqSong[] {
   return songsFrom(response, [
+    (body) => record(list(record(body.response).cdlist)[0]).songlist,
     (body) => record(list(body.cdlist)[0]).songlist,
     (body) => body.songlist
   ])

@@ -50,6 +50,8 @@ export function toTrack(song: NeteaseSong, stream: NeteaseStream | null = null):
     addedAt: Date.now(),
     hasArt: Boolean(song.album.picUrl),
     coverUrl: song.album.picUrl ?? undefined,
+    albumId: song.album.id || undefined,
+    artistId: song.artists[0]?.id || undefined,
     gainDb: null,
     peak: null
   }
