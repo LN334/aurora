@@ -7,6 +7,8 @@ import { isNeteaseQuality, isUsableId } from './types'
 import type {
   NeteaseAccount,
   NeteaseAlbum,
+  NeteaseAlbumSummary,
+  NeteaseArtistDetail,
   NeteaseDiscoverKind,
   NeteaseDiscoverResult,
   NeteaseLoginResult,
@@ -232,6 +234,30 @@ export function registerNeteaseIpc(): void {
     const limit = typeof args.limit === 'number' ? args.limit : 50
     if (id === null) return []
     return guard<NeteaseSong[]>('artistTopSongs', [], () => client.neteaseArtistTopSongs(id, limit))
+  })
+
+  ipcMain.handle('netease:artistDetail', (_event, value: unknown) => {
+    const id = asId(value)
+    if (id === null) return null
+    return guard<NeteaseArtistDetail | null>('artistDetail', null, () => client.neteaseArtistDetail(id))
+  })
+
+  ipcMain.handle('netease:artistSongs', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    const limit = typeof args.limit === 'number' ? args.limit : 200
+    const offset = typeof args.offset === 'number' ? args.offset : 0
+    if (id === null) return []
+    return guard<NeteaseSong[]>('artistSongs', [], () => client.neteaseArtistSongs(id, limit, offset))
+  })
+
+  ipcMain.handle('netease:artistAlbums', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    const limit = typeof args.limit === 'number' ? args.limit : 60
+    const offset = typeof args.offset === 'number' ? args.offset : 0
+    if (id === null) return []
+    return guard<NeteaseAlbumSummary[]>('artistAlbums', [], () => client.neteaseArtistAlbums(id, limit, offset))
   })
 
   ipcMain.handle('netease:songDetail', (_event, value: unknown) => {

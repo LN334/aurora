@@ -2109,3 +2109,101 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* 艺人自述：两三行就够，说清是谁。 */
+.ol-hero__brief {
+  display: -webkit-box;
+  max-width: 62ch;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--text-low);
+  font-size: 12.5px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* 艺人页的三块：热门 / 全部 / 专辑。 */
+.ol-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+.ol-tab {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-mid);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ol-tab:hover {
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text-hi);
+}
+.ol-tab.is-on {
+  border-color: rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.09);
+  color: var(--text-hi);
+}
+
+/* 专辑墙：一行放得下五六张，封面方、字两行。 */
+.ol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 22px 18px;
+}
+.ol-alb {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.ol-alb__art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 0.32);
+  color: var(--text-low);
+}
+.ol-alb__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ol-alb:hover .ol-alb__art {
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.45);
+}
+.ol-alb__name {
+  overflow: hidden;
+  color: var(--text-hi);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ol-alb__meta {
+  overflow: hidden;
+  color: var(--text-low);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「再看 100 首」：列表尾巴上的一颗小按钮。 */
+.ol-more {
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 8px;
+}

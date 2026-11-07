@@ -4,6 +4,7 @@ import { netease, hasNeteaseBackend } from '../netease/api'
 import { streamOf } from '../netease/store'
 import { neteaseSongId } from '../netease/track'
 import { artUrl, mediaUrl, remoteImageUrl, remoteStreamUrl } from '../player/urls'
+import { cachedStream } from '../online/streams'
 import type { Track } from '../../types'
 import { demoCoverFor, demoLyricsFor } from './demo'
 
@@ -158,7 +159,31 @@ export function setMissingStreamHandler(handler: ((songId: number) => void) | nu
   onMissingStream = handler
 }
 
-export const SOURCES: TrackSource[] = [localSource, neteaseSource]
+/**
+ * QQ 音乐：与网易云同一套接缝，取流的地址来自在线层的缓存。
+ *
+ * 与网易云的区别只有一个——这里不记得「上一次取到的是哪个 url」，缓存由
+ * `features/online/streams` 统一持有（它同时记失败原因与过期时间）。所以
+ * `streamUrl` 只做一次查表，未命中就交给 `player/pick` 去补取。
+ */
+ const qqSource: TrackSource = {
+  id: 'qq',
+  name: 'QQ 音乐（在线）',
+  summary: '第三方逆向接口，仅供个人学习自用；不是官方客户端，也不提供绕过会员的能力',
+  online: true,
+
+  streamUrl: (track) => {
+    if (track.onlineId === undefined) return null
+    const stream = cachedStream('qq', track.onlineId)
+    return stream ? remoteStreamUrl(stream.url) : null
+  },
+
+  artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
+
+  lyrics: async () => null
+}
+
+export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource]
 
 /** Resolve the source responsible for a track. */
 export function sourceFor(track: Track | null): TrackSource {

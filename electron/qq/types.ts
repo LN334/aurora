@@ -191,6 +191,39 @@ export interface QqQrResult {
  * something to open. The track list is fetched separately, because upstream
  * charges one request for the contents and the interface rarely opens them all.
  */
+/**
+ * One album, as the album page reports it.
+ *
+ * QQ identifies an album by its mid (a string), never by the numeric id alone -
+ * both are present in responses, but only the mid resolves the detail routes.
+ */
+export interface QqAlbumDetail {
+  id: number
+  mid: string
+  name: string
+  coverUrl: string | null
+  artistName: string
+  artistMid: string | null
+  year: number | null
+  trackCount: number
+  description: string
+}
+
+/**
+ * One artist, from the description route.
+ *
+ * Upstream answers an XML document rather than JSON here, so the reader picks the
+ * description out of it. The avatar is built from the mid (the same photo_new
+ * rule the album cover uses); the document itself carries no image.
+ */
+export interface QqArtistProfile {
+  id: number
+  mid: string
+  name: string
+  coverUrl: string | null
+  description: string
+}
+
 export interface QqPlaylistSummary {
   /** `dissid`, the profile-scoped id the detail route takes. */
   id: number

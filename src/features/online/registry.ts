@@ -144,6 +144,19 @@ export interface SourceTag {
   kind: string
 }
 
+/**
+ * 平台 id -> 行内标签。合并后的一行要同时列出几个平台，所以标签必须能按 id
+ * 取，而不只是按「这首歌当前属于谁」取。
+ *
+ * 未注册的 id 原样返回：那是旧版本存下的曲目或还没接的平台，原样显示比谎称
+ * 「本机」诚实。
+ */
+export function sourceLabelById(source: string | undefined): string {
+  if (!source || source === 'local') return '本机'
+  const provider = getProvider(source as ProviderId)
+  return provider?.shortName ?? provider?.displayName ?? source
+}
+
 export function sourceTagFor(
   track: Track | null | undefined,
   listIsMixed: boolean

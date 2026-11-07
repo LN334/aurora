@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
 import { getProvider } from '../features/online/registry'
@@ -7,7 +7,7 @@ import { toTrack } from '../features/netease/track'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
-import { parseRefId } from '../features/refs/navigate'
+import { openOnlineAlbum, openOnlineArtist, parseRefId } from '../features/refs/navigate'
 import { formatTime } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList } from '../ui/TrackList'
@@ -44,14 +44,11 @@ export function OnlinePage({ route, onNavigate }: { route: ShellRoute; onNavigat
     return <PlaylistPage providerId={ref.providerId} playlistId={ref.id} onBack={back} />
   }
 
-  return (
-    <CatalogPage
-      kind={route.view === 'onlineartist' ? 'artist' : 'album'}
-      providerId={ref.providerId}
-      id={ref.id}
-      onBack={back}
-    />
-  )
+  if (route.view === 'onlineartist') {
+    return <ArtistPage providerId={ref.providerId} id={ref.id} onBack={back} />
+  }
+
+  return <AlbumPage providerId={ref.providerId} id={ref.id} onBack={back} />
 }
 
 /** 一张平台歌单。 */
@@ -128,26 +125,16 @@ function PlaylistPage({ providerId, playlistId, onBack }: { providerId: string; 
 }
 
 /**
- * 网易云的专辑与艺人。
+ * 网易云的专辑页。
  *
  * 只有网易云有这两类取数接口。别的平台在这一层不装作有：不给入口，也就不存在
  * 点进来一堆空格子的事。
  */
-function CatalogPage({
-  kind,
-  providerId,
-  id,
-  onBack
-}: {
-  kind: 'album' | 'artist'
-  providerId: string
-  id: number
-  onBack(): void
-}) {
+function AlbumPage({ providerId, id, onBack }: { providerId: string; id: number; onBack(): void }) {
   const [title, setTitle] = useState('')
-  const [kicker, setKicker] = useState(kind === 'album' ? '专辑' : '艺人')
   const [meta, setMeta] = useState('读取中…')
   const [cover, setCover] = useState<string | null>(null)
+  const [artist, setArtist] = useState<{ id: number; name: string } | null>(null)
   const [tracks, setTracks] = useState<Track[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -162,51 +149,23 @@ function CatalogPage({
 
     const load = async () => {
       if (providerId !== 'netease') {
-        setError('这个平台还没有专辑 / 艺人的取数接口')
+        setError('这个平台还没有专辑的取数接口')
         setMeta('')
         return
       }
       try {
-        if (kind === 'album') {
-          const album = await bridge.netease.album(id)
-          if (!live) return
-          if (!album) {
-            setError('这张专辑没有取到内容')
-            return
-          }
-          setTitle(album.name)
-          setKicker('网易云音乐 · 专辑')
-          setCover(album.coverUrl)
-          const rows = album.songs.map((song: NeteaseSong) => toTrack(song))
-          setTracks(rows)
-          setMeta(
-            [album.artist, album.year ? String(album.year) : '', `${rows.length} 首`].filter(Boolean).join(' · ')
-          )
-          return
-        }
-        const songs = await bridge.netease.artistTopSongs(id, 50)
+        const album = await bridge.netease.album(id)
         if (!live) return
-        if (songs.length === 0) {
-          setError('这位艺人没有取到热门歌曲')
+        if (!album) {
+          setError('这张专辑没有取到内容')
           return
         }
-        const rows = songs.map((song: NeteaseSong) => toTrack(song))
-        const singer = songs[0]?.artists.find((entry) => entry.id === id)
-        setTitle(singer?.name ?? rows[0]?.albumArtist ?? '艺人')
-        setKicker('网易云音乐 · 艺人')
+        setTitle(album.name)
+        setCover(album.coverUrl)
+        setArtist(album.artistId ? { id: album.artistId, name: album.artist } : null)
+        const rows = album.songs.map((song: NeteaseSong) => toTrack(song))
         setTracks(rows)
-        setMeta(`热门 50 首 · 共 ${rows.length} 首`)
-        /*
-         * 热歌接口只给歌，不给艺人自己的头像；拿专辑封面顶上去，看着就像打开错了页。
-         * 所以按 id 去搜索里认这个人——名字相同、id 相同才算数，认不到再退回专辑封面。
-         */
-        let portrait = songs[0]?.album.picUrl ?? null
-        if (singer?.name) {
-          const found = await bridge.netease.search(singer.name, 'artist', 10)
-          if (!live) return
-          portrait = found.artists.find((entry) => entry.id === id)?.picUrl ?? portrait
-        }
-        setCover(portrait)
+        setMeta([album.year ? String(album.year) : '', `${rows.length} 首`].filter(Boolean).join(' · '))
       } catch (failure) {
         if (live) setError(failure instanceof Error ? failure.message : String(failure))
       }
@@ -215,7 +174,7 @@ function CatalogPage({
     return () => {
       live = false
     }
-  }, [kind, providerId, id])
+  }, [providerId, id])
 
   return (
     <div className="col ol-page">
@@ -224,13 +183,26 @@ function CatalogPage({
       </button>
 
       <header className="ol-hero">
-        <div className={`ol-hero__art${kind === 'artist' ? ' is-round' : ''}`}>
+        <div className="ol-hero__art">
           {cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={32} />}
         </div>
         <div className="ol-hero__text">
-          <span className="ol-hero__kicker">{kicker}</span>
+          <span className="ol-hero__kicker">网易云音乐 · 专辑</span>
           <h1 className="ol-hero__title">{title || ' '}</h1>
-          <p className="ol-hero__meta">{meta}</p>
+          <p className="ol-hero__meta">
+            {artist ? (
+              <button
+                className="trk__ref"
+                type="button"
+                onClick={() => openOnlineArtist('netease', artist.id)}
+                title={`去 ${artist.name} 的页面`}
+              >
+                {artist.name}
+              </button>
+            ) : null}
+            {artist ? ' · ' : ''}
+            {meta}
+          </p>
           <div className="ol-hero__acts">
             <button
               className="rh-btn rh-btn--main"
@@ -257,6 +229,246 @@ function CatalogPage({
       ) : (
         <p className="pg-note">正在取内容…</p>
       )}
+    </div>
+  )
+}
+
+type ArtistTab = 'hot' | 'all' | 'albums'
+
+/**
+ * 艺人页。
+ *
+ * 只给「热门 50 首」等于半个艺人页：一个人真正被翻的时候，看的是「他还有哪些
+ * 歌」和「他出了哪些专辑」。所以这里三块都给：热门、全部歌曲（能接着往后取）、
+ * 专辑墙（点得进专辑页）。
+ */
+function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number; onBack(): void }) {
+  const [tab, setTab] = useState<ArtistTab>('hot')
+  const [name, setName] = useState('')
+  const [brief, setBrief] = useState('')
+  const [cover, setCover] = useState<string | null>(null)
+  const [counts, setCounts] = useState<{ albums: number; songs: number } | null>(null)
+  const [hot, setHot] = useState<Track[]>([])
+  const [all, setAll] = useState<Track[]>([])
+  const [allLoading, setAllLoading] = useState(false)
+  const [albums, setAlbums] = useState<{ id: number; name: string; coverUrl: string | null; year: number | null; songCount: number }[]>([])
+  const [albumsLoading, setAlbumsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
+  const playing = usePlayer((s) => s.playing)
+
+  useEffect(() => {
+    let live = true
+    setHot([])
+    setAll([])
+    setAlbums([])
+    setError(null)
+    setTab('hot')
+
+    const load = async () => {
+      if (providerId !== 'netease') {
+        setError('这个平台还没有艺人页的取数接口')
+        return
+      }
+      try {
+        const [detail, songs] = await Promise.all([
+          bridge.netease.artistDetail(id),
+          bridge.netease.artistTopSongs(id, 50)
+        ])
+        if (!live) return
+        if (detail) {
+          setName(detail.name)
+          setBrief(detail.briefDesc)
+          setCover(detail.coverUrl)
+          setCounts({ albums: detail.albumCount, songs: detail.songCount })
+        }
+        if (songs.length === 0) {
+          setError('这位艺人没有取到歌曲')
+          return
+        }
+        setHot(songs.map((song: NeteaseSong) => toTrack(song)))
+        if (!detail) {
+          const singer = songs[0]?.artists.find((entry) => entry.id === id)
+          setName(singer?.name ?? songs[0]?.artists[0]?.name ?? '艺人')
+          /*
+           * 老接口不带头像，就把搜索里认出这个人当作头像来源——名字与 id 都对
+           * 上才算，认不到宁可留空，也不拿首曲的专辑封面冒充。
+           */
+          if (singer?.name) {
+            const found = await bridge.netease.search(singer.name, 'artist', 10)
+            if (!live) return
+            setCover(found.artists.find((entry) => entry.id === id)?.picUrl ?? null)
+          }
+        }
+      } catch (failure) {
+        if (live) setError(failure instanceof Error ? failure.message : String(failure))
+      }
+    }
+    void load()
+    return () => {
+      live = false
+    }
+  }, [providerId, id])
+
+  const loadAll = useCallback(
+    async (offset: number) => {
+      setAllLoading(true)
+      try {
+        const songs = await bridge.netease.artistSongs(id, 100, offset)
+        setAll((previous) => (offset === 0 ? songs.map((song: NeteaseSong) => toTrack(song)) : [...previous, ...songs.map((song: NeteaseSong) => toTrack(song))]))
+      } catch {
+        /* 取不到就停在已经有的那些，页面上不出现「正在加载」的僵局。 */
+      } finally {
+        setAllLoading(false)
+      }
+    },
+    [id]
+  )
+
+  const loadAlbums = useCallback(async () => {
+    setAlbumsLoading(true)
+    try {
+      const rows = await bridge.netease.artistAlbums(id, 60, 0)
+      setAlbums(rows)
+    } catch {
+      /* 同上：没拿到就空着，不假装有。 */
+    } finally {
+      setAlbumsLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    if (tab === 'all' && all.length === 0 && !allLoading) void loadAll(0)
+    if (tab === 'albums' && albums.length === 0 && !albumsLoading) void loadAlbums()
+  }, [tab])
+
+  const shown = tab === 'all' ? all : hot
+  const currentId = currentTrack?.id ?? null
+
+  return (
+    <div className="col ol-page">
+      <button className="pg-back" type="button" onClick={onBack}>
+        ‹ 返回
+      </button>
+
+      <header className="ol-hero">
+        <div className="ol-hero__art is-round">
+          {cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={32} />}
+        </div>
+        <div className="ol-hero__text">
+          <span className="ol-hero__kicker">网易云音乐 · 艺人</span>
+          <h1 className="ol-hero__title">{name || ' '}</h1>
+          <p className="ol-hero__meta">
+            {counts ? `${counts.albums} 张专辑 · ${counts.songs} 首歌` : `热门 ${hot.length} 首`}
+          </p>
+          {brief ? <p className="ol-hero__brief">{brief}</p> : null}
+          <div className="ol-hero__acts">
+            <button
+              className="rh-btn rh-btn--main"
+              type="button"
+              disabled={hot.length === 0}
+              onClick={() => player.playQueue(hot, 0)}
+            >
+              <Play size={13} />
+              播放热门
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="ol-tabs" role="tablist">
+        <button
+          className={`ol-tab${tab === 'hot' ? ' is-on' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'hot'}
+          onClick={() => setTab('hot')}
+        >
+          热门 50 首
+        </button>
+        <button
+          className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'all'}
+          onClick={() => setTab('all')}
+        >
+          全部歌曲{counts ? ` ${counts.songs}` : ''}
+        </button>
+        <button
+          className={`ol-tab${tab === 'albums' ? ' is-on' : ''}`}
+          type="button"
+          role="tab"
+          aria-selected={tab === 'albums'}
+          onClick={() => setTab('albums')}
+        >
+          专辑{counts ? ` ${counts.albums}` : ''}
+        </button>
+      </div>
+
+      {error ? <p className="pg-note">{error}</p> : null}
+
+      {!error && tab === 'albums' ? (
+        albumsLoading ? (
+          <p className="pg-note">正在读专辑…</p>
+        ) : albums.length > 0 ? (
+          <div className="ol-grid">
+            {albums.map((album) => (
+              <button
+                key={album.id}
+                className="ol-alb"
+                type="button"
+                onClick={() => openOnlineAlbum('netease', album.id)}
+                title={`打开《${album.name}》`}
+              >
+                <span className="ol-alb__art">
+                  {album.coverUrl ? (
+                    <img src={remoteImageUrl(sizedImage(album.coverUrl, 300))} alt="" loading="lazy" />
+                  ) : (
+                    <Note size={22} />
+                  )}
+                </span>
+                <span className="ol-alb__name">{album.name}</span>
+                <span className="ol-alb__meta">
+                  {[album.year ? String(album.year) : '', album.songCount ? `${album.songCount} 首` : '']
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="pg-note">这位艺人没有取到专辑。</p>
+        )
+      ) : null}
+
+      {!error && tab !== 'albums' ? (
+        <>
+          {shown.length > 0 ? (
+            <TrackList
+              tracks={shown}
+              currentId={currentId}
+              playing={playing}
+              onPlayAt={(index) => player.playQueue(shown, index)}
+            />
+          ) : (
+            <p className="pg-note">正在取歌曲…</p>
+          )}
+          {tab === 'all' ? (
+            <div className="ol-more">
+              <button
+                className="rh-btn"
+                type="button"
+                disabled={allLoading}
+                onClick={() => void loadAll(all.length)}
+              >
+                {allLoading ? '正在接着取…' : '再看 100 首'}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   )
 }

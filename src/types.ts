@@ -109,6 +109,24 @@ export interface Track {
    */
   albumId?: number
   artistId?: number
+  /**
+   * 该平台自己的数字歌曲 id。
+   *
+   * 各平台的取流接口都按数字 id 认歌，而 QQ 的曲目 id 是 qq:<songmid>（字母
+   * 串）。把数字 id 一并带在行上，播放器取流时不必再反解字符串，也不必知道
+   * 是哪一个平台。
+   */
+  onlineId?: number
+  /** 专辑 / 艺人的平台字符串 id；QQ 只认 mid，不认数字 id。 */
+  albumMid?: string
+  artistMid?: string
+  /**
+   * 同一首歌在其它平台上的版本。
+   *
+   * 多平台统一列表把重复的合并成一行，主行是优先级最高的那个版本，其余版本
+   * 挂在这里。播放时按用户设定的音源顺序从中挑第一个能出流的。
+   */
+  versions?: Track[]
   /** ReplayGain, when the tags carry it. */
   gainDb: number | null
   peak: number | null

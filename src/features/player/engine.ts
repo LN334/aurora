@@ -2,6 +2,7 @@ import { bridge, isNative } from '../../bridge'
 import { coverDataUrl } from './artwork'
 import { volumeIntentChanged } from './volume'
 import { sourceFor } from '../library/source'
+import { pickPlayable } from './pick'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
 import { EQ_BANDS, usePlayer } from './store'
@@ -268,14 +269,20 @@ class AudioEngine {
 
     const isSameFile = this.loadedPath === track.path
     if (!isSameFile) {
-      // The source decides how this track is reached; the engine never assumes
-      // a file on disk.
-      const url = sourceFor(track).streamUrl(track)
-      if (!url) {
+      /*
+       * 哪一家来播这一首，由音源优先级决定。
+       *
+       * 多平台统一之后「这首歌在哪听」不再是一件事：本机有文件、网易云有 320k、
+       * QQ 有无损，三者都挂着同一行。pickPlayable 按用户排的顺序挑第一个真能
+       * 出流的版本，引擎只管播放它——引擎不需要知道平台有几个。
+       */
+      const picked = await pickPlayable(track)
+      if (!picked) {
         console.error('[aurora] this track has no playable source', track.id)
         store.setLoading(false)
         return
       }
+      const url = picked.url
 
       const { crossfadeSec } = store
       const swapping = crossfadeSec > 0 && !el.paused && this.loadedPath !== null

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { searchLocalTracks } from '../../features/library/search'
 import { getProvider, listAvailableProviders } from '../../features/online/registry'
+import { mergeVersions } from '../../features/online/unify'
+import { sourceOrder } from '../../features/settings/source-order'
 import type { Track } from '../../types'
 import { chooseInitialSource } from './initial-source'
 import { readRememberedSource, rememberSource, type SearchSource } from './remembered-source'
@@ -43,8 +45,22 @@ export function searchSources(): SearchSourceTab[] {
   const tabs: SearchSourceTab[] = [
     { id: 'local', label: '本机曲库', note: '只搜这台电脑上已有的文件', remote: false }
   ]
-  for (const provider of listAvailableProviders()) {
-    if (!provider.search) continue
+  const platforms = listAvailableProviders().filter((provider) => provider.search)
+  /*
+   * 「全部平台」只在真的有两个以上在线平台时出现。
+   *
+   * 它的意义是合并重复：同一首歌在两家都有时，只出一行、行上标两个平台。
+   * 只有一个平台时这个 tab 等于另一个 tab 的复制品，多一个只会让人犹豫。
+   */
+  if (platforms.length > 1) {
+    tabs.push({
+      id: 'all',
+      label: '全部平台',
+      note: '同时搜所有平台，重复的合成一行',
+      remote: true
+    })
+  }
+  for (const provider of platforms) {
     tabs.push({
       id: provider.id,
       label: provider.displayName,
@@ -153,6 +169,48 @@ export const useSearch = create<SearchState>((set, get) => ({
 
     if (!trimmed) {
       set((state) => ({ results: { ...state.results, [source]: [] }, submitted: true, error: null }))
+      return
+    }
+
+    /*
+     * 全部平台：并发问每一家，再把重复的合成一行。
+     *
+     * 一家失败不影响其它几家——结果是「能问到的那几家」，并且只有全都没答上
+     * 来时才算这次搜索失败。合并按用户设定的音源顺序决定主行，所以同一首歌
+     * 会以他偏好的那个平台出现在第一列。
+     */
+    if (source === 'all') {
+      const platforms = listAvailableProviders().filter((item) => item.search)
+      set({ searching: true, error: null })
+      try {
+        const collected = await Promise.all(
+          platforms.map(async (item) => {
+            const backend = item.backend as {
+              search(keywords: string, kind: 'song', limit: number): Promise<{ songs: unknown[] }>
+              toTrack(song: never): Track
+            }
+            try {
+              const result = await backend.search(trimmed, 'song', 30)
+              return result.songs.map((song) => backend.toTrack(song as never))
+            } catch {
+              return [] as Track[]
+            }
+          })
+        )
+        const tracks = collected.flat()
+        set((state) => ({
+          results: { ...state.results, all: mergeVersions(tracks, sourceOrder()) },
+          searching: false,
+          submitted: true,
+          error: tracks.length === 0 ? `没有平台返回「${trimmed}」的结果` : null
+        }))
+      } catch (failure) {
+        set({
+          searching: false,
+          submitted: true,
+          error: failure instanceof Error ? failure.message : String(failure)
+        })
+      }
       return
     }
 

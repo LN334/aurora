@@ -454,12 +454,27 @@ export interface NeteaseApi {
     id: number
     name: string
     artist: string
+    artistId: number | null
     coverUrl: string | null
     year: number | null
     songs: NeteaseSong[]
   } | null>
 
   artistTopSongs(id: number, limit?: number): Promise<NeteaseSong[]>
+  artistDetail(id: number): Promise<{
+    id: number
+    name: string
+    coverUrl: string | null
+    briefDesc: string
+    albumCount: number
+    songCount: number
+  } | null>
+  artistSongs(id: number, limit?: number, offset?: number): Promise<NeteaseSong[]>
+  artistAlbums(
+    id: number,
+    limit?: number,
+    offset?: number
+  ): Promise<{ id: number; name: string; coverUrl: string | null; year: number | null; songCount: number }[]>
   songDetail(ids: number[]): Promise<NeteaseSong[]>
 
   qrCreate(): Promise<{ key: string; url: string; imageDataUrl: string }>

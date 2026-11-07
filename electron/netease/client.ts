@@ -15,7 +15,9 @@ import type {
   NeteaseAccount,
   NeteaseAlbum,
   NeteaseAlbumRef,
+  NeteaseAlbumSummary,
   NeteaseArtist,
+  NeteaseArtistDetail,
   NeteaseDiscoverKind,
   NeteaseDiscoverPlaylist,
   NeteaseDiscoverResult,
@@ -74,6 +76,9 @@ interface Upstream {
   lyric: UpstreamCall
   album: UpstreamCall
   artist_top_song: UpstreamCall
+  artist_detail: UpstreamCall
+  artist_songs: UpstreamCall
+  artist_album: UpstreamCall
   playlist_track_all: UpstreamCall
   recommend_songs: UpstreamCall
   user_cloud: UpstreamCall
@@ -556,6 +561,7 @@ export async function neteaseAlbum(id: number): Promise<NeteaseAlbum | null> {
     id: albumId,
     name: asString(raw.name),
     artist: joinArtists(raw.artists) || asString(asRecord(raw.artist).name),
+    artistId: asNumber(asRecord(asArray(raw.artists)[0]).id) || null,
     coverUrl: asNullableString(raw.picUrl),
     year: yearOf(raw.publishTime),
     songs: toSongs(body.songs)
@@ -566,6 +572,73 @@ export async function neteaseArtistTopSongs(id: number, limit = 50): Promise<Net
   if (!isUsableId(id)) return []
   const res = await call('artist_top_song', { id })
   return toSongs(asRecord(res.body).songs).slice(0, clamp(limit, 1, 50))
+}
+
+/**
+ * 艺人的自我介绍与规模。
+ *
+ * `artist_detail` 在几个版本里换过外形：老版本把艺人放在 `artist`，新版本塞进
+ * `data.artist`。两个都认，认不到就返回 null，让页面说「没取到」，而不是画一个空壳。
+ */
+export async function neteaseArtistDetail(id: number): Promise<NeteaseArtistDetail | null> {
+  if (!isUsableId(id)) return null
+  const res = await call('artist_detail', { id })
+  const body = asRecord(res.body)
+  const nested = asRecord(asRecord(body.data).artist)
+  const raw = asNumber(nested.id) ? nested : asRecord(body.artist)
+  const artistId = asNumber(raw.id)
+  if (!artistId) return null
+  return {
+    id: artistId,
+    name: asString(raw.name),
+    // artist_detail 的头像在 `cover`（新版）或 `avatar`（老版），不在 picUrl 上。
+    coverUrl:
+      asNullableString(raw.picUrl) ??
+      asNullableString(raw.cover) ??
+      asNullableString(raw.avatar) ??
+      asNullableString(raw.img1v1Url),
+    briefDesc: asString(raw.briefDesc),
+    albumCount: asNumber(raw.albumSize),
+    songCount: asNumber(raw.musicSize)
+  }
+}
+
+/** 艺人全部歌曲（按热度排），不是热门那 50 首。 */
+export async function neteaseArtistSongs(id: number, limit = 200, offset = 0): Promise<NeteaseSong[]> {
+  if (!isUsableId(id)) return []
+  const res = await call('artist_songs', {
+    id,
+    limit: clamp(limit, 1, 500),
+    offset: Math.max(0, offset),
+    order: 'hot'
+  })
+  return toSongs(asRecord(res.body).songs)
+}
+
+/** 艺人的专辑墙。 */
+export async function neteaseArtistAlbums(
+  id: number,
+  limit = 60,
+  offset = 0
+): Promise<NeteaseAlbumSummary[]> {
+  if (!isUsableId(id)) return []
+  const res = await call('artist_album', { id, limit: clamp(limit, 1, 100), offset: Math.max(0, offset) })
+  const body = asRecord(res.body)
+  const rows = asArray(body.hotAlbums).length > 0 ? asArray(body.hotAlbums) : asArray(body.albums)
+  return rows
+    .map((entry) => {
+      const raw = asRecord(entry)
+      const albumId = asNumber(raw.id)
+      if (!albumId) return null
+      return {
+        id: albumId,
+        name: asString(raw.name),
+        coverUrl: asNullableString(raw.picUrl),
+        year: yearOf(raw.publishTime),
+        songCount: asNumber(raw.size)
+      }
+    })
+    .filter((entry): entry is NeteaseAlbumSummary => entry !== null)
 }
 
 export async function neteaseLyrics(songId: number): Promise<NeteaseLyricsResult | null> {

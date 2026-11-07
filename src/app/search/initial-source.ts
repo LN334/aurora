@@ -16,10 +16,19 @@ export interface SourceTab {
 }
 
 /**
- * The remembered source when this build still offers it, otherwise the first
- * platform, otherwise local.
+ * The remembered source when this build still offers it, otherwise the combined
+ * "all platforms" tab, otherwise the first platform, otherwise local.
+ *
+ * Combined search is the default whenever there is more than one platform: the
+ * whole point of this app is that the same song exists on two services, and
+ * picking one service up front silently hides the other copy. A one-platform
+ * build has no combined tab, so it still opens on that platform.
  */
 export function chooseInitialSource(tabs: readonly SourceTab[], remembered: string | null): string {
   if (remembered && tabs.some((tab) => tab.id === remembered)) return remembered
+  if (tabs.some((tab) => tab.id === ALL_SOURCES)) return ALL_SOURCES
   return tabs.find((tab) => tab.remote)?.id ?? 'local'
 }
+
+/** The pseudo-source that searches every platform at once. */
+export const ALL_SOURCES = 'all'

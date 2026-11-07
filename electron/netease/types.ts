@@ -138,9 +138,29 @@ export interface NeteaseAlbum {
   id: number
   name: string
   artist: string
+  /** 专辑页里点艺人名要跳页，所以带上这个人的 id。 */
+  artistId: number | null
   coverUrl: string | null
   year: number | null
   songs: NeteaseSong[]
+}
+
+/** 艺人页的三块内容：这个人是谁、他全部的歌、他的专辑。 */
+export interface NeteaseArtistDetail {
+  id: number
+  name: string
+  coverUrl: string | null
+  briefDesc: string
+  albumCount: number
+  songCount: number
+}
+
+export interface NeteaseAlbumSummary {
+  id: number
+  name: string
+  coverUrl: string | null
+  year: number | null
+  songCount: number
 }
 
 export interface NeteaseSearchResult {

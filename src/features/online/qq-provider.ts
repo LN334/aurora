@@ -128,6 +128,8 @@ const qqBackend: PlatformBackend = {
 
   toTrack(song) {
     const id = trackIdFor(song)
+    /* 共享形状只带数字 id 与名字；QQ 认歌靠 mid，所以这里读回平台原始形状。 */
+    const qq = song as QqSong
     return {
       id,
       path: id,
@@ -152,6 +154,15 @@ const qqBackend: PlatformBackend = {
       mtimeMs: 0,
       addedAt: Date.now(),
       hasArt: Boolean(song.album.picUrl),
+      coverUrl: song.album.picUrl ?? undefined,
+      /*
+       * 播放器按数字 id 取流（各平台的取流接口都只认数字），而 QQ 的曲目 id
+       * 是 songmid 字符串。数字 id 一并带上，多平台统一列表里两个平台的版本
+       * 才能用同一套规则挑源。
+       */
+      onlineId: song.id,
+      albumMid: qq.album?.mid || undefined,
+      artistMid: qq.artists?.[0]?.mid || undefined,
       gainDb: null,
       peak: null
     }

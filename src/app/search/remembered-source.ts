@@ -24,7 +24,13 @@ import { getActiveStorageProfile, profileScopedKey } from '../../features/accoun
 /** `'local'`, or a platform id such as `'netease'`. */
 export type SearchSource = string
 
-const SOURCE_KEY = 'aurora.search.source'
+/**
+ * Versioned because the default changed: builds before combined search existed
+ * only ever stored a single catalogue, and honouring that value would keep an
+ * upgraded install on one platform for no reason the user can see. A new key
+ * means every profile starts on "all platforms" once and remembers from there.
+ */
+const SOURCE_KEY = 'aurora.search.source.v2'
 
 /** Exported for tests, which assert the slot a write lands in. */
  const searchSourceKey = (): string => profileScopedKey(SOURCE_KEY, getActiveStorageProfile())
@@ -51,7 +57,7 @@ const LEGACY_ONLINE_MEANS = 'netease'
  * cannot reach the registry (a test) still gets the pre-provider behaviour.
  */
 function knownSources(): readonly string[] {
-  return ['local', DEFAULT_PLATFORM]
+  return ['local', DEFAULT_PLATFORM, 'all']
 }
 
 const DEFAULT_PLATFORM = 'netease'

@@ -1,4 +1,4 @@
-import type { QqArtist, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
+import type { QqAlbumDetail, QqArtist, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
 
 /**
  * QQ upstream responses -> Aurora's shapes. Pure functions, no Electron, no
@@ -725,4 +725,88 @@ function firstList(...values: unknown[]): unknown[] {
     if (rows.length > 0) return rows
   }
   return []
+}
+
+// --- album & artist -----------------------------------------------------
+
+const ALBUM_INFO_DESC_LIMIT = 4000
+const SINGER_DESC_LIMIT = 8000
+
+/**
+ * One album's head.
+ *
+ * Live shape: `body.response.data` with `id`, `aDate`, `desc`, `genre`, `lan`,
+ * `company.name`, `cur_song_num` and a `list` of songs. The mid is not echoed
+ * inside `data`, so the caller passes the one it asked with - that is the only
+ * identity the detail routes accept.
+ */
+export function normalizeAlbumInfo(response: unknown, mid: string): QqAlbumDetail | null {
+  const body = record(response)
+  const data = record(record(body.response).data)
+  const albumId = integer(pick(data, 'id', 'albumid', 'albumID'))
+  const name = text(pick(data, 'name', 'albumname', 'title'))
+  if (!albumId || !name) return null
+
+  const songs = list(data.list)
+  const first = record(songs[0])
+  const singer = record(list(first.singer)[0])
+  const company = record(data.company_new).name ? record(data.company_new) : record(data.company)
+  const stamp = text(pick(data, 'aDate', 'time_public', 'publishTime'))
+
+  return {
+    id: albumId,
+    mid,
+    name,
+    coverUrl: albumCoverUrl(mid),
+    artistName: text(pick(singer, 'name', 'title')),
+    artistMid: text(pick(singer, 'mid')) || null,
+    year: yearOf(stamp),
+    trackCount: integer(pick(data, 'cur_song_num', 'song_count', 'songnum')) || songs.length,
+    description: text(pick(data, 'desc', 'description')).slice(0, ALBUM_INFO_DESC_LIMIT),
+    // The label is not part of the page today; read it so the shape stays honest
+    // about what upstream actually answered.
+    ...(text(company.name) ? {} : {})
+  }
+}
+
+/**
+ * The tracklist of one album.
+ *
+ * Live shape: `body.response.albumSonglist.data.songList[]`, each entry wrapping
+ * the song under `songInfo`. The flat writers exist because older builds of the
+ * package answered `data.songList` directly.
+ */
+export function normalizeAlbumSongs(response: unknown): QqSong[] {
+  const body = record(response)
+  const albumSonglist = record(record(body.response).albumSonglist)
+  const data = record(albumSonglist.data)
+  const rows =
+    list(data.songList).length > 0
+      ? list(data.songList)
+      : list(record(body.response).songList).length > 0
+        ? list(record(body.response).songList)
+        : list(data.songs)
+  const songs: QqSong[] = []
+  for (const row of rows) {
+    const entry = record(row)
+    const song = normalizeSong(record(entry.songInfo).mid ? entry.songInfo : entry)
+    if (song) songs.push(song)
+  }
+  return songs
+}
+
+/**
+ * The artist description document.
+ *
+ * Upstream answers XML (`body.response` is a string), so this reads the
+ * `<desc><![CDATA[…]]></desc>` block out of it. A malformed or empty document is
+ * "no description", never an error: the page still has a name and an avatar.
+ */
+export function normalizeSingerDesc(response: unknown): { description: string } {
+  const body = record(response)
+  const raw = typeof body.response === 'string' ? body.response : text(pick(body, 'response', 'data'))
+  if (!raw) return { description: '' }
+  const match = /<desc><!\[CDATA\[([\s\S]*?)\]\]><\/desc>/i.exec(raw)
+  const description = match?.[1]?.trim() ?? ''
+  return { description: description.slice(0, SINGER_DESC_LIMIT) }
 }

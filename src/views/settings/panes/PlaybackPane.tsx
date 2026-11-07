@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { listAvailableProviders } from '../../../features/online/registry'
+import { getProvider, listAvailableProviders } from '../../../features/online/registry'
+import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
 import {
   QUALITY_LABELS as TIER_LABELS,
   type OnlineMusicProvider,
@@ -53,6 +54,8 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
           onChange={(next) => setEqEnabled(next)}
         />
       </Row>
+
+      <SourceOrderRows />
 
       <PlatformQualityRows />
 
@@ -142,5 +145,69 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
         ))}
       </div>
     </Row>
+  )
+}
+
+/**
+ * 音源优先级：同一首歌有几家都有时，先问谁。
+ *
+ * 这是「多平台统一」唯一的开关。列表把重复的合成一行，但一行里到底用谁的声音，
+ * 得有一个用户能改的答案——默认本机在前（不联网、不要会员），然后是网易云、
+ * QQ、酷狗。往上挪一位就到列表前面，播放与主版本一起跟着换。
+ *
+ * 只列这个构建真能用的平台：装了没登录也算可用（它仍能出流），没接入的不占位。
+ */
+function SourceOrderRows() {
+  const order = useSourceOrder()
+  const usable = new Set(['local', ...listAvailableProviders().map((provider) => provider.id)])
+  const shown = order.filter((id) => usable.has(id))
+
+  if (shown.length < 2) {
+    return (
+      <Row label="音源优先级" hint="只有一个可用音源时不需要排序。">
+        <span className="settings__number">—</span>
+      </Row>
+    )
+  }
+
+  return (
+    <div className="settings__row settings__row--stacked">
+      <div className="settings__text">
+        <div className="settings__label">音源优先级</div>
+        <p className="settings__hint">
+          同一首歌在几个平台都有时，按这个顺序挑第一个能放的。本机不需要联网，放在最前面通常最稳。
+        </p>
+      </div>
+      <ol className="settings__order">
+        {shown.map((id, index) => (
+          <li key={id} className="settings__order-item">
+            <span className="settings__order-index tnum">{index + 1}</span>
+            <span className="settings__order-name">
+              {id === 'local' ? '本机音乐' : (getProvider(id)?.displayName ?? id)}
+            </span>
+            <span className="settings__order-acts">
+              <button
+                type="button"
+                className="settings__order-move"
+                disabled={index === 0}
+                onClick={() => moveSource(id, -1)}
+                aria-label={`把${id}提前一位`}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="settings__order-move"
+                disabled={index === shown.length - 1}
+                onClick={() => moveSource(id, 1)}
+                aria-label={`把${id}退后一位`}
+              >
+                ↓
+              </button>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }

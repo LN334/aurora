@@ -278,6 +278,11 @@ const api = {
     album: (id: number) => ipcRenderer.invoke('netease:album', id),
     artistTopSongs: (id: number, limit?: number) =>
       ipcRenderer.invoke('netease:artistTopSongs', { id, limit }),
+    artistDetail: (id: number) => ipcRenderer.invoke('netease:artistDetail', id),
+    artistSongs: (id: number, limit?: number, offset?: number) =>
+      ipcRenderer.invoke('netease:artistSongs', { id, limit, offset }),
+    artistAlbums: (id: number, limit?: number, offset?: number) =>
+      ipcRenderer.invoke('netease:artistAlbums', { id, limit, offset }),
     songDetail: (ids: number[]) => ipcRenderer.invoke('netease:songDetail', ids),
 
     qrCreate: () => ipcRenderer.invoke('netease:qrCreate'),

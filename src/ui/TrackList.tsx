@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { sourceTagFor } from '../features/online/registry'
+import { sourceLabelById } from '../features/online/registry'
+import { sourcesOf } from '../features/online/unify'
+import { useSourceOrder } from '../features/settings/source-order'
 import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { formatTime } from './format'
@@ -35,6 +37,8 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    * 所以「能不能喜欢」在这里做一次，所有列表就地都有了收藏键。
    */
   const likedIds = useLikedIds()
+  /* 音源优先级一变，同一行的主版本与徽章顺序都要跟着重排。 */
+  const order = useSourceOrder()
 
   /*
    * Whether a row needs to say where it came from.
@@ -46,7 +50,11 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    * one label so the column reads as an answer rather than a scattering.
    */
   const origins = new Set(
-    tracks.map((track) => (Boolean(track.source) && track.source !== 'local' ? track.source : 'local'))
+    tracks.flatMap((track) =>
+      track.versions?.length
+        ? sourcesOf(track, order)
+        : [Boolean(track.source) && track.source !== 'local' ? (track.source as string) : 'local']
+    )
   )
   const mixed = origins.size > 1
 
@@ -92,7 +100,14 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
 
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentId
-        const srcTag = sourceTagFor(track, mixed)
+        /*
+         * 这一行在哪些平台上能听。
+         *
+         * 多平台统一之后，一行可能同时挂着网易云与 QQ 的版本：两个徽章并排列出
+         * 来，用户一眼看到「这首歌这儿也能听」。整张列表只有一个来源时仍不印，
+         * 页头已经说了。
+         */
+        const platforms = track.versions?.length ? sourcesOf(track, order) : mixed ? [track.source ?? 'local'] : []
         const refs = refOfTrack(track)
         return (
           <div
@@ -133,11 +148,15 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
             </span>
             <span className="trk__title" role="cell">
               <span className="trk__title-text">{track.title || '（无标题）'}</span>
-              {srcTag ? (
-                <span className={`badge trk__src trk__src--${srcTag.kind}`} title={`来自${srcTag.label}`}>
-                  {srcTag.label}
+              {platforms.map((platform) => (
+                <span
+                  key={platform}
+                  className={`badge trk__src trk__src--${platform}`}
+                  title={`来自${sourceLabelById(platform)}`}
+                >
+                  {sourceLabelById(platform)}
                 </span>
-              ) : null}
+              ))}
               {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
             </span>
             <span className="trk__muted" role="cell">
