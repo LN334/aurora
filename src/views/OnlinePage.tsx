@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
-import { getProvider } from '../features/online/registry'
+import { sourceLabelById, getProvider } from '../features/online/registry'
+import { songsAcrossPlatforms } from '../features/online/artist-merge'
+import { mergeVersions, sourcesOf } from '../features/online/unify'
+import { sourceOrder } from '../features/settings/source-order'
 import { useOnlineStore, type PlatformBackend } from '../features/online/store'
 import type { ProviderId } from '../features/online/types'
 import { toTrack } from '../features/netease/track'
@@ -309,8 +312,21 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
           setError('这位艺人没有取到歌曲')
           return
         }
+        const resolvedName =
+          detail?.name ??
+          songs[0]?.artists.find((entry) => entry.id === id)?.name ??
+          songs[0]?.artists[0]?.name ??
+          ''
         const toTrackFor = backend.toTrack as (song: never) => Track
-        setHot(songs.map((song) => toTrackFor(song as never)))
+        const seed = songs.map((song) => toTrackFor(song as never))
+        /*
+         * 同一个人在各平台都有页；这里按名字把别家的歌也并进来，
+         * 页面因此是这个艺人的全部可听曲目，不是某一家平台的切片。
+         */
+        const across = await songsAcrossPlatforms(resolvedName, sourceOrder(), providerId)
+        if (!live) return
+        const merged = mergeVersions([...seed, ...across], sourceOrder())
+        setHot(merged.length > 0 ? merged : seed)
         if (!detail) {
           const singer = songs[0]?.artists.find((entry) => entry.id === id)
           setName(singer?.name ?? songs[0]?.artists[0]?.name ?? '艺人')
@@ -368,6 +384,14 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
 
   const shown = tab === 'all' ? all : hot
   const currentId = currentTrack?.id ?? null
+  /* 这一页的歌实际来自哪些平台——合并之后不再等于打开它的那个平台。 */
+  const usedSources = useMemo(() => {
+    const order = sourceOrder()
+    const set = new Set<string>()
+    for (const track of shown) for (const id of sourcesOf(track, order)) set.add(id)
+    return [...set]
+  }, [shown])
+  const sourceText = usedSources.length > 0 ? usedSources.map(sourceLabelById).join(' + ') : platform?.displayName ?? '在线'
 
   return (
     <div className="col ol-page">
@@ -386,6 +410,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
                   .filter(Boolean)
                   .join(' · ')
               : '热门 ' + hot.length + ' 首'}
+            {usedSources.length > 1 ? ` · 跨 ${usedSources.length} 个平台` : ''}
           </span>
         }
         actions={
@@ -400,7 +425,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
           </button>
         }
         facts={[
-          { label: '平台', value: platform?.displayName ?? '在线' },
+          { label: '平台', value: sourceText },
           { label: '单曲', value: counts ? String(counts.songs) : String(hot.length) },
           { label: '专辑', value: counts && counts.albums > 0 ? String(counts.albums) : '—' },
           { label: '热门', value: hot.length + ' 首' }
@@ -417,7 +442,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
             aria-selected={tab === 'hot'}
             onClick={() => setTab('hot')}
           >
-            热门 50 首
+            热门 {hot.length} 首
           </button>
           <button
             className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
