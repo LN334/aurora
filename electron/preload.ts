@@ -413,6 +413,7 @@ const api = {
     loginStatus: () => ipcRenderer.invoke('qishui:loginStatus'),
     logout: () => ipcRenderer.invoke('qishui:logout'),
 
+    liked: (limit?: number) => ipcRenderer.invoke('qishui:liked', limit),
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qishui:myPlaylists', limit),
     playlistTracks: (id: number) => ipcRenderer.invoke('qishui:playlistTracks', id),
     artistProfile: (id: number) => ipcRenderer.invoke('qishui:artistProfile', id),

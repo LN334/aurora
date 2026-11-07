@@ -460,6 +460,29 @@ export async function qishuiStreamUrl(
   }
 }
 
+/**
+ * 汽水的「我喜欢」。
+ *
+ * 上游这个操作不带参数，只认登录态：未登录直接回 auth-required。这里把它压成
+ * 空列表——账号页已经说明登录能多出什么，比在列表里挂一行报错有用。
+ */
+export async function qishuiLiked(limit = 200): Promise<QishuiSongShape[]> {
+  const result = (await apiFor(activeProfileId).request('liked_songs', {})) as {
+    ok?: boolean
+    data?: { items?: unknown[]; songs?: unknown[]; list?: unknown[] }
+    error?: { code?: string }
+  }
+  if (!result.ok) return []
+  const rows = list(result.data?.items ?? result.data?.songs ?? result.data?.list)
+  const songs: QishuiSongShape[] = []
+  for (const item of rows) {
+    const track = toRawTrack(item)
+    if (track) songs.push(songShape(track))
+    if (songs.length >= limit) break
+  }
+  return songs
+}
+
 export async function qishuiMyPlaylists(limit: number): Promise<QishuiPlaylistShape[]> {
   const result = (await apiFor(activeProfileId).request('user_playlists', {
     limit,

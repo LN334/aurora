@@ -3,6 +3,7 @@ import { write } from '../startup-log'
 import {
   qishuiArtistProfile,
   qishuiArtistSongs,
+  qishuiLiked,
   qishuiLoginStatus,
   qishuiLogout,
   qishuiMyPlaylists,
@@ -147,5 +148,10 @@ export function registerQishuiIpc(): void {
       if (!alias) return []
       return await qishuiArtistSongs(alias, limit)
     })
+  })
+
+  ipcMain.handle('qishui:liked', async (_event, limit: unknown) => {
+    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 300) : 200
+    return await guard('liked', [], async () => qishuiLiked(count))
   })
 }

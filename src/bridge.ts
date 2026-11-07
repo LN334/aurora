@@ -316,6 +316,7 @@ const webFallback: AuroraApi = {
     qrCheck: async () => ({ status: 'waiting' }),
     loginStatus: async () => null,
     logout: async () => true,
+    liked: async () => [],
     myPlaylists: async () => [],
     playlistTracks: async () => [],
     artistProfile: async () => null,

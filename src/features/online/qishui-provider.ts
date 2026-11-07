@@ -39,8 +39,10 @@ function client(): QishuiApi | null {
  */
 const TIERS: QualityTier[] = ['standard']
 
-/** 汽水没有每日推荐/我喜欢的集合接口（登录后才有），先不声明，界面就不给入口。 */
-const COLLECTIONS: OnlineCollection[] = []
+/** 登录后能读「我喜欢的」；每日推荐流按场景走，等账号体系稳定再接。 */
+const COLLECTIONS: OnlineCollection[] = [
+  { kind: 'likes', label: '我喜欢的', requiresAccount: true }
+]
 
 const CAPABILITIES: ProviderCapabilities = {
   search: true,
@@ -52,7 +54,7 @@ const CAPABILITIES: ProviderCapabilities = {
   artists: true,
   recommendations: false,
   userCloud: false,
-  likes: false
+  likes: true
 }
 
 /** 共享层的音质档位翻成汽水自己的四个名字。 */
@@ -207,6 +209,16 @@ const qishuiBackend: PlatformBackend = {
 
   async artistTopSongs(id, limit) {
     const rows = (await client()?.artistSongs(id, limit)) ?? []
+    return rows.map((song) => asOnlineSong(song))
+  },
+
+  /*
+   * 目前只有「我喜欢的」。未登录时上游答 auth-required，客户端已经压成空数组，
+   * 所以这里不需要再分登录态——空列表就是诚实的画面。
+   */
+  async collection(kind, limit) {
+    if (kind !== 'likes') return []
+    const rows = (await client()?.liked(limit)) ?? []
     return rows.map((song) => asOnlineSong(song))
   }
 }

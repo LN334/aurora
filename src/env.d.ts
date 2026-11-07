@@ -1061,6 +1061,8 @@ export interface QishuiApi {
   loginStatus(): Promise<QishuiAccount | null>
   logout(): Promise<boolean>
 
+  /** 「我喜欢的」。未登录时上游答 auth-required，这里给空数组。 */
+  liked(limit?: number): Promise<QishuiSong[]>
   myPlaylists(limit?: number): Promise<QishuiPlaylistSummary[]>
   playlistTracks(id: number): Promise<QishuiSong[]>
   artistProfile(id: number): Promise<QishuiArtistProfile | null>
