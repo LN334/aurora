@@ -1,6 +1,7 @@
 import { artworkFor } from '../features/library/source'
 import type { RepeatMode, Track } from '../types'
 import { Bar, useProgressPosition } from '../features/player/Bar'
+import { wheelVolume } from '../features/player/volume'
 import { formatTime } from '../ui/format'
 import { Artwork } from '../ui/Artwork'
 import {
@@ -254,7 +255,14 @@ export function PlayerBar({
         >
           {effectiveVolume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
         </button>
-        <Bar className="volume" value={effectiveVolume} onChange={onVolume} ariaLabel="音量" />
+        <Bar
+          className="volume"
+          value={effectiveVolume}
+          onChange={onVolume}
+          ariaLabel="音量"
+          valueText={`音量 ${Math.round(effectiveVolume * 100)}%${muted ? ' · 已静音' : ''}`}
+          onWheelDelta={(direction) => onVolume(wheelVolume(effectiveVolume, direction))}
+        />
       </div>
     </footer>
   )

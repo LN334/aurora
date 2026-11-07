@@ -793,13 +793,16 @@ input::placeholder {
   gap: var(--s1);
 }
 .volume {
-  width: 96px;
+  /* 比普通滑块宽一点：音量要能微调，也要有地方接滚轮。 */
+  width: 108px;
+  height: 20px;
+  flex: none;
   margin-left: var(--s1);
 }
 .volume .bar__knob {
   opacity: 1;
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
 }
 
 .rail-toggle {

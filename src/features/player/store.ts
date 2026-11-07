@@ -7,6 +7,7 @@ import type { RepeatMode, Track } from '../../types'
  * tests/play-next.test.ts.
  */
 import { identityOrder, reconcile, shuffledOrder } from './queue.ts'
+import { volumeForUnmute } from './volume.ts'
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const
  const EQ_FLAT: number[] = EQ_BANDS.map(() => 0)
@@ -187,7 +188,15 @@ export const usePlayer = create<PlayerState>()(
       setVolume: (volume) => set({ volume: Math.min(1, Math.max(0, volume)), muted: false }),
 
       setMuted(muted) {
-        set({ muted })
+        if (muted) {
+          set({ muted })
+          return
+        }
+        /*
+         * 取消静音时把 0 抬起来：否则 muted 关掉了、音量还是 0，按了跟没按一样。
+         * 规则本身在 volume.ts 里，有单测。
+         */
+        set({ muted, volume: volumeForUnmute(get().volume) })
       },
 
       setShuffle(shuffle) {

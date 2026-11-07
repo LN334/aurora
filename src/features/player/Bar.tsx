@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { isWindowVisible } from './engine'
 import { usePlayer } from './store'
 
@@ -51,6 +51,10 @@ interface BarProps {
   ariaLabel: string
   disabled?: boolean
   className?: string
+  /** 读屏与悬停提示用的可读值（音量条给「85%」）。 */
+  valueText?: string
+  /** 鼠标滚轮：+1 表示调大（向上滚），-1 表示调小。传了才接管滚轮。 */
+  onWheelDelta?: (direction: number) => void
 }
 
 /**
@@ -58,8 +62,35 @@ interface BarProps {
  * element (which is what happens whenever you drag a seek bar) keeps tracking,
  * and exposes the slider role so keyboard and screen readers work too.
  */
-export function Bar({ value, onChange, ariaLabel, disabled, className }: BarProps) {
+export function Bar({
+  value,
+  onChange,
+  ariaLabel,
+  disabled,
+  className,
+  valueText,
+  onWheelDelta
+}: BarProps) {
   const trackRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  /*
+   * 滚轮用原生监听而不是 React 的 onWheel：React 把 wheel 挂在根节点上时是
+   * passive 的，preventDefault 会被忽略，页面会跟着一起滚。
+   */
+  const wheelHandler = useRef(onWheelDelta)
+  wheelHandler.current = onWheelDelta
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+    const onWheel = (event: WheelEvent) => {
+      if (!event.deltaY || !wheelHandler.current) return
+      event.preventDefault()
+      // 向上滚（deltaY 为负）是「调大」，符合音量旋钮的方向感。
+      wheelHandler.current(-Math.sign(event.deltaY))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
   const pct = Math.min(1, Math.max(0, value)) * 100
 
   const seekTo = useCallback(
@@ -114,8 +145,11 @@ export function Bar({ value, onChange, ariaLabel, disabled, className }: BarProp
 
   return (
     <div
+      ref={rootRef}
       className={className ? `bar ${className}` : 'bar'}
       role="slider"
+      title={valueText}
+      aria-valuetext={valueText}
       tabIndex={disabled ? -1 : 0}
       aria-label={ariaLabel}
       aria-valuemin={0}
