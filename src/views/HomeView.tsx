@@ -72,6 +72,17 @@ function tintOf(seed: string): CSSProperties {
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
 const ROW = 6
 
+/**
+ * 卡片副标题：先报首数，没有首数就报它从哪来。
+ *
+ * 酷狗的公开榜单不给曲目总数，接口里就是 0。直接写「0 首」比不写更糟——
+ * 看起来像一张空单子。
+ */
+function shelfSub(row: { trackCount: number; creator: string; providerLabel: string }): string {
+  const first = row.trackCount > 0 ? row.trackCount + ' 首' : row.providerLabel
+  return row.creator ? first + ' · ' + row.creator : first
+}
+
 interface HomeViewProps {
   onNavigate(route: ShellRoute): void
 }
@@ -153,9 +164,15 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     return dailyTracks(pool)
   }, [tracks, recentAll])
 
-  // 一批六张，换一批就是往后挪六张；挪到尾巴绕回开头，永远有东西可看。
-  const picks = useMemo(() => windowOf(deck, batch * ROW, ROW), [deck, batch])
-  const more = useMemo(() => windowOf(deck, batch * ROW + ROW, 12), [deck, batch])
+  /**
+   * 一批十二张，正好两行六列。
+   *
+   * 一屏只给六张太薄：四家轮一遍就没了，看起来像只接了一两家。两行铺满之后
+   * 每一家在首屏都能出三张，「换一批」再往后挪一屏。
+   */
+  const PER_BATCH = ROW * 2
+  const picks = useMemo(() => windowOf(deck, batch * PER_BATCH, PER_BATCH), [deck, batch])
+  const more = useMemo(() => windowOf(deck, batch * PER_BATCH + PER_BATCH, 12), [deck, batch])
   const fresh = newBlock.songs.slice(0, 6)
 
   const now = new Date()
@@ -310,9 +327,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                   <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
                 </span>
                 <span className="rh-card__title">{row.name}</span>
-                <span className="rh-card__sub">
-                  {row.trackCount} 首{row.creator ? ' · ' + row.creator : ''}
-                </span>
+                <span className="rh-card__sub">{shelfSub(row)}</span>
               </button>
             ))}
           </div>

@@ -87,7 +87,8 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
             </span>
             <span className="rh-card__title">{row.name}</span>
             <span className="rh-card__sub">
-              {row.trackCount} 首{row.creator ? ' · ' + row.creator : ''}
+              {row.trackCount > 0 ? row.trackCount + ' 首' : row.providerLabel}
+              {row.creator ? ' · ' + row.creator : ''}
             </span>
           </button>
         ))}
