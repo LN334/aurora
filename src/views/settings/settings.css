@@ -2,14 +2,93 @@
    复用 tokens.css 的变量与 app.css 既有组件（.btn/.seg/.switch/.icon-btn/.specs），
    这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
 
+/* 版式：左目录 + 右内容。
+   720px 的单列是上一版的样子——所有分区堆成一条长带，找一项得先滑过整页。
+   现在目录常驻在左边（sticky），右边每一段都有锚点，点一下就到。 */
 .settings {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: start;
+  gap: 48px;
+  /* 目录贴着页面左边、与页标题同一个起点：居中的话左边会空出一大片壁纸，
+     看起来像这一页还没写完。右边内容自己限宽，行控件不会拉到屏幕另一头。 */
+  max-width: none;
+  margin-inline: 0;
+  padding-bottom: var(--s7);
+}
+
+.settings__nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block: 2px 12px;
+}
+
+.settings__nav-item {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-mid);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.settings__nav-item:hover {
+  background: color-mix(in oklab, var(--text-hi) 6%, transparent);
+  color: var(--text-hi);
+}
+
+.settings__nav-item.is-active {
+  background: color-mix(in oklab, var(--text-hi) 10%, transparent);
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.settings__body {
   display: flex;
   flex-direction: column;
   gap: var(--s6);
-  max-width: 720px;
-  /* 主区比这一页宽得多：靠左会让右边空出一大片，看起来像没写完。 */
-  margin-inline: auto;
-  padding-bottom: var(--s7);
+  min-width: 0;
+  /* 一行 label 左、控件右，超过这个宽度两者隔太远，读的时候要来回扫。 */
+  max-width: 780px;
+}
+
+/* 点目录跳过来时，标题不要贴到滚动容器的上沿。 */
+.settings .set-part {
+  scroll-margin-top: 14px;
+}
+
+/* 窗口窄到放不下两栏时，目录变成一条横向的标签带，仍然比滚一整页好找。 */
+@media (max-width: 1180px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s5);
+  }
+
+  .settings__nav {
+    position: static;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .settings__nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings__nav-item {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
 }
 
 
@@ -763,4 +842,29 @@
 .settings__order-move:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+
+/* =============================================================================
+   左目录版式的收尾
+
+   更早的规则在宽屏上把设置页限宽 820px、并把「分区标题 | 内容」排成左右两列。
+   那是单列长表时代的写法：标题占一列能压住整页。现在左边已经有目录，标题再占
+   一列只会把内容挤成一条窄带，所以标题回到内容顶部，宽度也交还给外层网格。
+   ========================================================================== */
+
+@media (min-width: 1080px) {
+  .settings {
+    max-width: none;
+  }
+
+  .set-part {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .settings__hint {
+    max-width: 56ch;
+  }
 }

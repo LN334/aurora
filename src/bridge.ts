@@ -34,7 +34,9 @@ let previewSettings: AppSettings = {
   updateLastCheck: 0,
   autoInstallUpdates: false,
   desktopLyrics: { size: 34, min: 18, max: 64 },
-  closeToTray: true
+  closeToTray: true,
+  launchAtLogin: false,
+  preventSleepWhilePlaying: true
 }
 
 /**
@@ -141,6 +143,9 @@ const webFallback: AuroraApi = {
         desktopLyrics: { ...previewSettings.desktopLyrics, size }
       }),
     setCloseToTray: async (enabled) => (previewSettings = { ...previewSettings, closeToTray: enabled }),
+    setLaunchAtLogin: async (enabled) => (previewSettings = { ...previewSettings, launchAtLogin: enabled }),
+    setPreventSleep: async (enabled) =>
+      (previewSettings = { ...previewSettings, preventSleepWhilePlaying: enabled }),
     // A browser has no userData directory, so "nothing to measure" is the
     // honest answer rather than a made-up zero.
     getStorage: async () => ({
@@ -270,6 +275,27 @@ const webFallback: AuroraApi = {
     playlistTracks: async () => [],
     daily: async () => [],
     liked: async () => []
+  },
+  kugou: {
+    /*
+     * 浏览器里既没有主进程，也就没有那个本地 vendor 服务。这个对象只为满足类型，
+     * 而 `available()` 读 `window.aurora.kugou`（浏览器里是 null），所以预览里
+     * 根本不会出现酷狗入口——这正是「没有后端的构建」该有的样子。
+     */
+    status: async () => ({ ready: false, loggedIn: false, detail: '浏览器预览模式没有酷狗后端' }),
+    setProfile: async () => true,
+    accountFor: async () => null,
+    logoutProfile: async () => true,
+    search: async () => ({ songs: [], albums: [], artists: [] }),
+    streamUrl: async () => ({ ok: false, reason: 'service-unavailable' }),
+    qrCreate: async () => ({ key: 'preview', imageDataUrl: '' }),
+    qrCheck: async () => ({ status: 'waiting' }),
+    loginStatus: async () => null,
+    logout: async () => true,
+    getQuality: async () => 'exhigh',
+    setQuality: async () => 'exhigh',
+    myPlaylists: async () => [],
+    playlistTracks: async () => []
   },
   wallpaper: {
     /*

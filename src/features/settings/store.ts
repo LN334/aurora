@@ -27,7 +27,9 @@ const FALLBACK_SETTINGS: AppSettings = {
   updateLastCheck: 0,
   autoInstallUpdates: false,
   desktopLyrics: { size: 34, min: 18, max: 64 },
-  closeToTray: true
+  closeToTray: true,
+  launchAtLogin: false,
+  preventSleepWhilePlaying: true
 }
 
  interface SettingsPage {
@@ -54,6 +56,10 @@ const FALLBACK_SETTINGS: AppSettings = {
   setAutoInstall(enabled: boolean): Promise<void>
   /** 关闭按钮：收进托盘（true）或退出应用（false）。 */
   setCloseToTray(enabled: boolean): Promise<void>
+  /** 开机自启。主进程负责系统登录项，未打包时只保存意愿。 */
+  setLaunchAtLogin(enabled: boolean): Promise<void>
+  /** 播放时阻止系统挂起。 */
+  setPreventSleep(enabled: boolean): Promise<void>
   checkForUpdates(): Promise<void>
   installUpdate(): Promise<void>
   clearCache(): Promise<void>
@@ -169,6 +175,18 @@ export function useSettingsPage(): SettingsPage {
     setCloseToTray: (enabled) =>
       write(
         () => bridge.settings.setCloseToTray(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setLaunchAtLogin: (enabled) =>
+      write(
+        () => bridge.settings.setLaunchAtLogin(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setPreventSleep: (enabled) =>
+      write(
+        () => bridge.settings.setPreventSleep(enabled),
         (next) => setSettings(next)
       ),
 

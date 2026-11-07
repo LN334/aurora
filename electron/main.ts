@@ -2,11 +2,14 @@ import { app, BrowserWindow, globalShortcut, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { loadSettings } from './settings'
+import { syncLoginItem } from './login-item'
+import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
 import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
 import { registerNeteaseIpc, warmUpNetease } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
+import { registerKugouIpc } from './kugou/ipc'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
 import {
@@ -484,7 +487,7 @@ function registerIpc(): void {
   registerUpdatesIpc()
   registerLyricsIpc()
   registerPlayerIpc(ipcHost)
-  registerSettingsIpc(ipcHost)
+  registerSettingsIpc(ipcHost, ipcHost.playing)
   registerMaintenanceIpc()
 }
 
@@ -544,6 +547,8 @@ if (!app.requestSingleInstanceLock()) {
       }
     })
     registerIpc()
+    // 登录项按设置文件重写一次：重装或换路径后注册表里的那条可能已经不在了。
+    syncLoginItem()
     createWindow()
     createTray(trayHandlers())
     registerGlobalShortcuts()
@@ -576,6 +581,12 @@ if (!app.requestSingleInstanceLock()) {
      */
     registerQqIpc()
 
+    /*
+     * 酷狗同 QQ：只接线，不预热。它背后是一个本地 vendor 服务，第一次真的要用
+     * 时才拉起来（`ensureServer()` 幂等），没人打开酷狗页面就一分钱不花。
+     */
+    registerKugouIpc()
+
     // One quiet check a day. It only ever reports; nothing is downloaded or
     // applied without the user going to the release page themselves.
     void autoCheck((result: UpdateResult) => {
@@ -592,6 +603,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     isQuitting = true
     globalShortcut.unregisterAll()
+    releaseSleepBlocker()
     destroyOverlay()
     destroyTray()
     // Flush the startup log, so a crash during shutdown still leaves what happened.

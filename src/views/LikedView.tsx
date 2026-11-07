@@ -1,13 +1,21 @@
 import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { likedTracks, useFavorites } from '../features/favorites/store'
+import { usePlatformLiked } from '../features/online/platform-liked'
+import { mergeVersions, sourcesOf } from '../features/online/unify'
+import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { formatTime } from '../ui/format'
 import { Shuffle } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
-const SOURCES: Record<string, string> = { netease: '网易云', qq: 'QQ 音乐' }
+const SOURCES: Record<string, string> = {
+  netease: '网易云',
+  qq: 'QQ 音乐',
+  kugou: '酷狗',
+  qishui: '汽水'
+}
 
 /**
  * 我喜欢的音乐。
@@ -27,13 +35,22 @@ export function LikedView({
   const currentId = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index]?.id ?? null) : null))
   const playing = usePlayer((state) => state.playing)
 
-  const tracks = useMemo(() => likedTracks(liked), [liked])
+  /*
+   * 本地心标 + 各平台账号里的「我喜欢的」，合成一张表。
+   * 同一首在两家平台都有时由 mergeVersions 并成一行，两个平台徽章并排，
+   * 播的时候按设置里的音源优先级挑一个——收藏页不该出现两行一样的歌名。
+   */
+  const platformLiked = usePlatformLiked()
+  const order = useMemo(() => sourceOrder(), [])
+  const tracks = useMemo(
+    () => mergeVersions([...likedTracks(liked), ...platformLiked], order),
+    [liked, platformLiked, order]
+  )
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
   const spread = useMemo(() => {
     const out: Record<string, number> = {}
     for (const track of tracks) {
-      const key = track.source && track.source !== 'local' ? track.source : 'local'
-      out[key] = (out[key] ?? 0) + 1
+      for (const key of sourcesOf(track, order)) out[key] = (out[key] ?? 0) + 1
     }
     return out
   }, [tracks])

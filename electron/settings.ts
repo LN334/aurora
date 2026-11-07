@@ -20,6 +20,10 @@ export interface AppSettings {
   desktopLyrics: { size: number; min: number; max: number }
   /** 点窗口的关闭按钮时收进托盘，而不是退出应用。默认 true。 */
   closeToTray: boolean
+  /** 开机时随系统一起启动。默认关：装完不请自来是骚扰。 */
+  launchAtLogin: boolean
+  /** 放歌时拦住系统休眠。默认开：一场专辑听一半黑屏睡着，是播放器最没用的失败。 */
+  preventSleepWhilePlaying: boolean
 }
 
 export interface StorageUsage {
@@ -71,6 +75,11 @@ export interface Settings {
    * per-window: the two windows would each keep their own answer.
    */
   desktopLyricsSize: number
+  /** 随系统启动。写在这里而不是只交给 app.setLoginItemSettings：注册表状态
+   *  会随重装/搬迁失效，设置文件里的这一位才是「用户想要什么」。 */
+  launchAtLogin: boolean
+  /** 播放时阻止系统休眠与锁屏（powerSaveBlocker 的 audio 类型）。 */
+  preventSleepWhilePlaying: boolean
   /**
    * Allow lyric lookups against lrclib.net.
    *
@@ -109,6 +118,8 @@ const DEFAULTS: Settings = {
   desktopLyricsSize: 34,
   onlineLyrics: false,
   closeToTray: true,
+  launchAtLogin: false,
+  preventSleepWhilePlaying: true,
   neteaseQuality: 'exhigh'
 }
 
@@ -135,7 +146,9 @@ export function loadSettings(): Settings {
       // cannot be read.
       updateInterval: isUpdateInterval(raw.updateInterval) ? raw.updateInterval : migrateInterval(raw),
       desktopLyricsSize: clampLyricSize(raw.desktopLyricsSize),
-      closeToTray: raw.closeToTray !== false
+      closeToTray: raw.closeToTray !== false,
+      launchAtLogin: raw.launchAtLogin === true,
+      preventSleepWhilePlaying: raw.preventSleepWhilePlaying !== false
     }
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
@@ -174,6 +187,8 @@ export function appSettings(): AppSettings {
     updateLastCheck: settings.lastUpdateCheck,
     autoInstallUpdates: settings.autoInstallUpdates,
     closeToTray: settings.closeToTray !== false,
+    launchAtLogin: settings.launchAtLogin === true,
+    preventSleepWhilePlaying: settings.preventSleepWhilePlaying !== false,
     desktopLyrics: {
       size: clampLyricSize(settings.desktopLyricsSize),
       min: LYRIC_SIZE_MIN,

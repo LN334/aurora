@@ -8,10 +8,12 @@ import {
   storageUsage
 } from '../settings'
 import { setLyricSize } from '../lyrics-overlay'
+import { syncSleepBlocker } from '../power'
+import { applyLoginItem } from '../login-item'
 import type { WindowSource } from './host'
 
 /** The settings page's typed setters, plus the two window-level actions. */
-export function registerSettingsIpc(deps: WindowSource): void {
+export function registerSettingsIpc(deps: WindowSource, playing: () => boolean): void {
   /*
    * One narrow setter per field, deliberately. A generic `settings:set(key,
    * value)` would make the renderer able to write any key into the main
@@ -32,6 +34,21 @@ export function registerSettingsIpc(deps: WindowSource): void {
 
   ipcMain.handle('settings:setCloseToTray', (_event, enabled: unknown) => {
     saveSettings({ closeToTray: Boolean(enabled) })
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setLaunchAtLogin', (_event, enabled: unknown) => {
+    const next = Boolean(enabled)
+    saveSettings({ launchAtLogin: next })
+    applyLoginItem(next)
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setPreventSleep', (_event, enabled: unknown) => {
+    const next = Boolean(enabled)
+    saveSettings({ preventSleepWhilePlaying: next })
+    // 立刻生效：正在放歌时关掉它，应该当场允许系统重新计时休眠。
+    syncSleepBlocker(playing())
     return appSettings()
   })
 

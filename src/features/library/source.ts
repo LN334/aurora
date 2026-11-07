@@ -183,7 +183,31 @@ export function setMissingStreamHandler(handler: ((songId: number) => void) | nu
   lyrics: async () => null
 }
 
-export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource]
+/**
+ * 酷狗音乐：和 QQ 一条接缝——地址从在线层的缓存里查，未命中就交给
+ * `player/pick` 补取。
+ *
+ * 唯一不同的是它背后是一个本地 vendor 服务；对播放器而言这一点不可见，
+ * 取流失败时缓存里存的是原因（多数是「需要登录」），界面据此说话。
+ */
+const kugouSource: TrackSource = {
+  id: 'kugou',
+  name: '酷狗音乐（在线）',
+  summary: '第三方逆向接口（本地服务），仅供个人学习自用；不是官方客户端',
+  online: true,
+
+  streamUrl: (track) => {
+    if (track.onlineId === undefined) return null
+    const stream = cachedStream('kugou', track.onlineId)
+    return stream ? remoteStreamUrl(stream.url) : null
+  },
+
+  artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
+
+  lyrics: async () => null
+}
+
+export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource, kugouSource]
 
 /** Resolve the source responsible for a track. */
 export function sourceFor(track: Track | null): TrackSource {

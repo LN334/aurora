@@ -80,7 +80,20 @@
       "installerSidebar": "build/installerSidebar.bmp",
       "uninstallerSidebar": "build/uninstallerSidebar.bmp",
       "installerHeader": "build/installerHeader.bmp"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/KuGouMusicApi",
+        "to": "KuGouMusicApi",
+        "filter": [
+          "**/*",
+          "!**/.github/**",
+          "!**/docs/**",
+          "!**/.git/**",
+          "!**/*.md"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "@neteasecloudmusicapienhanced/api": "^4.41.1",

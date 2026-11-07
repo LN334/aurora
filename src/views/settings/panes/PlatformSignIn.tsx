@@ -1,6 +1,7 @@
 import { NeteaseLogin } from '../../../features/netease/NeteaseLogin'
 import { setLoginOpen as setNeteaseLoginOpen, useNeteaseLoginOpen } from '../../../features/netease/store'
 import { QqLogin, useQqLoginOpen } from '../../../features/qq/QqLogin'
+import { KugouLogin, useKugouLoginOpen } from '../../../features/kugou/KugouLogin'
 
 /**
  * 在线平台的登录入口与对话框。
@@ -12,17 +13,20 @@ import { QqLogin, useQqLoginOpen } from '../../../features/qq/QqLogin'
 export function openPlatformLogin(providerId: string): void {
   if (providerId === 'netease') setNeteaseLoginOpen(true)
   else if (providerId === 'qq') useQqLoginOpen.getState().setOpen(true)
+  else if (providerId === 'kugou') useKugouLoginOpen.getState().setOpen(true)
 }
 
 /** 只渲染当前被请求打开的那个对话框；两个平台各管各的标志。 */
 export function PlatformLoginDialogs() {
   const neteaseOpen = useNeteaseLoginOpen()
   const qqOpen = useQqLoginOpen((state) => state.open)
+  const kugouOpen = useKugouLoginOpen((state) => state.open)
 
   return (
     <>
       {neteaseOpen ? <NeteaseLogin onClose={() => setNeteaseLoginOpen(false)} /> : null}
       {qqOpen ? <QqLogin onClose={() => useQqLoginOpen.getState().setOpen(false)} /> : null}
+      {kugouOpen ? <KugouLogin onClose={() => useKugouLoginOpen.getState().setOpen(false)} /> : null}
     </>
   )
 }

@@ -4,6 +4,7 @@ import { emptyLyrics, parseLrc, type Lyrics } from '../lyrics/lrc'
 import type { Track } from '../../types'
 import { extractPalette, IDLE_PALETTE, type Palette } from './palette'
 import { artworkFor, sourceFor } from './source'
+import { useAccentFromArt } from '../settings/accent'
 
 /**
  * Resolve the current track's palette and publish it as CSS custom properties.
@@ -14,10 +15,13 @@ import { artworkFor, sourceFor } from './source'
 export function usePalette(track: Track | null): Palette {
   const [palette, setPalette] = useState<Palette>(IDLE_PALETTE)
   const trackId = track?.id ?? null
+  const fromArt = useAccentFromArt()
 
   useEffect(() => {
     const source = artworkFor(track)
-    if (!source) {
+    // 关掉「跟着封面取色」时连取色都不做：没有壁纸也想要一套静止的冷灰，
+    // 而且省掉每次换歌的一次 canvas 采样。
+    if (!source || !fromArt) {
       setPalette(IDLE_PALETTE)
       return
     }
@@ -30,7 +34,7 @@ export function usePalette(track: Track | null): Palette {
     }
     // Keyed on the track id, not the object: an equal track must not re-extract.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackId])
+  }, [trackId, fromArt])
 
   useEffect(() => {
     const root = document.documentElement

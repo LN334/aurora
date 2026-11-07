@@ -11,6 +11,8 @@ import type { ReactNode } from 'react'
 interface PartProps {
   /** 分区中文名。 */
   zh: string
+  /** 左侧目录跳过来用的锚点。 */
+  id?: string
   children: ReactNode
 }
 
@@ -21,9 +23,9 @@ interface PartProps {
  * 借参考项目的分级方式。可这一页只有五块、各自标题已经说清是什么，编号只增加
  * 阅读负担。现在与首页共用 .rh-sec 的分区头：中文短语一行。
  */
-export function Part({ zh, children }: PartProps) {
+export function Part({ zh, id, children }: PartProps) {
   return (
-    <section className="rh-sec set-part" aria-label={zh}>
+    <section className="rh-sec set-part" aria-label={zh} id={id ? `set-${id}` : undefined}>
       <header className="rh-sec__head">
         <h3>{zh}</h3>
       </header>

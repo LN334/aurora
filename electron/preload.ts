@@ -118,6 +118,10 @@ const api = {
       ipcRenderer.invoke('settings:setDesktopLyricsSize', size) as Promise<AppSettings>,
     setCloseToTray: (enabled: boolean) =>
       ipcRenderer.invoke('settings:setCloseToTray', enabled) as Promise<AppSettings>,
+    setLaunchAtLogin: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setLaunchAtLogin', enabled) as Promise<AppSettings>,
+    setPreventSleep: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setPreventSleep', enabled) as Promise<AppSettings>,
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
     clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>
   },
@@ -347,6 +351,38 @@ const api = {
     playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
     daily: () => ipcRenderer.invoke('qq:daily'),
     liked: () => ipcRenderer.invoke('qq:liked')
+  },
+
+  /*
+   * 酷狗走的是本地 vendor 服务（`vendor/KuGouMusicApi`），由主进程拉起。
+   * 页面这里看不到端口、进程和 token：只看到同一种「成功给地址 / 失败给原因」
+   * 的契约，和另外两个平台并排。
+   *
+   * 歌单 id 是主进程发的数字别名——上游 `global_collection_id` 是字符串，而共享
+   * 界面按正整数取歌单。
+   */
+  kugou: {
+    setProfile: (profileId: string) => ipcRenderer.invoke('kugou:setProfile', profileId) as Promise<boolean>,
+    accountFor: (profileId: string) => ipcRenderer.invoke('kugou:accountFor', profileId),
+    logoutProfile: (profileId: string) =>
+      ipcRenderer.invoke('kugou:logoutProfile', profileId) as Promise<boolean>,
+
+    status: () => ipcRenderer.invoke('kugou:status'),
+    search: (keywords: string, type: string, limit?: number) =>
+      ipcRenderer.invoke('kugou:search', { keywords, type, limit }),
+    streamUrl: (songId: string | number, quality?: string) =>
+      ipcRenderer.invoke('kugou:streamUrl', { songId, quality }),
+
+    qrCreate: () => ipcRenderer.invoke('kugou:qrCreate'),
+    qrCheck: (key: string) => ipcRenderer.invoke('kugou:qrCheck', key),
+    loginStatus: () => ipcRenderer.invoke('kugou:loginStatus'),
+    logout: () => ipcRenderer.invoke('kugou:logout'),
+
+    getQuality: () => ipcRenderer.invoke('kugou:getQuality'),
+    setQuality: (quality: string) => ipcRenderer.invoke('kugou:setQuality', quality),
+
+    myPlaylists: (limit?: number) => ipcRenderer.invoke('kugou:myPlaylists', limit),
+    playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id)
   }
 }
 

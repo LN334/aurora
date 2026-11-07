@@ -289,6 +289,10 @@ export interface AppSettings {
    * 所以渲染层只负责把它写下去，行为在主进程的 close 处理里。
    */
   closeToTray: boolean
+  /** 随系统启动。未打包的构建里主进程不会真去注册，值照样保存。 */
+  launchAtLogin: boolean
+  /** 放歌时拦住系统挂起（屏幕关闭仍按系统电源计划）。 */
+  preventSleepWhilePlaying: boolean
 }
 
  interface SettingsApi {
@@ -296,6 +300,8 @@ export interface AppSettings {
   setOnlineLyrics(enabled: boolean): Promise<AppSettings>
   setDesktopLyricsSize(size: number): Promise<AppSettings>
   setCloseToTray(enabled: boolean): Promise<AppSettings>
+  setLaunchAtLogin(enabled: boolean): Promise<AppSettings>
+  setPreventSleep(enabled: boolean): Promise<AppSettings>
   /** Bytes on disk for the cache and data directories; null when unmeasurable. */
   getStorage(): Promise<StorageUsage>
   /**
@@ -674,6 +680,127 @@ export interface QqPlaylistSummary {
   creator: string
 }
 
+// --- 酷狗音乐（第三方逆向接口 + 本地 vendor 服务）---------------------------
+//
+// 第三个在线平台，和 QQ 最大的不同在**部署形态**：上游不是一个能从主进程
+// `require` 的 SDK，而是一个本地 Node 服务（`vendor/KuGouMusicApi`）。主进程
+// 负责把它拉起来、等它就绪、随应用退出关掉；渲染层只看见「有/没有」，看不见
+// 端口和进程。
+//
+// 沿用同一套词汇：失败原因复用 `NeteaseFailureReason`，音质复用同一个四档。
+//
+// 两处来自上游的事实，直接写进形状里：
+//   * 播放身份不是数字。取流要 `hash` + `albumId` + `albumAudioId` 三个字符串，
+//     所以 `KugouSong` 三样都带上，`id` 只是共享界面要的数字钥匙。
+//   * 歌单身份是字符串 `global_collection_id`，而共享界面按正整数取歌单，所以
+//     `KugouPlaylistSummary.id` 是主进程在本次会话里发的稳定数字别名。
+
+/** 复用网易云的原因词汇；界面上三个平台共用一套文案。 */
+export type KugouFailureReason = NeteaseFailureReason
+
+/** 与网易云同一套音质档位。 */
+export type KugouQuality = NeteaseQuality
+
+export interface KugouArtist {
+  id: number
+  name: string
+  avatar: string | null
+}
+
+export interface KugouAlbumRef {
+  /** 上游是字符串（`AlbumID` / `albuminfo.id`）。 */
+  id: string
+  name: string
+  picUrl: string | null
+}
+
+/**
+ * 一首酷狗歌曲。
+ *
+ * 三个 hash 是三种音质：128k、320k、无损。上游对没有的档位给空串，所以这里
+ * 也是空串而不是 null——"没有这一档"与"这一档不可用"在客户端是同一件事。
+ */
+export interface KugouSong {
+  /** 数字钥匙，共享界面用它索引；真正的身份在下面几个字符串里。 */
+  id: number
+  /** 上游 `FileHash`（128k）。 */
+  hash: string
+  hqHash: string
+  sqHash: string
+  /** 上游 `MixSongID`，取流要的 `album_audio_id`。 */
+  albumAudioId: string
+  albumId: string
+  name: string
+  artists: KugouArtist[]
+  album: KugouAlbumRef
+  /** 秒。上游是毫秒（`timelen`）时客户端已经换算过。 */
+  duration: number
+  /** 0 免费、1 会员、4 付费专辑……与 QQ/网易云同一个词汇。 */
+  fee: number
+  /** 上游明确说了「要付费」时为 true。 */
+  paid: boolean
+}
+
+export type KugouStreamResult =
+  | {
+      ok: true
+      url: string
+      /** 请求的档位。 */
+      quality: KugouQuality
+      /** 实际拿到的档位，可能低于请求。 */
+      level: KugouQuality
+      br: number
+      lossless: boolean
+      trial: boolean
+    }
+  | { ok: false; reason: KugouFailureReason; message?: string }
+
+export interface KugouSearchResult {
+  songs: KugouSong[]
+  /** 上游只有歌曲搜索，这两个恒为空数组（形状存在是为了共享读取器）。 */
+  albums: KugouAlbumRef[]
+  artists: KugouArtist[]
+}
+
+export interface KugouAccount {
+  id: number
+  nickname: string
+  avatarUrl: string | null
+}
+
+export interface KugouStatusResult {
+  ready: boolean
+  loggedIn: boolean
+  detail?: string
+}
+
+/** 待扫的二维码。`key` 是不透明句柄，轮询用它；上游的 `qrcode` 留在主进程。 */
+export interface KugouQrSession {
+  key: string
+  imageDataUrl: string
+}
+
+export interface KugouQrResult {
+  status: 'waiting' | 'scanned' | 'expired' | 'confirmed' | 'failed'
+  account?: KugouAccount
+  message?: string
+}
+
+/**
+ * 酷狗里「歌单」的一行。
+ *
+ * `id` 是主进程发的数字别名（上游 `global_collection_id` 是字符串，而共享界面
+ * 按正整数取歌单）。别名在本次会话里稳定，重开应用后重新取一次列表即可。
+ */
+export interface KugouPlaylistSummary {
+  id: number
+  name: string
+  coverUrl: string | null
+  /** 上游 `count`；0 表示没报，不是「空歌单」。 */
+  trackCount: number
+  creator: string
+}
+
 /**
  * Wallpaper Engine 背景：主进程读它自己安装目录的工程，渲染层只管挑一张。
  *
@@ -751,6 +878,36 @@ export interface WindowApi {
   isFullscreen(): Promise<boolean>
 }
 
+/**
+ * 酷狗的桥。
+ *
+ * 与 QQ 同一套方法名，少两个（没有歌词、没有每日推荐/我喜欢的），多出来的
+ * `playlistTracks` 接受数字别名。`streamUrl` 的入参是数字钥匙或字符串上游 id。
+ */
+export interface KugouApi {
+  setProfile(profileId: string): Promise<boolean>
+  accountFor(profileId: string): Promise<KugouAccount | null>
+  logoutProfile(profileId: string): Promise<boolean>
+
+  status(): Promise<KugouStatusResult>
+  search(keywords: string, type?: string, limit?: number): Promise<KugouSearchResult>
+  /** 取播放地址。未登录、需要会员、上游拒绝都按原因作答，不抛错。 */
+  streamUrl(songId: string | number, quality?: KugouQuality): Promise<KugouStreamResult>
+
+  qrCreate(): Promise<KugouQrSession>
+  qrCheck(key: string): Promise<KugouQrResult>
+  loginStatus(): Promise<KugouAccount | null>
+  logout(): Promise<boolean>
+
+  getQuality(): Promise<KugouQuality>
+  setQuality(quality: KugouQuality): Promise<KugouQuality>
+
+  /** 当前档案的歌单；未登录时是公开榜单，读不到就是空数组。 */
+  myPlaylists(limit?: number): Promise<KugouPlaylistSummary[]>
+  /** 一张歌单里的歌。`id` 是列表里那个数字别名。 */
+  playlistTracks(id: string | number): Promise<KugouSong[]>
+}
+
 export interface AuroraApi {
   info(): Promise<{
     version: string
@@ -770,6 +927,7 @@ export interface AuroraApi {
   overlay: OverlayApi
   netease: NeteaseApi
   qq: QqApi
+  kugou: KugouApi
   wallpaper: WallpaperApi
   maintenance: MaintenanceApi
   window: WindowApi

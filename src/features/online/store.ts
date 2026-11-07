@@ -90,6 +90,14 @@ export interface PlatformBackend {
   /** The upstream id inside one of this platform's track ids, or null. */
   songIdOf(track: Track): number | null
 
+  /**
+   * Some platforms answer a useful shelf list before anyone signs in (Kugou
+   * serves its public charts that way). Declaring it tells `init` to load the
+   * shelf on a signed-out start instead of waiting for a login that may never
+   * come; platforms that need an account simply keep it unset.
+   */
+  anonymousPlaylists?: boolean
+
   myPlaylists?(): Promise<OnlinePlaylistSummary[]>
   playlistTracks?(id: number): Promise<OnlineSong[]>
   albumSongs?(id: number): Promise<OnlineSong[]>
@@ -448,7 +456,7 @@ function createOnlineStore(providerId: ProviderId) {
           account: status.account,
           quality: await platform.getQuality().catch(() => get().quality)
         })
-        if (status.account) void get().loadPlaylists()
+        if (status.account || platform.anonymousPlaylists) void get().loadPlaylists()
       },
 
       async setQuality(quality) {
@@ -509,7 +517,12 @@ function createOnlineStore(providerId: ProviderId) {
         try {
           set({ playlists: await platform.myPlaylists() })
         } catch (problem) {
-          fail('network', describe(problem))
+          /*
+           * A signed-out shelf is a convenience, not a promise: the platform may
+           * decide to answer nobody. Reporting that as the page's error would put
+           * a network failure in front of a user who never asked for anything.
+           */
+          if (get().account) fail('network', describe(problem))
         } finally {
           set({ playlistsLoading: false })
         }

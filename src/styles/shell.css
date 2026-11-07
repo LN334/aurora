@@ -2207,3 +2207,66 @@
   justify-content: center;
   padding: 18px 0 8px;
 }
+
+/* ---- 歌单页：来源筛选与平台角标 ------------------------------------------ */
+/* 平台只在一个圆点和一枚小标上区分，不染整张卡：卡片之间要能并排比较。 */
+.pl-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 18px;
+}
+.pl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: rgb(255 255 255 / 0.03);
+  color: var(--text-mid);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 160ms, color 160ms, border-color 160ms;
+}
+.pl-chip:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-hi);
+}
+.pl-chip.is-on {
+  background: rgb(255 255 255 / 0.12);
+  border-color: rgb(255 255 255 / 0.18);
+  color: var(--text-hi);
+}
+.pl-chip__n {
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.src-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-low);
+  flex: none;
+}
+.src-dot--local { background: #e0926a; }
+.src-dot--netease { background: #d9524e; }
+.src-dot--qq { background: #3fa86a; }
+.src-dot--kugou { background: #2f8fe0; }
+.src-dot--qishui { background: #7c8798; }
+.pl-card .rh-card__art { position: relative; }
+.pl-card__src {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(10 12 16 / 0.68);
+  color: var(--text-hi);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}

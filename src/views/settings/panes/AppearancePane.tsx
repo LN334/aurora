@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
+import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
 import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
 import { useSettingsPage } from '../../../features/settings/store'
-import { bridge } from '../../../bridge'
+import { bridge, isNative } from '../../../bridge'
+import type { OverlayStatus } from '../../../env'
 import { useWallpaper } from '../../../features/wallpaper/store'
 import { chooseEntry } from '../../../features/wallpaper/pure'
 import { Refresh } from '../../../ui/icons'
-import { Row, Rows, Toggle } from '../parts'
+import { Row, Rows, Sub, Toggle } from '../parts'
 import { WallpaperGrid } from '../WallpaperGrid'
 import { WallpaperProps } from '../WallpaperProps'
 
@@ -31,7 +33,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const refreshWallpaper = useWallpaper((state) => state.refresh)
   const setWallpaperProperty = useWallpaper((state) => state.setProperty)
   const resetWallpaperProperties = useWallpaper((state) => state.resetProperties)
-  const { desktopLyrics, closeToTray } = page.settings
+  const { desktopLyrics } = page.settings
 
   /*
    * 正在当背景的那一张。可调项跟着它走——切到「跟随当前壁纸」时，
@@ -49,6 +51,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
   // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
   const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
+  const accentFromArt = useAccentFromArt()
 
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
@@ -74,6 +77,20 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
   return (
     <Rows>
+      <Row
+        label="界面跟着封面取色"
+        hint="关掉后界面只用一套冷灰。开了壁纸、背景本身很花时，关掉更清爽。"
+      >
+        <Toggle
+          checked={accentFromArt}
+          label="界面跟着封面取色"
+          onChange={(next) => setAccentFromArt(next)}
+        />
+      </Row>
+
+      <Sub title="桌面歌词" hint="独立窗口，跟着当前播放的那一句走。">
+        <DesktopLyricsRows />
+
       <div className="settings__row settings__row--stacked">
         <div className="settings__text">
           <div className="settings__label">桌面歌词字号</div>
@@ -99,6 +116,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
           <span className="settings__number">{previewSize}px</span>
         </div>
       </div>
+      </Sub>
 
       <Row
         label="窗口显示"
@@ -109,27 +127,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </button>
       </Row>
 
-      <Row
-        label="点关闭按钮时"
-        hint="收进托盘时窗口消失、继续播放。"
-      >
-        <div className="seg">
-          <button
-            className={closeToTray ? 'is-active' : ''}
-            aria-pressed={closeToTray}
-            onClick={() => void page.setCloseToTray(true)}
-          >
-            收进托盘
-          </button>
-          <button
-            className={closeToTray ? '' : 'is-active'}
-            aria-pressed={!closeToTray}
-            onClick={() => void page.setCloseToTray(false)}
-          >
-            退出应用
-          </button>
-        </div>
-      </Row>
       <Row
         label="动态效果"
         hint="关掉后界面动画直接跳过。"
@@ -254,5 +251,64 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </>
       ) : null}
     </Rows>
+  )
+}
+
+/**
+ * 桌面歌词窗口的两行开关。
+ *
+ * 状态由主进程回报：窗口可能在别的入口被打开或关掉，这里只负责把当前状态
+ * 画出来，不做本地猜测。锁上之后那个窗口对鼠标透明，和 Windows 上的悬浮控件
+ * 一样，所以它只在歌词窗口开着的时候才有意义。
+ */
+function DesktopLyricsRows() {
+  const [status, setStatus] = useState<OverlayStatus | null>(null)
+
+  useEffect(() => {
+    if (!isNative) return
+    let alive = true
+    void bridge.overlay
+      .getStatus()
+      .then((next) => {
+        if (alive) setStatus(next)
+      })
+      .catch(() => {})
+    const off = bridge.overlay.onStatus((next) => setStatus(next))
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
+
+  const open = status?.open ?? false
+  const locked = status?.locked ?? false
+
+  return (
+    <>
+      <Row
+        label="显示桌面歌词"
+        hint="在桌面上开一个小窗口，只显示当前这一句；换歌自动跟上。"
+      >
+        {isNative ? (
+          <button className="btn" onClick={() => void bridge.overlay.toggle(!open)}>
+            {open ? '关闭' : '打开'}
+          </button>
+        ) : (
+          <span className="settings__number">仅桌面版</span>
+        )}
+      </Row>
+
+      <Row
+        label="锁住歌词位置"
+        hint="锁上后鼠标点不中那一行字，点击会落到它底下的窗口上。"
+      >
+        <Toggle
+          checked={locked}
+          label="锁住歌词位置"
+          disabled={!isNative || !open}
+          onChange={(next) => void bridge.overlay.setLocked(next)}
+        />
+      </Row>
+    </>
   )
 }

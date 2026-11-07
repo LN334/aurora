@@ -1,0 +1,103 @@
+/*
+ * Kugou's sign-in dialog.
+ *
+ * The window's colours come from the current cover, so nothing here sets a hue
+ * of its own - it uses the shared tokens and inherits whatever `--accent` is.
+ * Identical rules to the QQ dialog: the two are the same visual object for the
+ * same reason (one QR code, one caption), and keeping them separate files means
+ * either can be retuned without touching the other.
+ */
+
+.kugou-login {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--s5);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.kugou-login__panel {
+  width: min(360px, 100%);
+  padding: var(--s5);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-panel);
+  background: var(--ink-800);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
+}
+
+.kugou-login__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.kugou-login__title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.kugou-login__close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-control);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-low);
+}
+
+.kugou-login__close:hover {
+  color: var(--text-hi);
+  background: var(--ink-700);
+}
+
+.kugou-login__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  text-align: center;
+}
+
+.kugou-login__code {
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 200px;
+  padding: var(--s2);
+  border-radius: var(--r-panel);
+  background: #fff;
+}
+
+.kugou-login__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.kugou-login__placeholder {
+  padding: var(--s3);
+  font-size: var(--fs-meta);
+  color: #444;
+  line-height: 1.5;
+}
+
+.kugou-login__hint {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+.kugou-login__note {
+  margin: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  line-height: 1.5;
+}
