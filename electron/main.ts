@@ -401,10 +401,34 @@ function createWindow(): void {
 
   if (captureArg) {
     const out = captureArg.slice('--capture='.length)
+    // 截图验收要能停在任意一页；页面地址就是外壳路由，先改地址再截。
+    const hashArg = process.argv.find((arg) => arg.startsWith('--hash='))
+    // 长页面验收要能停在半屏；内容滚在 .main__body 里，不是 window。
+    const scrollArg = process.argv.find((arg) => arg.startsWith('--scroll='))
     mainWindow.webContents.once('did-finish-load', () => {
       setTimeout(() => {
         void (async () => {
           try {
+            if (hashArg) {
+              const hash = hashArg.slice('--hash='.length)
+              await mainWindow?.webContents.executeJavaScript(
+                `window.location.hash = ${JSON.stringify(hash)}`
+              )
+              await new Promise((resolve) => setTimeout(resolve, 1200))
+            }
+            if (scrollArg) {
+              const y = Number(scrollArg.slice('--scroll='.length)) || 0
+              await mainWindow?.webContents.executeJavaScript(
+                `(() => { const el = document.querySelector('.main__body'); if (el) el.scrollTop = ${y}; return Boolean(el) })()`
+              )
+              await new Promise((resolve) => setTimeout(resolve, 700))
+            }
+            if (process.argv.includes('--probe')) {
+              const facts = await mainWindow?.webContents.executeJavaScript(
+                `(() => { const b = document.querySelector('.main__body'); const rh = document.querySelector('.rh'); return { scrollTop: b && b.scrollTop, bodyH: b && b.clientHeight, rhFirst: rh && rh.firstElementChild && rh.firstElementChild.className, rhTop: rh && Math.round(rh.getBoundingClientRect().top), bodyTop: b && Math.round(b.getBoundingClientRect().top) } })()`
+              )
+              fs.writeFileSync(out + '.json', JSON.stringify(facts, null, 2))
+            }
             const image = await mainWindow?.webContents.capturePage()
             if (image) fs.writeFileSync(out, image.toPNG())
           } catch (error) {

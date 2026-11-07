@@ -172,10 +172,11 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
       </div>
 
       <footer className="panel__foot">
-        <button className="btn" onClick={() => onPreset(EQ_BANDS.map(() => 0))} disabled={isFlat}>
+        <button className="rh-btn" onClick={() => onPreset(EQ_BANDS.map(() => 0))} disabled={isFlat}>
           <Wave size={15} />
           重置为平直
         </button>
+        <p className="pg-note">上下拖动推子，双击归零。</p>
       </footer>
     </aside>
   )

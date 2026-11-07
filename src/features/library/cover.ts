@@ -70,22 +70,22 @@ export function coverFor(seed: string, size = 512): string {
       `<line x1="0" y1="${round(horizon + s * 0.055)}" x2="${round(s * 0.62)}" y2="${round(horizon + s * 0.055)}"/>` +
       `</g>`
   } else {
-    // A column set: seven bars, aligned to a common baseline.
-    const bars = 7
-    const gap = s * 0.028
-    const barW = (s * 0.72 - gap * (bars - 1)) / bars
-    const left = s * 0.14
-    const baseline = s * 0.86
-    let rects = ''
-    for (let i = 0; i < bars; i += 1) {
-      const t = ((h >> (i + 3)) % 9) / 8
-      const barH = s * (0.16 + t * 0.54)
-      rects +=
-        `<rect x="${round(left + i * (barW + gap))}" y="${round(baseline - barH)}" ` +
-        `width="${round(barW)}" height="${round(barH)}" rx="${round(barW * 0.16)}" ` +
-        `fill="${i % 2 === 0 ? pale : mid}" opacity="${(0.7 + t * 0.3).toFixed(2)}"/>`
-    }
-    subject = rects
+    // A tilted frame and a disc: a record sleeve, not a bar graph. The earlier
+    // equal-width column set read as a spectrum analyser, which is exactly the
+    // thing this app does not draw outside the stage.
+    const cx = s * 0.5
+    const cy = s * 0.5
+    const half = s * 0.3
+    subject =
+      `<g transform="rotate(${round((h >> 13) % 30 - 15)} ${round(cx)} ${round(cy)})">` +
+      `<rect x="${round(cx - half)}" y="${round(cy - half)}" width="${round(half * 2)}" height="${round(half * 2)}" ` +
+      `rx="${round(s * 0.03)}" fill="none" stroke="${pale}" stroke-width="${stroke}" opacity="0.85"/>` +
+      `<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(s * 0.135)}" fill="${deep}"/>` +
+      `<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(s * 0.135)}" fill="none" stroke="${pale}" stroke-width="${stroke}" opacity="0.6"/>` +
+      `<circle cx="${round(cx)}" cy="${round(cy)}" r="${round(s * 0.022)}" fill="${pale}"/>` +
+      `</g>` +
+      `<line x1="${round(s * 0.62)}" y1="${round(s * 0.82)}" x2="${round(s * 0.9)}" y2="${round(s * 0.82)}" ` +
+      `stroke="${pale}" stroke-width="${stroke}" opacity="0.45"/>`
   }
 
   const svg =

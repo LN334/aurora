@@ -385,3 +385,55 @@
   object-fit: cover;
   display: block;
 }
+
+
+/* =============================================================================
+   与新外壳对齐：分区头交给 .rh-sec，卡片换成玻璃面 + 大圆角
+   ========================================================================== */
+
+.acct-sec {
+  margin-bottom: 28px;
+}
+.acct-sec__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.acct-sec__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-page .acct-row {
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  background: rgb(255 255 255 / 0.045);
+  backdrop-filter: blur(14px) saturate(1.15);
+}
+.account-page .acct-row:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+
+.account-page .acct-rows {
+  gap: 10px;
+}
+
+.account-page .acct-platforms {
+  gap: 10px;
+}
+
+.account-page .acct-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 17px;
+}
+
+.account-page .acct-name__label {
+  font-size: 15px;
+}
+
+.account-page .acct-platform__name {
+  font-size: 15px;
+}

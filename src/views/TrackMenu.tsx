@@ -11,6 +11,8 @@ interface TrackMenuProps {
   y: number
   playlists: { id: string; name: string }[]
   onClose(): void
+  /** 三页里的第一层：先看这首歌是什么，再决定听不听。 */
+  onOpenDetail(): void
   onPlayNext(): void
   onAddToPlaylist(playlistId: string): void
   onReveal(): void
@@ -31,6 +33,7 @@ export function TrackMenu({
   y,
   playlists,
   onClose,
+  onOpenDetail,
   onPlayNext,
   onAddToPlaylist,
   onReveal
@@ -96,6 +99,10 @@ export function TrackMenu({
       style={{ left: `${pos.left}px`, top: `${pos.top}px` }}
       aria-label={`${track.title} 的操作`}
     >
+      <button className="menu__item" role="menuitem" onClick={onOpenDetail}>
+        歌曲详情
+      </button>
+
       <button className="menu__item" role="menuitem" onClick={onPlayNext}>
         下一首播放
       </button>

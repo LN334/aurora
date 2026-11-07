@@ -27,23 +27,23 @@ export function SettingsView() {
     <div className="settings">
       {page.error ? <p className="settings__error">{page.error}</p> : null}
 
-      <Part num="01" en="PLAYBACK & QUALITY" zh="播放与音质">
+      <Part zh="播放与音质">
         <PlaybackPane page={page} />
       </Part>
 
-      <Part num="02" en="APPEARANCE & DESKTOP" zh="外观与桌面">
+      <Part zh="外观与桌面">
         <AppearancePane page={page} />
       </Part>
 
-      <Part num="03" en="KEYBOARD" zh="快捷键">
+      <Part zh="快捷键">
         <HotkeysPane />
       </Part>
 
-      <Part num="04" en="UPDATE & ABOUT" zh="更新与关于">
+      <Part zh="更新与关于">
         <UpdatePane page={page} />
       </Part>
 
-      <Part num="05" en="CLEANUP & MEMORY" zh="清理与维护">
+      <Part zh="清理与维护">
         <MaintenancePane page={page} />
       </Part>
 

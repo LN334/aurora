@@ -114,9 +114,11 @@ export interface TrackSource {
   },
 
   artUrl: (track) => {
-    if (!track.hasArt) return null
-    const cover = neteaseCoverCache.get(track.id)
-    return cover ? remoteImageUrl(cover) : null
+    // The track carries the address when it came from this session's lists or
+    // from history; the cache only covers rows built before that field existed.
+    const cover = track.coverUrl ?? neteaseCoverCache.get(track.id)
+    if (!cover) return null
+    return remoteImageUrl(cover)
   },
 
   lyrics: async (track) => {

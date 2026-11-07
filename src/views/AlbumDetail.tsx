@@ -1,8 +1,10 @@
 import { artworkFor } from '../features/library/source'
 import type { Album, Track } from '../types'
 import { Artwork } from '../ui/Artwork'
+import { formatTime } from '../ui/format'
+import { Note, Play, Shuffle } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
-import { Note, Play } from '../ui/icons'
+import { DetailHero } from './DetailHero'
 
 interface AlbumDetailProps {
   album: Album
@@ -16,22 +18,11 @@ interface AlbumDetailProps {
   onMenu?(request: TrackMenuRequest): void
 }
 
-/** Album-length durations read better as hours and minutes than as mm:ss. */
-function formatTotal(seconds: number): string {
-  const total = Math.round(seconds)
-  if (total <= 0) return ''
-  const hours = Math.floor(total / 3600)
-  const minutes = Math.round((total % 3600) / 60)
-  return hours > 0 ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`
-}
-
 /**
- * One release: the cover, who made it, and the track list.
+ * 一张专辑：封面、谁做的、里面有什么。
  *
- * The grid used to jump straight to playback, which meant there was no way to
- * look at an album before deciding to play it. Opening is now the default action
- * on the card and playing is an explicit button - the convention every other
- * player uses, and the only one that lets you browse a library.
+ * 点卡片默认进这一页而不是直接播——先看一眼再决定听不听，是所有音乐库的
+ * 共同约定，也是「能浏览」和「只能听」的分界。
  */
 export function AlbumDetail({
   album,
@@ -43,56 +34,59 @@ export function AlbumDetail({
   onOpenArtist,
   onMenu
 }: AlbumDetailProps) {
-  const art = artworkFor(tracks[0] ?? null)
-  const total = formatTotal(album.duration)
+  const first = tracks[0] ?? null
+  const total = tracks.reduce((sum, track) => sum + (track.duration || 0), 0)
+  const formats = [...new Set(tracks.map((track) => track.codec).filter(Boolean))]
 
   return (
-    <div className="album">
-      <header className="album__head">
-        <div className="album__art">
-          <Artwork
-            src={art}
-            fallback={
-              <span className="album__art-empty">
-                <Note size={34} />
-              </span>
-            }
-          />
-        </div>
-
-        <div className="album__info">
-          <h2 className="album__name">{album.name}</h2>
-
-          <button
-            className="album__artist"
-            onClick={() => onOpenArtist(album.albumArtist)}
-            title={`查看 ${album.albumArtist}`}
-          >
-            {album.albumArtist}
-          </button>
-
-          <p className="album__meta tnum">
-            {album.trackIds.length} 首
-            {album.year ? ` · ${album.year} 年` : ''}
-            {total ? ` · ${total}` : ''}
-          </p>
-
-          <div className="album__actions">
-            <button className="btn btn--accent" onClick={onPlayAll}>
+    <div className="col">
+      <DetailHero
+        art={
+          <Artwork src={artworkFor(first)} alt="" fallback={<Note size={34} />} />
+        }
+        kicker="专辑"
+        title={album.name}
+        meta={
+          <>
+            <button className="dh__link" type="button" onClick={() => onOpenArtist(album.albumArtist)}>
+              {album.albumArtist}
+            </button>
+            {album.year ? <span>{album.year}</span> : null}
+            <span>{tracks.length} 首</span>
+            {total > 0 ? <span>{formatTime(total)}</span> : null}
+            {formats.length > 0 ? <span>{formats.join(' / ')}</span> : null}
+          </>
+        }
+        actions={
+          <>
+            <button className="rh-btn rh-btn--main" type="button" onClick={onPlayAll} disabled={tracks.length === 0}>
               <Play size={15} />
               播放
             </button>
-          </div>
-        </div>
-      </header>
-
-      <TrackList
-        tracks={tracks}
-        currentId={currentId}
-        playing={playing}
-        onPlayAt={onPlayAt}
-        onMenu={onMenu}
+            <button
+              className="rh-btn"
+              type="button"
+              disabled={tracks.length === 0}
+              onClick={() => onPlayAt(Math.floor(Math.random() * tracks.length))}
+            >
+              <Shuffle size={14} />
+              随机
+            </button>
+          </>
+        }
       />
+
+      {tracks.length === 0 ? (
+        <p className="pg-note">这张专辑没有可播放的曲目。</p>
+      ) : (
+        <TrackList
+          tracks={tracks}
+          currentId={currentId}
+          playing={playing}
+          onPlayAt={onPlayAt}
+          onMenu={onMenu}
+        />
+      )}
     </div>
   )
 }

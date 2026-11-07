@@ -93,6 +93,14 @@ export interface Track {
    * for real. Renderers must fall back to a placeholder on load failure.
    */
   hasArt: boolean
+  /**
+   * Upstream cover address, for sources that do not serve artwork by track id.
+   *
+   * Kept on the track itself rather than in a side cache because history and
+   * restored queues outlive any process: a cache dies with the window and the
+   * same song comes back without a cover on the next launch.
+   */
+  coverUrl?: string
   /** ReplayGain, when the tags carry it. */
   gainDb: number | null
   peak: number | null

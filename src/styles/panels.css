@@ -174,9 +174,12 @@
   width: min(400px, 92vw);
   display: flex;
   flex-direction: column;
-  background: var(--ink-850);
-  border-left: var(--line-soft);
-  box-shadow: -20px 0 46px rgb(0 0 0 / 0.45);
+  /* 和播放条同一块玻璃：抽屉浮在内容之上，底下的封面要隐约透出来。 */
+  background: rgb(14 17 21 / 0.72);
+  backdrop-filter: blur(28px) saturate(1.45);
+  -webkit-backdrop-filter: blur(28px) saturate(1.45);
+  border-left: 1px solid rgb(255 255 255 / 0.07);
+  box-shadow: -24px 0 60px rgb(0 0 0 / 0.5);
 }
 
 .panel__head {
@@ -243,11 +246,12 @@
   display: flex;
   align-items: center;
   gap: var(--s2);
-  margin: 0 0 var(--s2);
+  margin: 0 0 8px;
   padding: 0 var(--s2);
-  font-size: var(--fs-micro);
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-low);
+  letter-spacing: 0.02em;
+  color: var(--text-mid);
 }
 .queue-group__count {
   margin-left: auto;
@@ -286,7 +290,7 @@
   display: grid;
   /* 行高钉死：切歌时「正在播放」那行会换上另一首歌，内容长度不同就会让
      行高呼吸一下。 */
-  min-height: 34px;
+  min-height: 38px;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s1);
@@ -294,10 +298,11 @@
   transition: background 90ms var(--ease-out);
 }
 .queue-row:hover {
-  background: var(--ink-800);
+  background: rgb(255 255 255 / 0.055);
 }
-/* 当前行用左竖条钉住位置：长队列里滚着滚着就找不到播放到哪了。 */
+/* 当前行用左竖条 + 一层淡主色钉住位置：长队列里滚着滚着就找不到播放到哪了。 */
 .queue-row.is-current {
+  background: rgb(var(--accent-rgb) / 0.09);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .queue-row.is-current .queue-row__title-text {
@@ -348,10 +353,10 @@
 
 .queue-row__main {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 72px 42px;
+  grid-template-columns: 20px minmax(0, 1fr) 76px 40px;
   align-items: center;
   gap: var(--s2);
-  height: 34px;
+  height: 38px;
   padding-left: var(--s2);
   text-align: left;
   color: var(--text-mid);
@@ -371,7 +376,7 @@
 }
 .queue-row__title-text {
   min-width: 0;
-  font-size: var(--fs-meta);
+  font-size: 13px;
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
@@ -526,3 +531,53 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* 均衡器：推子只占一段固定高度，不再拉满整个抽屉。 */
+.panel__bands {
+  flex: 0 0 auto;
+  height: 318px;
+  margin: 6px var(--s4) 0;
+  padding: 14px 0 8px;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.022);
+}
+.panel__foot {
+  margin-top: auto;
+}
+.band__rail {
+  width: 3px;
+  background: rgb(255 255 255 / 0.08);
+}
+.band__fill {
+  width: 3px;
+  box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.55);
+}
+.band__knob {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6), 0 0 0 3px rgb(var(--accent-rgb) / 0.18);
+  transition: box-shadow 160ms var(--ease-out), scale 160ms var(--ease-out);
+}
+.band__track:hover .band__knob {
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6), 0 0 0 5px rgb(var(--accent-rgb) / 0.26);
+}
+.band__track {
+  min-height: 0;
+}
+.band__value {
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* 推子区上下留白均分，并在两端补一条参考线。 */
+.panel__bands {
+  margin: auto var(--s4);
+  background:
+    linear-gradient(rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.05)) left top / 100% 1px no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.05)) left bottom / 100% 1px no-repeat,
+    rgb(255 255 255 / 0.022);
+}
+

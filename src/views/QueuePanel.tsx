@@ -181,7 +181,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                 <ul className="queue-list">
                   <QueueRow
                     trackIndex={index}
-                    label="▶"
+                    label=""
                     isCurrent
                     playing={playing}
                     onJump={jump}

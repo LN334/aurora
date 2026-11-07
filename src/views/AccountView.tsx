@@ -8,7 +8,6 @@ import type { Account } from '../features/accounts/store'
 import { useRoots } from '../features/library/roots'
 import { runScan } from '../features/library/scan'
 import { useAvailableProviders } from '../features/online/hooks'
-import { platformView } from '../features/online/registry'
 import { useOnlineStore } from '../features/online/store'
 import type { OnlineMusicProvider } from '../features/online/types'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
@@ -33,11 +32,11 @@ import { PlatformLoginDialogs, openPlatformLogin } from './settings/panes/Platfo
  *
  * 页面标题由外壳打印（见 docs/ui-design.md「一页一个标题」），这里只负责内容。
  */
-export function AccountView({ onNavigate }: { onNavigate(route: Route): void }) {
+export function AccountView(_props: { onNavigate(route: Route): void }) {
   return (
     <div className="account-page">
       <ProfilePart />
-      <PlatformPart onNavigate={onNavigate} />
+      <PlatformPart />
       <FolderPart />
       <PlatformLoginDialogs />
     </div>
@@ -45,32 +44,25 @@ export function AccountView({ onNavigate }: { onNavigate(route: Route): void }) 
 }
 
 /**
- * 分区：抬头一行，内容在下。
+ * 分区：一行标题，右边放操作，内容在下面。
  *
- * 编号与英文小标是设置页同一套分级语言（01 / LOCAL PROFILES / 本地档案），
- * 但这里把三者排成一行、用发丝线收住，不跟着窗口变宽就变两栏——
- * 账号页只有三块，抬头竖起来会剩一列空白。
+ * 以前这里是「01 / LOCAL PROFILES / 本地档案」三级并排——编号和英文小标是
+ * 给阅读顺序编号用的，但这一页只有三块，读者不需要知道谁排第一。现在和首页
+ * 用同一种分区头：中文短语 + 右侧一个动作，扫一眼就知道这一段是什么。
  */
 function Section({
-  num,
-  en,
   zh,
   actions,
   children
 }: {
-  num: string
-  en: string
   zh: string
   actions?: ReactNode
   children: ReactNode
 }) {
   return (
-    <section className="acct-sec" aria-label={num + ' ' + zh}>
-      <header className="acct-sec__head">
-        <span className="acct-sec__num">{num}</span>
-        <span className="acct-sec__en">{en}</span>
-        <h2 className="acct-sec__title">{zh}</h2>
-        <span className="acct-sec__rule" aria-hidden="true" />
+    <section className="rh-sec acct-sec" aria-label={zh}>
+      <header className="rh-sec__head">
+        <h3>{zh}</h3>
         {actions ? <div className="acct-sec__actions">{actions}</div> : null}
       </header>
       <div className="acct-sec__body">{children}</div>
@@ -123,8 +115,6 @@ function ProfilePart() {
 
   return (
     <Section
-      num="01"
-      en="LOCAL PROFILES"
       zh="本地档案"
       actions={
         <button className="btn btn--small" onClick={() => setCreating(true)} disabled={creating}>
@@ -281,17 +271,17 @@ function ProfilePart() {
    02 在线平台
    ========================================================================== */
 
-function PlatformPart({ onNavigate }: { onNavigate(route: Route): void }) {
+function PlatformPart() {
   const providers = useAvailableProviders()
 
   return (
-    <Section num="02" en="ONLINE SERVICES" zh="在线平台">
+    <Section zh="在线平台">
       {providers.length === 0 ? (
         <p className="acct-empty">这一版没有可用的在线平台。</p>
       ) : (
         <div className="acct-platforms">
           {providers.map((provider) => (
-            <PlatformRow key={provider.id} provider={provider} onNavigate={onNavigate} />
+            <PlatformRow key={provider.id} provider={provider} />
           ))}
         </div>
       )}
@@ -299,13 +289,7 @@ function PlatformPart({ onNavigate }: { onNavigate(route: Route): void }) {
   )
 }
 
-function PlatformRow({
-  provider,
-  onNavigate
-}: {
-  provider: OnlineMusicProvider
-  onNavigate(route: Route): void
-}) {
+function PlatformRow({ provider }: { provider: OnlineMusicProvider }) {
   const store = useOnlineStore(provider.id)
   const account = store((state) => state.account)
   const ready = store((state) => state.ready)
@@ -347,13 +331,6 @@ function PlatformRow({
         <p className="acct-platform__meta">{meta}</p>
       </div>
       <div className="acct-row__actions">
-        {/* 平台页本身也能看公开内容（搜索、未登录也能放的歌），所以「进入」不要求登录。 */}
-        <button
-          className="btn btn--small"
-          onClick={() => onNavigate({ view: platformView(provider) })}
-        >
-          进入
-        </button>
         {account ? (
           <button className="btn btn--small" onClick={() => void logout()}>
             退出登录
@@ -389,8 +366,6 @@ function FolderPart() {
 
   return (
     <Section
-      num="03"
-      en="MUSIC FOLDERS"
       zh="音乐文件夹"
       actions={
         <>

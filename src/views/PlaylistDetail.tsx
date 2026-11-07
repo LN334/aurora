@@ -2,7 +2,10 @@ import { useState } from 'react'
 import type { Playlist } from '../features/playlists/store'
 import type { Track } from '../types'
 import { formatTime } from '../ui/format'
-import { Play, Trash, Wave } from '../ui/icons'
+import { artworkFor } from '../features/library/source'
+import { Artwork } from '../ui/Artwork'
+import { Note, Play, Trash, Wave } from '../ui/icons'
+import { DetailHero } from './DetailHero'
 
 interface PlaylistDetailProps {
   playlist: Playlist
@@ -44,42 +47,56 @@ export function PlaylistDetail({
 
   return (
     <div className="pl-detail">
-      <div className="pl-detail__bar">
-        <input
-          className="pl-detail__name"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={commitName}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur()
-            if (event.key === 'Escape') {
-              setDraft(playlist.name)
-              event.currentTarget.blur()
-            }
-          }}
-          aria-label="播放列表名字"
-          maxLength={80}
-        />
-
-        <span className="pl-detail__meta tnum">
-          {tracks.length} 首
-          {total > 0 ? `，${formatTime(total)}` : ''}
-        </span>
-
-        <div className="pl-detail__actions">
-          <button
-            className="btn btn--accent"
-            onClick={() => onPlayAt(0)}
-            disabled={tracks.length === 0}
-          >
-            <Play size={15} />
-            播放全部
-          </button>
-          <button className="btn" onClick={onExport} disabled={tracks.length === 0}>
-            导出 m3u
-          </button>
-        </div>
-      </div>
+      <DetailHero
+        art={
+          <Artwork
+            src={artworkFor(tracks[0] ?? null)}
+            alt=""
+            fallback={<Note size={34} />}
+          />
+        }
+        kicker="歌单"
+        title={
+          <input
+            className="dh__input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'Escape') {
+                setDraft(playlist.name)
+                event.currentTarget.blur()
+              }
+            }}
+            aria-label="歌单名字"
+            maxLength={80}
+          />
+        }
+        meta={
+          <>
+            <span>{tracks.length} 首</span>
+            {total > 0 ? <span>{formatTime(total)}</span> : null}
+            <span className="dh__hint">拖动可排序 · Alt + 上下键也能挪</span>
+          </>
+        }
+        actions={
+          <>
+            <button
+              className="rh-btn rh-btn--main"
+              type="button"
+              onClick={() => onPlayAt(0)}
+              disabled={tracks.length === 0}
+            >
+              <Play size={15} />
+              播放全部
+            </button>
+            <button className="rh-btn" type="button" onClick={onExport} disabled={tracks.length === 0}>
+              导出 m3u
+            </button>
+          </>
+        }
+      />
 
       {missingCount > 0 ? (
         <div className="pl-detail__warn">有 {missingCount} 个条目在曲库里找不到</div>

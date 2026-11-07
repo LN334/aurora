@@ -4,6 +4,7 @@
 @import './playlists.css';
 @import './update.css';
 @import './accounts.css';
+@import './shell.css';
 /*
  * Shared by every online platform, and named for that rather than for one of them:
  * a second platform must not need its own copy of these rules. A platform's own
@@ -654,7 +655,15 @@ input::placeholder {
   align-items: center;
   gap: var(--s4);
   padding: 0 var(--s4);
-  background: var(--ink-850);
+  /*
+   * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
+   * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
+   * 只把颜色漏进来。
+   */
+  background: rgb(14 17 21 / 0.56);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-top: 1px solid rgb(255 255 255 / 0.06);
   /* One shadow in the whole app: the bar floats above the library. */
   box-shadow: 0 -12px 32px rgb(0 0 0 / 0.34);
 }
@@ -1422,47 +1431,41 @@ input::placeholder {
   padding: var(--s5) var(--s3);
 }
 
-/* A three-bar meter as the "now playing" mark. Real information rather than
-   decoration: it is the only place the row says sound is happening. */
+/*
+ * 「正在播放」的标记是一只呼吸的点，不是三根跳动的竖条。
+ *
+ * 竖条读起来就是频谱——这一版全站不放频谱，状态指示也不该长得像它。点只
+ * 回答一件事：这一行正在出声；它不假装在显示音量。
+ */
 .eq {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 12px;
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent);
   vertical-align: middle;
 }
 .eq i {
-  display: block;
-  width: 2px;
-  height: 12px;
-  border-radius: 1px;
-  background: var(--accent);
-  transform: scaleY(0.28);
-  transform-origin: bottom;
+  display: none;
 }
-.eq.is-live i {
-  animation: eq-bounce 880ms ease-in-out infinite;
-}
-.eq.is-live i:nth-child(2) {
-  animation-delay: 150ms;
-}
-.eq.is-live i:nth-child(3) {
-  animation-delay: 300ms;
+.eq.is-live {
+  animation: eq-pulse 1900ms ease-in-out infinite;
 }
 
-@keyframes eq-bounce {
+@keyframes eq-pulse {
   0%,
   100% {
-    transform: scaleY(0.28);
+    opacity: 0.4;
   }
   50% {
-    transform: scaleY(1);
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eq.is-live i {
-    animation-duration: 3s;
+  .eq.is-live {
+    animation: none;
+    opacity: 0.9;
   }
 }
 
@@ -1568,7 +1571,7 @@ input::placeholder {
 }
 
 .shell.has-wallpaper > .player {
-  background: rgb(17 21 26 / calc(0.88 - 0.34 * var(--wp-level, 0.62)));
+  background: rgb(14 17 21 / calc(0.52 - 0.22 * var(--wp-level, 0.62)));
 }
 
 /* The WebGL canvas has to fill the host box; the engine sizes in device pixels. */
@@ -1708,10 +1711,13 @@ input::placeholder {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
 }
 
-/* 播放条上有要看清的小字，比主区实一点点，但一样不做模糊。 */
+/*
+ * 播放条上有要看清的小字，所以比主区只实一点点——透明度靠模糊补回来：底下的
+ * 壁纸被 blur 糊成一片颜色，字照样清楚，面板本身仍然是块能看见壁纸的玻璃。
+ */
 .shell.has-wallpaper > .player {
-  background: rgb(8 10 12 / calc(0.58 - 0.3 * var(--wp-level, 0.62)));
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+  background: rgb(8 10 12 / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
 }
 
 /* 壁纸自己的遮罩几乎全撤掉，只留一层很薄的统一压暗，避免亮部吃掉白字。 */

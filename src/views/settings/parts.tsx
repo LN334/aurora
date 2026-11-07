@@ -3,32 +3,29 @@ import type { ReactNode } from 'react'
 /**
  * 单页设置的排版零件。
  *
- * 版式借自参考项目（编号方块 + 英文小标 + 中文名 + 右侧发丝线；每行 label 左、控件右），
- * 但颜色、字号、圆角全部取自 src/styles/tokens.css —— 借的是分级方式，不是它的视觉。
+ * 版式：一行 label 左、控件右。颜色、字号、圆角全部取自 src/styles/tokens.css。
  *
- * 页面标题由外壳（App.tsx 的 main__header）打印，这里只负责分区内的层级，
- * 所以没有 h1，编号方块本身就是顺序提示。
+ * 页面标题由外壳（App.tsx 的 main__header）打印，这里只负责分区内的层级。
  */
 
 interface PartProps {
-  /** 两位编号，显示为深色小方块里的数字。 */
-  num: string
-  /** 编号旁的小号英文小标。 */
-  en: string
   /** 分区中文名。 */
   zh: string
   children: ReactNode
 }
 
-/** 一个编号分区。 */
-export function Part({ num, en, zh, children }: PartProps) {
+/**
+ * 一个分区。
+ *
+ * 以前这里带两位编号和英文小标（01 / PLAYBACK & QUALITY / 播放与音质），那是
+ * 借参考项目的分级方式。可这一页只有五块、各自标题已经说清是什么，编号只增加
+ * 阅读负担。现在与首页共用 .rh-sec 的分区头：中文短语一行。
+ */
+export function Part({ zh, children }: PartProps) {
   return (
-    <section className="set-part" aria-label={`${num} ${zh}`}>
-      <header className="set-part__head">
-        <span className="set-part__num">{num}</span>
-        <span className="set-part__en">{en}</span>
-        <h2 className="set-part__title">{zh}</h2>
-        <span className="set-part__rule" aria-hidden="true" />
+    <section className="rh-sec set-part" aria-label={zh}>
+      <header className="rh-sec__head">
+        <h3>{zh}</h3>
       </header>
       <div className="set-part__body">{children}</div>
     </section>

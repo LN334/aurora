@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccountView } from './views/AccountView'
+import { CollectionsView } from './views/CollectionsView'
 import { AlbumDetail } from './views/AlbumDetail'
 import { AlbumGrid } from './views/AlbumGrid'
 import { ArtistList } from './views/ArtistList'
+import { ArtistView } from './views/ArtistView'
 import { EqPanel } from './views/EqPanel'
 import { FolderTree } from './views/FolderTree'
-import { NeteaseView } from './features/netease/NeteaseView'
-import { QqView } from './features/qq/QqView'
+import { DailyView } from './views/DailyView'
+import { LikedView } from './views/LikedView'
+import { LocalView } from './views/LocalView'
+import { PlaylistsView } from './views/PlaylistsView'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/PlayerBar'
 import { PlaylistDetail } from './views/PlaylistDetail'
@@ -17,7 +21,7 @@ import { TitleBar } from './app/TitleBar'
 import { TrackList, type TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
 import { TrackMenu } from './views/TrackMenu'
-import { ChevronLeft, Close, Plus, Refresh } from './ui/icons'
+import { ChevronLeft, Close, Expand, Plus, Queue, Refresh } from './ui/icons'
 import { bridge, isNative } from './bridge'
 import { demoLibrary } from './features/library/demo'
 import { useLyrics, usePalette } from './features/library/hooks'
@@ -40,7 +44,18 @@ import { useWallpaper } from './features/wallpaper/store'
 import { LyricsStage } from './stage/LyricsStage'
 import type { OverlayStatus } from './env'
 import type { Track } from './types'
-import { LIBRARY_VIEWS, VIEW_TITLES, initialRoute, type Route } from './app/routing'
+import { LIBRARY_VIEWS, type Route } from './app/routing'
+import {
+  SHELL_TITLES,
+  initialShell,
+  routeToShell,
+  sameShell,
+  shellFromHash,
+  shellToHash,
+  shellToRoute,
+  type ShellRoute,
+  type ShellView
+} from './app/shell'
 import { useKeyboardShortcuts } from './app/useKeyboardShortcuts'
 import { useTrackActions } from './app/useTrackActions'
 import { SearchView } from './app/search/SearchView'
@@ -59,8 +74,12 @@ import { usePlaylistFiles } from './features/playlists/io'
 import { EmptyLibrary } from './views/EmptyLibrary'
 import { CollectionView } from './views/CollectionView'
 import { LibraryView } from './views/LibraryView'
-import { HomeView } from './features/home/HomeView'
+import { HomeView } from './views/HomeView'
 import { Sources } from './views/Sources'
+import { RecentView } from './views/RecentView'
+import { TrackView } from './views/TrackView'
+import { NowPlaying } from './views/NowPlaying'
+import { ModsView } from './views/ModsView'
 
 /**
  * One entry in the navigation stack. Keeping the artist drill-down in the route
@@ -101,9 +120,12 @@ export function App() {  if (!isNative) {
     ;(window as Window & { __auroraRenders?: number }).__auroraRenders = appRenders
   }
 
-  const [stack, setStack] = useState<Route[]>(() => [initialRoute()])
+  const [stack, setStack] = useState<ShellRoute[]>(() => [initialShell()])
   const [cursor, setCursor] = useState(0)
-  const route = stack[cursor] ?? { view: 'albums' }
+  /** 外壳路由：人在哪一页。左栏高亮、页头标题、地址栏都由它决定。 */
+  const shell = stack[cursor] ?? { view: 'home' as ShellView }
+  /** 页面组件仍然只认旧参数；这一层翻译让它们暂时不用改。 */
+  const route = useMemo(() => shellToRoute(shell), [shell])
   const view = route.view
 
   const [collapsed, setCollapsed] = useState(false)
@@ -204,21 +226,16 @@ export function App() {  if (!isNative) {
     return () => window.removeEventListener('focus', onFocus)
   }, [wallpaperEnabled, refreshWallpaper])
 
-  const navigate = useCallback(
-    (next: Route) => {
+  /**
+   * 外壳导航。地址不同才入栈——同一个页面重复点不该长出历史。
+   *
+   * 栈里存的是外壳路由（人在哪一页），页面组件要的参数由 shellToRoute 现算。
+   * 这样「返回」回到的是上一页，而不是上一次取的那份数据。
+   */
+  const goShell = useCallback(
+    (next: ShellRoute) => {
       const current = stack[cursor]
-      if (
-        current &&
-        current.view === next.view &&
-        current.artistId === next.artistId &&
-        current.playlistId === next.playlistId &&
-        current.albumId === next.albumId &&
-        // 音乐库的来源与栏目都住在路由里，所以它们变了就是一次真的导航。
-        current.source === next.source &&
-        current.tab === next.tab
-      ) {
-        return
-      }
+      if (current && sameShell(current, next)) return
       const trimmed = stack.slice(0, cursor + 1)
       setStack([...trimmed, next])
       setCursor(trimmed.length)
@@ -226,6 +243,64 @@ export function App() {  if (!isNative) {
     },
     [stack, cursor]
   )
+
+  /** 页面组件仍按旧 `Route` 说话；这里翻译成外壳路由。 */
+  const navigate = useCallback((next: Route) => goShell(routeToShell(next)), [goShell])
+
+  /**
+   * 漫游：把整个曲库洗一遍，从头放。
+   *
+   * 不做「猜你喜欢」——那要听歌数据才准，这里没有。随机恰好是曲库够大时最好
+   * 用的东西：你总有一批忘了的歌。播的是真实队列，所以「下一首」照常可用。
+   */
+  const roam = useCallback(() => {
+    const all = useLibrary.getState().tracks
+    if (all.length === 0) {
+      setFlash('曲库还是空的，先添加一个音乐文件夹')
+      return
+    }
+    const pool = all.slice()
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      const swap = pool[i]
+      pool[i] = pool[j]
+      pool[j] = swap
+    }
+    player.playQueue(pool, 0)
+    setFlash('漫游：从 ' + pool.length + ' 首里随机开始')
+  }, [setFlash])
+
+  /*
+   * 地址栏跟着走。
+   *
+   * 用 replaceState 而不是 pushState：历史栈由上面那个 stack 管，浏览器的历史
+   * 再记一份会出现「点一次后退走两页」。刷新与分享仍然准确，因为地址就是当前页。
+   */
+  useEffect(() => {
+    const hash = '#' + shellToHash(shell)
+    if (window.location.hash !== hash) {
+      window.history.replaceState(null, '', hash)
+    }
+  }, [shell])
+
+  /* 舞台是外壳里的一页，但画法是浮层：外壳说在舞台，就把浮层打开。 */
+  useEffect(() => {
+    if (shell.view === 'stage') setStageOpen(true)
+  }, [shell.view])
+
+  /* 手改地址或从标题栏前进/后退时，让外壳跟上。 */
+  useEffect(() => {
+    const onHashChange = () => {
+      const parsed = shellFromHash(window.location.hash)
+      if (!parsed) return
+      const current = stack[cursor]
+      if (current && sameShell(current, parsed)) return
+      setStack((prev) => [...prev.slice(0, cursor + 1), parsed])
+      setCursor((c) => c + 1)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [stack, cursor])
 
   const goBack = useCallback(() => setCursor((c) => Math.max(0, c - 1)), [])
   const goForward = useCallback(
@@ -271,7 +346,7 @@ export function App() {  if (!isNative) {
 
       const hash = window.location.hash.replace(/^#/, '')
       if (hash === 'playlist') {
-        setStack([{ view: 'playlists', playlistId: long.id }])
+        setStack([{ view: 'playlist', id: long.id }])
         setCursor(0)
       }
       // Opens the album screen on the first album, so the drill-down can be
@@ -279,7 +354,7 @@ export function App() {  if (!isNative) {
       if (hash === 'album') {
         const first = groupAlbums(demoLibrary)[0]
         if (first) {
-          setStack([{ view: 'albums', albumId: first.id }])
+          setStack([{ view: 'album', id: first.id }])
           setCursor(0)
         }
       }
@@ -496,7 +571,7 @@ export function App() {  if (!isNative) {
    * of itself ("按唱片整理"), which is the kind of text you read once and then
    * scroll past forever.
    */
-  const headTitle = route.artistId ? (band?.artist?.name ?? '艺术家') : VIEW_TITLES[view]
+  const headTitle = shell.view === 'artist' ? (band?.artist?.name ?? '艺术家') : SHELL_TITLES[shell.view]
   /*
    * Only scan state belongs here now. The header used to also report "N tracks"
    * while the shell's field was filtering the library in place; filtering moved to
@@ -547,13 +622,67 @@ export function App() {  if (!isNative) {
   }, [navigate])
 
   const body = () => {
+    // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
+    if (shell.view === 'home') {
+      return <HomeView onNavigate={goShell} />
+    }
+    if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={setTrackMenu} />
+    if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={setTrackMenu} />
+    if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={setTrackMenu} />
+    if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
+    if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
+    if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={setTrackMenu} />
+    if (shell.view === 'mods') return <ModsView />
+    if (shell.view === 'nowplaying') {
+      return (
+        <NowPlaying
+          track={track}
+          lyrics={lyrics}
+          duration={duration}
+          playing={playing}
+          onBack={goBack}
+          onSeek={(seconds) => player.seekTo(seconds)}
+          onSeekRatio={(ratio) => player.seekRatio(ratio)}
+          onOpenStage={() => setStageOpen(true)}
+        />
+      )
+    }
+    if (shell.view === 'track' && shell.id) {
+      return (
+        <TrackView
+          id={shell.id}
+          onNavigate={navigate}
+          onOpenNow={(at) => {
+            goShell({ view: 'nowplaying' })
+            if (typeof at === 'number') player.seekTo(at)
+          }}
+        />
+      )
+    }
+    if (shell.view === 'artist' && shell.id) {
+      const found = artists.find((item) => item.id === shell.id) ?? null
+      if (found) {
+        const own = tracks.filter((item) => item.albumArtist === found.name)
+        const ownAlbums = albums.filter((item) => found.albumIds.includes(item.id))
+        return (
+          <ArtistView
+            artist={found}
+            albums={ownAlbums}
+            tracks={own}
+            currentId={track?.id ?? null}
+            playing={playing}
+            onPlayAt={(index) => player.playQueue(own, index)}
+            onOpenAlbum={(id) => goShell({ view: 'album', id })}
+            onMenu={setTrackMenu}
+          />
+        )
+      }
+    }
     if (view === 'sources') return <Sources roots={roots} onAdd={addFolders} onRemove={remove} busy={busy} />
     if (view === 'settings') return <SettingsView />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
-    // 一级入口：发现（有什么可听，未登录也有内容）。
-    if (view === 'discover') return <HomeView onNavigate={navigate} />
     // 一级入口：音乐库（磁盘上的文件：歌曲 / 专辑 / 艺术家 / 文件夹）。
     if (view === 'library') {
       return (
@@ -577,15 +706,9 @@ export function App() {  if (!isNative) {
         />
       )
     }
-    // The online source stands on its own: its tracks never enter the library
-    // store, so it must stay reachable with an empty local library - hence
-    // before the `tracks.length === 0` check below.
-    // 平台页现在从主页的「我的音乐」进来，route.tab 是它要直接打开的那个栏目
-    // （每日推荐 / 我喜欢的音乐 / 音乐云盘 / 我的歌单）。
-    if (view === 'netease') return <NeteaseView collection={route.tab} />
-    // A second platform is the same kind of destination: one line here, because the
-    // screen itself is shared and driven by the provider's declared capabilities.
-    if (view === 'qq') return <QqView />
+    // 平台不是目的地。网易云、QQ、酷狗都只是来源，内容分别落进推荐、我喜欢的、
+    // 歌单与搜索里；这两个旧地址统一落到歌单页，旧书签点了不至于白屏。
+    if (view === 'netease' || view === 'qq') return <PlaylistsView onNavigate={goShell} />
     // 账号（谁在用、登了哪些平台）是单独一页：它不是偏好设置，而是侧栏底部
     // 那张头像点进来的地方。页面内容见 src/views/AccountView.tsx。
     if (view === 'accounts') return <AccountView onNavigate={navigate} />
@@ -717,7 +840,7 @@ export function App() {  if (!isNative) {
       <div
         className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
           wallpaperEntry ? ' has-wallpaper' : ''
-        }`}
+        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}`}
         // The veil opacity is CSS's business; the level itself is data.
         style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
       >
@@ -748,44 +871,56 @@ export function App() {  if (!isNative) {
         />
 
         <Rail
-          route={route}
-          onNavigate={navigate}
+          route={shell}
+          onNavigate={goShell}
+          onRoam={roam}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           profileLabel={activeAccount?.label ?? null}
-          onOpenProfile={() => navigate({ view: 'accounts' })}
+          onOpenProfile={() => goShell({ view: 'me' })}
         />
 
         <main className="main">
-          <div className="main__header">
-            {route.artistId ? (
+          <div className="main__header" hidden={shell.view === 'home'}>
+            {shell.view === 'artist' ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'library', source: 'local', tab: 'artists' })}
-                title="返回艺术家列表"
-                aria-label="返回艺术家列表"
+                onClick={() => goShell({ view: 'local' })}
+                title="返回本机音乐"
+                aria-label="返回本机音乐"
               >
                 <ChevronLeft size={18} />
               </button>
             ) : null}
 
-            {route.playlistId ? (
+            {shell.view === 'nowplaying' || shell.view === 'track' ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'library', source: 'local', tab: 'playlists' })}
-                title="返回播放列表"
-                aria-label="返回播放列表"
+                onClick={goBack}
+                title="返回"
+                aria-label="返回"
               >
                 <ChevronLeft size={18} />
               </button>
             ) : null}
 
-            {route.albumId ? (
+            {shell.view === 'playlist' ? (
               <button
                 className="icon-btn"
-                onClick={() => navigate({ view: 'library', source: 'local', tab: 'albums' })}
-                title="返回专辑列表"
-                aria-label="返回专辑列表"
+                onClick={() => goShell({ view: 'playlists' })}
+                title="返回歌单"
+                aria-label="返回歌单"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            ) : null}
+
+            {shell.view === 'album' ? (
+              <button
+                className="icon-btn"
+                onClick={() => goShell({ view: 'local' })}
+                title="返回本机音乐"
+                aria-label="返回本机音乐"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -797,6 +932,18 @@ export function App() {  if (!isNative) {
             </div>
 
             <div className="main__tools">
+              {shell.view === 'nowplaying' ? (
+                <button className="btn" onClick={() => setQueueOpen((open) => !open)} title="播放队列">
+                  <Queue size={15} />
+                  队列
+                </button>
+              ) : null}
+              {shell.view === 'nowplaying' ? (
+                <button className="btn" onClick={() => setStageOpen(true)} title="舞台 (L)">
+                  <Expand size={15} />
+                  舞台
+                </button>
+              ) : null}
               {/*
                 The library's own actions only belong to the library.
                 "Rescan" and "add folder" are about files on this disk, so they
@@ -868,6 +1015,7 @@ export function App() {  if (!isNative) {
           onToggleMute={() => player.toggleMute()}
           onToggleShuffle={() => player.toggleShuffle()}
           onCycleRepeat={() => player.cycleRepeat()}
+          onOpenNow={() => goShell({ view: 'nowplaying' })}
           onOpenStage={() => setStageOpen(true)}
           // The two side panels occupy the same slot, so opening one closes
           // the other rather than stacking them.
@@ -917,6 +1065,11 @@ export function App() {  if (!isNative) {
           y={trackMenu.y}
           playlists={playlists.map((playlist) => ({ id: playlist.id, name: playlist.name }))}
           onClose={() => setTrackMenu(null)}
+          onOpenDetail={() => {
+            const target = trackMenu.track
+            setTrackMenu(null)
+            goShell({ view: 'track', id: target.id })
+          }}
           onPlayNext={() => {
             player.addToQueue([trackMenu.track], 'next')
             setTrackMenu(null)
@@ -961,7 +1114,10 @@ export function App() {  if (!isNative) {
           onSeek={(seconds) => player.seekTo(seconds)}
           onSeekRatio={(ratio) => player.seekRatio(ratio)}
           onToggle={() => player.toggle()}
-          onClose={() => setStageOpen(false)}
+          onClose={() => {
+          setStageOpen(false)
+          if (shell.view === 'stage') goShell({ view: 'home' })
+        }}
         />
       ) : null}
     </>

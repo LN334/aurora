@@ -81,6 +81,8 @@ interface PlayerBarProps {
   onToggleMute(): void
   onToggleShuffle(): void
   onCycleRepeat(): void
+  /** 点封面进「正在播放」；舞台是另一页，走它自己的键与按钮。 */
+  onOpenNow(): void
   onOpenStage(): void
   onToggleEq(): void
   onOpenQueue(): void
@@ -107,6 +109,7 @@ export function PlayerBar({
   onToggleMute,
   onToggleShuffle,
   onCycleRepeat,
+  onOpenNow,
   onOpenStage,
   onToggleEq,
   onOpenQueue,
@@ -121,7 +124,7 @@ export function PlayerBar({
         {/* Clicking the artwork is the conventional way into an immersive view. */}
         <button
           className="now__art"
-          onClick={onOpenStage}
+          onClick={onOpenNow}
           disabled={!track}
           title={track ? '沉浸模式 (L)' : undefined}
           aria-label="打开沉浸模式"
@@ -213,6 +216,15 @@ export function PlayerBar({
           aria-pressed={desktopLyricsOpen}
         >
           <DesktopLyrics size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={onOpenStage}
+          title="沉浸模式 (L)"
+          data-tip="舞台"
+          aria-label="打开舞台"
+        >
+          <Expand size={17} />
         </button>
         <button
           className="icon-btn"

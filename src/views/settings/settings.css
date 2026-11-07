@@ -665,3 +665,42 @@
     max-width: 42ch;
   }
 }
+
+
+/* =============================================================================
+   与新外壳对齐：分区头交给 .rh-sec，行本身变成一张淡卡
+   ========================================================================== */
+
+.set-part {
+  margin-bottom: 30px;
+}
+
+.settings__row {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgb(255 255 255 / 0.06);
+  background: rgb(255 255 255 / 0.035);
+}
+.settings__row:hover {
+  background: rgb(255 255 255 / 0.055);
+}
+
+.set-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.set-rows > .settings__row:first-child {
+  border-top: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.settings__label {
+  font-size: 14px;
+}
+
+.set-sub__title {
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-hi);
+}

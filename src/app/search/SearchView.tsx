@@ -7,15 +7,11 @@ import type { Track } from '../../types'
 import { searchResultsFor, searchSources, useSearch } from '../search/store'
 
 /**
- * The search screen: one query, an explicit source, results from that source.
+ * 搜索页：一个词，挑一个范围，只从那个范围里出结果。
  *
- * The source tabs are generated from the provider registry, so the screen offers
- * exactly the catalogues this build can serve: local, plus one per registered
- * platform that declares search. Nothing here names a platform, and adding one adds
- * a tab without touching this file.
- *
- * Both kinds of source answer with the same `Track` shape - a platform maps its own
- * songs - so one list renders them all and the transport needs no special case.
+ * 范围切片来自音源注册表，所以这里不点名任何平台——多注册一个平台就多一颗
+ * 切片，不必改这个文件。两种范围的返回都是同一个 Track 形状，因此一张列表
+ * 就能渲染全部，播放器也不用为谁开特例。
  */
 export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void }) {
   const query = useSearch((s) => s.query)
@@ -29,8 +25,7 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
 
-  // Opening the screen is what decides the source on a first visit; the store
-  // cannot decide it earlier without guessing at import order.
+  // 打开这一页时才决定范围；store 自己决定不了，导入顺序里没有这个信息。
   useEffect(() => {
     useSearch.getState().resolveSource()
   }, [])
@@ -46,31 +41,33 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
 
   const switchTo = (next: string) => {
     useSearch.getState().setSource(next)
-    // Local also stays current as you type, so switching tabs never shows a stale
-    // answer for the same text.
+    // 本机也是边打边出，所以换范围要重跑一次，不然同一个词会看到上一次的答案。
     void useSearch.getState().submit(tracks)
   }
 
   const showEmpty = submitted && !searching && rows.length === 0
 
   return (
-    <div className="search-view">
-      {/* 搜索页的「范围」和音乐库的「来源」问的是同一个问题，所以用同一组标签页
-          样式：一页里不该有第二种画法的 tab。 */}
-      <div className="tabs tabs--sources" role="tablist" aria-label="搜索范围">
+    <div className="col srch">
+      <header className="rh-sec__head">
+        <h3>在哪儿找</h3>
+        <span className="srch__hint">
+          {active?.remote ? '在线范围要按回车，本机范围边打边出' : '只在这台电脑已有的文件里找'}
+        </span>
+      </header>
+
+      <div className="srch__chips" role="tablist" aria-label="搜索范围">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
             aria-selected={source === tab.id}
-            className={`tab${source === tab.id ? ' is-active' : ''}`}
+            className={`srch-chip${source === tab.id ? ' is-on' : ''}`}
             onClick={() => switchTo(tab.id)}
             title={tab.note}
-            data-remote={tab.remote ? 'true' : undefined}
           >
             {tab.label}
-            {/* A count only once that source has answered, so "0" never means
-                "not asked yet". */}
+            {/* 只有已经答过的范围才配数字，免得 0 被读成「问过了没有」。 */}
             {submitted && source === tab.id ? (
               <em className="tnum">{rows.length}</em>
             ) : (results[tab.id]?.length ?? 0) > 0 ? (
@@ -78,7 +75,7 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
             ) : null}
           </button>
         ))}
-        <button className="btn btn--small search-view__go" onClick={submit} disabled={searching}>
+        <button className="rh-btn" onClick={submit} disabled={searching}>
           {searching ? '搜索中…' : '搜索'}
         </button>
       </div>
@@ -90,41 +87,29 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
       ) : null}
 
       {searching ? (
-        <div className="empty">
-          <div className="empty__art">
-            <em className="tnum">…</em>
-          </div>
-          <h2>正在搜索{active?.label}</h2>
-        </div>
+        <p className="pg-note">正在搜索{active?.label}…</p>
       ) : showEmpty ? (
-        <div className="empty">
-          <div className="empty__art">
-            <em className="tnum">0</em>
-          </div>
+        <div className="srch__empty">
           <h2>{query.trim() ? `没有找到「${query.trim()}」` : '先输入要搜的内容'}</h2>
-          <p className="search-view__hint">
+          <p className="pg-note">
             {active?.remote
               ? `在线搜索是向${active.label}发送一次请求，所以要点「搜索」或按回车。`
               : '本机搜索只在这台电脑已有的文件里找，边打边出结果。'}
           </p>
         </div>
       ) : !submitted && query.trim() ? (
-        <div className="empty">
-          <div className="empty__art">
-            <em className="tnum">⏎</em>
-          </div>
+        <div className="srch__empty">
           <h2>按回车搜索「{query.trim()}」</h2>
-          <p className="search-view__hint">搜索{active?.label}需要联网，所以不会边打边搜。</p>
+          <p className="pg-note">搜索{active?.label}需要联网，所以不会边打边搜。</p>
         </div>
       ) : (
         <>
           {/*
-            With more than one catalogue in play, a results list has to say where
-            each row came from - that was a known gap while only one online platform
-            existed, and it is what the source reference on each track answers.
+            同时开着几个音源时，结果列表必须说清楚每行从哪来——只有一个在线
+            平台时这是个已知缺口，现在由每行的来源标回答。
           */}
           {tabs.filter((tab) => tab.remote).length > 1 ? (
-            <div className="search-view__legend">结果来自：{active?.label}</div>
+            <div className="srch__legend">结果来自：{active?.label}</div>
           ) : null}
           <TrackList
             tracks={rows as Track[]}
@@ -138,4 +123,3 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
     </div>
   )
 }
-

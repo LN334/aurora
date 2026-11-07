@@ -67,3 +67,10 @@ shots/
 # Unpacked copy of an installed build, used to diff a shipped version against
 # the repository. Temporary by nature; the extract is 60+ MB.
 .installed*/
+
+# 第三方音源服务（KuGouMusicApi）是外部仓库，按需 vendor 进来，不入库。
+vendor/
+
+# 设计过程中的预览页与截图，只在本机看，不进仓库。
+design/
+
