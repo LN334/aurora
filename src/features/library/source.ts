@@ -207,7 +207,28 @@ const kugouSource: TrackSource = {
   lyrics: async () => null
 }
 
-export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource, kugouSource]
+/**
+ * 汽水音乐：同一条接缝。它背后没有本地服务，只有主进程里的一个 SDK，所以对
+ * 播放器来说和 QQ 完全一样。
+ */
+const qishuiSource: TrackSource = {
+  id: 'qishui',
+  name: '汽水音乐（在线）',
+  summary: '第三方逆向接口，仅供个人学习自用；不是官方客户端',
+  online: true,
+
+  streamUrl: (track) => {
+    if (track.onlineId === undefined) return null
+    const stream = cachedStream('qishui', track.onlineId)
+    return stream ? remoteStreamUrl(stream.url) : null
+  },
+
+  artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
+
+  lyrics: async () => null
+}
+
+export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource, kugouSource, qishuiSource]
 
 /** Resolve the source responsible for a track. */
 export function sourceFor(track: Track | null): TrackSource {

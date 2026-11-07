@@ -908,6 +908,121 @@ export interface KugouApi {
   playlistTracks(id: string | number): Promise<KugouSong[]>
 }
 
+// --- 汽水音乐（抖音，第三方逆向接口 + npm SDK）-------------------------------
+//
+// 第四个在线平台，部署形态最简单也最特别：没有本地服务，全部请求由主进程
+// require('qishui-music-api') 直接发出。
+//
+// 两处来自上游的事实，直接写进形状里：
+//   * 所有 id 都是 19 位十进制字符串，超过 JS 安全整数。共享界面按数字取 id，
+//     所以主进程发数字别名（userData/qishui-refs.json 里存双向表），原始字符串放 mid。
+//   * 音质分四档但与另外三家不同名（standard/high/lossless/hires），单独定义。
+
+export type QishuiQuality = 'standard' | 'high' | 'lossless' | 'hires'
+
+/** 复用网易云的原因词汇；界面上四个平台共用一套文案。 */
+export type QishuiFailureReason = NeteaseFailureReason
+
+export interface QishuiArtist {
+  id: number
+  name: string
+}
+
+export interface QishuiAlbumRef {
+  id: number
+  name: string
+  picUrl: string | null
+}
+
+export interface QishuiSong {
+  /** 数字别名，共享界面用它索引；真正的身份在 mid 里。 */
+  id: number
+  /** 上游原始 id，19 位十进制字符串。 */
+  mid: string
+  name: string
+  artists: QishuiArtist[]
+  album: QishuiAlbumRef
+  /** 秒。 */
+  duration: number
+  coverUrl: string | null
+}
+
+export type QishuiStreamResult =
+  | { ok: true; url: string; level: QishuiQuality; br: number; trial: boolean }
+  | { ok: false; reason: QishuiFailureReason; message?: string }
+
+export interface QishuiSearchResult {
+  songs: QishuiSong[]
+}
+
+export interface QishuiAccount {
+  id: string
+  nickname: string
+  avatarUrl: string | null
+}
+
+export interface QishuiStatusResult {
+  ready: boolean
+  loggedIn: boolean
+  detail?: string
+}
+
+/** 待扫的二维码。key 是不透明句柄，轮询用它。 */
+export interface QishuiQrSession {
+  key: string
+  imageDataUrl: string
+}
+
+export interface QishuiQrResult {
+  status: 'waiting' | 'scanned' | 'expired' | 'confirmed' | 'failed'
+  account?: QishuiAccount
+  message?: string
+}
+
+export interface QishuiPlaylistSummary {
+  id: number
+  name: string
+  coverUrl: string | null
+  /** 上游 track_count；0 表示没报，不是「空歌单」。 */
+  trackCount: number
+  creator: string
+}
+
+export interface QishuiArtistProfile {
+  id: number
+  name: string
+  coverUrl: string | null
+  description: string
+  /** 上游 count_tracks；0 表示没报。 */
+  trackCount: number
+}
+
+/**
+ * 汽水的桥。
+ *
+ * 与另外三个平台同一套词汇，但有两点不同：搜索只有歌曲（上游没有专辑/艺人
+ * 搜索），专辑页因此不做；播放地址只有一种真档位（standard），别的高档位
+ * 要会员，失败会按 vip-required 答回来。
+ */
+export interface QishuiApi {
+  setProfile(profileId: string): Promise<boolean>
+  status(): Promise<QishuiStatusResult>
+  search(keywords: string, limit?: number): Promise<QishuiSearchResult>
+  song(id: number): Promise<QishuiSong | null>
+  /** 取播放地址。未登录、需要会员、上游拒绝都按原因作答，不抛错。 */
+  streamUrl(songId: number, quality?: QishuiQuality): Promise<QishuiStreamResult>
+
+  qrCreate(): Promise<QishuiQrSession>
+  qrCheck(key: string): Promise<QishuiQrResult>
+  loginStatus(): Promise<QishuiAccount | null>
+  logout(): Promise<boolean>
+
+  myPlaylists(limit?: number): Promise<QishuiPlaylistSummary[]>
+  playlistTracks(id: number): Promise<QishuiSong[]>
+  artistProfile(id: number): Promise<QishuiArtistProfile | null>
+  artistSongs(artistId: number, limit?: number): Promise<QishuiSong[]>
+}
+
 export interface AuroraApi {
   info(): Promise<{
     version: string
@@ -928,6 +1043,7 @@ export interface AuroraApi {
   netease: NeteaseApi
   qq: QqApi
   kugou: KugouApi
+  qishui: QishuiApi
   wallpaper: WallpaperApi
   maintenance: MaintenanceApi
   window: WindowApi

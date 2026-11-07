@@ -10,6 +10,7 @@ import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
 import { registerNeteaseIpc, warmUpNetease } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
+import { registerQishuiIpc } from './qishui/ipc'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
 import {
@@ -586,6 +587,12 @@ if (!app.requestSingleInstanceLock()) {
      * 时才拉起来（`ensureServer()` 幂等），没人打开酷狗页面就一分钱不花。
      */
     registerKugouIpc()
+
+    /*
+     * 汽水更简单：没有进程要拉起来，SDK 在主进程里 require 就能用，设备 id 与
+     * 会话按档案存在 userData。同样只接线不预热。
+     */
+    registerQishuiIpc()
 
     // One quiet check a day. It only ever reports; nothing is downloaded or
     // applied without the user going to the release page themselves.

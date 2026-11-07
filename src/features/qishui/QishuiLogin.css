@@ -1,0 +1,101 @@
+/*
+ * Qishui's sign-in dialog.
+ *
+ * 规则与 QQ / 酷狗两个对话框相同：同一个视觉对象（一个二维码、一段说明），
+ * 颜色全部从当前封面来的 --accent 与共享令牌里取，这里不设任何色相。
+ * 分开成三个文件只是为了改其中一个时不动另外两个。
+ */
+
+.qishui-login {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--s5);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.qishui-login__panel {
+  width: min(360px, 100%);
+  padding: var(--s5);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-panel);
+  background: var(--ink-800);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
+}
+
+.qishui-login__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.qishui-login__title {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.qishui-login__close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-control);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-low);
+}
+
+.qishui-login__close:hover {
+  color: var(--text-hi);
+  background: var(--ink-700);
+}
+
+.qishui-login__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  text-align: center;
+}
+
+.qishui-login__code {
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 200px;
+  padding: var(--s2);
+  border-radius: var(--r-panel);
+  background: #fff;
+}
+
+.qishui-login__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qishui-login__placeholder {
+  padding: var(--s3);
+  font-size: var(--fs-meta);
+  color: #444;
+  line-height: 1.5;
+}
+
+.qishui-login__hint {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+.qishui-login__note {
+  margin: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  line-height: 1.5;
+}

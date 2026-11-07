@@ -244,7 +244,7 @@ const qqBackend: PlatformBackend = {
  const qqProvider: OnlineMusicProvider = {
   id: 'qq',
   displayName: 'QQ 音乐',
-  shortName: 'QQ 音乐',
+  shortName: 'QQ',
   summary: '搜索并播放 QQ 音乐上的歌曲；高音质需要登录，付费曲目只如实显示原因',
   disclosure:
     '通过第三方逆向接口（qq-music-api）接入，仅供个人学习自用，不是官方客户端，也不提供绕过付费或会员的能力。',

@@ -100,6 +100,7 @@
     "@sansenjian/qq-music-api": "^2.6.0",
     "electron-updater": "^6.8.9",
     "music-metadata": "^11.9.0",
+    "qishui-music-api": "^0.2.2",
     "webwallgl": "^3.0.1"
   },
   "devDependencies": {

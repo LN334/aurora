@@ -240,8 +240,25 @@ export function takenDown(label?: string): ProviderSongAvailability {
   logoutProfile?(profileId: string): Promise<boolean>
 }
 
+/**
+ * 艺人页顶部那几行字。
+ *
+ * 只有名字和热门歌曲是每家平台都有的；简介、头像、专辑数按平台能给多少给多少，
+ * 缺的用 0 或空串表示「上游没报」，页面据此退化成一行名字。
+ */
+export interface OnlineArtistProfile {
+  id: number
+  name: string
+  brief: string
+  coverUrl: string | null
+  albumCount: number
+  songCount: number
+}
+
  interface ProviderCatalogApi {
   album(id: number): Promise<{ id: number; name: string; coverUrl: string | null; songs: OnlineSong[] } | null>
+  /** 可选：没有这个接口的平台，艺人页只显示热门歌曲。 */
+  artist?(id: number): Promise<OnlineArtistProfile | null>
   artistTopSongs(id: number, limit?: number): Promise<OnlineSong[]>
   playlistTracks(id: number): Promise<OnlineSong[]>
   myPlaylists?(): Promise<OnlinePlaylistSummary[]>

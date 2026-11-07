@@ -3,6 +3,7 @@ import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
 import { getProvider } from '../features/online/registry'
 import { useOnlineStore, type PlatformBackend } from '../features/online/store'
+import type { ProviderId } from '../features/online/types'
 import { toTrack } from '../features/netease/track'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
@@ -257,6 +258,12 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
 
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
+  const platform = getProvider(providerId as ProviderId)
+  /*
+   * 「全部歌曲」与「专辑」两个 tab 目前只有网易云有分页与专辑墙接口；
+   * 别的平台只出热门，隐藏两个点进去必然空的 tab。
+   */
+  const fullPages = providerId === 'netease'
 
   useEffect(() => {
     let live = true
@@ -267,19 +274,25 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
     setTab('hot')
 
     const load = async () => {
-      if (providerId !== 'netease') {
+      /*
+       * 走统一层而不是点名网易云：热门歌曲每家平台都有，简介/头像/计数是可选的。
+       * 没有简介的平台也照样出页——名字从热门歌曲里认，比整页报错有用。
+       */
+      const platform = getProvider(providerId as ProviderId)
+      const backend = platform?.backend as PlatformBackend | undefined
+      if (!platform?.catalog?.artistTopSongs || !backend) {
         setError('这个平台还没有艺人页的取数接口')
         return
       }
       try {
         const [detail, songs] = await Promise.all([
-          bridge.netease.artistDetail(id),
-          bridge.netease.artistTopSongs(id, 50)
+          platform.catalog.artist ? platform.catalog.artist(id).catch(() => null) : Promise.resolve(null),
+          platform.catalog.artistTopSongs(id, 50)
         ])
         if (!live) return
         if (detail) {
           setName(detail.name)
-          setBrief(detail.briefDesc)
+          setBrief(detail.brief)
           setCover(detail.coverUrl)
           setCounts({ albums: detail.albumCount, songs: detail.songCount })
         }
@@ -287,7 +300,8 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
           setError('这位艺人没有取到歌曲')
           return
         }
-        setHot(songs.map((song: NeteaseSong) => toTrack(song)))
+        const toTrackFor = backend.toTrack as (song: never) => Track
+        setHot(songs.map((song) => toTrackFor(song as never)))
         if (!detail) {
           const singer = songs[0]?.artists.find((entry) => entry.id === id)
           setName(singer?.name ?? songs[0]?.artists[0]?.name ?? '艺人')
@@ -295,7 +309,7 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
            * 老接口不带头像，就把搜索里认出这个人当作头像来源——名字与 id 都对
            * 上才算，认不到宁可留空，也不拿首曲的专辑封面冒充。
            */
-          if (singer?.name) {
+          if (providerId === 'netease' && singer?.name) {
             const found = await bridge.netease.search(singer.name, 'artist', 10)
             if (!live) return
             setCover(found.artists.find((entry) => entry.id === id)?.picUrl ?? null)
@@ -357,10 +371,17 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
           {cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={32} />}
         </div>
         <div className="ol-hero__text">
-          <span className="ol-hero__kicker">网易云音乐 · 艺人</span>
+          <span className="ol-hero__kicker">{platform?.displayName ?? '在线平台'} · 艺人</span>
           <h1 className="ol-hero__title">{name || ' '}</h1>
           <p className="ol-hero__meta">
-            {counts ? `${counts.albums} 张专辑 · ${counts.songs} 首歌` : `热门 ${hot.length} 首`}
+            {counts
+              ? [
+                  counts.albums > 0 ? `${counts.albums} 张专辑` : '',
+                  counts.songs > 0 ? `${counts.songs} 首歌` : ''
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : `热门 ${hot.length} 首`}
           </p>
           {brief ? <p className="ol-hero__brief">{brief}</p> : null}
           <div className="ol-hero__acts">
@@ -377,35 +398,41 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
         </div>
       </header>
 
-      <div className="ol-tabs" role="tablist">
-        <button
-          className={`ol-tab${tab === 'hot' ? ' is-on' : ''}`}
-          type="button"
-          role="tab"
-          aria-selected={tab === 'hot'}
-          onClick={() => setTab('hot')}
-        >
-          热门 50 首
-        </button>
-        <button
-          className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
-          type="button"
-          role="tab"
-          aria-selected={tab === 'all'}
-          onClick={() => setTab('all')}
-        >
-          全部歌曲{counts ? ` ${counts.songs}` : ''}
-        </button>
-        <button
-          className={`ol-tab${tab === 'albums' ? ' is-on' : ''}`}
-          type="button"
-          role="tab"
-          aria-selected={tab === 'albums'}
-          onClick={() => setTab('albums')}
-        >
-          专辑{counts ? ` ${counts.albums}` : ''}
-        </button>
-      </div>
+      {fullPages ? (
+        <div className="ol-tabs" role="tablist">
+          <button
+            className={`ol-tab${tab === 'hot' ? ' is-on' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === 'hot'}
+            onClick={() => setTab('hot')}
+          >
+            热门 50 首
+          </button>
+          <button
+            className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === 'all'}
+            onClick={() => setTab('all')}
+          >
+            全部歌曲{counts ? ` ${counts.songs}` : ''}
+          </button>
+          <button
+            className={`ol-tab${tab === 'albums' ? ' is-on' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === 'albums'}
+            onClick={() => setTab('albums')}
+          >
+            专辑{counts ? ` ${counts.albums}` : ''}
+          </button>
+        </div>
+      ) : (
+        <p className="pg-note">
+          热门 {hot.length} 首{counts?.songs ? ` · 这位艺人在这个平台共 ${counts.songs} 首歌` : ''}
+        </p>
+      )}
 
       {error ? <p className="pg-note">{error}</p> : null}
 

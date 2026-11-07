@@ -238,6 +238,18 @@ export const neteaseBackend: PlatformBackend = {
       const album = await netease.album(id)
       return album ? { id: album.id, name: album.name, coverUrl: album.coverUrl, songs: album.songs } : null
     },
+    artist: async (id) => {
+      const detail = await netease.artistDetail(id)
+      if (!detail) return null
+      return {
+        id,
+        name: detail.name,
+        brief: detail.briefDesc,
+        coverUrl: detail.coverUrl,
+        albumCount: detail.albumCount,
+        songCount: detail.songCount
+      }
+    },
     artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
     playlistTracks: (id) => netease.playlistTracks(id),
     myPlaylists: () => netease.myPlaylists() as Promise<OnlinePlaylistSummary[]>

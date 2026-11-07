@@ -297,6 +297,25 @@ const webFallback: AuroraApi = {
     myPlaylists: async () => [],
     playlistTracks: async () => []
   },
+  qishui: {
+    /*
+     * 浏览器里没有主进程，也就没有那个 SDK。这个对象只为满足类型；available()
+     * 读 window.aurora.qishui（浏览器里是 null），预览里因此不出现汽水入口。
+     */
+    status: async () => ({ ready: false, loggedIn: false, detail: '浏览器预览模式没有汽水后端' }),
+    setProfile: async () => true,
+    search: async () => ({ songs: [] }),
+    song: async () => null,
+    streamUrl: async () => ({ ok: false, reason: 'service-unavailable' }),
+    qrCreate: async () => ({ key: 'preview', imageDataUrl: '' }),
+    qrCheck: async () => ({ status: 'waiting' }),
+    loginStatus: async () => null,
+    logout: async () => true,
+    myPlaylists: async () => [],
+    playlistTracks: async () => [],
+    artistProfile: async () => null,
+    artistSongs: async () => []
+  },
   wallpaper: {
     /*
      * A browser tab has no main process, so there is no Wallpaper Engine

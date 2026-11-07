@@ -383,6 +383,36 @@ const api = {
 
     myPlaylists: (limit?: number) => ipcRenderer.invoke('kugou:myPlaylists', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id)
+  },
+
+  /*
+   * 汽水走的是主进程里 require 的第三方 SDK（qishui-music-api），没有本地服务。
+   * 页面这里看到的东西和另外三个平台一样：搜索给歌、登录给二维码、取流给地址
+   * 或原因。设备 id 与会话都留在主进程的 userData 里。
+   *
+   * id 是主进程发的数字别名——上游是 19 位字符串，超过 JS 安全整数。
+   */
+  qishui: {
+    setProfile: (profileId: string) =>
+      ipcRenderer.invoke('qishui:setProfile', profileId) as Promise<boolean>,
+
+    status: () => ipcRenderer.invoke('qishui:status'),
+    search: (keywords: string, limit?: number) =>
+      ipcRenderer.invoke('qishui:search', { keywords, limit }),
+    song: (id: number) => ipcRenderer.invoke('qishui:song', id),
+    streamUrl: (songId: number, quality?: string) =>
+      ipcRenderer.invoke('qishui:streamUrl', { songId, quality }),
+
+    qrCreate: () => ipcRenderer.invoke('qishui:qrCreate'),
+    qrCheck: (key: string) => ipcRenderer.invoke('qishui:qrCheck', key),
+    loginStatus: () => ipcRenderer.invoke('qishui:loginStatus'),
+    logout: () => ipcRenderer.invoke('qishui:logout'),
+
+    myPlaylists: (limit?: number) => ipcRenderer.invoke('qishui:myPlaylists', limit),
+    playlistTracks: (id: number) => ipcRenderer.invoke('qishui:playlistTracks', id),
+    artistProfile: (id: number) => ipcRenderer.invoke('qishui:artistProfile', id),
+    artistSongs: (artistId: number, limit?: number) =>
+      ipcRenderer.invoke('qishui:artistSongs', { artistId, limit })
   }
 }
 

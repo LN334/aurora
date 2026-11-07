@@ -1,5 +1,6 @@
 import { registerNeteaseProvider } from '../netease/provider'
 import { registerKugouProvider } from './kugou-provider'
+import { registerQishuiProvider } from './qishui-provider'
 import { registerQqProvider } from './qq-provider'
 
 /**
@@ -25,4 +26,5 @@ export function registerProviders(): void {
   registerNeteaseProvider()
   registerQqProvider()
   registerKugouProvider()
+  registerQishuiProvider()
 }
