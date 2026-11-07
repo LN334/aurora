@@ -179,11 +179,6 @@
   text-decoration: none;
 }
 
-/* 档案那一节直接复用 AccountsView；它的 max-width 是为整页准备的，在分区里放开。 */
-.set-accounts .accounts {
-  max-width: none;
-}
-
 /* update 面板自带的上边距与边线是为旧分组写的；放进分区抬头下面时去掉。 */
 .set-part__body .update {
   padding-top: 0;
@@ -495,15 +490,6 @@
   color: var(--text-low);
   font-size: var(--fs-meta);
   line-height: 1.6;
-}
-
-/* 账号页：与设置页同一个版心宽度与分区间距，只是分区少、抬头是页面标题。 */
-.account-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s6);
-  max-width: 800px;
-  padding-bottom: var(--s7);
 }
 
 /* ---- 壁纸自带的可调项 ---- */

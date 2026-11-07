@@ -15,9 +15,18 @@ import { execFileSync } from 'node:child_process'
 import ts from 'typescript'
 
 const root = process.cwd()
-const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+/*
+ * 用 --others --exclude-standard 把还没 git add 的新文件也列进来，再用 existsSync
+ * 去掉已经删掉但还没暂存的文件。少了后半句，删一个文件就会让下面读文件时 ENOENT；
+ * 少了前半句，新文件对审计不存在，它用到的 class / 符号会被报成「没人用」。
+ */
+const tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+  cwd: root,
+  encoding: 'utf8'
+})
   .split('\n')
   .filter(Boolean)
+  .filter((file) => fs.existsSync(path.join(root, file)))
 
 /*
  * Declaration files are excluded: `.d.ts` describes types to the compiler and is

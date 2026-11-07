@@ -20,14 +20,71 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
 const root = process.cwd()
-const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+/*
+ * 用 --others --exclude-standard 把还没 git add 的新文件也列进来，再用 existsSync
+ * 去掉已经删掉但还没暂存的文件。少了后半句，删一个文件就会让下面读文件时 ENOENT；
+ * 少了前半句，新文件对审计不存在，它用到的 class / 符号会被报成「没人用」。
+ */
+const tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+  cwd: root,
+  encoding: 'utf8'
+})
   .split('\n')
   .filter(Boolean)
+  .filter((file) => fs.existsSync(path.join(root, file)))
 
 const cssFiles = tracked.filter((file) => /\.css$/.test(file))
 const codeFiles = tracked.filter((file) => /\.(ts|tsx|mjs|cjs|html)$/.test(file))
 
-const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, ' ')
+/**
+ * Comments, with one twist: an opener inside a string is not a comment.
+ * `accept="image/*"` is real code (the avatar file input), and the old
+ * regex stripped from there to the next closer - swallowing 40 lines of
+ * JSX, which is how `.acct-edit` and `.acct-name` were reported as dead.
+ * Quotes are tracked so an opener only counts outside them. JSX prose is
+ * not quoted, so an apostrophe there may keep a line alive: that errs
+ * toward reporting fewer dead selectors, never more.
+ */
+const stripComments = (text) => {
+  const TICK = String.fromCharCode(96)
+  let out = ''
+  let i = 0
+  let quote = ''
+  while (i < text.length) {
+    const ch = text[i]
+    if (quote) {
+      out += ch
+      if (ch === '\\') {
+        out += text[i + 1] ?? ''
+        i += 2
+        continue
+      }
+      if (ch === quote) quote = ''
+      i += 1
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === TICK) {
+      quote = ch
+      out += ch
+      i += 1
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2)
+      i = end === -1 ? text.length : end + 2
+      out += ' '
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '/') {
+      const end = text.indexOf('\n', i + 2)
+      i = end === -1 ? text.length : end
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
 
 /**
  * File-extension-looking matches are not class selectors.
