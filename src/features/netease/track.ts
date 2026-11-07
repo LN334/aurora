@@ -52,6 +52,8 @@ export function toTrack(song: NeteaseSong, stream: NeteaseStream | null = null):
     coverUrl: song.album.picUrl ?? undefined,
     albumId: song.album.id || undefined,
     artistId: song.artists[0]?.id || undefined,
+    // 不过滤：名字串里有几个就留几个，缺 id 的退化成纯文字，也好过整串只跳一个人。
+    artistRefs: song.artists.map((item) => ({ id: item.id || 0, name: item.name })),
     onlineId: song.id,
     gainDb: null,
     peak: null

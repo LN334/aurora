@@ -9,6 +9,25 @@ import { showFlash } from './flash'
 import { Heart, Note } from './icons'
 import type { Track } from '../types'
 
+/**
+ * 一行里的艺术家拆成独立的几个名字。
+ *
+ * 名字串里有几个就排几个；artistRefs 里同名的那几个配上 id 能点，配不上的
+ * 退化成纯文字——总好过整串只有一个按钮、点下去永远只有第一个人。
+ */
+function artistParts(track: Track): { id: number; name: string }[] {
+  const refs = track.artistRefs ?? []
+  const names = track.artist
+    .split(/[/\u3001&]|\sfeat\.?/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  if (names.length <= 1) return refs
+  return names.map((name) => {
+    const hit = refs.find((ref) => ref.name === name)
+    return { id: hit?.id ?? 0, name }
+  })
+}
+
 export interface TrackMenuRequest {
   track: Track
   x: number
@@ -161,17 +180,42 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
             </span>
             <span className="trk__muted" role="cell">
               {refs.artist ? (
-                <button
-                  className="trk__ref"
-                  onClick={(event) => {
-                    // 行本身是一整块播放热区，名字要跳页就得自己截住这次点击。
-                    event.stopPropagation()
-                    openOnlineArtist(track.source ?? '', refs.artist as number)
-                  }}
-                  title={`去 ${track.albumArtist || track.artist} 的页面`}
-                >
-                  {track.artist}
-                </button>
+                artistParts(track).length > 1 ? (
+                  // 一行挂着几个歌手就是几张艺人页，逐个能点。
+                  <span className="trk__artists">
+                    {artistParts(track).map((person, index) => (
+                      <span key={`${person.id}:${index}`}>
+                        {index > 0 ? <span className="trk__sep">/</span> : null}
+                        {person.id ? (
+                        <button
+                          className="trk__ref"
+                          onClick={(event) => {
+                            // 行本身是一整块播放热区，名字要跳页就得自己截住这次点击。
+                            event.stopPropagation()
+                            openOnlineArtist(track.source ?? '', person.id)
+                          }}
+                          title={`去 ${person.name} 的页面`}
+                        >
+                          {person.name}
+                        </button>
+                        ) : (
+                          <span>{person.name}</span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <button
+                    className="trk__ref"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openOnlineArtist(track.source ?? '', refs.artist as number)
+                    }}
+                    title={`去 ${track.albumArtist || track.artist} 的页面`}
+                  >
+                    {track.artist}
+                  </button>
+                )
               ) : (
                 track.artist
               )}

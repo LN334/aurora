@@ -143,6 +143,7 @@ const qishuiBackend: PlatformBackend = {
       onlineId: song.id,
       albumId: song.album.id,
       artistId: song.artists[0]?.id,
+      artistRefs: song.artists.map((item) => ({ id: item.id || 0, name: item.name })),
       gainDb: null,
       peak: null
     }

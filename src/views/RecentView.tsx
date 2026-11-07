@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Route } from '../app/routing'
+import { hydrateArtistRefs } from '../features/online/hydrate'
 import { player } from '../features/player/actions'
 import { useRecentEntries } from '../features/player/history-store'
 import { usePlayer } from '../features/player/store'
@@ -36,6 +37,23 @@ export function RecentView({
     return out
   }, [entries])
 
+  /*
+   * 老记录里没有 artistRefs（那时候还没这个字段），歌手名点了打不开。
+   * 这里按 onlineId 回查一次，把 id 补上；补不到就照旧显示名字。
+   */
+  const [rows, setRows] = useState<Track[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    setRows(null)
+    void hydrateArtistRefs(tracks).then((next) => {
+      if (alive && next !== tracks) setRows(next)
+    })
+    return () => {
+      alive = false
+    }
+  }, [tracks])
+  const shown = rows && rows.length === tracks.length ? rows : tracks
+
   /** 今天 / 昨天 / 更早，三段。只做计数，不再造一份目录。 */
   const groups = useMemo(() => {
     const today = new Date()
@@ -70,15 +88,15 @@ export function RecentView({
         <span className="pl-head__count">
           今天 {groups.now} · 昨天 {groups.yest} · 更早 {groups.older}
         </span>
-        <button className="rh-btn" onClick={() => player.playQueue(tracks, 0)}>
+        <button className="rh-btn" onClick={() => player.playQueue(shown, 0)}>
           从头播放
         </button>
       </header>
       <TrackList
-        tracks={tracks}
+        tracks={shown}
         currentId={currentId}
         playing={playing}
-        onPlayAt={(index) => player.playQueue(tracks, index)}
+        onPlayAt={(index) => player.playQueue(shown, index)}
         onMenu={onMenu}
       />
     </div>

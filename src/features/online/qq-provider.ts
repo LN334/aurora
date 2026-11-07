@@ -163,6 +163,9 @@ const qqBackend: PlatformBackend = {
       onlineId: song.id,
       albumMid: qq.album?.mid || undefined,
       artistMid: qq.artists?.[0]?.mid || undefined,
+      artistRefs: (qq.artists ?? [])
+        .filter((item) => item)
+        .map((item) => ({ id: item.id || 0, name: item.name })),
       gainDb: null,
       peak: null
     }
