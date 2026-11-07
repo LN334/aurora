@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isNative } from '../bridge'
-import { toggleLiked, useLiked } from '../features/favorites/likes'
+import { toggleLiked, useLikedIds } from '../features/favorites/likes'
+import { likeTargets } from '../features/favorites/like-targets'
+import { useLikeMenu } from '../features/favorites/like-menu'
 import { showFlash } from '../ui/flash'
 import type { Track } from '../types'
 
@@ -39,8 +41,10 @@ export function TrackMenu({
   onReveal
 }: TrackMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  // 本地和在线来源共用同一条判断，菜单不再自己翻收藏数组。
-  const liked = useLiked(track)
+  // 整行判定：合并行里喜欢的是另一家的版本时，这一项也得说「取消喜欢」。
+  const likedIds = useLikedIds()
+  const liked =
+    likedIds.has(track.id) || (track.versions ?? []).some((version) => likedIds.has(version.id))
   const [pos, setPos] = useState({ left: x, top: y })
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
@@ -111,10 +115,26 @@ export function TrackMenu({
         className="menu__item"
         role="menuitem"
         onClick={() => {
+          const targets = likeTargets(track)
+          if (targets.length > 1) {
+            // 多版本时不替用户选平台，交给同一个落点面板。
+            useLikeMenu.getState().show({ track, x, y })
+            onClose()
+            return
+          }
+          const target = targets[0]
           onClose()
           // 在线歌要写平台账号，失败必须说一句，不能点了没变化。
-          void toggleLiked(track).then((result) => {
-            if (!result.ok && result.message) showFlash(result.message)
+          if (!target || !target.writable) {
+            showFlash('这首歌所在的平台还没有收藏接口')
+            return
+          }
+          void toggleLiked(target.track).then((result) => {
+            if (!result.ok) {
+              if (result.message) showFlash(result.message)
+            } else {
+              showFlash(result.liked ? '已收藏到' + target.label : '已从' + target.label + '取消')
+            }
           })
         }}
       >
