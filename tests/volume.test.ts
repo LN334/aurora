@@ -5,6 +5,7 @@ import {
   RESTORE_VOLUME,
   WHEEL_STEP,
   volumeForUnmute,
+  volumeIntentChanged,
   wheelVolume
 } from '../src/features/player/volume.ts'
 
@@ -35,4 +36,14 @@ test('wheelVolume clamps at both ends', () => {
   assert.equal(wheelVolume(0.98, 1), 1)
   assert.equal(wheelVolume(0.02, -1), 0)
   assert.equal(wheelVolume(0, -1), 0)
+})
+
+test('volumeIntentChanged reacts to the two fields the gain depends on', () => {
+  assert.equal(volumeIntentChanged({ volume: 0.5, muted: false }, { volume: 0.6, muted: false }), true)
+  assert.equal(volumeIntentChanged({ volume: 0.5, muted: false }, { volume: 0.5, muted: true }), true)
+  assert.equal(volumeIntentChanged({ volume: 0, muted: true }, { volume: 0, muted: false }), true)
+})
+
+test('volumeIntentChanged stays quiet while the queue or the clock moves', () => {
+  assert.equal(volumeIntentChanged({ volume: 0.5, muted: false }, { volume: 0.5, muted: false }), false)
 })

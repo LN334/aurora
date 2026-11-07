@@ -300,7 +300,7 @@ export function LyricsStage({
           <button
             type="button"
             className="stage__mute"
-            onClick={() => usePlayer.getState().setMuted(!muted)}
+            onClick={() => player.toggleMute()}
             aria-label={muted ? '取消静音' : '静音'}
             title={muted ? '取消静音' : '静音'}
           >
@@ -313,7 +313,7 @@ export function LyricsStage({
             step={1}
             value={Math.round((muted ? 0 : volume) * 100)}
             aria-label="音量"
-            onChange={(event) => usePlayer.getState().setVolume(Number(event.target.value) / 100)}
+            onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
           />
         </div>
       </footer>

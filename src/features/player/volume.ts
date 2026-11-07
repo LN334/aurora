@@ -30,3 +30,16 @@ export function wheelVolume(volume: number, direction: number): number {
   const step = Math.sign(direction) * WHEEL_STEP
   return Math.min(1, Math.max(0, volume + step))
 }
+
+/**
+ * 音量意图是否变了。
+ *
+ * 音频图上只有一个增益受音量影响；其余字段（队列、播放状态）的变化不该动它。
+ * 引擎用这个判断决定要不要重新应用音量，所以规则放在这里、可以单独测。
+ */
+export function volumeIntentChanged(
+  prev: { volume: number; muted: boolean },
+  next: { volume: number; muted: boolean }
+): boolean {
+  return prev.volume !== next.volume || prev.muted !== next.muted
+}

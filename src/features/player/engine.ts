@@ -1,5 +1,6 @@
 import { bridge, isNative } from '../../bridge'
 import { coverDataUrl } from './artwork'
+import { volumeIntentChanged } from './volume'
 import { sourceFor } from '../library/source'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
@@ -115,6 +116,12 @@ class AudioEngine {
    */
   private artworkToken = 0
   /**
+   * 音量意图的订阅句柄。播放条走 actions（那里会主动通知引擎），但歌词页的
+   * 滑杆、快捷键、以及从磁盘恢复的偏好是直接写 store 的；这里统一兜住，
+   * 免得「改完音量没反应，切一首歌才生效」。
+   */
+  private unsubscribeVolume: (() => void) | null = null
+  /**
    * The track the clock is currently crediting, plus the unstored seconds
    * seen since it started. Kept here rather than in the store because this is
    * the only place that knows how much audio really played (a seek is not
@@ -196,6 +203,9 @@ class AudioEngine {
     this.applyEq()
     this.applyVolume()
     this.installMediaSession()
+    this.unsubscribeVolume ??= usePlayer.subscribe((state, prev) => {
+      if (volumeIntentChanged(prev, state)) this.applyVolume()
+    })
   }
 
   // --- graph control -------------------------------------------------------
