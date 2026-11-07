@@ -16,9 +16,12 @@ src/
     qq/           QQ 音乐：它自己的登录弹窗与视图（provider 声明在 online/qq-provider.ts）
     library/      本地曲库：store、扫描、来源接缝、封面、歌单树、配色
     lyrics/       歌词解析（LRC）
-    player/       播放内核：engine、driver、queue、urls、进度条
+    player/       播放内核：engine、driver、queue、urls、进度条；history.ts 是播放历史的
+                  纯函数（按本地日历日累计、最近 60 条），history-store.ts 负责攒批与落盘
     playlists/    歌单：m3u 读写、存储、导入导出的流程
-    discover/     发现页：平台公开内容（推荐歌单/新歌速递/精品歌单）+ 它的纯函数与 store
+    home/         主页（侧栏第一项，路由仍是 discover）：问候、上次听到、四张快捷卡、
+                  今日聆听、最近播放；平台推荐直接嵌 discover/
+    discover/     平台公开内容（推荐歌单/新歌速递/精品歌单）+ 它的纯函数与 store
     settings/     设置状态的读写；motion.ts 是「动态效果」开关（只有渲染层，存 localStorage）
     wallpaper/    动态背景：选择规则的纯函数、开关与可见度的存储、场景挂载
   views/        页面与面板，一个文件一个屏幕或一块面板；views/settings/ 是单页设置的
@@ -37,10 +40,26 @@ electron/
   netease/      网易云客户端与 IPC
   qq/           QQ 音乐客户端与 IPC，按 transport / normalize / reasons / session 分文件
   wallpaper.ts  Wallpaper Engine 库扫描与 aurora-wallpaper:// 协议（只读，不改对方文件）
-  main.ts       Electron 主进程
+  ipc/          按域注册 IPC：app / library / wallpaper / overlay / updates / lyrics /
+                player / settings；host.ts 只声明依赖接口，窗口与扫描状态由 main.ts 注入
+  main.ts       Electron 主进程外壳：单实例锁、窗口生命周期、协议、托盘、启动扫描
 scripts/        开发与审计工具（见下方「审计」）
 tests/          单元测试，主要覆盖纯逻辑
 ```
+
+### 主页与播放历史（`src/features/home/`）
+
+侧栏第一项叫主页，回答的是「接着听什么」，不是「有哪些新内容」。它在打开应用的第一屏就
+给出四件事：上次听到的那首（能直接继续）、四张快捷卡（继续播放 / 音乐库 / 每日推荐 /
+最近播放）、今日听了多久与最常听谁、队列里的下一首。平台的推荐只是往下翻才到的第四段。
+参考项目 Mineradio-paused 的主页也是这个顺序：先给「你刚才在干什么」，再给「世界有什么」。
+
+- 历史存在渲染层（`features/player/history.ts` 是纯函数，`history-store.ts` 是攒批与落盘）：
+  按**本地日历日**累计秒数与曲目，最近 60 条，3 分钟内重复播放不算两条。
+- 只统计真正走过的播放时间：`engine.ts` 的 `recordProgress` 在 `currentTime` 前进且
+  增量 ≤ 3 秒时才计入，seek 与拖动不算听歌。攒到 1 秒才记账，5 秒或 20 秒缓冲后写 localStorage，
+  暂停、切歌、关窗时强制 flush。
+- 今日聆听、最常听、接下来播放全部在渲染层算，没有为此加任何接口。
 
 ### 单页设置（`src/views/settings/`）
 
@@ -228,7 +247,6 @@ node scripts/move-files.mjs --plan scripts/moves/features.json --apply  # 执行
   （曾经约 1180 行），剩下的主要是视图分发与头部接线，可以再拆，但收益已经不如从前。
 - **`electron/netease/client.ts`（840 行）**按 bootstrap / 会话 / 搜索 / 播放 / 登录拆分。
   它是全项目最大的文件，且 `bootstrap` 那段逻辑（含重试策略）已经证明值得独立。
-- **`electron/main.ts`（683 行）**的 IPC 注册可拆到 `electron/ipc/`。
 - **`src/features/online/store.ts`（592 行）与 `PlatformView.tsx`（591 行）**是平台层的两个大件；
   前者可分离「搜索 / 目录 / 直链」三块状态，后者可按界面区块拆组件。
 - 未统一 store 写法；有一批导出只在本文件内使用，可以收窄（`npm run audit:exports` 是入口）。
@@ -239,3 +257,5 @@ node scripts/move-files.mjs --plan scripts/moves/features.json --apply  # 执行
   内部转发到平台层的共享 store。两套直链缓存合并成了一套——那正是抽象要消灭的重复。
 - 在线音乐不再是硬编码网易云：见上方「平台层」。
 - 三个死代码审计都接入了 `npm run check`。
+- `electron/main.ts` 的 IPC 注册拆到了 `electron/ipc/`（878 → 574 行，41 个 channel
+  的名称、校验与返回形状一字未改，依赖靠 `ipc/host.ts` 的接口注入）。
