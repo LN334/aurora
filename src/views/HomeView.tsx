@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
@@ -13,6 +13,7 @@ import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { usePlaylists } from '../features/playlists/store'
 import { openOnlinePlaylist } from '../features/refs/navigate'
+import { interleaveByProvider, useShelves, windowOf } from '../features/online/shelves'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
@@ -88,15 +89,21 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   const recent = useRecentEntries()
   const today = useToday()
 
-  const pickBlock = useDiscover((state) => state.blocks.playlists)
   const newBlock = useDiscover((state) => state.blocks.newsongs)
-  const qualityBlock = useDiscover((state) => state.blocks.quality)
+
+  /**
+   * 推荐歌单不再只问网易云一家。
+   *
+   * 四家的单子本来就都在手边（账号一登录就有），再向其中一家的推荐接口要
+   * 一份是多余的：主页该显示「你有这些」，而不是「网易云觉得你该听这些」。
+   */
+  const shelves = useShelves()
+  const [batch, setBatch] = useState(0)
+  const deck = useMemo(() => interleaveByProvider(shelves), [shelves])
 
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。
-    void useDiscover.getState().load('playlists').catch(() => {})
     void useDiscover.getState().load('newsongs').catch(() => {})
-    void useDiscover.getState().load('quality').catch(() => {})
   }, [])
 
   const current = index >= 0 ? (queue[index] ?? null) : null
@@ -146,7 +153,9 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     return dailyTracks(pool)
   }, [tracks, recentAll])
 
-  const picks = pickBlock.playlists.slice(0, 6)
+  // 一批六张，换一批就是往后挪六张；挪到尾巴绕回开头，永远有东西可看。
+  const picks = useMemo(() => windowOf(deck, batch * ROW, ROW), [deck, batch])
+  const more = useMemo(() => windowOf(deck, batch * ROW + ROW, 12), [deck, batch])
   const fresh = newBlock.songs.slice(0, 6)
 
   const now = new Date()
@@ -279,74 +288,59 @@ export function HomeView({ onNavigate }: HomeViewProps) {
       {hasRecommend ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>为你挑选</h3>
-            <button
-              className="rh-more"
-              type="button"
-              onClick={() => void useDiscover.getState().next('playlists')}
-              disabled={pickBlock.status === 'loading'}
-            >
-              {pickBlock.status === 'loading' ? '读取中' : '换一批'}
+            <h3>歌单</h3>
+            <button className="rh-more" type="button" onClick={() => setBatch((n) => n + 1)}>
+              换一批
             </button>
           </header>
           <div className="rh-row">
-            {picks.map((playlist) => (
+            {picks.map((row) => (
               <button
                 className="rh-card"
                 type="button"
-                key={playlist.id}
-                onClick={() => openOnlinePlaylist('netease', playlist.id)}
+                key={row.key}
+                onClick={() => openOnlinePlaylist(row.providerId, row.id)}
               >
-                <span
-                  className="rh-card__art"
-                  style={playlist.coverUrl ? undefined : tintOf(String(playlist.id))}
-                >
+                <span className="rh-card__art" style={row.coverUrl ? undefined : tintOf(row.key)}>
                   <Artwork
-                    src={playlist.coverUrl ? remoteImageUrl(sizedImage(playlist.coverUrl, 360)) : null}
+                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 360)) : null}
                     alt=""
                     fallback={<Note size={20} />}
                   />
+                  <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
                 </span>
-                <span className="rh-card__title">{playlist.name}</span>
-                <span className="rh-card__sub">{playlist.creator || '网易云音乐'}</span>
+                <span className="rh-card__title">{row.name}</span>
+                <span className="rh-card__sub">
+                  {row.trackCount} 首{row.creator ? ' · ' + row.creator : ''}
+                </span>
               </button>
             ))}
           </div>
         </section>
       ) : null}
 
-      {qualityBlock.playlists.length > 0 ? (
+      {more.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>精品歌单</h3>
-            <button
-              className="rh-more"
-              type="button"
-              onClick={() => void useDiscover.getState().next('quality')}
-              disabled={qualityBlock.status === 'loading'}
-            >
-              {qualityBlock.status === 'loading' ? '读取中' : '换一批'}
-            </button>
+            <h3>更多歌单</h3>
           </header>
           <div className="rh-scroller">
-            {qualityBlock.playlists.slice(0, 12).map((playlist) => (
+            {more.map((row) => (
               <button
                 className="rh-mini"
                 type="button"
-                key={playlist.id}
-                onClick={() => openOnlinePlaylist('netease', playlist.id)}
+                key={row.key}
+                onClick={() => openOnlinePlaylist(row.providerId, row.id)}
               >
-                <span
-                  className="rh-mini__art"
-                  style={playlist.coverUrl ? undefined : tintOf(String(playlist.id))}
-                >
+                <span className="rh-mini__art" style={row.coverUrl ? undefined : tintOf(row.key)}>
                   <Artwork
-                    src={playlist.coverUrl ? remoteImageUrl(sizedImage(playlist.coverUrl, 240)) : null}
+                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240)) : null}
                     alt=""
                     fallback={<Note size={18} />}
                   />
+                  <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
                 </span>
-                <span className="rh-mini__title">{playlist.name}</span>
+                <span className="rh-mini__title">{row.name}</span>
               </button>
             ))}
           </div>

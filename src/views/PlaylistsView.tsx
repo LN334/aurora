@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useLibrary } from '../features/library/store'
-import { useOnlineStore } from '../features/online/store'
-import type { ProviderId } from '../features/online/types'
+import { useShelves } from '../features/online/shelves'
 import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlinePlaylist } from '../features/refs/navigate'
@@ -13,64 +12,9 @@ import { NameModal } from './NameModal'
 /**
  * 平台歌单和自建歌单排在同一页、同一张网里。
  *
- * 平台是「歌从哪来」，不是「你去哪一页」。以前的写法是按平台分段，一段一个
- * 标题，找一张歌单得先想清楚它在哪个平台——那是把数据来源变成了导航层级。
- * 现在只有一排筛选：想看全部就全部，想只看某一家就点那一家。
+ * 平台是「歌从哪来」，不是「你去哪一页」。列表本身由 online/shelves 取，这个
+ * 页面只负责把它们和自建歌单摆进同一张网。
  */
-interface ShelfCard {
-  key: string
-  providerId: ProviderId
-  providerLabel: string
-  id: number
-  name: string
-  coverUrl: string | null
-  trackCount: number
-  creator: string
-}
-
-/**
- * 四个平台的歌单。
- *
- * 调用次数写死成四：hooks 不能放在循环里，而平台表本来就是常量。多一个平台
- * 只改这里的 PLATFORM_ORDER 与这四行调用，两处挨着，漏掉一眼能看见。
- */
-function useShelves() {
-  const netease = useOnlineStore('netease')()
-  const qq = useOnlineStore('qq')()
-  const kugou = useOnlineStore('kugou')()
-  const qishui = useOnlineStore('qishui')()
-
-  useEffect(() => {
-    // 未接入的平台会回一个空壳，init 只是让它自己报「连不上」，不会抛出去。
-    for (const id of ['netease', 'qq', 'kugou', 'qishui']) {
-      void useOnlineStore(id).getState().init().catch(() => {})
-    }
-  }, [])
-
-  return useMemo(() => {
-    const rows: ShelfCard[] = []
-    const push = (providerId: ProviderId, providerLabel: string, list: typeof netease.playlists) => {
-      for (const playlist of list) {
-        rows.push({
-          key: providerId + ':' + playlist.id,
-          providerId,
-          providerLabel,
-          id: playlist.id,
-          name: playlist.name,
-          coverUrl: playlist.coverUrl,
-          trackCount: playlist.trackCount,
-          creator: playlist.creator
-        })
-      }
-    }
-    push('netease', '网易云音乐', netease.playlists)
-    push('qq', 'QQ 音乐', qq.playlists)
-    push('kugou', '酷狗音乐', kugou.playlists)
-    push('qishui', '汽水音乐', qishui.playlists)
-    return rows
-  }, [netease.playlists, qq.playlists, kugou.playlists, qishui.playlists])
-}
-
 /**
  * 歌单。
  *

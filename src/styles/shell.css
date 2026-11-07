@@ -2291,3 +2291,16 @@
 .np__cover {
   width: min(100%, 400px, 46vh);
 }
+
+/*
+ * 卡片封面上的平台标：主页与歌单页共用，位置靠 relative 撑起来。
+ */
+.rh-card__art,
+.rh-mini__art {
+  position: relative;
+}
+
+.rh-mini .pl-card__src {
+  font-size: 10px;
+  padding: 1px 6px;
+}
