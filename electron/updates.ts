@@ -1,5 +1,6 @@
 import { app, net, shell } from 'electron'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { appSettings, loadSettings, saveSettings, type UpdateInterval } from './settings'
 import { isNewer } from './pure/version'
@@ -274,26 +275,63 @@ export async function autoCheck(onResult: (result: UpdateResult) => void): Promi
 /** The slice of `electron-updater` this file uses. */
 type ProgressInfo = { percent: number; transferred: number; total: number }
 
+interface FeedOptions {
+  provider: string
+  owner: string
+  repo: string
+}
+
 interface AutoUpdaterLike {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
   on(event: 'download-progress', listener: (progress: ProgressInfo) => void): unknown
+  setFeedURL(options: FeedOptions): void
   checkForUpdates(): Promise<unknown>
   downloadUpdate(): Promise<unknown>
   quitAndInstall(): void
 }
 
 /**
- * Load `electron-updater`, or null when it is not present.
+ * `require`, not `import()`.
  *
- * `import()` rather than a static import: the module registers itself against
- * `electron`'s app lifecycle on load, and a dev checkout should not pay that
- * cost at startup for a feature that is off by default.
+ * A real ESM `import()` goes through Node's ESM loader, and that loader has no
+ * idea `app.asar` is a readable directory: inside a packaged build it fails
+ * with ERR_MODULE_NOT_FOUND, this function then returned null, and the
+ * settings switch stayed greyed out claiming the dependency was missing - on
+ * every installed copy, while `require('electron-updater')` resolved fine.
+ * `require` goes through Electron's patched `fs`, so it finds the same file
+ * packed and unpacked. It is still lazy: nothing runs until the settings page
+ * or an update check asks for it.
  */
+const requireFromHere = createRequire(__filename)
+
+/**
+ * Point the updater at GitHub when the builder left no `app-update.yml`.
+ *
+ * An NSIS build writes that file next to the asar; an unpacked (`--dir`) or
+ * hand-assembled folder does not, and without it the download step has no feed
+ * to read. Injecting the same repository the check already used keeps the two
+ * halves agreeing about where updates come from.
+ */
+function ensureFeed(updater: AutoUpdaterLike): void {
+  try {
+    if (fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'))) return
+    const target = publishTarget()
+    if (!target) return
+    updater.setFeedURL({ provider: 'github', owner: target.owner, repo: target.repo })
+    console.log('[aurora] updates: feed -> github:' + target.owner + '/' + target.repo)
+  } catch (error) {
+    // A bad injection should cost the download, not the whole switch.
+    console.error('[aurora] could not point electron-updater at a feed', error)
+  }
+}
+
 async function loadUpdater(): Promise<AutoUpdaterLike | null> {
   try {
-    const module = (await import('electron-updater')) as unknown as { autoUpdater: AutoUpdaterLike }
-    return module.autoUpdater ?? null
+    const module = requireFromHere('electron-updater') as { autoUpdater: AutoUpdaterLike }
+    const updater = module.autoUpdater ?? null
+    if (updater) ensureFeed(updater)
+    return updater
   } catch (error) {
     console.error('[aurora] electron-updater is unavailable', error)
     return null

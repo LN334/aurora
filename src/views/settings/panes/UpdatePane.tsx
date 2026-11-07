@@ -63,7 +63,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             hint={
               page.prefs.autoInstallAvailable
                 ? '开启后，发现新版本会自动下载并在退出时安装。这意味着跳过浏览器与 SmartScreen 的提示：安装包未签名，Aurora 无法验证它将要替换成的那个文件。'
-                : '当前构建不支持：需要打包后的应用，并且需要 electron-updater 依赖（见 README「更新」一节）。'
+                : '开发模式（源码目录里 npm run dev）用不了自动安装：它要读打包时写下的更新配置。装好的应用里这一项会自动变成可用。'
             }
           >
             <Toggle
