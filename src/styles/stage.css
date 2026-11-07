@@ -473,3 +473,34 @@
 .stage--wallpaper .stage__bottom {
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
 }
+
+/*
+ * 长句不再用省略号砍掉。
+ *
+ * 中文歌词一句常常超过 40 字，单行 nowrap 会把它截成「……」，而歌词恰恰是
+ * 舞台页唯一要读的东西。基准行允许折成两行并居中；其余槽位仍是单行——
+ * 它们已经缩小到 0.44–0.6，两行会挤在一起，读不出层次。
+ */
+.lyr__text {
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.lyr--d0 .lyr__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lyr:not(.lyr--d0) .lyr__text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 两行需要更高的槽位；高度仍是固定的，居中逻辑不变。 */
+.lyr--d0 {
+  height: clamp(76px, 10vh, 132px);
+}
