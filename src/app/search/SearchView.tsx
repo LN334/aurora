@@ -1,5 +1,4 @@
-import { useCallback, useEffect } from 'react'
-import { useLibrary } from '../../features/library/store'
+import { useEffect } from 'react'
 import { player } from '../../features/player/actions'
 import { usePlayer } from '../../features/player/store'
 import { TrackList, type TrackMenuRequest } from '../../ui/TrackList'
@@ -21,7 +20,6 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
   const error = useSearch((s) => s.error)
   const results = useSearch((s) => s.results)
 
-  const tracks = useLibrary((s) => s.tracks)
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
 
@@ -35,49 +33,10 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
   const rows = searchResultsFor({ source, results })
   const currentId = currentTrack?.id ?? null
 
-  const submit = useCallback(() => {
-    void useSearch.getState().submit(tracks)
-  }, [tracks])
-
-  const switchTo = (next: string) => {
-    useSearch.getState().setSource(next)
-    // 本机也是边打边出，所以换范围要重跑一次，不然同一个词会看到上一次的答案。
-    void useSearch.getState().submit(tracks)
-  }
-
   const showEmpty = submitted && !searching && rows.length === 0
 
   return (
     <div className="col srch">
-      <header className="rh-sec__head">
-        <h3>在哪儿找</h3>
-        <span className="srch__hint">回车搜索</span>
-      </header>
-
-      <div className="srch__chips" role="tablist" aria-label="搜索范围">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={source === tab.id}
-            className={`srch-chip${source === tab.id ? ' is-on' : ''}`}
-            onClick={() => switchTo(tab.id)}
-            title={tab.note}
-          >
-            {tab.label}
-            {/* 只有已经答过的范围才配数字，免得 0 被读成「问过了没有」。 */}
-            {submitted && source === tab.id ? (
-              <em className="tnum">{rows.length}</em>
-            ) : (results[tab.id]?.length ?? 0) > 0 ? (
-              <em className="tnum">{results[tab.id]?.length}</em>
-            ) : null}
-          </button>
-        ))}
-        <button className="rh-btn" onClick={submit} disabled={searching}>
-          {searching ? '搜索中…' : '搜索'}
-        </button>
-      </div>
-
       {error ? (
         <div className="notice notice--warn" role="status">
           {error}

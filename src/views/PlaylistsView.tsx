@@ -17,13 +17,6 @@ import { NameModal } from './NameModal'
  * 标题，找一张歌单得先想清楚它在哪个平台——那是把数据来源变成了导航层级。
  * 现在只有一排筛选：想看全部就全部，想只看某一家就点那一家。
  */
-const PLATFORM_ORDER: { id: ProviderId; label: string }[] = [
-  { id: 'netease', label: '网易云音乐' },
-  { id: 'qq', label: 'QQ 音乐' },
-  { id: 'kugou', label: '酷狗音乐' },
-  { id: 'qishui', label: '汽水音乐' }
-]
-
 interface ShelfCard {
   key: string
   providerId: ProviderId
@@ -91,21 +84,8 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
   const tracks = useLibrary((state) => state.tracks)
   const index = useMemo(() => new Map(tracks.map((track) => [track.id, track])), [tracks])
   const [naming, setNaming] = useState(false)
-  const [only, setOnly] = useState<'all' | ProviderId>('all')
 
   const shelves = useShelves()
-
-  /** 只列出真有歌单的平台，没登录的平台不该占一个筛选项。 */
-  const sources = useMemo(() => {
-    const counts = new Map<ProviderId, number>()
-    for (const row of shelves) counts.set(row.providerId, (counts.get(row.providerId) ?? 0) + 1)
-    return PLATFORM_ORDER.filter((item) => (counts.get(item.id) ?? 0) > 0).map((item) => ({
-      ...item,
-      count: counts.get(item.id) ?? 0
-    }))
-  }, [shelves])
-
-  const shown = only === 'all' ? shelves : shelves.filter((row) => row.providerId === only)
 
   /** 建完直接进去，而不是把人留在原地——新建的动作总该有个去处。 */
   const confirmName = (name: string) => {
@@ -114,78 +94,38 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
     onNavigate({ view: 'playlist', id: playlist.id })
   }
 
-  const platformNote = shown.length > 0 ? ' · 平台 ' + shown.length + ' 张' : ''
-
   return (
     <div className="col">
-      <header className="rh-sec__head pl-head">
-        <h3>自建歌单</h3>
-        <span className="pl-head__count">
-          {playlists.length} 个{platformNote}
-        </span>
-        <span className="pl-head__sp" />
-        <button className="rh-btn" type="button" onClick={() => setNaming(true)}>
-          <Plus size={14} />
-          新建歌单
-        </button>
-      </header>
-
-      {sources.length > 1 ? (
-        <div className="pl-filter">
-          <button
-            className={'pl-chip' + (only === 'all' ? ' is-on' : '')}
-            type="button"
-            onClick={() => setOnly('all')}
-          >
-            全部
-          </button>
-          {sources.map((item) => (
-            <button
-              className={'pl-chip' + (only === item.id ? ' is-on' : '')}
-              type="button"
-              key={item.id}
-              onClick={() => setOnly(item.id)}
-            >
-              <span className={'src-dot src-dot--' + item.id} aria-hidden="true" />
-              {item.label}
-              <span className="pl-chip__n">{item.count}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
       <div className="pl-grid">
-        {only === 'all'
-          ? playlists.map((playlist) => {
-              const own = playlist.trackIds.map((id) => index.get(id)).filter(Boolean)
-              const seconds = own.reduce((sum, track) => sum + (track?.duration ?? 0), 0)
-              const first = own[0]
-              return (
-                <button
-                  className="rh-card pl-card"
-                  type="button"
-                  key={playlist.id}
-                  onClick={() => onNavigate({ view: 'playlist', id: playlist.id })}
-                >
-                  <span className="rh-card__art" style={{ background: tint(playlist.id) }}>
-                    {first ? (
-                      <span className="rh-card__glyph">
-                        <Play size={18} />
-                      </span>
-                    ) : (
-                      <Note size={20} />
-                    )}
+        {playlists.map((playlist) => {
+          const own = playlist.trackIds.map((id) => index.get(id)).filter(Boolean)
+          const seconds = own.reduce((sum, track) => sum + (track?.duration ?? 0), 0)
+          const first = own[0]
+          return (
+            <button
+              className="rh-card pl-card"
+              type="button"
+              key={playlist.id}
+              onClick={() => onNavigate({ view: 'playlist', id: playlist.id })}
+            >
+              <span className="rh-card__art" style={{ background: tint(playlist.id) }}>
+                {first ? (
+                  <span className="rh-card__glyph">
+                    <Play size={18} />
                   </span>
-                  <span className="rh-card__title">{playlist.name}</span>
-                  <span className="rh-card__sub">
-                    {playlist.trackIds.length} 首 · {formatTime(seconds)}
-                  </span>
-                </button>
-              )
-            })
-          : null}
+                ) : (
+                  <Note size={20} />
+                )}
+              </span>
+              <span className="rh-card__title">{playlist.name}</span>
+              <span className="rh-card__sub">
+                {playlist.trackIds.length} 首 · {formatTime(seconds)}
+              </span>
+            </button>
+          )
+        })}
 
-        {shown.map((row) => (
+        {shelves.map((row) => (
           <button
             className="rh-card pl-card"
             type="button"
@@ -208,18 +148,16 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
           </button>
         ))}
 
-        {only === 'all' ? (
-          <button className="rh-card pl-card" type="button" onClick={() => setNaming(true)}>
-            <span className="rh-card__art rh-card__art--add">
-              <Plus size={22} />
-            </span>
-            <span className="rh-card__title">新建歌单</span>
-            <span className="rh-card__sub">从曲库里挑歌</span>
-          </button>
-        ) : null}
+        <button className="rh-card pl-card" type="button" onClick={() => setNaming(true)}>
+          <span className="rh-card__art rh-card__art--add">
+            <Plus size={22} />
+          </span>
+          <span className="rh-card__title">新建歌单</span>
+          <span className="rh-card__sub">从曲库里挑歌</span>
+        </button>
       </div>
 
-      {playlists.length === 0 && shown.length === 0 ? (
+      {playlists.length === 0 && shelves.length === 0 ? (
         <p className="pg-note">还没有歌单。新建一个，把喜欢的歌收进去。</p>
       ) : null}
 
