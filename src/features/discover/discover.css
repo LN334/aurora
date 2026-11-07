@@ -109,3 +109,26 @@
   font-size: var(--fs-meta);
   color: var(--text-low);
 }
+
+/* 「换一批」：栏目标签行右端的小动作。推荐内容十分钟变一次，但用户想立刻
+   看到另一批时不该只能等——这里直接重新请求当前栏目（不换栏目、不换平台）。 */
+.tabs__action {
+  margin-left: auto;
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-control);
+  border: var(--line-soft);
+  background: transparent;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  transition: color 120ms var(--ease-out), background 120ms var(--ease-out);
+}
+.tabs__action:hover:not(:disabled) {
+  color: var(--text-hi);
+  background: var(--ink-700);
+}
+.tabs__action:disabled {
+  color: var(--text-low);
+  cursor: default;
+}

@@ -1739,3 +1739,15 @@ input::placeholder {
   color: var(--text-mid);
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
 }
+
+/* ---- 壁纸起来的过程 ----
+   场景挂载要解码 pkg、编译着色器，几百毫秒里画布是空的。让它先透明、就绪后
+   淡入，启动时看到的是深色界面而不是「黑屏等壁纸」，换壁纸也不会有闪跳。 */
+.wallpaper {
+  opacity: 0;
+  transition: opacity 480ms var(--ease-out);
+}
+
+.wallpaper.is-ready {
+  opacity: 1;
+}

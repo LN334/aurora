@@ -1,4 +1,4 @@
-import type { WallpaperEntry, WallpaperInfo } from '../../env'
+import type { WallpaperEntry, WallpaperInfo, WallpaperProperty } from '../../env'
 
 /**
  * The `follow` sentinel means "whatever Wallpaper Engine has on the desktop".
@@ -67,4 +67,85 @@ export function chooseEntry(choice: WallpaperChoice): WallpaperEntry | null {
   if (!choice.info?.found) return null
 
   return choice.list.find((entry) => entry.current) ?? null
+}
+/**
+ * 传给场景引擎的一个属性值。
+ *
+ * 形状照抄 Wallpaper Engine：滑块是数字、开关是布尔，颜色是 "r g b" 三个
+ * 0..1 的浮点数拼成的字符串，其余（文本框、下拉）都是字符串。
+ */
+export type PropertyValue = boolean | number | string
+
+/** 这些值本身不进渲染，只作为 UI 的输入；落到引擎前统一按类型收一次。 */
+export function coercePropertyValue(
+  property: WallpaperProperty,
+  raw: unknown
+): PropertyValue | null {
+  if (property.type === 'slider') {
+    const value = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(value)) return null
+    const min = Number.isFinite(property.min) ? (property.min as number) : -Infinity
+    const max = Number.isFinite(property.max) ? (property.max as number) : Infinity
+    return Math.min(max, Math.max(min, value))
+  }
+  if (property.type === 'bool') {
+    if (typeof raw === 'boolean') return raw
+    return null
+  }
+  if (typeof raw === 'string') return raw
+  if (typeof raw === 'number') return String(raw)
+  return null
+}
+
+/**
+ * 把一项颜色属性转成 `<input type="color">` 认识的 `#rrggbb`。
+ *
+ * Wallpaper Engine 的颜色是线性 / sRGB 无所谓——作者在 WE 里看到的预览与这里
+ * 的取色器只要都按 0..1 映射，眼睛看到的就是同一块色。
+ */
+export function colorToHex(value: unknown): string {
+  const parts =
+    typeof value === 'string'
+      ? value
+          .trim()
+          .split(/\s+/)
+          .map(Number)
+      : []
+  if (parts.length < 3 || parts.some((part) => !Number.isFinite(part))) return '#ffffff'
+  const channel = (part: number) =>
+    Math.round(Math.min(1, Math.max(0, part)) * 255)
+      .toString(16)
+      .padStart(2, '0')
+  return '#' + parts.slice(0, 3).map(channel).join('')
+}
+
+/** 取色器选完再转回 Wallpaper Engine 的 "r g b" 字符串。 */
+export function hexToColor(hex: string): string {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return '1 1 1'
+  const value = Number.parseInt(match[1], 16)
+  const channel = (shift: number) => (((value >> shift) & 0xff) / 255).toFixed(3)
+  return [channel(16), channel(8), channel(0)].join(' ')
+}
+
+/**
+ * 这次要交给场景引擎的完整属性表：工程默认值 + 用户改过的覆盖值。
+ *
+ * 存下来的值来自 localStorage，可能是上一版留下的、也可能被手改坏了，所以逐项
+ * 过一遍类型校验；认不出来的项直接退回工程默认值，而不是把 NaN 传给着色器。
+ */
+export function propertyValues(
+  properties: WallpaperProperty[] | undefined,
+  saved?: Record<string, unknown>
+): Record<string, PropertyValue> {
+  const out: Record<string, PropertyValue> = {}
+  for (const property of properties ?? []) {
+    const raw =
+      saved && Object.prototype.hasOwnProperty.call(saved, property.name)
+        ? saved[property.name]
+        : property.value
+    const value = coercePropertyValue(property, raw) ?? coercePropertyValue(property, property.value)
+    if (value !== null) out[property.name] = value
+  }
+  return out
 }

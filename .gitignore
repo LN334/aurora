@@ -61,6 +61,8 @@ docs/gpu-screen-inventory.json
 .smoke/
 shots/
 .probe-*
+.perf/
+.perf-*
 
 # Unpacked copy of an installed build, used to diff a shipped version against
 # the repository. Temporary by nature; the extract is 60+ MB.

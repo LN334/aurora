@@ -3,9 +3,11 @@ import { readReduceMotion, writeReduceMotion } from '../../../features/settings/
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge } from '../../../bridge'
 import { useWallpaper } from '../../../features/wallpaper/store'
+import { chooseEntry } from '../../../features/wallpaper/pure'
 import { Refresh } from '../../../ui/icons'
 import { Row, Rows, Toggle } from '../parts'
 import { WallpaperGrid } from '../WallpaperGrid'
+import { WallpaperProps } from '../WallpaperProps'
 
 /**
  * 03 外观与桌面。
@@ -25,7 +27,23 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const wallpaperList = useWallpaper((state) => state.list)
   const wallpaperLoading = useWallpaper((state) => state.loading)
   const refreshWallpaper = useWallpaper((state) => state.refresh)
+  const setWallpaperProperty = useWallpaper((state) => state.setProperty)
+  const resetWallpaperProperties = useWallpaper((state) => state.resetProperties)
   const { desktopLyrics, closeToTray } = page.settings
+
+  /*
+   * 正在当背景的那一张。可调项跟着它走——切到「跟随当前壁纸」时，
+   * 调的就是 WE 现在用的那张。
+   */
+  const wallpaperEntry = chooseEntry({
+    enabled: wallpaperEnabled,
+    selection: wallpaperSelection,
+    info: wallpaperInfo,
+    list: wallpaperList
+  })
+  const wallpaperValues = useWallpaper((state) =>
+    wallpaperEntry ? state.values[wallpaperEntry.id] : undefined
+  )
 
   // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
   const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
@@ -157,6 +175,24 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
               />
             </div>
           </div>
+
+          {/*
+            只有场景壁纸能吃到这些值：视频/网页/图片壁纸是原样播放的文件，
+            没有可以注入属性的渲染器，显示出来只会点了没反应。
+          */}
+          {wallpaperEntry &&
+          wallpaperEntry.kind === 'scene' &&
+          wallpaperEntry.hasPackage &&
+          (wallpaperEntry.properties?.length ?? 0) > 0 ? (
+            <div className="settings__row settings__row--stacked">
+              <WallpaperProps
+                entry={wallpaperEntry}
+                values={wallpaperValues}
+                onChange={(name, value) => setWallpaperProperty(wallpaperEntry.id, name, value)}
+                onReset={() => resetWallpaperProperties(wallpaperEntry.id)}
+              />
+            </div>
+          ) : null}
 
           <div className="settings__row settings__row--stacked">
             <div className="settings__text">

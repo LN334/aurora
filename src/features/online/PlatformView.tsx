@@ -5,7 +5,7 @@ import { Artwork } from '../../ui/Artwork'
 import { ChevronDown, Note, Refresh, User, Wave } from '../../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../../ui/TrackList'
 import { usePlayer } from '../player/store'
-import { remoteImageUrl } from '../player/urls'
+import { remoteImageUrl, sizedImage } from '../player/urls'
 import { providerSupports } from './registry'
 import { failTextFor, useOnlineStore, type OnlineStore, type PlatformFail } from './store'
 import {
@@ -265,7 +265,7 @@ function AccountStrip({
       <span className="online__avatar">
         {/* 平台头像在 p*.music.126.net 上，直连会被 CSP 的 img-src 拦掉；走主进程代理。 */}
         <Artwork
-          src={store.account.avatarUrl ? remoteImageUrl(store.account.avatarUrl) : null}
+          src={store.account.avatarUrl ? remoteImageUrl(sizedImage(store.account.avatarUrl, 200)) : null}
           fallback={<User size={16} />}
         />
       </span>

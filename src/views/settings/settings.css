@@ -501,3 +501,79 @@
   max-width: 800px;
   padding-bottom: var(--s7);
 }
+
+/* ---- 壁纸自带的可调项 ---- */
+.wp-props {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  width: 100%;
+}
+
+.wp-props__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.wp-props__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* 有的工程有四十多项开关，整页被它撑开就找不到下面的可见度了。 */
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--s2);
+  scrollbar-width: thin;
+}
+
+.wp-prop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 300px);
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.wp-prop:first-child {
+  border-top: 0;
+}
+
+.wp-prop__label {
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wp-prop__control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+.wp-prop__control input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.wp-prop__color {
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.wp-prop__text,
+.wp-prop__select {
+  width: 100%;
+  min-width: 0;
+}

@@ -6,6 +6,7 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import {
   classifyKind,
   decodeId,
+  editableProperties,
   encodeId,
   isImageFile,
   isInside,
@@ -15,7 +16,8 @@ import {
   parseLibraryFolders,
   pickEntry,
   selectedWallpaperFiles,
-  type WallpaperKind
+  type WallpaperKind,
+  type WallpaperProperty
 } from './pure/wallpaper-rules'
 
 /**
@@ -48,6 +50,13 @@ import {
 
 export const WALLPAPER_SCHEME = 'aurora-wallpaper'
 
+/**
+ * The wallpaper's own settings, re-exported here because this module is what the
+ * main process and the preload type import reach for; nothing outside should
+ * have to name `pure/` to talk about them.
+ */
+export type { WallpaperProperty, WallpaperPropertyType } from './pure/wallpaper-rules'
+
 /** How long a scan is reused before the disk is read again. */
 const SCAN_TTL_MS = 30_000
 
@@ -64,6 +73,11 @@ export interface WallpaperEntry {
   entryUrl: string | null
   /** A scene that ships a `scene.pkg` container rather than loose JSON. */
   hasPackage: boolean
+  /**
+   * The wallpaper's own sliders, colours and switches, in the order the engine's
+   * editor shows them. Empty when the project declares none.
+   */
+  properties: WallpaperProperty[]
   /** Whether this is the wallpaper assigned to a monitor right now. */
   current: boolean
 }
@@ -75,6 +89,8 @@ export interface WallpaperInfo {
   title: string
   /** The URL to load, or null when nothing was found. */
   src: string | null
+  /** The current wallpaper's own settings; empty when it declares none. */
+  properties: WallpaperProperty[]
   /** A sentence for the settings page when `found` is false. */
   note: string
   engineDir: string | null
@@ -88,6 +104,8 @@ interface ScannedProject {
   kind: WallpaperKind
   entry: string | null
   preview: string | null
+  /** The wallpaper's own controls, read from `general.properties`. */
+  properties: WallpaperProperty[]
   declaredType: string | null
 }
 
@@ -300,6 +318,19 @@ function readManifest(dir: string): Record<string, unknown> | null {
 }
 
 /**
+ * The customizable properties a manifest declares.
+ *
+ * Wallpaper Engine puts them at `general.properties`; every other shape is one
+ * this app has never seen, and for a third-party manifest that means "no
+ * properties" rather than an error the settings page should show.
+ */
+function manifestProperties(manifest: Record<string, unknown>): WallpaperProperty[] {
+  const general = manifest.general
+  if (!general || typeof general !== 'object' || Array.isArray(general)) return []
+  return editableProperties((general as Record<string, unknown>).properties)
+}
+
+/**
  * Turn one project directory into an entry.
  *
  * The order of the fallbacks matters and comes from the real library: a scene
@@ -323,6 +354,8 @@ function readProject(dir: string, id: string): ScannedProject | null {
       kind: isVideoFile(media) ? 'video' : 'image',
       entry: media,
       preview: null,
+      // A loose media folder has no manifest, so it has nothing to configure.
+      properties: [],
       declaredType: null
     }
   }
@@ -365,6 +398,9 @@ function readProject(dir: string, id: string): ScannedProject | null {
     // distinguish "container" from "media" without re-reading the manifest.
     entry,
     preview,
+    // Filled from the manifest already in hand: listing 52 wallpapers must not
+    // re-open 52 project.json files just to learn their settings.
+    properties: manifestProperties(manifest),
     declaredType: declaredType ? declaredType.toLowerCase() : null
   }
 }
@@ -516,6 +552,7 @@ export function wallpaperList(force = false): WallpaperEntry[] {
     sourceUrl: toUrl(project.id, null),
     entryUrl: project.kind !== 'scene' && project.entry ? toUrl(project.id, project.entry) : null,
     hasPackage: project.kind === 'scene' && project.entry !== null && /\.pkg$/i.test(project.entry),
+    properties: project.properties,
     current: currentDirs.includes(project.dir.toLowerCase())
   }))
 }
@@ -530,6 +567,7 @@ export function wallpaperInfo(force = false): WallpaperInfo {
       kind: 'none',
       title: '',
       src: null,
+      properties: [],
       note: '没有找到 Wallpaper Engine 的安装（Steam 库中没有 wallpaper_engine 目录）。',
       engineDir: null
     }
@@ -550,6 +588,7 @@ export function wallpaperInfo(force = false): WallpaperInfo {
       kind: 'none',
       title: '',
       src: null,
+      properties: [],
       note: '找到了 Wallpaper Engine，但配置里没有当前壁纸。',
       engineDir
     }
@@ -562,6 +601,9 @@ export function wallpaperInfo(force = false): WallpaperInfo {
     // A scene is rendered from its preview until the engine has loaded the
     // container; a video or web wallpaper plays its entry directly.
     src: toUrl(current.id, current.kind === 'scene' ? current.preview : current.entry),
+    // The settings page may only ever call info, so the current wallpaper's
+    // controls come with it instead of forcing a second list call.
+    properties: current.properties,
     note: '',
     engineDir
   }

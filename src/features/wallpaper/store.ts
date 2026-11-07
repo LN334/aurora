@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { bridge } from '../../bridge'
 import type { WallpaperEntry, WallpaperInfo } from '../../env'
 import { FOLLOW_SELECTION, clampStrength, parseEnabled, parseStrength } from './pure'
+import type { PropertyValue } from './pure'
 
 /**
  * Which wallpaper the shell paints behind itself.
@@ -15,6 +16,13 @@ import { FOLLOW_SELECTION, clampStrength, parseEnabled, parseStrength } from './
 const ENABLED_KEY = 'aurora.backdrop.wallpaper'
 const SELECTION_KEY = 'aurora.backdrop.wallpaper.id'
 const STRENGTH_KEY = 'aurora.backdrop.wallpaper.strength'
+/**
+ * 壁纸工程自带的可调项按壁纸 id 分开记：每张壁纸都有自己的一套属性名，
+ * 混在一起既会互相覆盖，也会在换壁纸时把不相干的键传给着色器。
+ *
+ * 形状是 `{ [entryId]: { [propertyName]: value } }`。
+ */
+const PROPS_KEY = 'aurora.backdrop.props'
 
 /**
  * `localStorage` can throw (disabled storage, quota, hardened profiles). A
@@ -37,6 +45,30 @@ function write(key: string, value: string): void {
   }
 }
 
+/** 从 localStorage 读出按壁纸分组的属性覆盖值；坏数据当成没有。 */
+function readProps(): Record<string, Record<string, PropertyValue>> {
+  const raw = read(PROPS_KEY)
+  if (!raw) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const out: Record<string, Record<string, PropertyValue>> = {}
+    for (const [entryId, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      const props: Record<string, PropertyValue> = {}
+      for (const [name, item] of Object.entries(value as Record<string, unknown>)) {
+        if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+          props[name] = item
+        }
+      }
+      if (Object.keys(props).length > 0) out[entryId] = props
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 interface WallpaperState {
   enabled: boolean
   /** A project id, or `FOLLOW_SELECTION` to mirror Wallpaper Engine's own choice. */
@@ -46,12 +78,18 @@ interface WallpaperState {
   info: WallpaperInfo | null
   list: WallpaperEntry[]
   loading: boolean
+  /** 用户改过的壁纸自带属性，按壁纸 id 分组；没改过的项不在里面。 */
+  values: Record<string, Record<string, PropertyValue>>
 
   setEnabled(next: boolean): void
   setSelection(id: string): void
   setStrength(value: number): void
   /** Re-probe the main process; `force` bypasses its 30 second scan cache. */
   refresh(force?: boolean): void
+  /** 改一项壁纸属性：立刻生效并落盘，下次打开同一张壁纸还是这个值。 */
+  setProperty(entryId: string, name: string, value: PropertyValue): void
+  /** 把这张壁纸的属性全部恢复成工程默认值。 */
+  resetProperties(entryId: string): void
 }
 
 export const useWallpaper = create<WallpaperState>((set, get) => ({
@@ -61,6 +99,7 @@ export const useWallpaper = create<WallpaperState>((set, get) => ({
   info: null,
   list: [],
   loading: false,
+  values: readProps(),
 
   setEnabled(next) {
     write(ENABLED_KEY, next ? 'on' : 'off')
@@ -101,5 +140,22 @@ export const useWallpaper = create<WallpaperState>((set, get) => ({
         // backdrop, which is the same state as "feature off".
         set({ info: null, list: [], loading: false })
       )
+  },
+
+  setProperty(entryId, name, value) {
+    const values = {
+      ...get().values,
+      [entryId]: { ...(get().values[entryId] ?? {}), [name]: value }
+    }
+    write(PROPS_KEY, JSON.stringify(values))
+    set({ values })
+  },
+
+  resetProperties(entryId) {
+    if (!get().values[entryId]) return
+    const values = { ...get().values }
+    delete values[entryId]
+    write(PROPS_KEY, JSON.stringify(values))
+    set({ values })
   }
 }))

@@ -241,6 +241,262 @@ export function parseLibraryFolders(vdfText: string): string[] {
 }
 
 /**
+ * The kinds of control a wallpaper's settings can expose.
+ *
+ * Wallpaper Engine's project editor writes these into `project.json` under
+ * `general.properties`, and they are exactly the values the engine lets a user
+ * change after subscribing: sliders, colours, switches, text fields and combos.
+ */
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'textinput' | 'combo'
+
+/**
+ * One customizable option a wallpaper declares for itself.
+ *
+ * A Workshop wallpaper is third-party input: the keys, the labels (which are
+ * full of author-written HTML) and the values are all unvalidated. This is the
+ * shape after that input has been read once and checked here, so the renderer
+ * can draw a control without re-validating anything.
+ */
+export interface WallpaperProperty {
+  /** The `general.properties` key, for example `glow` or `_21`. */
+  name: string
+  type: WallpaperPropertyType
+  /** The label shown next to the control, with the author's markup removed. */
+  text: string
+  /** The project's saved value: where the control starts. */
+  value: boolean | number | string
+  /** A slider's range, when the project declares one. */
+  min?: number
+  max?: number
+  step?: number
+  /** A combo's choices, in the order the author wrote them. */
+  options?: { label: string; value: string }[]
+}
+
+/**
+ * The only types that are controls.
+ *
+ * `text` (and `file`/`directory`/`group`) are dropped on purpose: `text` is the
+ * author's HTML banner, not something to change, and the others are pickers this
+ * app does not implement. Showing a control that cannot work is worse than not
+ * showing it.
+ */
+const EDITABLE_PROPERTY_TYPES = new Set<string>(['slider', 'bool', 'color', 'textinput', 'combo'])
+
+/**
+ * Wallpaper Engine's own colour scheme, which is not a wallpaper setting.
+ *
+ * `schemecolor` colours the wallpaper's configuration window; the engine's editor
+ * never offers it as a control, and it sorts first in real projects (order 100),
+ * so keeping it would put a non-control at the top of the settings list.
+ */
+const SCHEME_COLOR_KEY = 'schemecolor'
+
+/** The longest label that still fits the settings row next to its control. */
+const MAX_LABEL_LENGTH = 60
+
+/**
+ * The controls a wallpaper declares, in the order the engine's editor shows them.
+ *
+ * The input is `general.properties` from a parsed `project.json` - any shape,
+ * including missing, because a manifest is third-party input. Order comes from
+ * the `order` field the engine writes, falling back to `index` and then to the
+ * order of the keys in the file, which is the only ordering a hand-written
+ * manifest has.
+ *
+ * Boundary: `condition` is not evaluated. A property whose `condition` is set
+ * only appears when another property has a particular value, and that expression
+ * language is Wallpaper Engine's; a control that is shown without its condition
+ * being met would appear to do nothing. Those properties are dropped rather than
+ * shown broken. For the same reason `schemecolor` is dropped - see above.
+ */
+export function editableProperties(raw: unknown): WallpaperProperty[] {
+  const properties = asRecord(raw)
+  if (!properties) return []
+
+  const ordered: { property: WallpaperProperty; order: number }[] = []
+  let position = 0
+  for (const [name, entry] of Object.entries(properties)) {
+    const property = readProperty(name, entry)
+    if (property) ordered.push({ property, order: orderOf(asRecord(entry), position) })
+    position += 1
+  }
+
+  // A stable sort: two properties the engine gave the same order keep the order
+  // the manifest wrote them in, which is what the engine itself does.
+  ordered.sort((a, b) => a.order - b.order)
+  return ordered.map((item) => item.property)
+}
+
+/** One property, or null when it is not a control this app can show. */
+function readProperty(name: string, entry: unknown): WallpaperProperty | null {
+  const record = asRecord(entry)
+  if (!record) return null
+  if (name.toLowerCase() === SCHEME_COLOR_KEY) return null
+
+  // A conditional property is only visible while some other value has a specific
+  // setting; without evaluating that expression, showing it would be misleading.
+  const condition = record.condition
+  if (typeof condition === 'string' && condition.trim() !== '') return null
+
+  const declared = typeof record.type === 'string' ? record.type.toLowerCase() : ''
+  if (!EDITABLE_PROPERTY_TYPES.has(declared)) return null
+  const type = declared as WallpaperPropertyType
+
+  const value = record.value
+  if (value === undefined || value === null) return null
+
+  const text = labelFor(name, record.text)
+  // A label that is only the debris of an <img> tag is decoration, not a control
+  // name; there is nothing useful to show next to the widget.
+  if (text === null) return null
+
+  switch (type) {
+    case 'slider': {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return null
+      const property: WallpaperProperty = { name, type, text, value }
+      const min = finiteNumber(record.min)
+      const max = finiteNumber(record.max)
+      const step = finiteNumber(record.step)
+      if (min !== undefined) property.min = min
+      if (max !== undefined) property.max = max
+      if (step !== undefined) property.step = step
+      return property
+    }
+    case 'bool':
+      if (typeof value !== 'boolean') return null
+      return { name, type, text, value }
+    case 'color':
+      // The engine stores a colour as three 0..1 floats in one string, and the
+      // renderer turns that into an rgb(). Anything else is not a colour.
+      if (typeof value !== 'string' || !isColorTriple(value)) return null
+      return { name, type, text, value }
+    case 'combo': {
+      const options = readOptions(record.options)
+      if (options.length === 0) return null
+      return { name, type, text, value: String(value), options }
+    }
+    case 'textinput':
+      // Authors sometimes write a number where a string is expected, and the
+      // caller only needs to put it in an input's value.
+      return { name, type, text, value: String(value) }
+  }
+
+  return null
+}
+
+/** The editor order of one property: `order`, then `index`, then file order. */
+function orderOf(record: Record<string, unknown> | null, position: number): number {
+  const order = finiteNumber(record?.order)
+  if (order !== undefined) return order
+  return finiteNumber(record?.index) ?? position
+}
+
+/** A finite number, or undefined for anything else (including NaN/Infinity). */
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+/**
+ * True for the `"r g b"` triple Wallpaper Engine stores a colour as.
+ *
+ * The string is kept exactly as written; converting it to hex here would throw
+ * away the precision the engine saved and the renderer needs no help splitting
+ * three numbers.
+ */
+function isColorTriple(value: string): boolean {
+  const parts = value.trim().split(/\s+/)
+  if (parts.length !== 3) return false
+  return parts.every((part) => {
+    const channel = Number(part)
+    return part !== '' && Number.isFinite(channel) && channel >= 0 && channel <= 1
+  })
+}
+
+/** A combo's choices, keeping only the ones a control can show. */
+function readOptions(value: unknown): { label: string; value: string }[] {
+  if (!Array.isArray(value)) return []
+
+  const options: { label: string; value: string }[] = []
+  for (const item of value) {
+    const record = asRecord(item)
+    if (!record) continue
+    const optionValue =
+      typeof record.value === 'string'
+        ? record.value
+        : typeof record.value === 'number'
+          ? String(record.value)
+          : null
+    if (optionValue === null) continue
+    // A combo without a label for one of its entries would render an empty row;
+    // the value is a serviceable label because it is what the author wrote.
+    const label =
+      typeof record.label === 'string' && record.label.trim() !== '' ? record.label : optionValue
+    options.push({ label, value: optionValue })
+  }
+  return options
+}
+
+/**
+ * The label a control shows.
+ *
+ * Real projects write HTML into `text` (`<b>`, `<font>`, `<a>`, `<img>`,
+ * `<br>`); the settings page renders plain text, so the markup is stripped here
+ * rather than in every renderer. Authors also leave tags unterminated, so a tag
+ * that runs to the end of the string is stripped as well. An empty result falls
+ * back to the property name: a control with no label is unusable, and the name is
+ * at least stable between restarts.
+ *
+ * Boundary: the 60 character cap is a plain truncation, not a word wrap, because
+ * the settings row is a single line. The full label is not kept anywhere.
+ */
+function labelFor(name: string, text: unknown): string | null {
+  if (typeof text !== 'string') return name
+
+  const withoutTags = decodeEntities(text)
+    .replace(/<[^>]*>/g, ' ')
+    // An unterminated tag at the end of the author's string, e.g. `"<big"`.
+    .replace(/<[a-zA-Z!/][^<>]*$/g, ' ')
+  const collapsed = withoutTags.replace(/\s+/g, ' ').trim()
+  // 剥完什么都不剩，而原文里本来就是一串图片/链接：这项的文案只有标记，没有话。
+  if (collapsed === '') {
+    return /img|src=|https?:|www\./i.test(text) ? null : name
+  }
+  /*
+   * 有些作者把一张图片直接写成属性文案（`<img src="..." width=2000>`），而标签
+   * 常常没闭合。上面的剥离会吃得干干净净，只剩 `imgsrchttp…width2000height2`
+   * 这种压掉空格的残骸——它在设置页里是一行乱码，不是一个控件名。这种项直接
+   * 不显示：真正能改的控件不会只有一个图片地址当名字。
+   */
+  if (looksLikeTagDebris(collapsed)) return null
+  if (collapsed.length <= MAX_LABEL_LENGTH) return collapsed
+  return collapsed.slice(0, MAX_LABEL_LENGTH)
+}
+
+/** 剥完标签的文案是不是一段 URL / 标签属性的残骸。 */
+function looksLikeTagDebris(label: string): boolean {
+  if (/[\u4e00-\u9fff]/.test(label)) return false
+  const lower = label.toLowerCase()
+  const mentionsMarkup =
+    lower.includes('img') || lower.includes('src=') || lower.includes('http') || lower.includes('www.')
+  if (!mentionsMarkup) return false
+  // "Show image" 这种人写的短句仍然像话；只有又长又没空格、又全是 ASCII 词的才算残骸。
+  return label.length > 24 && !label.includes(' ')
+}
+
+/** project.json 里的 `&nbsp;` 之类；设置页按纯文本渲染，实体留着就是字面量。 */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCharCode(Number(code)))
+}
+
+/**
  * The wallpaper files assigned to a monitor, from a parsed `config.json`.
  *
  * Wallpaper Engine keeps them at

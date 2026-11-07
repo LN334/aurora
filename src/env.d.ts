@@ -597,9 +597,32 @@ export interface WallpaperInfo {
   src: string | null
   note: string
   engineDir: string | null
+  /** 当前壁纸的可调项，形状同 WallpaperEntry.properties。 */
+  properties?: WallpaperProperty[]
 }
 
 export type WallpaperKind = 'none' | 'scene' | 'video' | 'web' | 'image'
+
+/** 壁纸自带的可调项类型。只剩这五种是真正能改的控件，其余在解析层就被丢掉了。 */
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'textinput' | 'combo'
+
+/**
+ * Wallpaper Engine 工程自带的一项自定义设置（project.json 的 general.properties）。
+ *
+ * 值就按 WE 自己的标量形状走：slider 是数字，bool 是布尔，color 是 "r g b"
+ * 三个 0..1 浮点数拼成的字符串，textinput/combo 是字符串。
+ */
+export interface WallpaperProperty {
+  name: string
+  type: WallpaperPropertyType
+  /** 给人看的标签，主进程已经剥掉作者写在里面的 HTML。 */
+  text: string
+  value: boolean | number | string
+  min?: number
+  max?: number
+  step?: number
+  options?: { label: string; value: string }[]
+}
 
 /** 壁纸库里的一项。URL 已经是 `aurora-wallpaper://` 地址，渲染层不碰文件系统。 */
 export interface WallpaperEntry {
@@ -616,6 +639,8 @@ export interface WallpaperEntry {
   hasPackage: boolean
   /** 是否是 Wallpaper Engine 当前在桌面上用的那一张。 */
   current: boolean
+  /** 这张壁纸自带的可调项；没有可调项时是空数组。旧版主进程没有这个字段。 */
+  properties?: WallpaperProperty[]
 }
 
 export interface WallpaperApi {

@@ -4,7 +4,7 @@ import type { Account } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
 import { Check, Pencil, Plus, Trash } from '../ui/icons'
 import { Artwork } from '../ui/Artwork'
-import { remoteImageUrl } from '../features/player/urls'
+import { remoteImageUrl, sizedImage } from '../features/player/urls'
 
 interface AccountsViewProps {
   accounts: Account[]
@@ -131,7 +131,7 @@ export function AccountsView({
                     <img src={account.avatar} alt="" />
                   ) : bound?.avatarUrl ? (
                     <Artwork
-                      src={remoteImageUrl(bound.avatarUrl)}
+                      src={remoteImageUrl(sizedImage(bound.avatarUrl, 128))}
                       fallback={account.label.slice(0, 1)}
                     />
                   ) : (

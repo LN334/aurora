@@ -4,7 +4,7 @@ import type { NeteaseDiscoverPlaylist, NeteaseSong } from '../../env'
 import { ArtCard } from '../../ui/ArtCard'
 import { TrackList } from '../../ui/TrackList'
 import { usePlayer } from '../player/store'
-import { remoteImageUrl } from '../player/urls'
+import { remoteImageUrl, sizedImage } from '../player/urls'
 import { useAvailableProviders } from '../online/hooks'
 import { useOnlineStore } from '../online/store'
 import { QqLogin, setLoginOpen as setQqLoginOpen, useQqLoginOpen } from '../qq/QqLogin'
@@ -132,7 +132,7 @@ export function DiscoverView() {
           title={playlist.name}
           subtitle={playlistSubtitle(playlist)}
           meta={playlistMeta(playlist)}
-          src={playlist.coverUrl ? remoteImageUrl(playlist.coverUrl) : null}
+          src={playlist.coverUrl ? remoteImageUrl(sizedImage(playlist.coverUrl, index === 0 ? 640 : 360)) : null}
           onOpen={() => void openPlaylist(playlist)}
           onPlay={() => void playPlaylist(playlist)}
         />
@@ -276,6 +276,15 @@ export function DiscoverView() {
               </button>
             )
           })}
+          <button
+            className="tabs__action"
+            type="button"
+            disabled={block.status === 'loading'}
+            onClick={retry}
+            title="重新读一次这一栏；网易云的推荐大约十分钟变一次"
+          >
+            {block.status === 'loading' ? '换一批中…' : '换一批'}
+          </button>
         </div>
       ) : null}
 
