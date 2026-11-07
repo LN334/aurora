@@ -1,0 +1,54 @@
+.lk-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 208px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(14 17 21 / 0.96);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.48);
+}
+
+.lk-menu__head {
+  margin: 2px 6px 6px;
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+
+.lk-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-mid);
+  font-size: var(--fs-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lk-menu__item:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-hi);
+}
+
+.lk-menu__item.is-liked {
+  color: var(--text-hi);
+}
+
+.lk-menu__item.is-liked svg {
+  color: var(--accent-strong);
+  fill: currentColor;
+}
+
+.lk-menu__name {
+  flex: 1;
+}
+
+.lk-menu__state {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}

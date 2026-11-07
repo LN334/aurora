@@ -4,6 +4,8 @@ import { sourcesOf } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
+import { likeTargets } from '../features/favorites/like-targets'
+import { useLikeMenu } from '../features/favorites/like-menu'
 import { formatTime } from './format'
 import { showFlash } from './flash'
 import { Heart, Note } from './icons'
@@ -26,6 +28,17 @@ function artistParts(track: Track): { id: number; name: string }[] {
     const hit = refs.find((ref) => ref.name === name)
     return { id: hit?.id ?? 0, name }
   })
+}
+
+/**
+ * 这一行亮不亮心。
+ *
+ * 合并行的主行只是「优先级最高的那一版」，用户可能喜欢的是挂在后面另一家的
+ * 那一版；只看主行会让心形明明收藏过却还是空的，所以整行任一版本喜欢过都算亮。
+ */
+function likedRow(track: Track, likedIds: ReadonlySet<string>): boolean {
+  if (likedIds.has(track.id)) return true
+  return (track.versions ?? []).some((version) => likedIds.has(version.id))
 }
 
 export interface TrackMenuRequest {
@@ -128,6 +141,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
          */
         const platforms = track.versions?.length ? sourcesOf(track, order) : mixed ? [track.source ?? 'local'] : []
         const refs = refOfTrack(track)
+        const isLiked = likedRow(track, likedIds)
         return (
           <div
             key={track.id}
@@ -246,16 +260,40 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                 悬停才出现——一行里只有它在乎「我喜不喜欢」，不该一直吵。
               */}
               <button
-                className={`trk__like${likedIds.has(track.id) ? ' is-liked' : ''}`}
+                className={'trk__like' + (isLiked ? ' is-liked' : '')}
                 onClick={(event) => {
                   event.stopPropagation()
-                  void toggleLiked(track).then((result) => {
-                    if (!result.ok && result.message) showFlash(result.message)
+                  /*
+                   * 一行里有两个以上落点时先问收藏到哪儿；只有一个时直接切换。
+                   * 菜单从按钮左上弹出，靠近哪边由 LikeMenu 自己夹进视口。
+                   */
+                  const targets = likeTargets(track)
+                  if (targets.length > 1) {
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    useLikeMenu.getState().show({ track, x: rect.left - 12, y: rect.bottom + 6 })
+                    return
+                  }
+                  /*
+                   * 只有一个落点时直接写，但写的是「能写的那一版」而不是主行。
+                   * 主行是 QQ（没有收藏接口）而另一版在网易云时，点红心应该落到
+                   * 网易云，而不是回一句「这个平台还不支持」。
+                   */
+                  const target = targets[0]
+                  if (!target) {
+                    showFlash('这首歌所在的平台还没有收藏接口')
+                    return
+                  }
+                  void toggleLiked(target.track).then((result) => {
+                    if (!result.ok) {
+                      if (result.message) showFlash(result.message)
+                    } else {
+                      showFlash(result.liked ? '已收藏到' + target.label : '已从' + target.label + '取消')
+                    }
                   })
                 }}
-                title={likedIds.has(track.id) ? '取消喜欢' : '喜欢'}
-                aria-label={`${likedIds.has(track.id) ? '取消喜欢' : '喜欢'} ${track.title}`}
-                aria-pressed={likedIds.has(track.id)}
+                title={isLiked ? '取消喜欢' : '喜欢'}
+                aria-label={(isLiked ? '取消喜欢 ' : '喜欢 ') + track.title}
+                aria-pressed={isLiked}
               >
                 <Heart size={14} />
               </button>

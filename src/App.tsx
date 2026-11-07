@@ -23,6 +23,7 @@ import { TitleBar } from './app/TitleBar'
 import { TrackList, type TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
 import { TrackMenu } from './views/TrackMenu'
+import { LikeMenu } from './views/LikeMenu'
 import { ChevronLeft, Close, Expand, Plus, Queue, Refresh } from './ui/icons'
 import { bridge, isNative } from './bridge'
 import { demoLibrary } from './features/library/demo'
@@ -1085,6 +1086,12 @@ export function App() {  if (!isNative) {
           }}
         />
       </div>
+
+      {/*
+        喜欢到哪儿。只在同一首歌有好几个版本时出现；一个版本时行上的心形
+        直接切换，不再多问一句。
+      */}
+      <LikeMenu />
 
       {/*
         Actions menu. Held by the app rather than by a row, because only one can
