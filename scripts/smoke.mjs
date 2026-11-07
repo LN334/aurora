@@ -263,18 +263,25 @@ async function main() {
     // A seeded library scans in the background; walking the shelves before it
     // finishes would photograph the empty state and pass for the wrong reason.
     if (LIBRARY) {
-      const deadline = Date.now() + 180000
-      let rendered = 0
-      while (Date.now() < deadline) {
-        const state = JSON.parse(
-          await evaluate(
-            cdp,
-            '(() => JSON.stringify({ rows: document.querySelectorAll(".trk, .card").length, scanning: (document.body.innerText || "").includes("正在扫描") }))()'
-          )
-        )
-        rendered = state.rows
-        if (rendered > 0 && !state.scanning) break
+      /*
+       * 首屏是主页，主页在没有播放记录时不长歌曲行，所以「等首页出现 .trk」永远等不到。
+       * 先等后台扫描结束（扫描中会在页面上写「正在扫描」），再切到音乐库确认索引真的
+       * 长成了行 —— 这一步同时是「播种曲库确实被读到」的断言。
+       */
+      const scanDeadline = Date.now() + 180000
+      while (Date.now() < scanDeadline) {
+        const scanning = await evaluate(cdp, '(document.body.innerText || "").includes("正在扫描")')
+        if (!scanning) break
         await sleep(500)
+      }
+      await clickStep(cdp, { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' })
+      await sleep(600)
+      const rowsDeadline = Date.now() + 30000
+      let rendered = 0
+      while (Date.now() < rowsDeadline) {
+        rendered = await evaluate(cdp, 'document.querySelectorAll(".trk").length')
+        if (rendered > 0) break
+        await sleep(300)
       }
       if (rendered === 0) fail('the seeded library rendered no rows')
       console.log('smoke: library rendered ' + rendered + ' rows')
@@ -695,6 +702,78 @@ async function main() {
       })
     }
 
+    /*
+     * 音量滑杆的边界：拖到 0 之后按静音键两次，界面必须回到一个能听见的音量。
+     * 旧实现只把 muted 关掉、音量仍是 0，于是「取消静音」按了等于没按。
+     */
+    {
+      const mark = cdp.events.length
+      const readVolume =
+        'document.querySelector(".volume") ? Number(document.querySelector(".volume").getAttribute("aria-valuenow")) : -1'
+      const clickMute = [
+        "(() => {",
+        "  const b = Array.from(document.querySelectorAll('.player__right .icon-btn')).find((n) => (n.getAttribute('aria-label') || '').indexOf('静音') >= 0)",
+        "  if (!b) return 'no mute button'",
+        "  b.click()",
+        "  return b.getAttribute('aria-label')",
+        "})()"
+      ].join("\n")
+      let slider = null
+      const rectJson = await evaluate(
+        cdp,
+        "(() => { const v = document.querySelector('.volume'); if (!v) return 'null'; const r = v.getBoundingClientRect(); return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height }) })()"
+      )
+      if (rectJson && rectJson !== 'null') slider = JSON.parse(rectJson)
+      if (slider) {
+        const y = slider.y + slider.h / 2
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: slider.x + 1, y, button: 'left', clickCount: 1 })
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: slider.x + 1, y, button: 'left', clickCount: 1 })
+        await sleep(300)
+      }
+      const beforeMute = await evaluate(cdp, readVolume)
+      await evaluate(cdp, clickMute)
+      await sleep(250)
+      const mutedAt = await evaluate(cdp, readVolume)
+      await evaluate(cdp, clickMute)
+      await sleep(350)
+      const restoredAt = await evaluate(cdp, readVolume)
+      const shotPath = path.join(SHOTS, '14-volume.png')
+      const shotOk = await shoot(cdp, shotPath)
+      console.log('smoke: volume ' + beforeMute + '% -> muted ' + mutedAt + '% -> unmuted ' + restoredAt + '%')
+
+      const fresh = cdp.events.slice(mark)
+      const logged = fresh
+        .filter((event) => event.method === "Log.entryAdded" && event.params.entry.level === "error")
+        .filter((event) => !isQuietMiss(event))
+        .map((event) => event.params.entry.text)
+      quietMisses += fresh.filter(isQuietMiss).length
+      const thrown = fresh
+        .filter((event) => event.method === "Runtime.exceptionThrown")
+        .map(
+          (event) =>
+            event.params.exceptionDetails.exception?.description ?? event.params.exceptionDetails.text
+        )
+      errors.push(...logged, ...thrown)
+
+      const problems = []
+      if (!slider) problems.push('no volume slider in the player bar')
+      if (mutedAt !== 0) problems.push('muting did not take the volume to 0 (aria-valuenow=' + mutedAt + ')')
+      if (!(restoredAt >= 10)) problems.push('unmuting left the volume at ' + restoredAt + '%')
+      if (!shotOk) problems.push('screenshot failed')
+      if (logged.length) problems.push(logged.length + ' console error(s)')
+      if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
+
+      rows.push({
+        view: 'volume',
+        label: '音量与静音',
+        ok: problems.length === 0,
+        why: problems.join('; '),
+        images: 0,
+        broken: 0,
+        brokenSrcs: [],
+        shot: path.relative(ROOT, shotPath)
+      })
+    }
     // The player bar is on every screen; a walk that never sees it would still
     // pass every step above, so it gets its own check.
     if (!(await evaluate(cdp, "Boolean(document.querySelector('.player'))"))) {
