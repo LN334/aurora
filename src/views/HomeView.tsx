@@ -267,6 +267,14 @@ export function HomeView({ onNavigate }: HomeViewProps) {
 
       {daily.length > 0 ? (
         <section className="rh-daily">
+          <button
+            className="rh-more rh-daily__all"
+            type="button"
+            onClick={() => onNavigate({ view: 'daily' })}
+          >
+            全部 {daily.length} 首
+            <ChevronRight size={13} />
+          </button>
           <div className="rh-daily__text">
             <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
             <h2>今天听什么</h2>
@@ -281,14 +289,6 @@ export function HomeView({ onNavigate }: HomeViewProps) {
               >
                 <Play size={15} />
                 开始播放
-              </button>
-              <button
-                className="rh-more"
-                type="button"
-                onClick={() => onNavigate({ view: 'daily' })}
-              >
-                全部 {daily.length} 首
-                <ChevronRight size={13} />
               </button>
             </div>
           </div>

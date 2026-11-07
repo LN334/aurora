@@ -2304,3 +2304,15 @@
   font-size: 10px;
   padding: 1px 6px;
 }
+
+/* 「今天听什么」右上角的整页入口：跟其它区块的「更多」同一个位置。 */
+.rh-daily {
+  position: relative;
+}
+
+.rh-daily__all {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  z-index: 2;
+}
