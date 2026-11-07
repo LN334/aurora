@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
 import type { Route } from '../app/routing'
 import { isNative } from '../bridge'
 import { useOnlineBindings } from '../features/accounts/bindings'
@@ -18,23 +17,13 @@ import { PlatformLoginDialogs, openPlatformLogin } from './settings/panes/Platfo
 /**
  * 账号页。
  *
- * 这一页回答两个问题：本机有哪几个档案、当前这个档案登录了哪些平台。
- * 本地文件夹也在这一页，因为「这个档案能播什么」由它决定。
- *
- * 版式按「谁 → 能登什么 → 能读什么」排成三个分区：抬头永远是一行
- * （编号 · 英文小标 · 中文名 · 发丝线 · 右侧操作），内容在下方铺满页面宽度。
- * 不复用设置页的两栏抬头：那套在宽窗口把抬头竖到左边一列，是为了让「label 左、
- * 控件右」的长表能一眼扫完；账号页每块都是横向卡片列表，套上之后反而又窄又空。
- *
- * 以前的版本把「档案列表」「每档案的绑定行」「新档案输入框」平铺在同一节里，
- * 同一个人名会出现两遍，输入框还长期裸露在页面中间；现在绑定关系并进档案行的
- * 第二行，新建改成抬头按钮按需展开。
- *
- * 页面标题由外壳打印（见 docs/ui-design.md「一页一个标题」），这里只负责内容。
+ * 三块：当前档案（hero）→ 在线平台（四张平级卡）→ 音乐文件夹。
+ * 所有平台的登录入口都收在这一页，不另开页面；平台只作为卡片并列，
+ * 不按平台再分页。
  */
 export function AccountView(_props: { onNavigate(route: Route): void }) {
   return (
-    <div className="account-page">
+    <div className="acct2-page">
       <ProfilePart />
       <PlatformPart />
       <FolderPart />
@@ -43,35 +32,8 @@ export function AccountView(_props: { onNavigate(route: Route): void }) {
   )
 }
 
-/**
- * 分区：一行标题，右边放操作，内容在下面。
- *
- * 以前这里是「01 / LOCAL PROFILES / 本地档案」三级并排——编号和英文小标是
- * 给阅读顺序编号用的，但这一页只有三块，读者不需要知道谁排第一。现在和首页
- * 用同一种分区头：中文短语 + 右侧一个动作，扫一眼就知道这一段是什么。
- */
-function Section({
-  zh,
-  actions,
-  children
-}: {
-  zh: string
-  actions?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className="rh-sec acct-sec" aria-label={zh}>
-      <header className="rh-sec__head">
-        <h3>{zh}</h3>
-        {actions ? <div className="acct-sec__actions">{actions}</div> : null}
-      </header>
-      <div className="acct-sec__body">{children}</div>
-    </section>
-  )
-}
-
 /* =============================================================================
-   01 本地档案
+   01 当前档案
    ========================================================================== */
 
 function ProfilePart() {
@@ -84,10 +46,9 @@ function ProfilePart() {
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState('')
 
-  /*
-   * 每行一个 <label> 包着隐藏的 file input：点头像就是原生地「打开文件选择」，
-   * 不需要在组件里记「这次点的是哪一行」，也不存在列表重建后 ref 指错行的可能。
-   */
+  const active = (accounts.find((item) => item.id === activeId) ?? accounts[0]) as Account
+  const bound = bindings[active.id] ?? null
+
   const pickAvatar = async (id: string, file: File | undefined) => {
     if (!file) return
     const avatar = await toAvatarDataUrl(file)
@@ -114,121 +75,91 @@ function ProfilePart() {
   }
 
   return (
-    <Section
-      zh="本地档案"
-      actions={
+    <section className="acct2-hero" aria-label="本地档案">
+      <label
+        className={'acct2-avatar' + (active.avatar || bound?.avatarUrl ? ' has-image' : '')}
+        title="换头像"
+      >
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            void pickAvatar(active.id, file)
+          }}
+        />
+        {active.avatar ? (
+          <img src={active.avatar} alt="" />
+        ) : bound?.avatarUrl ? (
+          <Artwork
+            src={remoteImageUrl(sizedImage(bound.avatarUrl, 128))}
+            fallback={active.label.slice(0, 1)}
+          />
+        ) : (
+          active.label.slice(0, 1)
+        )}
+      </label>
+
+      <div className="acct2-ident">
+        {editing === active.id ? (
+          <input
+            className="acct2-edit"
+            value={editLabel}
+            autoFocus
+            maxLength={40}
+            aria-label="档案名称"
+            onChange={(event) => setEditLabel(event.target.value)}
+            onBlur={() => commitRename(active.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'Escape') setEditing(null)
+            }}
+          />
+        ) : (
+          <button className="acct2-name" type="button" onClick={() => beginRename(active)} title="改档案名">
+            {active.label}
+            <Pencil size={13} />
+          </button>
+        )}
+        <p className="acct2-meta">{heroMeta(active, bound)}</p>
+      </div>
+
+      <div className="acct2-acts">
         <button className="btn btn--small" onClick={() => setCreating(true)} disabled={creating}>
           <Plus size={14} />
           新建档案
         </button>
-      }
-    >
-      <ul className="acct-rows acct-rows--profiles">
-        {accounts.map((account) => {
-          const isActive = account.id === activeId
-          const bound = bindings[account.id] ?? null
-          return (
-            <li className={`acct-row acct-row--profile${isActive ? ' is-active' : ''}`} key={account.id}>
-              <label
-                className={`acct-avatar${account.avatar || bound?.avatarUrl ? ' has-image' : ''}`}
-                title="换头像"
+      </div>
+
+      {accounts.length > 1 ? (
+        <div className="acct2-switch">
+          {accounts.map((account) => {
+            const on = account.id === activeId
+            return (
+              <button
+                key={account.id}
+                type="button"
+                className={'acct2-chip' + (on ? ' is-on' : '')}
+                onClick={() => {
+                  if (on) beginRename(account)
+                  else useAccounts.getState().activate(account.id)
+                }}
+                title={on ? '当前档案，点击改名' : '切换到 ' + account.label}
               >
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    // 先清空 value，否则同一个文件连选两次不会再触发 change。
-                    event.target.value = ''
-                    void pickAvatar(account.id, file)
-                  }}
-                />
-                {account.avatar ? (
-                  <img src={account.avatar} alt="" />
-                ) : bound?.avatarUrl ? (
-                  <Artwork
-                    src={remoteImageUrl(sizedImage(bound.avatarUrl, 128))}
-                    fallback={account.label.slice(0, 1)}
-                  />
-                ) : (
-                  account.label.slice(0, 1)
-                )}
-              </label>
+                <i aria-hidden="true">{account.label.slice(0, 1)}</i>
+                {account.label}
+                {on ? <Check size={12} /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
 
-              {editing === account.id ? (
-                <input
-                  className="acct-edit"
-                  value={editLabel}
-                  autoFocus
-                  maxLength={40}
-                  aria-label="档案名称"
-                  onChange={(event) => setEditLabel(event.target.value)}
-                  onBlur={() => commitRename(account.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') event.currentTarget.blur()
-                    if (event.key === 'Escape') setEditing(null)
-                  }}
-                />
-              ) : (
-                <button
-                  className="acct-name"
-                  onClick={() => {
-                    /*
-                     * 只有一个档案时「点名字」不可能是切换（切到自己没意义），
-                     * 那里最自然的动作是改名；多档案时才保持切换。
-                     */
-                    if (accounts.length === 1) beginRename(account)
-                    else useAccounts.getState().activate(account.id)
-                  }}
-                  title={accounts.length === 1 ? '改档案名' : `切换到 ${account.label}`}
-                >
-                  <span className="acct-name__label">{account.label}</span>
-                  <span className="acct-name__meta">{profileMeta(account, bound)}</span>
-                </button>
-              )}
-
-              <div className="acct-row__actions">
-                {isActive ? (
-                  <span className="acct-badge">
-                    <Check size={12} />
-                    使用中
-                  </span>
-                ) : (
-                  <button
-                    className="btn btn--small"
-                    onClick={() => useAccounts.getState().activate(account.id)}
-                  >
-                    切换
-                  </button>
-                )}
-                <button
-                  className="icon-btn"
-                  onClick={() => beginRename(account)}
-                  title="重命名"
-                  aria-label={`重命名 ${account.label}`}
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  className="icon-btn"
-                  onClick={() => useAccounts.getState().remove(account.id)}
-                  disabled={accounts.length <= 1}
-                  title={accounts.length <= 1 ? '至少要保留一个档案' : '删除这个档案'}
-                  aria-label={`删除档案 ${account.label}`}
-                >
-                  <Trash size={15} />
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-
-      {/* 新建是读头按钮按需展开的一行，不做成常驻输入框。 */}
       {creating ? (
         <form
-          className="acct-new"
+          className="acct2-new"
           onSubmit={(event) => {
             event.preventDefault()
             commitNew()
@@ -263,10 +194,9 @@ function ProfilePart() {
           </button>
         </form>
       ) : null}
-    </Section>
+    </section>
   )
 }
-
 /* =============================================================================
    02 在线平台
    ========================================================================== */
@@ -275,21 +205,25 @@ function PlatformPart() {
   const providers = useAvailableProviders()
 
   return (
-    <Section zh="在线平台">
+    <section className="acct2-block" aria-label="在线平台">
+      <header className="acct2-head">
+        <h3>在线平台</h3>
+        <span className="acct2-head__note">登录后，歌单、收藏和推荐都跟着这个账号走</span>
+      </header>
       {providers.length === 0 ? (
-        <p className="acct-empty">这一版没有可用的在线平台。</p>
+        <p className="acct2-empty">这一版没有可用的在线平台。</p>
       ) : (
-        <div className="acct-platforms">
+        <div className="acct2-plats">
           {providers.map((provider) => (
-            <PlatformRow key={provider.id} provider={provider} />
+            <PlatformCard key={provider.id} provider={provider} />
           ))}
         </div>
       )}
-    </Section>
+    </section>
   )
 }
 
-function PlatformRow({ provider }: { provider: OnlineMusicProvider }) {
+function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
   const store = useOnlineStore(provider.id)
   const account = store((state) => state.account)
   const ready = store((state) => state.ready)
@@ -299,50 +233,74 @@ function PlatformRow({ provider }: { provider: OnlineMusicProvider }) {
   const logout = store((state) => state.logout)
 
   useEffect(() => {
-    /*
-     * 这一页可能比平台页面先打开，而共享 store 的账号只有在 init 之后才从主进程读回来。
-     * 不先问一次的话，已登录的账号会在这里显示成「未登录」——那是最容易让人以为登录丢了。
-     */
+    // 这一页常比平台页先打开；不先问一次，已登录也会显示成未登录。
     void init().catch(() => {})
   }, [init])
 
-  const shortName = provider.shortName ?? provider.displayName
+  const name = provider.shortName ?? provider.displayName
+  const tags = capabilityTags(provider)
 
   const meta = account
-    ? `${account.nickname}${account.vip ? ' · 会员' : ''}${account.level ? ` · Lv.${account.level}` : ''}`
+    ? [account.vip ? '会员' : null, account.level ? 'Lv.' + account.level : null]
+        .filter(Boolean)
+        .join(' · ') || '已连接'
     : blocked
-      ? (detail ?? `${provider.displayName} 的后端现在连不上。`)
+      ? (detail ?? '暂时连不上')
       : ready
-        ? '还没有登录。登录后这里会换成你的头像和昵称。'
+        ? '还没有登录'
         : '正在确认登录状态…'
 
   return (
-    <div className="acct-row acct-row--platform">
-      <span className="acct-mark" aria-hidden="true">
-        {shortName.slice(0, 1)}
-      </span>
-      <div className="acct-platform">
-        <div className="acct-platform__head">
-          <span className="acct-platform__name">{provider.displayName}</span>
-          <span className={`acct-state${account ? ' is-on' : ''}`}>
-            {account ? '已登录' : '未登录'}
-          </span>
-        </div>
-        <p className="acct-platform__meta">{meta}</p>
+    <div className={'acct2-pcard' + (account ? ' is-on' : '')}>
+      <div className="acct2-pcard__top">
+        <span className={'acct2-dot acct2-dot--' + provider.id} aria-hidden="true" />
+        <span className="acct2-pcard__name">{name}</span>
+        <span className={'acct2-pill' + (account ? ' is-on' : '')}>
+          {account ? '已登录' : ready ? '未登录' : '连接中'}
+        </span>
       </div>
-      <div className="acct-row__actions">
+
+      <div className="acct2-who">{account ? account.nickname : '未登录'}</div>
+      <p className="acct2-pmeta">{meta}</p>
+
+      {tags.length > 0 ? (
+        <div className="acct2-tags">
+          {tags.map((tag) => (
+            <span className="acct2-tag" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="acct2-pacts">
         {account ? (
           <button className="btn btn--small" onClick={() => void logout()}>
             退出登录
           </button>
         ) : (
-          <button className="btn btn--small" onClick={() => openPlatformLogin(provider.id)}>
+          <button
+            className="btn btn--small acct2-login"
+            onClick={() => openPlatformLogin(provider.id)}
+            disabled={!ready}
+          >
             登录
           </button>
         )}
       </div>
     </div>
   )
+}
+
+/** 一张卡只说三件事，多了就成功能清单了。 */
+function capabilityTags(provider: OnlineMusicProvider): string[] {
+  const caps = provider.capabilities
+  const out: string[] = []
+  if (caps.search) out.push('搜索')
+  if (caps.playlists) out.push('歌单')
+  if (caps.likes) out.push('收藏')
+  if (caps.recommendations) out.push('推荐')
+  return out.slice(0, 4)
 }
 
 /* =============================================================================
@@ -357,60 +315,59 @@ function FolderPart() {
     try {
       const next = await add()
       setError(null)
-      // 加进来就要索引：只把路径写进设置而曲库不变，读起来像「按钮没反应」。
+      // 加进来就要索引：只写路径而曲库不变，读起来像「按钮没反应」。
       if (isNative && next.length > 0) await runScan()
     } catch (problem) {
-      setError(`加入文件夹失败：${problem instanceof Error ? problem.message : String(problem)}`)
+      setError('加入文件夹失败：' + (problem instanceof Error ? problem.message : String(problem)))
     }
   }, [add])
 
   return (
-    <Section
-      zh="音乐文件夹"
-      actions={
-        <>
-          <span className="acct-count">{roots.length > 0 ? `${roots.length} 个` : '空'}</span>
+    <section className="acct2-block" aria-label="音乐文件夹">
+      <header className="acct2-head">
+        <h3>音乐文件夹</h3>
+        <span className="acct2-head__note">
+          {roots.length > 0 ? roots.length + ' 个' : '还没有加入'}
+        </span>
+        <div className="acct2-head__acts">
           <button className="btn btn--small" disabled={busy} onClick={() => void addFolders()}>
             <Plus size={14} />
             添加文件夹
           </button>
-        </>
-      }
-    >
-      {error ? <p className="acct-error">{error}</p> : null}
+        </div>
+      </header>
+
+      {error ? <p className="acct2-error">{error}</p> : null}
+
       {roots.length === 0 ? (
-        <p className="acct-empty">
-          还没有加入文件夹。加入之后这里开始扫描，扫完的曲目出现在音乐库的「本机」里。
-        </p>
+        <p className="acct2-empty">还没有加入文件夹。加入之后会扫一遍，曲目出现在音乐库的「本机」里。</p>
       ) : (
-        <div className="acct-rows">
+        <div className="acct2-folders">
           {roots.map((root) => (
-            <div className="acct-row acct-row--folder" key={root}>
-              <span className="acct-mark" aria-hidden="true">
+            <div className="acct2-folder" key={root}>
+              <span className="acct2-folder__icon" aria-hidden="true">
                 <Folder size={16} />
               </span>
-              <div className="acct-platform">
-                <div className="acct-platform__name">{folderName(root)}</div>
-                <p className="acct-platform__meta" title={root}>
+              <div className="acct2-folder__text">
+                <div className="acct2-folder__name">{folderName(root)}</div>
+                <div className="acct2-folder__path" title={root}>
                   {root}
-                </p>
+                </div>
               </div>
-              <div className="acct-row__actions">
-                <button
-                  className="icon-btn"
-                  disabled={busy}
-                  title={`移出曲库：${root}`}
-                  aria-label={`移出曲库：${root}`}
-                  onClick={() => void remove(root)}
-                >
-                  <Trash size={15} />
-                </button>
-              </div>
+              <button
+                className="icon-btn"
+                disabled={busy}
+                title={'移出曲库：' + root}
+                aria-label={'移出曲库：' + root}
+                onClick={() => void remove(root)}
+              >
+                <Trash size={15} />
+              </button>
             </div>
           ))}
         </div>
       )}
-    </Section>
+    </section>
   )
 }
 
@@ -418,13 +375,9 @@ function FolderPart() {
    工具
    ========================================================================== */
 
-/** 第二行：当前绑的不是谁，别把「本机档案」写成一句话。 */
-function profileMeta(
-  account: Account,
-  bound: { nickname: string; vip?: boolean } | null
-): string {
-  if (bound) return `网易云音乐 · ${bound.nickname}${bound.vip ? ' · 会员' : ''}`
-  return account.createdAt ? `创建于 ${formatDate(account.createdAt)}` : '本机档案'
+function heroMeta(account: Account, bound: { nickname: string; vip?: boolean } | null): string {
+  if (bound) return '网易云音乐 · ' + bound.nickname + (bound.vip ? ' · 会员' : '')
+  return account.createdAt ? '创建于 ' + formatDate(account.createdAt) : '本机档案'
 }
 
 /** 路径太长，行里只留最后一段；完整路径进 title。 */
@@ -442,10 +395,7 @@ function formatDate(ms: number): string {
 }
 
 /**
- * 把用户选的图片裁成方形的 96×96 JPEG。
- *
- * 头像最后存在 localStorage 里（跟着档案走），原图动辄几 MB，不缩就没法存；
- * 96 足够 38px 的圆形显示，2 倍屏也不糊。
+ * 把用户选的图片裁成方形 96×96 JPEG：头像存 localStorage，原图动辄几 MB。
  */
 async function toAvatarDataUrl(file: File): Promise<string | null> {
   try {
@@ -463,7 +413,6 @@ async function toAvatarDataUrl(file: File): Promise<string | null> {
     bitmap.close()
     return canvas.toDataURL('image/jpeg', 0.85)
   } catch {
-    // 不是图片、或是损坏的文件：当作没选，界面保持原样。
     return null
   }
 }

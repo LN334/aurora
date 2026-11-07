@@ -119,7 +119,7 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
   return (
     <div className="col">
       <header className="rh-sec__head pl-head">
-        <h3>我的歌单</h3>
+        <h3>自建歌单</h3>
         <span className="pl-head__count">
           {playlists.length} 个{platformNote}
         </span>

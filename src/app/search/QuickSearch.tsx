@@ -93,13 +93,7 @@ export function QuickSearch({
 
         {error ? <p className="qs__note qs__note--warn">{error}</p> : null}
 
-        {!error && waiting ? (
-          <p className="qs__note">
-            {trimmed
-              ? '按回车，让' + (active?.label ?? '在线平台') + '去找「' + trimmed + '」'
-              : '敲几个字，回车开始搜'}
-          </p>
-        ) : null}
+        {!error && waiting ? <p className="qs__note">按回车搜索</p> : null}
 
         {!error && settled && !searching && rows.length === 0 ? (
           <p className="qs__note">没有找到「{trimmed}」</p>

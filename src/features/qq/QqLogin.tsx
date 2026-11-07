@@ -129,9 +129,7 @@ export function QqLogin({ onClose }: { onClose(): void }) {
             )}
           </div>
 
-          <p className="qq-login__hint">
-            用手机 QQ 扫一扫。登录后才能播放需要会员的歌曲 —— 未登录时只有免费歌曲（128k）能播。
-          </p>
+          <p className="qq-login__hint">扫码登录 · 未登录只听免费歌</p>
 
           {qr.kind === 'failed' ? (
             <button className="btn btn--small" onClick={() => setNonce((value) => value + 1)}>
@@ -139,9 +137,7 @@ export function QqLogin({ onClose }: { onClose(): void }) {
             </button>
           ) : null}
 
-          <p className="qq-login__note">
-            这不是官方客户端：接入的是第三方逆向接口，仅供个人学习自用。能播的只有你这个账号本来就有权限播的内容。
-          </p>
+          <p className="qq-login__note">第三方接口 · 仅供自用</p>
         </div>
       </div>
     </div>

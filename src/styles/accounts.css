@@ -437,3 +437,324 @@
 .account-page .acct-platform__name {
   font-size: 15px;
 }
+
+/* ===========================================================================
+   账号页 v2：hero + 平台四卡 + 文件夹行
+   ========================================================================= */
+.acct2-page {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  padding-bottom: var(--s7);
+  min-width: 0;
+}
+
+.acct2-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 16px;
+  background: rgb(10 12 16 / 0.62);
+}
+.acct2-avatar {
+  flex: none;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  font-size: 24px;
+  color: var(--text-hi);
+  cursor: pointer;
+}
+.acct2-avatar img,
+.acct2-avatar .artwork,
+.acct2-avatar .artwork img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.acct2-ident {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.acct2-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-hi);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+}
+.acct2-name svg {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.acct2-name:hover svg {
+  opacity: 0.55;
+}
+.acct2-meta {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+.acct2-edit {
+  width: 220px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 18px;
+  color: var(--text-hi);
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.06);
+}
+.acct2-acts {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.acct2-switch {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(255 255 255 / 0.07);
+}
+.acct2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: transparent;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  cursor: pointer;
+}
+.acct2-chip.is-on {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.1);
+  color: var(--text-hi);
+}
+.acct2-chip i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 10px;
+  background: rgb(255 255 255 / 0.12);
+}
+.acct2-new {
+  flex-basis: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid rgb(255 255 255 / 0.07);
+}
+.acct2-new input {
+  flex: 0 1 320px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text-hi);
+}
+
+.acct2-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.acct2-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.acct2-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-hi);
+}
+.acct2-head__note {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+.acct2-head__acts {
+  margin-left: auto;
+}
+
+.acct2-plats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.acct2-pcard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px 18px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 14px;
+  background: rgb(10 12 16 / 0.58);
+}
+.acct2-pcard.is-on {
+  border-color: rgb(255 255 255 / 0.15);
+}
+.acct2-pcard__top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.acct2-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: rgb(255 255 255 / 0.4);
+}
+.acct2-dot--local { background: #e0926a; }
+.acct2-dot--netease { background: #d9524e; }
+.acct2-dot--qq { background: #3fa86a; }
+.acct2-dot--kugou { background: #2f8fe0; }
+.acct2-dot--qishui { background: #8d8fa6; }
+.acct2-pcard__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct2-pill {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  color: var(--text-low);
+  font-size: 11px;
+}
+.acct2-pill.is-on {
+  color: #bfe3c8;
+  border-color: rgb(120 200 140 / 0.35);
+  background: rgb(80 170 100 / 0.12);
+}
+.acct2-who {
+  font-size: 17px;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct2-pmeta {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+.acct2-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.acct2-tag {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text-mid);
+  font-size: 11px;
+}
+.acct2-pacts {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.acct2-login {
+  background: rgb(255 255 255 / 0.92);
+  color: #12161c;
+  border-color: transparent;
+}
+.acct2-login:hover {
+  background: #fff;
+}
+.acct2-empty {
+  margin: 0;
+  padding: 18px 2px;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+}
+.acct2-error {
+  margin: 0;
+  color: #e08a8a;
+  font-size: var(--fs-meta);
+}
+.acct2-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.acct2-folder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 10px;
+  background: rgb(10 12 16 / 0.5);
+}
+.acct2-folder__icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-mid);
+}
+.acct2-folder__text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.acct2-folder__name {
+  font-size: 14px;
+  color: var(--text-hi);
+}
+.acct2-folder__path {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

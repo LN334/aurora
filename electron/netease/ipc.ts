@@ -9,6 +9,7 @@ import type {
   NeteaseAlbum,
   NeteaseAlbumSummary,
   NeteaseArtistDetail,
+  NeteaseCollectedAlbum,
   NeteaseDiscoverKind,
   NeteaseDiscoverResult,
   NeteaseLoginResult,
@@ -300,6 +301,10 @@ export function registerNeteaseIpc(): void {
 
   ipcMain.handle('netease:myPlaylists', () =>
     guard<NeteasePlaylistSummary[]>('myPlaylists', [], () => client.neteaseMyPlaylists())
+  )
+
+  ipcMain.handle('netease:albumSublist', () =>
+    guard<NeteaseCollectedAlbum[]>('albumSublist', [], () => client.neteaseAlbumSublist())
   )
 
   ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => {

@@ -44,16 +44,18 @@ interface MineItem {
 }
 
 /**
- * 「我的」那一段。顺序照抄网易云：喜欢 → 最近 → 收藏 → 歌单 → 本地。
+ * 「我的」那一段：喜欢 → 最近 → 收藏歌单 → 收藏专辑 → 本地。
  *
- * 每日推荐不在这栏里：它的入口就是主页那块「今天听什么」，一天只换一次，
- * 在这里再挂一项等于把同一个入口写两遍。
+ * 收藏拆成两项，是因为它本来就装两样东西：平台账号里收藏的歌单、收藏的专辑。
+ * 合成一页时东西一多就得分段，不如各占一格。名字里都带「收藏」，不会认错。
+ *
+ * 每日推荐不在这栏里：入口就是主页那块「今天听什么」，一天只换一次。
  */
 const MINE: MineItem[] = [
   { view: 'liked', label: '我喜欢的音乐', icon: Heart },
   { view: 'recent', label: '最近播放', icon: Refresh },
-  { view: 'collections', label: '我的收藏', icon: Note },
-  { view: 'playlists', label: '歌单', icon: List },
+  { view: 'playlists', label: '收藏歌单', icon: List },
+  { view: 'collections', label: '收藏专辑', icon: Note },
   { view: 'local', label: '本机音乐', icon: Library }
 ]
 

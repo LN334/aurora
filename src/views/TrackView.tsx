@@ -115,7 +115,6 @@ export function TrackView({
           <header className="rh-sec__head">
             <h3>歌词</h3>
           </header>
-          <p className="tk__hint">点任一句，去正在播放从那里唱</p>
           {lyrics.lines.length > 0 ? (
             <div className="tk__lyrics">
               {lyrics.lines.map((line, index) => (

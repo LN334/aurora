@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Track } from '../../types'
 import { ArtCard } from '../../ui/ArtCard'
 import { Artwork } from '../../ui/Artwork'
@@ -488,17 +488,11 @@ function Results({
     )
   }
 
-  return <FrontPage provider={provider} state={state} />
+  return <FrontPage state={state} />
 }
 
 /** Nothing chosen yet: the platform's own playlists, or a statement of what is here. */
-function FrontPage({
-  provider,
-  state
-}: {
-  provider: OnlineMusicProvider
-  state: OnlineStore
-}) {
+function FrontPage({ state }: { state: OnlineStore }) {
   const canUsePersonal = Boolean(state.account)
 
   // 未登录时这里不再写一段说明：账号卡上已经有「登录」，栏目上也标着「需登录」，
@@ -507,9 +501,6 @@ function FrontPage({
 
   return (
     <div className="online__welcome">
-      <p className="online__welcome-note">
-        {`已连接${provider.displayName}，当前「${QUALITY_LABELS[state.quality]}」音质。上面选一个列表，也可以直接搜索。`}
-      </p>
 
       {canUsePersonal && state.playlists.length > 0 ? (
         <div className="grid">
@@ -580,6 +571,22 @@ function ArtistCards({ artists, onOpen }: { artists: OnlineArtistRef[]; onOpen(i
  * an online id that may no longer exist upstream, and playlist views able to render
  * a row with no file behind it.
  */
+const MENU_MARGIN = 8
+
+/** 一首在线歌可分享的网页地址；平台没有稳定地址时返回 null，退回复制纯文本。 */
+function shareLink(provider: OnlineMusicProvider, track: Track, song: OnlineSong | null): string | null {
+  if (provider.id === 'netease') {
+    const id = track.onlineId ?? song?.id
+    return id !== undefined ? 'https://music.163.com/song?id=' + id : null
+  }
+  if (provider.id === 'qq') {
+    // QQ 的曲目 id 是 qq:<songmid>，mid 就是可分享地址里的那一段。
+    const mid = song?.mid ?? (track.id.startsWith('qq:') ? track.id.slice(3) : null)
+    return mid ? 'https://y.qq.com/n/ryqq/songDetail/' + mid : null
+  }
+  return null
+}
+
 function SongMenu({
   provider,
   request,
@@ -590,6 +597,29 @@ function SongMenu({
   onClose(): void
 }) {
   const { x, y } = request
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ left: x, top: y })
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight
+  }))
+
+  useEffect(() => {
+    const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setPos({
+      left: Math.max(MENU_MARGIN, Math.min(x, viewport.width - rect.width - MENU_MARGIN)),
+      top: Math.max(MENU_MARGIN, Math.min(y, viewport.height - rect.height - MENU_MARGIN))
+    })
+  }, [x, y, viewport])
+
   // The upstream record, when the open list still has it, for the fee hint.
   const store = useOnlineStore(provider.id)
   const state = store()
@@ -598,7 +628,12 @@ function SongMenu({
   return (
     <>
       <div className="online__scrim" onPointerDown={onClose} role="presentation" />
-      <div className="menu" role="menu" style={{ left: x, top: y }} aria-label={`${request.track.title} 的操作`}>
+      <div
+        className="menu"
+        role="menu"
+        ref={ref}
+        style={{ left: pos.left, top: pos.top }}
+        aria-label={`${request.track.title} 的操作`}>
         <button
           className="menu__item"
           role="menuitem"
@@ -609,7 +644,16 @@ function SongMenu({
         >
           下一首播放
         </button>
-        <button className="menu__item" role="menuitem" onClick={onClose}>
+        <button
+          className="menu__item"
+          role="menuitem"
+          onClick={() => {
+            // 有稳定的网页地址就复制地址，没有就退回复制「标题 - 艺人」。
+            const text = shareLink(provider, request.track, song) ?? request.track.title + ' - ' + request.track.artist
+            void navigator.clipboard?.writeText(text).catch(() => undefined)
+            onClose()
+          }}
+        >
           复制歌曲链接
         </button>
         {song ? (
@@ -618,10 +662,6 @@ function SongMenu({
             <div className="menu__label">{paymentLabel(song)}</div>
           </>
         ) : null}
-        <div className="menu__sep" role="separator" />
-        <button className="menu__item" role="menuitem" disabled>
-          在文件夹中显示（在线歌曲没有文件）
-        </button>
       </div>
     </>
   )

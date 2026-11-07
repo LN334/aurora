@@ -155,6 +155,15 @@ export interface NeteaseArtistDetail {
   songCount: number
 }
 
+export interface NeteaseCollectedAlbum {
+  id: number
+  name: string
+  coverUrl: string | null
+  artistName: string
+  year: number
+  songCount: number
+}
+
 export interface NeteaseAlbumSummary {
   id: number
   name: string

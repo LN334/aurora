@@ -187,9 +187,7 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
               ) : null}
               {qr.kind === 'failed' ? <span className="ne__qr-hint">{qr.message}</span> : null}
             </div>
-            <p className="ne-modal__note">
-              用网易云音乐手机客户端扫描二维码。二维码每两分钟过期，过期后点「换一张」。
-            </p>
+            <p className="ne-modal__note">扫码登录 · 两分钟有效</p>
           </div>
         ) : (
           <form className="ne-modal__body" onSubmit={submitPhone}>
@@ -225,9 +223,7 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
               </button>
             </div>
 
-            <p className="ne-modal__note">
-              账号密码只通过主进程转发给网易云，Aurora 自己不保存；登录后 cookie 由主进程保管。
-            </p>
+            <p className="ne-modal__note">不保存密码</p>
           </form>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
-import { DAILY_SIZE, dailyLabel, dailyTracks } from '../features/library/daily'
+import { dailyLabel, dailyTracks } from '../features/library/daily'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
 import { useRecentEntries } from '../features/player/history-store'
@@ -70,10 +70,6 @@ export function DailyView({
           </button>
         </span>
       </header>
-
-      <p className="pg-note dl-note">
-        从你的曲库里按日期挑的，同一天打开是同一批，明天换掉。最多 {DAILY_SIZE} 首。
-      </p>
 
       <TrackList
         tracks={daily}

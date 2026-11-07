@@ -240,6 +240,7 @@ const webFallback: AuroraApi = {
     loginStatus: async () => null,
     logout: async () => true,
     myPlaylists: async () => [],
+    albumSublist: async () => [],
     playlistTracks: async () => [],
     dailySongs: async () => [],
     cloudSongs: async () => [],

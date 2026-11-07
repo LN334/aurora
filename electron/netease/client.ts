@@ -18,6 +18,7 @@ import type {
   NeteaseAlbumSummary,
   NeteaseArtist,
   NeteaseArtistDetail,
+  NeteaseCollectedAlbum,
   NeteaseDiscoverKind,
   NeteaseDiscoverPlaylist,
   NeteaseDiscoverResult,
@@ -83,6 +84,7 @@ interface Upstream {
   recommend_songs: UpstreamCall
   user_cloud: UpstreamCall
   user_playlist: UpstreamCall
+  album_sublist: UpstreamCall
   likelist: UpstreamCall
   /** 喜欢/取消喜欢一首歌：写操作，需要真登录。 */
   like: UpstreamCall
@@ -1280,4 +1282,38 @@ export async function neteaseLike(songId: number, liked: boolean): Promise<boole
 
   const res = await call('like', { id: songId, like: liked ? 'true' : 'false' })
   return asNumber(asRecord(res.body).code) === 200
+}
+
+/**
+ * 收藏的专辑（album_sublist）。未登录返回空：收藏页该空着，不是报错。
+ */
+export async function neteaseAlbumSublist(
+  limit = 200,
+  offset = 0
+): Promise<NeteaseCollectedAlbum[]> {
+  await bootstrapOnce()
+  if (!(await safeAccount())) return []
+  const res = await call('album_sublist', { limit: clamp(limit, 1, 500), offset: Math.max(0, offset) })
+  // 实测这个端点把列表放在 `data`，老的社区文档写的是 `sub`；两个都认。
+  const body = asRecord(res.body)
+  const rows = asArray(body.data).length > 0 ? asArray(body.data) : asArray(body.sub)
+  return rows
+    .map((entry) => {
+      const raw = asRecord(entry)
+      const albumId = asNumber(raw.id)
+      if (!albumId) return null
+      const artists = asArray(raw.artists)
+        .map((item) => asString(asRecord(item).name))
+        .filter(Boolean)
+      const fallback = asString(asRecord(raw.artist).name)
+      return {
+        id: albumId,
+        name: asString(raw.name),
+        coverUrl: asNullableString(raw.picUrl),
+        artistName: artists.join(' / ') || fallback,
+        year: yearOf(raw.publishTime),
+        songCount: asNumber(raw.size)
+      }
+    })
+    .filter((entry): entry is NeteaseCollectedAlbum => entry !== null)
 }

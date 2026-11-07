@@ -113,9 +113,7 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
             )}
           </div>
 
-          <p className="qishui-login__hint">
-            用手机上的抖音 App 扫一扫。未登录也能搜索并播放免费歌曲；要读歌单、要高音质得先登录。
-          </p>
+          <p className="qishui-login__hint">扫码登录汽水音乐</p>
 
           {qr.kind === 'failed' ? (
             <button className="btn btn--small" onClick={() => setNonce((value) => value + 1)}>
@@ -123,9 +121,7 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
             </button>
           ) : null}
 
-          <p className="qishui-login__note">
-            这不是官方客户端：接入的是第三方逆向接口，仅供个人学习自用。能播的只有你这个账号本来就有权限播的内容。
-          </p>
+          <p className="qishui-login__note">第三方接口 · 仅供自用</p>
         </div>
       </div>
     </div>

@@ -297,6 +297,7 @@ const api = {
     logout: () => ipcRenderer.invoke('netease:logout'),
 
     myPlaylists: () => ipcRenderer.invoke('netease:myPlaylists'),
+    albumSublist: () => ipcRenderer.invoke('netease:albumSublist'),
     playlistTracks: (id: number) => ipcRenderer.invoke('netease:playlistTracks', id),
     dailySongs: () => ipcRenderer.invoke('netease:dailySongs'),
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),

@@ -12,6 +12,7 @@ import { useRecentEntries, useToday } from '../features/player/history-store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { usePlaylists } from '../features/playlists/store'
+import { openOnlinePlaylist } from '../features/refs/navigate'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
@@ -294,7 +295,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 className="rh-card"
                 type="button"
                 key={playlist.id}
-                onClick={() => onNavigate({ view: 'netease' })}
+                onClick={() => openOnlinePlaylist('netease', playlist.id)}
               >
                 <span
                   className="rh-card__art"
@@ -333,7 +334,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 className="rh-mini"
                 type="button"
                 key={playlist.id}
-                onClick={() => onNavigate({ view: 'netease' })}
+                onClick={() => openOnlinePlaylist('netease', playlist.id)}
               >
                 <span
                   className="rh-mini__art"

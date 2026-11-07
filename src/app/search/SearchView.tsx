@@ -51,9 +51,7 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
     <div className="col srch">
       <header className="rh-sec__head">
         <h3>在哪儿找</h3>
-        <span className="srch__hint">
-          {active?.remote ? '在线范围要按回车，本机范围边打边出' : '只在这台电脑已有的文件里找'}
-        </span>
+        <span className="srch__hint">回车搜索</span>
       </header>
 
       <div className="srch__chips" role="tablist" aria-label="搜索范围">
@@ -91,16 +89,11 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
       ) : showEmpty ? (
         <div className="srch__empty">
           <h2>{query.trim() ? `没有找到「${query.trim()}」` : '先输入要搜的内容'}</h2>
-          <p className="pg-note">
-            {active?.remote
-              ? `在线搜索是向${active.label}发送一次请求，所以要点「搜索」或按回车。`
-              : '本机搜索只在这台电脑已有的文件里找，边打边出结果。'}
-          </p>
+          {active?.remote ? <p className="pg-note">在线要按回车</p> : null}
         </div>
       ) : !submitted && query.trim() ? (
         <div className="srch__empty">
           <h2>按回车搜索「{query.trim()}」</h2>
-          <p className="pg-note">搜索{active?.label}需要联网，所以不会边打边搜。</p>
         </div>
       ) : (
         <>

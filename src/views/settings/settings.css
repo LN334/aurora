@@ -868,3 +868,252 @@
     max-width: 56ch;
   }
 }
+
+/* ==========================================================================
+   右栏吃满主区宽度
+
+   780px 的上限是单列时代的写法：1600 窗口下主区有约 1100px，内容只到 780，
+   右边留一整条空壁纸，看着像这页没写完。上限改成 1180，普通窗口下就是满宽；
+   只在超宽屏才收住，免得行里的控件被拉到屏幕另一头。
+   ========================================================================== */
+.settings__body {
+  max-width: min(100%, 1180px);
+}
+
+/* 行卡变宽后两侧距离拉开一点，label 与控件之间不至于空得发飘。 */
+.settings__row {
+  gap: var(--s6);
+}
+
+/* 滑块那一行不适合跟着行卡拉满：推子太长反而不好拖。 */
+.settings__slider {
+  max-width: 460px;
+}
+
+/* .rh-sec 是给首页卡片墙用的 flex column + align-items:start：
+   卡片按内容宽度排，不拉伸。设置页的分区要行卡吃满整列，所以这里改回 stretch，
+   否则 .set-part 有 1112 宽、里面每一行却只有 396。 */
+.set-part {
+  align-items: stretch;
+}
+.set-part__body {
+  align-self: stretch;
+  width: 100%;
+}
+
+/* ==========================================================================
+   宽屏两列
+
+   单列 + 行卡吃满 1100px 时，开关飞到最右边，中间留一条更长的空——比原来还空。
+   宽屏下把分区排成两列：每列约 540px，行卡正好是「标签 + 控件」贴着的长度。
+   快捷键是表格，横跨两列。
+   ========================================================================== */
+@media (min-width: 1240px) {
+  .settings__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px 36px;
+    align-items: start;
+  }
+
+  .set-part {
+    margin-bottom: 0;
+  }
+
+  .set-part + .set-part {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .set-part--wide {
+    grid-column: 1 / -1;
+  }
+
+  .settings__error {
+    grid-column: 1 / -1;
+  }
+}
+
+/* 两列用多列流，不用 grid。
+   grid 两列时「快捷键」这类长分区会把某一列占满、另一列剩一大块空白；
+   多列流按内容高度自动均衡，分区之间不会断开（break-inside: avoid）。 */
+@media (min-width: 1240px) {
+  .settings__body {
+    display: block;
+    columns: 2;
+    column-gap: 36px;
+    max-width: none;
+  }
+
+  .set-part {
+    break-inside: avoid;
+    margin-bottom: 28px;
+  }
+
+  .set-part + .set-part {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .settings__error {
+    column-span: all;
+  }
+}
+
+/* 行卡以前是很淡的一层（白 3.5%），亮壁纸下文字直接压在建筑上，读起来像和背景
+   叠在一起。换成与首页卡片同一配方：白 5.5% + 模糊，壁纸再亮也有一层底。 */
+.settings__row {
+  background: rgb(255 255 255 / 0.055);
+  backdrop-filter: blur(14px) saturate(1.15);
+}
+.settings__row:hover {
+  background: rgb(255 255 255 / 0.085);
+}
+
+/* 两块并排读起来乱：设置是「从上往下一条线」的东西，并排之后视线要来回跳。
+   回到单列，但内容区不再贴左边——在右栏里居中，两侧留白对称，
+   行卡也收在 900px 内，控件不会飞到屏幕另一头。 */
+@media (min-width: 1240px) {
+  .settings__body {
+    display: block;
+    columns: auto;
+    column-count: 1;
+    max-width: 900px;
+    margin-inline: auto;
+  }
+
+  .set-part {
+    break-inside: auto;
+    margin-bottom: 30px;
+  }
+}
+
+/* 行卡不要用模糊：壁纸是亮的，backdrop-filter 会把背后糊成一片白雾，
+   四行音源堆在一起时比原来更花。改用实一点的深底，文字立刻清楚。 */
+.settings__row {
+  background: rgb(10 12 16 / 0.62);
+  backdrop-filter: none;
+  border-color: rgb(255 255 255 / 0.075);
+}
+.settings__row:hover {
+  background: rgb(10 12 16 / 0.74);
+}
+
+/* ==========================================================================
+   统一成「每个分区一张卡」
+
+   之前每一行自己是一张卡，而快捷键、壁纸库、歌词预览这些块没有卡——
+   一页里三种边框，看起来就是没对齐。现在卡片只在分区这一层画一次，
+   行与行之间用发丝线分隔，所有内容都落在同一张底上。
+   ========================================================================== */
+.set-part__body {
+  background: rgb(10 12 16 / 0.55);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  padding: 2px 16px 6px;
+}
+
+.settings__row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 0;
+  padding: 14px 2px;
+}
+.settings__row:last-child,
+.set-rows > .settings__row:last-child {
+  border-bottom: 0;
+}
+.set-rows > .settings__row:first-child {
+  border-top: 0;
+}
+.settings__row:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+
+.set-rows {
+  gap: 0;
+}
+
+/* 分区内的小节之间也只用一条线，不再一层套一层卡片。 */
+.set-sub + .set-sub {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(255 255 255 / 0.07);
+}
+
+/* 快捷键行以前直接压在壁纸上。放进分区卡之后补一条线和内边距，和上面的行同一节奏。 */
+.set-keyrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 9px 2px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+.set-keygroup:last-of-type .set-keyrow:last-child {
+  border-bottom: 0;
+}
+.set-keyhint {
+  margin: 10px 2px 6px;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+}
+
+/* 卡片底再深一档：壁纸里有亮色建筑，0.55 透过去会把正文吃掉一半。 */
+.set-part__body {
+  background: rgb(10 12 16 / 0.74);
+}
+
+/* 音源优先级那四行原来自己带边框和底色，落在分区卡里就成了套娃。
+   跟其它行一样，只用一条线分隔。 */
+.settings__order-item {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  border-radius: 0;
+  padding: 10px 2px;
+}
+.settings__order-item:last-child {
+  border-bottom: 0;
+}
+
+
+/* ---- 设置页：目录 + 内容改成 flex，杜绝 grid 列被内容撑开导致右侧溢出 ---- */
+.settings {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+  max-width: none;
+  margin-inline: 0;
+}
+.settings__nav {
+  flex: 0 0 168px;
+  width: 168px;
+  position: sticky;
+  top: 0;
+}
+.settings__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 900px;
+  margin-inline: 0;
+  width: auto;
+}
+.settings .set-part,
+.settings .set-part__body {
+  min-width: 0;
+}
+.settings__row {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.settings__control {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 1180px) {
+  .settings { flex-direction: column; gap: 20px; }
+  .settings__nav { flex: none; width: 100%; position: static; }
+  .settings__body { width: 100%; max-width: none; }
+}

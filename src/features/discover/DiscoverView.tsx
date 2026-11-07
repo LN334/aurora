@@ -7,7 +7,6 @@ import { Note, Play } from '../../ui/icons'
 import { usePlayer } from '../player/store'
 import { remoteImageUrl, sizedImage } from '../player/urls'
 import { useAvailableProviders } from '../online/hooks'
-import { useOnlineStore } from '../online/store'
 import { QqLogin, setLoginOpen as setQqLoginOpen, useQqLoginOpen } from '../qq/QqLogin'
 import { hasNeteaseDiscover, netease } from '../netease/api'
 import { useNetease } from '../netease/store'
@@ -237,7 +236,7 @@ export function DiscoverView({ embedded = false }: { embedded?: boolean } = {}) 
   } else if (!activeProvider) {
     body = null
   } else if (activeProvider.id !== 'netease') {
-    body = <ProviderGate providerId={activeProvider.id} providerName={activeProvider.displayName} />
+    body = <ProviderGate providerId={activeProvider.id} />
   } else if (!neteaseReady) {
     body = (
       <div className="notice">
@@ -381,22 +380,17 @@ export function DiscoverView({ embedded = false }: { embedded?: boolean } = {}) 
  * 和一个现有的扫码登录入口（复用 QqLogin，不另造流程）。登录弹窗由 QqLogin
  * 自己渲染成覆盖层，本组件只负责打开它。
  */
-function ProviderGate({ providerId, providerName }: { providerId: string; providerName: string }) {
+function ProviderGate({ providerId }: { providerId: string }) {
   const loginOpen = useQqLoginOpen((state) => state.open)
-  const account = useOnlineStore('qq')((state) => state.account)
 
   if (providerId !== 'qq') {
-    return <div className="notice">{providerName} 还没有公开的推荐接口，暂时只有搜索和你的歌单。</div>
+    return <div className="notice">暂无推荐</div>
   }
 
   return (
     <div className="discover__gate">
       <p className="discover__gate-title">需要登录 QQ 音乐后才能看推荐</p>
-      <p className="discover__gate-note">
-        {account
-          ? `已登录${account.nickname ? `（${account.nickname}）` : ''}。推荐接口没有公开入口，歌单和收藏在账号页能进到平台页。`
-          : 'QQ 音乐的推荐内容只对登录态开放。'}
-      </p>
+      <p className="discover__gate-note">登录后查看推荐</p>
       <button className="btn btn--accent" onClick={() => setQqLoginOpen(true)}>
         扫码登录 QQ 音乐
       </button>

@@ -59,7 +59,7 @@ export function LikedView({
     return (
       <div className="pg-empty">
         <h2>还没有喜欢的歌</h2>
-        <p>在任何一行的右边按下那颗心，歌就留在这里。</p>
+        <p>点心收藏</p>
         <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
           去推荐页
         </button>

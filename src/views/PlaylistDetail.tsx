@@ -77,7 +77,7 @@ export function PlaylistDetail({
           <>
             <span>{tracks.length} 首</span>
             {total > 0 ? <span>{formatTime(total)}</span> : null}
-            <span className="dh__hint">拖动可排序 · Alt + 上下键也能挪</span>
+            <span className="dh__hint">可拖动排序</span>
           </>
         }
         actions={

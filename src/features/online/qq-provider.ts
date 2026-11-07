@@ -76,7 +76,7 @@ const CAPABILITIES: ProviderCapabilities = {
   artists: false,
   recommendations: true,
   userCloud: false,
-  likes: false
+  likes: true
 }
 
 const qqBackend: PlatformBackend = {

@@ -20,7 +20,7 @@ export function Sources({ roots, busy, onAdd, onRemove }: SourcesProps) {
     <div className="col src">
       <header className="rh-sec__head">
         <h3>来源</h3>
-        <span className="src__hint">能出声的地方</span>
+        <span className="src__hint">来源</span>
       </header>
       <ul className="src-list">
         {SOURCES.map((source) => (

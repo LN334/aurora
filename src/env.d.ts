@@ -510,6 +510,10 @@ export interface NeteaseApi {
 
   /** Personal music. Empty arrays (not errors) when signed out. */
   myPlaylists(): Promise<NeteasePlaylistSummary[]>
+  /** 收藏的专辑；未登录返回空数组。 */
+  albumSublist(): Promise<
+    { id: number; name: string; coverUrl: string | null; artistName: string; year: number; songCount: number }[]
+  >
   playlistTracks(id: number): Promise<NeteaseSong[]>
   dailySongs(): Promise<NeteaseSong[]>
   cloudSongs(): Promise<NeteaseSong[]>

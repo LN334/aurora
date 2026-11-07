@@ -150,7 +150,7 @@ function AlbumPage({ providerId, id, onBack }: { providerId: string; id: number;
 
     const load = async () => {
       if (providerId !== 'netease') {
-        setError('这个平台还没有专辑的取数接口')
+        setError('暂不支持该平台')
         setMeta('')
         return
       }
@@ -281,7 +281,7 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
       const platform = getProvider(providerId as ProviderId)
       const backend = platform?.backend as PlatformBackend | undefined
       if (!platform?.catalog?.artistTopSongs || !backend) {
-        setError('这个平台还没有艺人页的取数接口')
+        setError('暂不支持该平台')
         return
       }
       try {

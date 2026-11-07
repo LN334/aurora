@@ -120,9 +120,7 @@ export function KugouLogin({ onClose }: { onClose(): void }) {
             )}
           </div>
 
-          <p className="kugou-login__hint">
-            用手机上的酷狗音乐扫一扫。未登录也能搜索和浏览公开榜单，但取播放地址需要登录。
-          </p>
+          <p className="kugou-login__hint">扫码登录酷狗音乐</p>
 
           {qr.kind === 'failed' ? (
             <button className="btn btn--small" onClick={() => setNonce((value) => value + 1)}>
@@ -130,9 +128,7 @@ export function KugouLogin({ onClose }: { onClose(): void }) {
             </button>
           ) : null}
 
-          <p className="kugou-login__note">
-            这不是官方客户端：接入的是第三方本地接口服务，仅供个人学习自用。能播的只有你这个账号本来就有权限播的内容。
-          </p>
+          <p className="kugou-login__note">第三方接口 · 仅供自用</p>
         </div>
       </div>
     </div>

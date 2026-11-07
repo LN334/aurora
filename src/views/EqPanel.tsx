@@ -176,7 +176,7 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
           <Wave size={15} />
           重置为平直
         </button>
-        <p className="pg-note">上下拖动推子，双击归零。</p>
+        <p className="pg-note">拖动 · 双击归零</p>
       </footer>
     </aside>
   )
