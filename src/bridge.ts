@@ -74,6 +74,11 @@ const webFallback: AuroraApi = {
     onProgress: () => () => undefined
   },
   app: {
+    // 浏览器预览没有主进程，开新标签页就是「系统浏览器」。
+    openExternal: async (url) => {
+      window.open(url, '_blank', 'noreferrer')
+      return true
+    },
     // A browser tab is never minimised to a tray, so Chromium's own answer is
     // the accurate one here; the visibility hook reads `document.hidden` too.
     getVisibility: async () => ({

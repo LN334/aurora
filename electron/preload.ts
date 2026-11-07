@@ -35,6 +35,8 @@ const api = {
    * page for us.
    */
   app: {
+    /** 关于页的仓库与反馈按钮；主进程只放行 GitHub 链接。 */
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url) as Promise<boolean>,
     getVisibility: () => ipcRenderer.invoke('app:visibility') as Promise<WindowVisibilityState>,
     onVisibility: (handler: (state: WindowVisibilityState) => void) => {
       const listener = (_event: IpcRendererEvent, state: WindowVisibilityState) => handler(state)

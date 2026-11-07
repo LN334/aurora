@@ -8,8 +8,13 @@ import {
 } from '../../../features/settings/store'
 import { UpdatePanel } from '../../../ui/UpdatePanel'
 import { Row, Rows, Sub, Toggle } from '../parts'
-
-const REPO_URL = 'https://github.com/LN334/aurora'
+import {
+  ISSUES_URL,
+  issueUrl,
+  platformLabel,
+  REPO_URL,
+  versionLabel
+} from '../../../features/settings/about'
 
 /**
  * 04 更新与关于。
@@ -126,15 +131,36 @@ function About() {
     }
   }, [])
 
+  const open = (url: string) => {
+    void bridge.app.openExternal(url)
+  }
+
+  /*
+   * 反馈正文预填用的事实：版本与运行环境都来自主进程，没读到就是空串，
+   * 纯函数会把空串换成「未知」，不会把 undefined 写进 issue。
+   */
+  const facts = {
+    version: info?.version ?? '',
+    electron: info?.electron ?? '',
+    chrome: info?.chrome ?? '',
+    node: info?.node ?? '',
+    platform: info?.platform ?? ''
+  }
+
   return (
     <>
       <p className="settings__notice">
-        Aurora 是 AI 制作、以试验为目的的作品，不是成熟产品：代码与文案全部由 AI 生成，功能与界面可能随时改动。自动化测试只覆盖不依赖
-        Electron 的纯逻辑，<strong>真实窗口从未端到端跑过</strong>。请勿用于重要数据。
+        Aurora 是 AI 制作、以试验为目的的作品，不是成熟产品：代码与文案全部由 AI 生成，功能与界面可能随时改动。
+        Windows 上有一遍真实窗口的自动巡检（npm run smoke），但它只走主路径；扫码登录、会员歌曲、托盘、桌面歌词与自动更新仍靠人点。
+        请勿用于重要数据。
       </p>
       <dl className="specs">
+        <dt>版本</dt>
+        <dd className="tnum">{info ? versionLabel(info.version) : '—'}</dd>
         <dt>运行环境</dt>
         <dd>{isNative ? 'Electron 桌面版' : '浏览器预览模式'}</dd>
+        <dt>平台</dt>
+        <dd>{info ? platformLabel(info.platform) : '—'}</dd>
         <dt>Electron</dt>
         <dd>{info?.electron ?? '—'}</dd>
         <dt>Chromium</dt>
@@ -153,10 +179,23 @@ function About() {
         ) : null}
       </dl>
       <Rows>
-        <Row label="GitHub 仓库" hint="源码、更新日志与问题反馈。">
-          <a className="btn btn--small set-link" href={REPO_URL} target="_blank" rel="noreferrer">
-            LN334/aurora ↗
-          </a>
+        <Row label="项目主页" hint="源码、更新日志与全部发行版。">
+          <button className="btn btn--small" onClick={() => open(REPO_URL)}>
+            github.com/LN334/aurora ↗
+          </button>
+        </Row>
+        <Row label="反馈问题" hint="在 GitHub 提 issue；正文会自动带上版本与运行环境。">
+          <button className="btn btn--small" onClick={() => open(issueUrl(facts))}>
+            反馈 ↗
+          </button>
+        </Row>
+        <Row label="开源协议" hint="MIT：可以自用、修改与再分发，保留版权声明即可。">
+          <span className="specs__path">MIT</span>
+        </Row>
+        <Row label="已提的问题" hint="看看别人遇到过什么，避免重复提交。">
+          <button className="btn btn--small" onClick={() => open(ISSUES_URL)}>
+            打开 Issue 列表 ↗
+          </button>
         </Row>
       </Rows>
     </>

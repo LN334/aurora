@@ -66,6 +66,8 @@ export interface WindowVisibilityState {
 }
 
  interface AppApi {
+  /** 在系统浏览器里打开外链；主进程只放行 GitHub。 */
+  openExternal(url: string): Promise<boolean>
   getVisibility(): Promise<WindowVisibilityState>
   onVisibility(handler: (state: WindowVisibilityState) => void): () => void
 }
