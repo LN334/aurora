@@ -56,6 +56,7 @@ import {
 } from './app/preview'
 import { usePlaylistFiles } from './features/playlists/io'
 import { EmptyLibrary } from './views/EmptyLibrary'
+import { CollectionView } from './views/CollectionView'
 import { LibraryView } from './views/LibraryView'
 import { HomeView } from './features/home/HomeView'
 import { Sources } from './views/Sources'
@@ -150,6 +151,8 @@ export function App() {  if (!isNative) {
   const muted = usePlayer((s) => s.muted)
   const shuffle = usePlayer((s) => s.shuffle)
   const repeat = usePlayer((s) => s.repeat)
+  // 队列按钮上的数字：没有它，那个图标看不出是队列。
+  const queueLength = usePlayer((s) => s.queue.length)
   const eqEnabled = usePlayer((s) => s.eqEnabled)
   const eqGains = usePlayer((s) => s.eqGains)
 
@@ -181,15 +184,16 @@ export function App() {  if (!isNative) {
   })
 
   /*
-   * Wallpaper Engine can be reconfigured while the player stays open, so the
-   * library is re-read whenever the window regains focus. The probe forces past
-   * the main process's 30 second scan cache - a user who just switched wallpaper
-   * in Wallpaper Engine and came back to Aurora should see the new one.
+   * Wallpaper Engine 的壁纸可能在播放器开着的时候被换掉，所以窗口重新获得焦点
+   * 时重读一次。这里走主进程的 30 秒扫描缓存，而不是强制全扫：强制一次是 240ms
+   * 以上的同步 I/O 加 6 次 reg.exe，全压在主线程上；人切壁纸再切回来的间隔通常
+   * 只有几秒，缓存里就是同一份数据。真的换了、缓存也过期了自然会重扫；要立刻
+   * 看到新壁纸，设置页的「重新读取」是强制刷新。
    */
   useEffect(() => {
     if (!wallpaperEnabled) return
-    refreshWallpaper(true)
-    const onFocus = () => refreshWallpaper(true)
+    refreshWallpaper()
+    const onFocus = () => refreshWallpaper()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [wallpaperEnabled, refreshWallpaper])
@@ -544,29 +548,41 @@ export function App() {  if (!isNative) {
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
     // 一级入口：发现（有什么可听，未登录也有内容）。
     if (view === 'discover') return <HomeView onNavigate={navigate} section={route.tab} />
-    // 一级入口：音乐库（我的东西，按来源切；本地只是来源之一）。
+    // 一级入口：音乐库（磁盘上的文件：歌曲 / 专辑 / 艺术家 / 文件夹）。
     if (view === 'library') {
       return (
         <LibraryView
-          source={route.source ?? 'local'}
           tab={route.tab ?? 'songs'}
           onNavigate={navigate}
           onMenu={setTrackMenu}
           onAddFolders={addFolders}
-          onFlash={setFlash}
+        />
+      )
+    }
+    // 一级入口：收藏（我喜欢的歌曲、我建的歌单）。歌单从音乐库移到这里：
+    // 音乐库的栏目由文件系统决定，歌单由人决定，两者不是同一种组织方式。
+    if (view === 'collection') {
+      return (
+        <CollectionView
+          tab={route.tab ?? 'liked'}
+          onNavigate={navigate}
+          onMenu={setTrackMenu}
+          onImport={() => void importPlaylist()}
         />
       )
     }
     // The online source stands on its own: its tracks never enter the library
     // store, so it must stay reachable with an empty local library - hence
     // before the `tracks.length === 0` check below.
-    if (view === 'netease') return <NeteaseView />
+    // 平台页现在从主页的「我的音乐」进来，route.tab 是它要直接打开的那个栏目
+    // （每日推荐 / 我喜欢的音乐 / 音乐云盘 / 我的歌单）。
+    if (view === 'netease') return <NeteaseView collection={route.tab} />
     // A second platform is the same kind of destination: one line here, because the
     // screen itself is shared and driven by the provider's declared capabilities.
     if (view === 'qq') return <QqView />
     // 账号（谁在用、登了哪些平台）是单独一页：它不是偏好设置，而是侧栏底部
     // 那张头像点进来的地方。页面内容见 src/views/AccountView.tsx。
-    if (view === 'accounts') return <AccountView />
+    if (view === 'accounts') return <AccountView onNavigate={navigate} />
 
     // Playlists come before the empty-library check: a playlist can hold tracks
     // from a folder that is not currently in the library, and the management UI
@@ -837,6 +853,7 @@ export function App() {  if (!isNative) {
           repeat={repeat}
           eqOpen={eqOpen}
           desktopLyricsOpen={overlayStatus.open}
+          queueLength={queueLength}
           onToggle={() => player.toggle()}
           onNext={() => player.next()}
           onPrev={() => player.prev()}
@@ -873,7 +890,14 @@ export function App() {  if (!isNative) {
           onClose={() => setEqOpen(false)}
         />
 
-        <QueuePanel open={queueOpen} onClose={() => setQueueOpen(false)} />
+        <QueuePanel
+          open={queueOpen}
+          onClose={() => setQueueOpen(false)}
+          onOpenLibrary={() => {
+            setQueueOpen(false)
+            navigate({ view: 'library', tab: 'songs' })
+          }}
+        />
       </div>
 
       {/*

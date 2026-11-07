@@ -29,6 +29,14 @@ export interface DiscoverBlock {
 /** 与在线平台其它缓存同一量级：十分钟足够，再长就看不到新推荐了。 */
 const TTL_MS = 10 * 60 * 1000
 
+/**
+ * 一次取多少条。
+ *
+ * 和主进程的默认页一致：偏移量按这个步长前进，「换一批」才不会和上一批
+ * 重叠。24 条在宽窗口里正好铺满三行四列。
+ */
+export const DISCOVER_PAGE = 24
+
 function blankBlock(): DiscoverBlock {
   return { status: 'idle', songs: [], playlists: [], error: '', at: 0 }
 }
@@ -48,15 +56,33 @@ function errorText(error: unknown): string {
 interface DiscoverStore {
   tab: DiscoverKind
   blocks: Record<DiscoverKind, DiscoverBlock>
+  /**
+   * 每个栏目已经翻到第几条。
+   *
+   * 「换一批」以前只是重发一次请求，而「推荐新歌」一天只有一份：重发拿回的是
+   * 同一个列表，看起来就是按钮没反应。现在每次前进一页，主进程按 offset 换到
+   * 下一个榜单 / 下一页歌单。
+   */
+  offsets: Record<DiscoverKind, number>
   setTab(kind: DiscoverKind): void
   load(kind: DiscoverKind, options?: { force?: boolean }): Promise<void>
+  /** 换一批：游标前进一页再重取。 */
+  next(kind: DiscoverKind): Promise<void>
 }
 
 export const useDiscover = create<DiscoverStore>((set, get) => ({
-  tab: 'playlists',
+  tab: 'newsongs',
   blocks: blankBlocks(),
+  offsets: { playlists: 0, newsongs: 0, quality: 0 },
 
   setTab: (kind) => set({ tab: kind }),
+
+  next: (kind) => {
+    set((state) => ({
+      offsets: { ...state.offsets, [kind]: state.offsets[kind] + DISCOVER_PAGE }
+    }))
+    return get().load(kind, { force: true })
+  },
 
   load: (kind, options) => {
     const block = get().blocks[kind]
@@ -76,7 +102,7 @@ export const useDiscover = create<DiscoverStore>((set, get) => ({
 
     const run = (async () => {
       try {
-        const result = await neteaseDiscover(kind)
+        const result = await neteaseDiscover(kind, DISCOVER_PAGE, get().offsets[kind])
         set((state) => ({
           blocks: {
             ...state.blocks,

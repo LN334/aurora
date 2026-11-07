@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { sourceTagFor } from '../features/online/registry'
 import { formatTime } from './format'
-import { Note } from './icons'
+import { Heart, Note } from './icons'
 import type { Track } from '../types'
 
 export interface TrackMenuRequest {
@@ -18,6 +18,14 @@ interface TrackListProps {
   onPlayAt(index: number): void
   /** Opens the per-track actions menu. Omit to leave the affordance out. */
   onMenu?(request: TrackMenuRequest): void
+  /**
+   * 已喜欢的曲目 id。
+   *
+   * 这里只做标记、不做按钮：行里已经有播放、标题、来源徽标和操作钮，再塞一个
+   * 点击目标会和整行点击抢位置。喜欢 / 取消喜欢走操作菜单，标记只负责让收藏
+   * 状态在列表里可见（收藏页自己也用同一份集合）。
+   */
+  likedIds?: ReadonlySet<string>
 }
 
 /**
@@ -25,7 +33,7 @@ interface TrackListProps {
  * short, columns are aligned on tabular figures, and everything that is not the
  * title is quiet enough to skim past.
  */
-export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
+export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu, likedIds }: TrackListProps) {
   const currentRow = useRef<HTMLDivElement | null>(null)
 
   /*
@@ -130,6 +138,11 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                 </span>
               ) : null}
               {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
+              {likedIds?.has(track.id) ? (
+                <span className="trk__liked" title="已喜欢">
+                  <Heart size={13} />
+                </span>
+              ) : null}
             </span>
             <span className="trk__muted" role="cell">
               {track.artist}

@@ -3,10 +3,11 @@ import { navGroupOf, type NavGroup, type Route } from './routing'
 import type { ViewId } from '../types'
 import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
+import { useFavorites } from '../features/favorites/store'
 import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
+import { Compass, Heart, Library, Settings, Sidebar, User } from '../ui/icons'
 
 /**
  * The rail: three destinations, one per intent.
@@ -16,14 +17,19 @@ import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
  * 栏位不区分「你要去哪」和「东西从哪来」——于是本地音乐看起来像一个和网易云
  * 平级的应用，设置被切成三页。
  *
- * 一级仍然是三项：主页（接着听什么）、音乐库（我的东西）、设置。
+ * 一级是四项：主页（接着听什么）、音乐库（磁盘上有什么）、收藏（我挑过什么）、
+ * 设置。音乐库和收藏是两条不同的组织线，不是一个东西的两半：前者由文件决定
+ * 栏目，后者由人决定，所以歌单和喜欢都归收藏。
  *
- * 一级下面挂子项，但只挂「同一件事的下一层」，不镜像来源：
- * - 主页挂的是主页里那几块的位置（最近播放、为你挑选、今日聆听），点了滚过去；
- * - 音乐库挂的是歌单——歌单本身就是跨来源的（本地建的、平台同步的都算），
- *   不是「XX 音乐的曲库」。平台与本地文件夹是音乐的来源，在音乐库页里用一排
- *   标签页选，不在这里再列一遍；本地播放器的歌曲/专辑/艺术家/文件夹也不铺到
- *   这里，否则本地音乐的比重会压过所有平台。
+ * 一级下面挂子项，但只挂「同一件事的下一层」：
+ * - 主页挂的是主页里那几块的位置（最近播放、我的音乐、为你挑选、今日聆听），
+ *   点了滚过去；
+ * - 音乐库挂它自己的栏目（歌曲、专辑、艺术家、文件夹）；
+ * - 收藏挂「我喜欢的歌曲」「我的歌单」和每个歌单本身。
+ *   平台账号主页不在这里：它从侧栏底部的头像进。
+ *
+ * 平台页（网易云 / QQ 音乐）曾经也在这里当来源标签，那是把它们当成了曲库。它们
+ * 打开的是账号主页，所以现在从账号页进。
  */
 
 interface RailProps {
@@ -57,14 +63,24 @@ interface PrimaryItem {
 const PRIMARY: PrimaryItem[] = [
   { group: 'discover', view: 'discover', label: '主页', icon: Compass },
   { group: 'library', view: 'library', label: '音乐库', icon: Library },
+  { group: 'collection', view: 'collection', label: '收藏', icon: Heart },
   { group: 'settings', view: 'settings', label: '设置', icon: Settings }
 ]
 
 /** 主页里的三块；点击只是滚到那里，不换页。 */
 const HOME_SECTIONS = [
   { section: 'recent', label: '最近播放' },
+  { section: 'mymusic', label: '我的音乐' },
   { section: 'picks', label: '为你挑选' },
   { section: 'insight', label: '今日聆听' }
+]
+
+/** 音乐库的栏目，与 LibraryView 的标签页一一对应。 */
+const LIBRARY_TABS = [
+  { tab: 'songs', label: '歌曲' },
+  { tab: 'albums', label: '专辑' },
+  { tab: 'artists', label: '艺术家' },
+  { tab: 'folders', label: '文件夹' }
 ]
 
 export function Rail({ route, onNavigate, collapsed, onToggleCollapsed, profileLabel, onOpenProfile }: RailProps) {
@@ -87,9 +103,11 @@ export function Rail({ route, onNavigate, collapsed, onToggleCollapsed, profileL
   // 旁边这一行本来就写着档案名，头像里再放一次首字只会读成「我 我」。
   const fallbackAvatar = <User size={17} />
 
-  // 歌单挂在音乐库下面。数组引用来自 store，稳定；这里只读不派生。
+  // 歌单挂在收藏下面，数组引用来自 store，稳定；这里只读不派生。
   const playlists = usePlaylists((state) => state.playlists)
-  const onPlaylists = view === 'library' && route.source === 'local' && route.tab === 'playlists'
+  const likedCount = useFavorites((state) => state.liked.length)
+  const libraryTab = view === 'library' ? (route.tab ?? 'songs') : null
+  const collectionTab = view === 'collection' ? (route.tab ?? 'liked') : null
 
   return (
     <nav className="rail" aria-label="主导航">
@@ -130,19 +148,51 @@ export function Rail({ route, onNavigate, collapsed, onToggleCollapsed, profileL
 
                 {item.group === 'library' ? (
                   <div className="rail__sub">
+                    {LIBRARY_TABS.map((sub) => {
+                      const current = libraryTab === sub.tab
+                      return (
+                        <button
+                          key={sub.tab}
+                          className={`nav-item nav-item--sub${current ? ' is-active' : ''}`}
+                          onClick={() => onNavigate({ view: 'library', tab: sub.tab })}
+                          aria-current={current ? 'page' : undefined}
+                        >
+                          <span className="nav-item__dot" />
+                          <span className="nav-item__label">{sub.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {item.group === 'collection' ? (
+                  <div className="rail__sub">
                     <button
-                      className={`nav-item nav-item--sub${onPlaylists || view === 'playlists' ? ' is-active' : ''}`}
-                      onClick={() => onNavigate({ view: 'library', source: 'local', tab: 'playlists' })}
+                      className={`nav-item nav-item--sub${collectionTab === 'liked' ? ' is-active' : ''}`}
+                      onClick={() => onNavigate({ view: 'collection', tab: 'liked' })}
+                      aria-current={collectionTab === 'liked' ? 'page' : undefined}
                     >
                       <span className="nav-item__dot" />
-                      <span className="nav-item__label">播放列表</span>
+                      <span className="nav-item__label">我喜欢的歌曲</span>
+                      {likedCount > 0 ? <span className="nav-item__count">{likedCount}</span> : null}
+                    </button>
+                    <button
+                      className={`nav-item nav-item--sub${collectionTab === 'playlists' || view === 'playlists' ? ' is-active' : ''}`}
+                      onClick={() => onNavigate({ view: 'collection', tab: 'playlists' })}
+                      aria-current={collectionTab === 'playlists' ? 'page' : undefined}
+                    >
+                      <span className="nav-item__dot" />
+                      <span className="nav-item__label">我的歌单</span>
+                      {playlists.length > 0 ? (
+                        <span className="nav-item__count">{playlists.length}</span>
+                      ) : null}
                     </button>
                     {playlists.map((playlist) => {
                       const current = route.playlistId === playlist.id
                       return (
                         <button
                           key={playlist.id}
-                          className={`nav-item nav-item--sub${current ? ' is-active' : ''}`}
+                          className={`nav-item nav-item--sub nav-item--sub2${current ? ' is-active' : ''}`}
                           onClick={() => onNavigate({ view: 'playlists', playlistId: playlist.id })}
                           title={playlist.name}
                           aria-current={current ? 'page' : undefined}

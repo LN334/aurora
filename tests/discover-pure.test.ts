@@ -49,14 +49,14 @@ function song(over: Partial<NeteaseSong> = {}): NeteaseSong {
   }
 }
 
-test('栏目顺序固定为 推荐歌单 / 新歌速递 / 精品歌单，且和接口一一对应', () => {
+test('栏目顺序固定为 推荐歌曲 / 推荐歌单 / 分类歌单，且和接口一一对应', () => {
   assert.deepEqual(
     DISCOVER_TABS.map((tab) => tab.id),
-    ['playlists', 'newsongs', 'quality']
+    ['newsongs', 'playlists', 'quality']
   )
   assert.equal(tabLabel('playlists'), '推荐歌单')
-  assert.equal(tabLabel('newsongs'), '新歌速递')
-  assert.equal(tabLabel('quality'), '精品歌单')
+  assert.equal(tabLabel('newsongs'), '推荐歌曲')
+  assert.equal(tabLabel('quality'), '分类歌单')
   assert.ok(isDiscoverKind('quality'))
   assert.equal(isDiscoverKind('ranking'), false)
 })

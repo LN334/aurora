@@ -1,3 +1,4 @@
+import type { Route } from '../app/routing'
 import { AccountPane } from './settings/panes/AccountPane'
 import { PlatformLoginDialogs } from './settings/panes/PlatformSignIn'
 // 分区排版（.set-part / .set-sub / .set-rows）与设置页共用同一份样式。
@@ -13,12 +14,16 @@ import './settings/settings.css'
  * 所以它单独成页，入口是侧栏最底下那张头像——那里本来就写着当前是哪个档案，
  * 点进去就是这一页。设置页只留下真正的偏好项（播放、外观、快捷键、更新）。
  *
+ * 账号里的音乐入口（每日推荐、我喜欢的音乐、云盘、我的歌单）不摆在这里：它们
+ * 是内容，和「最近播放」一样属于主页。这一页只管登录状态；要看东西去主页的
+ * 「我的音乐」。
+ *
  * 页面标题由外壳打印（见 docs/ui-design.md「一页一个标题」），这里只负责内容。
  */
-export function AccountView() {
+export function AccountView({ onNavigate }: { onNavigate(route: Route): void }) {
   return (
     <div className="account-page">
-      <AccountPane />
+      <AccountPane onNavigate={onNavigate} />
       <PlatformLoginDialogs />
     </div>
   )

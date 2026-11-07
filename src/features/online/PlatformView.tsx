@@ -38,11 +38,17 @@ import {
  */
 export function PlatformView({
   provider,
-  onLogin
+  onLogin,
+  initialCollection
 }: {
   provider: OnlineMusicProvider
   /** Opens this platform's sign-in dialog. Absent when it has no auth. */
   onLogin?(): void
+  /**
+   * 直接打开某个账号栏目（主页「我的音乐」点进来时带上）。
+   * 只接受这个平台自己声明过的 kind——路由参数来自可改的历史记录，不是可信输入。
+   */
+  initialCollection?: string
 }) {
   const store = useOnlineStore(provider.id)
   const state = store()
@@ -65,6 +71,19 @@ export function PlatformView({
     // Deliberately keyed on the platform: switching platforms re-checks the one
     // being opened, not the one being left.
   }, [provider.id])
+
+  /*
+   * 从主页的「我的音乐」点进来时，带着要看的栏目名。等 init 把账号读回来之后
+   * 再打开：需要登录的栏目在未登录时由平台页自己提示，不在这里提前失败。
+   * 已经是这个栏目就不重复请求（返回上一页再进来不该多打一次接口）。
+   */
+  useEffect(() => {
+    if (!initialCollection) return
+    const declared = provider.collections?.some((item) => item.kind === initialCollection)
+    if (!declared) return
+    if (store.getState().collectionKind === initialCollection) return
+    void store.getState().openCollection(initialCollection as OnlineCollectionKind)
+  }, [initialCollection, provider.id])
 
   const rows = useSongRows(provider, state.collection)
   const currentId = currentTrack?.source === provider.id ? currentTrack.id : null

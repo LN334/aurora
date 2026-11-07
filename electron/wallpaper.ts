@@ -124,6 +124,17 @@ interface ScanState {
 let scanCache: ScanState | null = null
 
 /**
+ * Scanned projects by id, kept across scans.
+ *
+ * The protocol handler resolves a project id on every file request - fifty-two
+ * previews for the settings page, a range per video loop - and a request must
+ * not pay for a library walk. A hit here answers immediately; a miss (a project
+ * installed while the player was open) still goes through `scan()`, which
+ * respects its own TTL, so a bogus id does not re-walk the disk either.
+ */
+let projectById = new Map<string, ScannedProject>()
+
+/**
  * Steam's own install path, from the registry.
  *
  * Three keys because Steam's installer has changed over the years: a per-user
@@ -520,6 +531,7 @@ function scan(force = false): ScanState {
   }
 
   scanCache = { at: now, engineDir, projects, currentDirs }
+  projectById = new Map(projects.map((project) => [project.id, project]))
   return scanCache
 }
 
@@ -609,8 +621,17 @@ export function wallpaperInfo(force = false): WallpaperInfo {
   }
 }
 
-/** Resolve an id to its project directory, scanning once if the cache is cold. */
+/**
+ * Resolve an id to its project directory.
+ *
+ * The index first: a scanned project's directory does not move, so serving a
+ * preview does not need a fresh scan. Only an id that was never seen - a project
+ * installed after the last scan - falls through to `scan()`, which then reads
+ * the library at most once per TTL.
+ */
 function projectDirectory(id: string): ScannedProject | null {
+  const known = projectById.get(id)
+  if (known) return known
   const { projects } = scan()
   return projects.find((project) => project.id === id) ?? null
 }
@@ -653,54 +674,141 @@ export function registerWallpaperScheme(): void {
   ])
 }
 
-const WALLPAPER_HEADERS = {
-  'access-control-allow-origin': '*',
-  'accept-ranges': 'bytes',
-  // The wallpaper can be replaced on disk at any moment, and the renderer asks
-  // again when the window regains focus; a cached copy would be a stale one.
-  'cache-control': 'no-store'
+/**
+ * Bytes kept in front of the disk.
+ *
+ * Everything the protocol serves is small except the scene container: previews,
+ * `scene.json`, a web wallpaper's assets. Those small files are what the
+ * settings page asks for again and again - one request per tile, and every
+ * re-mount of the pane asks for every tile again - so the last five minutes of
+ * them are held in memory. The scene container is the exception: it runs to
+ * hundreds of megabytes and is always streamed. Re-reading it is not what makes
+ * a scene slow - decoding it is - and the operating system's page cache already
+ * serves a second read, so a copy in this process would cost memory for nothing.
+ */
+const FILE_CACHE_TTL_MS = 5 * 60_000
+const FILE_CACHE_MAX_FILE_BYTES = 8 * 1024 * 1024
+// A large library's previews add up to a few tens of megabytes (fifty-two here,
+// thirty-seven in total), so the budget is sized to hold a whole pane once rather
+// than to evict it halfway through the next mount.
+const FILE_CACHE_MAX_TOTAL_BYTES = 48 * 1024 * 1024
+
+interface CachedFile {
+  at: number
+  data: Buffer
 }
 
-/** A file as a web stream, which is what a `Response` body takes. */
-function bodyOf(file: string, start?: number, end?: number): WebReadableStream {
-  const stream = fs.createReadStream(file, start === undefined ? undefined : { start, end })
-  return Readable.toWeb(stream) as WebReadableStream
+const fileCache = new Map<string, CachedFile>()
+let fileCacheBytes = 0
+
+/** Windows paths are case-insensitive, so two spellings must hit the same entry. */
+function cacheKey(file: string): string {
+  return file.toLowerCase()
 }
 
 /**
- * Stream one file out of a project, honouring a range request.
+ * The cached bytes for a file, or null when there are none or they have expired.
  *
- * A video wallpaper loops and Chromium asks for a range per loop, so buffering a
- * multi-hundred-megabyte video per request would be both slow and dangerous.
+ * A hit deliberately does not stat the file: the whole point is to answer a
+ * thumbnail without touching the disk. The price is that a project edited in
+ * place can be served stale for up to the TTL, which is the trade the five
+ * minute window makes.
  */
-async function serveFile(target: string, request: Request): Promise<Response> {
-  let size: number
-  try {
-    const stat = await fs.promises.stat(target)
-    if (!stat.isFile()) return new Response('not a file', { status: 404 })
-    size = stat.size
-  } catch {
-    return new Response('not found', { status: 404 })
+function cachedFile(file: string): Buffer | null {
+  const key = cacheKey(file)
+  const entry = fileCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.at >= FILE_CACHE_TTL_MS) {
+    fileCache.delete(key)
+    fileCacheBytes -= entry.data.byteLength
+    return null
   }
+  return entry.data
+}
 
-  const type = mimeFor(target)
+/** Store one small file, evicting the oldest entries once the budget is full. */
+function rememberFile(file: string, data: Buffer): void {
+  if (data.byteLength > FILE_CACHE_MAX_TOTAL_BYTES) return
+  const key = cacheKey(file)
+  const previous = fileCache.get(key)
+  if (previous) {
+    fileCacheBytes -= previous.data.byteLength
+    fileCache.delete(key)
+  }
+  fileCache.set(key, { at: Date.now(), data })
+  fileCacheBytes += data.byteLength
+  // A Map iterates in insertion order, so the first keys are the oldest.
+  for (const [oldKey, old] of fileCache) {
+    if (fileCacheBytes <= FILE_CACHE_MAX_TOTAL_BYTES) break
+    if (oldKey === key) break
+    fileCache.delete(oldKey)
+    fileCacheBytes -= old.data.byteLength
+  }
+}
+
+const WALLPAPER_HEADERS = {
+  'access-control-allow-origin': '*',
+  'accept-ranges': 'bytes'
+}
+
+/**
+ * Images are the tiled library: fifty-two `<img>` requests every time the pane
+ * mounts. Letting Chromium keep them for the same five minutes the memory cache
+ * uses means a re-mount does not even reach the protocol handler. Everything
+ * else stays uncached - a video wallpaper loops with range requests, and the
+ * scene container is large enough that a stale copy would be worse than a read.
+ */
+const IMAGE_CACHE_CONTROL = 'public, max-age=300'
+
+/** The response headers every status of this scheme carries. */
+function headersFor(type: string, cacheable: boolean): Record<string, string> {
+  return {
+    ...WALLPAPER_HEADERS,
+    'content-type': type,
+    'cache-control': cacheable && type.startsWith('image/') ? IMAGE_CACHE_CONTROL : 'no-store'
+  }
+}
+
+/**
+ * One megabyte per read instead of Node's 64 KiB default.
+ *
+ * The scene container is the one file that is always streamed and always big, so
+ * the default chunk size turns every mount into a couple of thousand tiny
+ * allocations: measurable V8 heap-page growth and external Buffer churn, even
+ * though the bytes themselves are collectable at once. A larger read cuts that
+ * by an order of magnitude. It stays a rounding error against the response, and
+ * a range request shorter than the chunk still reads only the bytes it asked for,
+ * so the 206 path is unaffected.
+ */
+const STREAM_CHUNK_BYTES = 1024 * 1024
+
+/** A file as a web stream, which is what a `Response` body takes. */
+function bodyOf(file: string, start?: number, end?: number): WebReadableStream {
+  const options: { highWaterMark: number; start?: number; end?: number } = {
+    highWaterMark: STREAM_CHUNK_BYTES
+  }
+  if (start !== undefined) options.start = start
+  if (end !== undefined) options.end = end
+  return Readable.toWeb(fs.createReadStream(file, options)) as WebReadableStream
+}
+
+type RangeResolution =
+  | { kind: 'whole' }
+  | { kind: 'invalid' }
+  | { kind: 'partial'; start: number; end: number }
+
+/**
+ * `bytes=start-end`, where either side may be omitted.
+ *
+ * The suffix form (`bytes=-N`) counts from the end, which is what a media
+ * element asks for when it wants the header of a video without downloading it.
+ */
+function resolveRange(request: Request, size: number): RangeResolution {
   const range = request.headers.get('range')
+  if (!range) return { kind: 'whole' }
 
-  if (!range) {
-    return new Response(bodyOf(target), {
-      status: 200,
-      headers: { ...WALLPAPER_HEADERS, 'content-type': type, 'content-length': String(size) }
-    })
-  }
-
-  // `bytes=start-end`, where either side may be omitted.
   const match = /bytes=(\d*)-(\d*)/.exec(range)
-  if (!match || (match[1] === '' && match[2] === '')) {
-    return new Response(null, {
-      status: 416,
-      headers: { ...WALLPAPER_HEADERS, 'content-type': type, 'content-range': `bytes */${size}` }
-    })
-  }
+  if (!match || (match[1] === '' && match[2] === '')) return { kind: 'invalid' }
 
   let start: number
   let end: number
@@ -715,21 +823,101 @@ async function serveFile(target: string, request: Request): Promise<Response> {
   }
 
   if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= size) {
-    return new Response(null, {
-      status: 416,
-      headers: { ...WALLPAPER_HEADERS, 'content-type': type, 'content-range': `bytes */${size}` }
+    return { kind: 'invalid' }
+  }
+  return { kind: 'partial', start, end }
+}
+
+function rangeNotSatisfiable(type: string, size: number): Response {
+  return new Response(null, {
+    status: 416,
+    headers: { ...headersFor(type, false), 'content-range': `bytes */${size}` }
+  })
+}
+
+/** Answer from memory: a small file is sliced without touching the disk. */
+function bufferedResponse(target: string, request: Request, data: Buffer): Response {
+  const type = mimeFor(target)
+  const range = resolveRange(request, data.byteLength)
+
+  if (range.kind === 'invalid') return rangeNotSatisfiable(type, data.byteLength)
+
+  if (range.kind === 'whole') {
+    return new Response(data, {
+      status: 200,
+      headers: { ...headersFor(type, true), 'content-length': String(data.byteLength) }
     })
   }
 
-  return new Response(bodyOf(target, start, end), {
+  const slice = data.subarray(range.start, range.end + 1)
+  return new Response(slice, {
     status: 206,
     headers: {
-      ...WALLPAPER_HEADERS,
-      'content-type': type,
-      'content-length': String(end - start + 1),
-      'content-range': `bytes ${start}-${end}/${size}`
+      ...headersFor(type, false),
+      'content-length': String(slice.byteLength),
+      'content-range': `bytes ${range.start}-${range.end}/${data.byteLength}`
     }
   })
+}
+
+/**
+ * Stream one large file out of a project, honouring a range request.
+ *
+ * A video wallpaper loops and Chromium asks for a range per loop, and a scene
+ * container is hundreds of megabytes, so buffering either per request would be
+ * both slow and dangerous.
+ */
+function streamedResponse(target: string, request: Request, size: number): Response {
+  const type = mimeFor(target)
+  const range = resolveRange(request, size)
+
+  if (range.kind === 'invalid') return rangeNotSatisfiable(type, size)
+
+  if (range.kind === 'whole') {
+    return new Response(bodyOf(target), {
+      status: 200,
+      headers: { ...headersFor(type, false), 'content-length': String(size) }
+    })
+  }
+
+  return new Response(bodyOf(target, range.start, range.end), {
+    status: 206,
+    headers: {
+      ...headersFor(type, false),
+      'content-length': String(range.end - range.start + 1),
+      'content-range': `bytes ${range.start}-${range.end}/${size}`
+    }
+  })
+}
+
+/**
+ * Serve one file: from memory when it is small and was read recently, from the
+ * disk otherwise. A miss stats once and reads a small file whole; a file over
+ * the per-file limit is never read into memory and is streamed instead.
+ */
+async function serveFile(target: string, request: Request): Promise<Response> {
+  const cached = cachedFile(target)
+  if (cached) return bufferedResponse(target, request, cached)
+
+  let size: number
+  try {
+    const stat = await fs.promises.stat(target)
+    if (!stat.isFile()) return new Response('not a file', { status: 404 })
+    size = stat.size
+  } catch {
+    return new Response('not found', { status: 404 })
+  }
+
+  if (size > FILE_CACHE_MAX_FILE_BYTES) return streamedResponse(target, request, size)
+
+  let data: Buffer
+  try {
+    data = await fs.promises.readFile(target)
+  } catch {
+    return new Response('not found', { status: 404 })
+  }
+  rememberFile(target, data)
+  return bufferedResponse(target, request, data)
 }
 
 /**

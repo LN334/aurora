@@ -34,11 +34,12 @@ export const hasNeteaseBackend = isNative && Boolean(window.aurora?.netease)
  */
 export async function neteaseDiscover(
   kind: NeteaseDiscoverKind,
-  limit?: number
+  limit?: number,
+  offset?: number
 ): Promise<NeteaseDiscoverResult> {
   const discover = netease.discover
   if (!discover) return { kind, songs: [], playlists: [] }
-  return discover.call(netease, kind, limit)
+  return discover.call(netease, kind, limit, offset)
 }
 
 /** 这个构建有没有接上发现页的通道；页面用它区分「空」和「没接通」。 */

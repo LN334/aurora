@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isNative } from '../bridge'
+import { useFavorites } from '../features/favorites/store'
 import type { Track } from '../types'
 
 interface TrackMenuProps {
@@ -34,6 +35,7 @@ export function TrackMenu({
   onReveal
 }: TrackMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const liked = useFavorites((state) => state.liked.some((entry) => entry.id === track.id))
   const [pos, setPos] = useState({ left: x, top: y })
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
@@ -94,6 +96,18 @@ export function TrackMenu({
     >
       <button className="menu__item" role="menuitem" onClick={onPlayNext}>
         下一首播放
+      </button>
+
+      {/* 喜欢是收藏页唯一的入口；菜单里给一条，列表里只显示标记。 */}
+      <button
+        className="menu__item"
+        role="menuitem"
+        onClick={() => {
+          useFavorites.getState().toggle(track)
+          onClose()
+        }}
+      >
+        {liked ? '取消喜欢' : '喜欢'}
       </button>
 
       <div className="menu__sep" role="separator" />

@@ -5,7 +5,7 @@ import { formatTime } from '../ui/format'
 import { Artwork } from '../ui/Artwork'
 import {
   DesktopLyrics,
-  Lyrics,
+  Expand,
   Next,
   Note,
   Pause,
@@ -71,6 +71,7 @@ interface PlayerBarProps {
   repeat: RepeatMode
   eqOpen: boolean
   desktopLyricsOpen: boolean
+  queueLength: number
   onToggle(): void
   onNext(): void
   onPrev(): void
@@ -96,6 +97,7 @@ export function PlayerBar({
   repeat,
   eqOpen,
   desktopLyricsOpen,
+  queueLength,
   onToggle,
   onNext,
   onPrev,
@@ -187,7 +189,10 @@ export function PlayerBar({
           <button
             className={`icon-btn${repeat !== 'off' ? ' is-on' : ''}`}
             onClick={onCycleRepeat}
-            title={repeat === 'off' ? '循环关闭' : repeat === 'all' ? '列表循环' : '单曲循环'}
+            title={
+              repeat === 'off' ? '循环：关闭' : repeat === 'all' ? '循环：列表' : '循环：单曲'
+            }
+            data-tip={repeat === 'off' ? '循环关闭' : repeat === 'all' ? '列表循环' : '单曲循环'}
             aria-label="循环模式"
           >
             {repeat === 'one' ? <RepeatOne size={16} /> : <Repeat size={16} />}
@@ -202,6 +207,7 @@ export function PlayerBar({
           className={`icon-btn${desktopLyricsOpen ? ' is-on' : ''}`}
           onClick={onToggleDesktopLyrics}
           title="桌面歌词 (Ctrl+Alt+L)"
+          data-tip="桌面歌词"
           aria-label="桌面歌词"
           aria-pressed={desktopLyricsOpen}
         >
@@ -211,14 +217,19 @@ export function PlayerBar({
           className="icon-btn"
           onClick={onOpenQueue}
           title="播放队列"
+          data-tip="播放队列"
           aria-label="播放队列"
         >
           <Queue size={17} />
+          {queueLength > 0 ? (
+            <span className="icon-btn__badge">{queueLength > 99 ? '99+' : queueLength}</span>
+          ) : null}
         </button>
         <button
           className={`icon-btn${eqOpen ? ' is-on' : ''}`}
           onClick={onToggleEq}
           title="均衡器 (E)"
+          data-tip="均衡器"
           aria-label="均衡器"
           aria-pressed={eqOpen}
         >
@@ -228,15 +239,17 @@ export function PlayerBar({
           className="icon-btn"
           onClick={onOpenStage}
           disabled={!track}
-          title="沉浸模式 (L)"
-          aria-label="沉浸模式"
+          title="全屏歌词 (L)"
+          data-tip="全屏歌词"
+          aria-label="全屏歌词"
         >
-          <Lyrics size={17} />
+          <Expand size={17} />
         </button>
         <button
           className="icon-btn"
           onClick={onToggleMute}
           title={muted ? '取消静音' : '静音'}
+          data-tip={muted ? '取消静音' : '静音'}
           aria-label={muted ? '取消静音' : '静音'}
         >
           {effectiveVolume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}

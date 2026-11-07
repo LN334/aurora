@@ -1,29 +1,10 @@
 /*
- * 「发现」页自己的排布。
+ * 「发现」页自己的排布（也供主页里内嵌的那一块复用）。
  *
- * 页面主体复用既有基元（.grid / .card / .tabs / .btn），这里只补三处结构
- * 差异：第一张卡做成横版精选位、登录提示的正文排版、歌单详情头。颜色全部
- * 走 tokens.css 的变量，不出现字面色值。
+ * 页面主体复用既有基元（.grid / .card / .tabs / .btn），这里只补结构差异：
+ * 登录提示的正文排版、歌单详情头。颜色全部走 tokens.css 的变量，不出现字面
+ * 色值。卡片一律同尺寸——第一张跨列的做法已经去掉，见 DiscoverView.tsx。
  */
-
-/* 精选大卡：占据网格前两列，横向 2:1，和后面方形的卡片区分开。 */
-.discover__lead {
-  grid-column: span 2;
-}
-
-.discover__lead .card__art {
-  aspect-ratio: 2 / 1;
-}
-
-@media (max-width: 760px) {
-  .discover__lead {
-    grid-column: span 1;
-  }
-
-  .discover__lead .card__art {
-    aspect-ratio: 1;
-  }
-}
 
 /* 加载中：一行安静的字，不占满整块内容区。 */
 .discover__loading {

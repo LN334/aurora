@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { NeteaseDiscoverPlaylist, NeteaseSong } from '../../env'
 import { ArtCard } from '../../ui/ArtCard'
 import { TrackList } from '../../ui/TrackList'
+import { Note, Play } from '../../ui/icons'
 import { usePlayer } from '../player/store'
 import { remoteImageUrl, sizedImage } from '../player/urls'
 import { useAvailableProviders } from '../online/hooks'
@@ -12,6 +13,7 @@ import { hasNeteaseDiscover, netease } from '../netease/api'
 import { useNetease } from '../netease/store'
 import { toTrack } from '../netease/track'
 import {
+  DISCOVER_TAB_HINTS,
   DISCOVER_TABS,
   emptyTextFor,
   hasContent,
@@ -44,7 +46,7 @@ interface DetailTarget {
   playlist: NeteaseDiscoverPlaylist
 }
 
-export function DiscoverView() {
+export function DiscoverView({ embedded = false }: { embedded?: boolean } = {}) {
   const providers = useAvailableProviders()
   const [platformId, setPlatformId] = useState('')
   const activeProvider = providers.find((item) => item.id === platformId) ?? providers[0] ?? null
@@ -120,19 +122,24 @@ export function DiscoverView() {
   }
 
   const retry = () => {
-    void load(tab, { force: true })
+    // 「换一批」= 游标前进一页。重发同一个请求没有用：上游推荐一天一份。
+    void useDiscover.getState().next(tab)
   }
 
+  /*
+   * 卡片一律同尺寸。以前第一张跨两列、封面 2:1，本意是做个「精选」重点，
+   * 实际效果是第一行比后面高、右边空出一格（网格是 auto-fill），整块看着
+   * 像没对齐。推荐位要突出靠位置和顺序，不靠把一张卡撑大。
+   */
   const cards = (
-    <div className="grid">
-      {block.playlists.map((playlist, index) => (
+    <div className="picks__grid">
+      {block.playlists.map((playlist) => (
         <ArtCard
           key={playlist.id}
-          className={index === 0 ? 'discover__lead' : undefined}
           title={playlist.name}
           subtitle={playlistSubtitle(playlist)}
           meta={playlistMeta(playlist)}
-          src={playlist.coverUrl ? remoteImageUrl(sizedImage(playlist.coverUrl, index === 0 ? 640 : 360)) : null}
+          src={playlist.coverUrl ? remoteImageUrl(sizedImage(playlist.coverUrl, 360)) : null}
           onOpen={() => void openPlaylist(playlist)}
           onPlay={() => void playPlaylist(playlist)}
         />
@@ -140,24 +147,45 @@ export function DiscoverView() {
     </div>
   )
 
-  const songs = (
-    <div className="discover__detail">
-      <div className="discover__detail-head">
-        <button
-          className="btn btn--accent"
-          disabled={block.songs.length === 0}
-          onClick={() => playFrom(block.songs, 0)}
-        >
-          播放全部
-        </button>
-        <span className="discover__detail-meta">{songRows.length} 首</span>
-      </div>
-      <TrackList
-        tracks={songRows}
-        currentId={currentTrack?.id ?? null}
-        playing={playing}
-        onPlayAt={(index) => playFrom(block.songs, index)}
-      />
+  /*
+   * 推荐歌曲用三列紧凑行，不用表格：主页这一块是「看看有什么」而不是
+   * 「管理歌曲」，表格的列头、序号、专辑列在这里全是噪音。封面取专辑封面
+   * （网易云的歌曲行没有自己的图），点击即播。
+   */
+  const songGrid = (
+    <div className="picks__songs">
+      {block.songs.map((song, index) => {
+        const track = songRows[index]
+        const active = Boolean(track && currentTrack?.id === track.id)
+        return (
+          <button
+            key={song.id}
+            type="button"
+            className={`picks-song${active ? ' is-current' : ''}`}
+            onClick={() => playFrom(block.songs, index)}
+            title={`播放 ${song.name}`}
+          >
+            <span className="picks-song__art">
+              {song.album?.picUrl ? (
+                <img
+                  src={remoteImageUrl(sizedImage(song.album.picUrl, 120))}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <Note size={16} />
+              )}
+            </span>
+            <span className="picks-song__text">
+              <span className="picks-song__name">{song.name}</span>
+              <span className="picks-song__artist">
+                {song.artists.map((artist) => artist.name).join(' / ')}
+              </span>
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -236,58 +264,111 @@ export function DiscoverView() {
   } else if (!hasContent(tab, block)) {
     body = <div className="notice">{emptyTextFor(tab, activeProvider.displayName)}</div>
   } else if (tab === 'newsongs') {
-    body = songs
+    body = songGrid
   } else {
     body = cards
   }
 
-  return (
-    <div className="library">
-      <div className="tabs tabs--sources" role="tablist" aria-label="平台">
-        {providers.map((provider) => {
-          const active = provider.id === activeProvider?.id
+  const platformTabs = (
+    <div className={embedded ? 'tabs picks__plat' : 'tabs tabs--sources'} role="tablist" aria-label="平台">
+      {providers.map((provider) => {
+        const active = provider.id === activeProvider?.id
+        return (
+          <button
+            key={provider.id}
+            className={`tab${active ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={active}
+            onClick={() => handlePlatform(provider.id)}
+          >
+            {provider.shortName ?? provider.displayName}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const contentTabButtons =
+    activeProvider?.id === 'netease'
+      ? DISCOVER_TABS.map((item) => {
+          const active = item.id === tab
           return (
             <button
-              key={provider.id}
+              key={item.id}
               className={`tab${active ? ' is-active' : ''}`}
               role="tab"
               aria-selected={active}
-              onClick={() => handlePlatform(provider.id)}
+              title={DISCOVER_TAB_HINTS[item.id]}
+              onClick={() => handleTab(item.id)}
             >
-              {provider.shortName ?? provider.displayName}
+              {item.label}
             </button>
           )
-        })}
-      </div>
+        })
+      : null
 
-      {activeProvider?.id === 'netease' ? (
+  /* 播放全部只对「推荐歌曲」有意义：歌单栏目点卡片本身就是进歌单。 */
+  const playAllButton =
+    tab === 'newsongs' && block.songs.length > 0 ? (
+      <button
+        className="picks__play"
+        type="button"
+        onClick={() => playFrom(block.songs, 0)}
+        title="把这 24 首按顺序放进队列"
+      >
+        <Play size={12} />
+        播放全部
+      </button>
+    ) : null
+
+  const refreshButton = (
+    <button
+      className="tabs__action"
+      type="button"
+      disabled={block.status === 'loading'}
+      onClick={retry}
+      title="重新读一次这一栏；网易云的推荐大约十分钟变一次"
+    >
+      {block.status === 'loading' ? '换一批中…' : '换一批'}
+    </button>
+  )
+
+  /*
+   * 嵌在主页里时只占一行：栏目在左，平台和「换一批」在右。
+   * 独立成页时仍是「平台一排、栏目一排」——那一页没有外面的标题，两排才够用。
+   */
+  if (embedded) {
+    return (
+      <div className="picks">
+        <div className="picks__bar">
+          {contentTabButtons ? (
+            <div className="tabs tabs--sub" role="tablist" aria-label="栏目">
+              {contentTabButtons}
+            </div>
+          ) : null}
+          <div className="picks__side">
+            {playAllButton}
+            {platformTabs}
+            {refreshButton}
+          </div>
+        </div>
+        <div className="picks__body">{body}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="library">
+      {platformTabs}
+      {contentTabButtons ? (
         <div className="tabs tabs--sub" role="tablist" aria-label="栏目">
-          {DISCOVER_TABS.map((item) => {
-            const active = item.id === tab
-            return (
-              <button
-                key={item.id}
-                className={`tab${active ? ' is-active' : ''}`}
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleTab(item.id)}
-              >
-                {item.label}
-              </button>
-            )
-          })}
-          <button
-            className="tabs__action"
-            type="button"
-            disabled={block.status === 'loading'}
-            onClick={retry}
-            title="重新读一次这一栏；网易云的推荐大约十分钟变一次"
-          >
-            {block.status === 'loading' ? '换一批中…' : '换一批'}
-          </button>
+          {contentTabButtons}
+          <span className="picks__side">
+            {playAllButton}
+            {refreshButton}
+          </span>
         </div>
       ) : null}
-
       <div className="library__body">{body}</div>
     </div>
   )
@@ -313,8 +394,8 @@ function ProviderGate({ providerId, providerName }: { providerId: string; provid
       <p className="discover__gate-title">需要登录 QQ 音乐后才能看推荐</p>
       <p className="discover__gate-note">
         {account
-          ? `已登录${account.nickname ? `（${account.nickname}）` : ''}。QQ 音乐的推荐接口没有公开入口，你的歌单和收藏在「音乐库 → QQ 音乐」里。`
-          : 'QQ 音乐的推荐内容只对登录态开放。扫码登录后，歌单和收藏会出现在「音乐库」里，这里也就能显示推荐。'}
+          ? `已登录${account.nickname ? `（${account.nickname}）` : ''}。推荐接口没有公开入口，歌单和收藏在账号页能进到平台页。`
+          : 'QQ 音乐的推荐内容只对登录态开放。'}
       </p>
       <button className="btn btn--accent" onClick={() => setQqLoginOpen(true)}>
         扫码登录 QQ 音乐

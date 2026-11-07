@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Route } from '../../app/routing'
 import type { Track } from '../../types'
 import { Artwork } from '../../ui/Artwork'
 import { formatTime } from '../../ui/format'
-import { Compass, Library, Note, Pause, Play, Search } from '../../ui/icons'
-import { useHistoryState, useRecentEntries, useToday } from '../player/history-store'
+import { Library, Note, Pause, Play, Search } from '../../ui/icons'
+import { useRecentEntries, useToday } from '../player/history-store'
 import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
 import { artworkFor } from '../library/source'
-import { groupAlbums, groupArtists, useLibrary } from '../library/store'
-import { usePlaylists } from '../playlists/store'
+import { remoteImageUrl, sizedImage } from '../player/urls'
 import { DiscoverView } from '../discover/DiscoverView'
+import { useDiscover } from '../discover/store'
+import { MyMusic } from './MyMusic'
+import { PlatformLoginDialogs } from '../../views/settings/panes/PlatformSignIn'
 import './home.css'
 
 /**
@@ -21,8 +22,6 @@ import './home.css'
  * 平台推荐），视觉仍用 Aurora 自己的暗色与封面主色，不搬它的皮肤。
  * 全站唯一的一级标题由外壳打（「主页」），所以这里从次级标题起。
  */
-
-const QUICK_LABELS = ['继续播放', '音乐库', '每日推荐', '最近播放']
 
 function greeting(now: Date): string {
   const hour = now.getHours()
@@ -42,51 +41,41 @@ function playTrack(track: Track): void {
   player.playTrack(track)
 }
 
-interface QuickCardProps {
-  label: string
-  title: string
-  sub: string
-  icon: ReactNode
-  onClick(): void
-}
-
-function QuickCard({ label, title, sub, icon, onClick }: QuickCardProps) {
-  return (
-    <button className="home-card" type="button" onClick={onClick}>
-      <span className="home-card__label">
-        <span className="home-card__icon">{icon}</span>
-        {label}
-      </span>
-      <span className="home-card__title">{title}</span>
-      <span className="home-card__sub">{sub}</span>
-    </button>
-  )
-}
-
 export function HomeView({ onNavigate, section }: { onNavigate(route: Route): void; section?: string }) {
-  const tracks = useLibrary((state) => state.tracks)
-  const playlists = usePlaylists((state) => state.playlists)
 
   const queue = usePlayer((state) => state.queue)
   const index = usePlayer((state) => state.index)
   const playing = usePlayer((state) => state.playing)
   const position = usePlayer((state) => state.position)
 
-  const history = useHistoryState()
+  /*
+   * 门卡上要有封面，否则四张卡在暗色里就是四块空灰。
+   * 推荐歌单的第一张封面最合适——它本来就是这个页面的门面；
+   * 歌单还没加载时退回新歌速递第一首的专辑封面。
+   */
+  const picksCover = useDiscover(
+    (state) =>
+      state.blocks.playlists.playlists[0]?.coverUrl ??
+      state.blocks.newsongs.songs[0]?.album?.picUrl ??
+      null
+  )
+
   const recent = useRecentEntries()
   const today = useToday()
+
+  useEffect(() => {
+    void useDiscover.getState().load('playlists').catch(() => {})
+  }, [])
 
   const recentRef = useRef<HTMLElement | null>(null)
   const picksRef = useRef<HTMLElement | null>(null)
   const insightRef = useRef<HTMLDivElement | null>(null)
+  const myMusicRef = useRef<HTMLElement | null>(null)
 
-  const albums = useMemo(() => groupAlbums(tracks), [tracks])
-  const artists = useMemo(() => groupArtists(tracks), [tracks])
 
   const current = index >= 0 ? (queue[index] ?? null) : null
   /* 没在播的时候，把「上次听到的」当作 hero，避免首屏是一块空白。 */
   const hero = current ?? recent[0]?.track ?? null
-  const next = index >= 0 ? (queue[index + 1] ?? null) : null
 
   const now = new Date()
 
@@ -105,6 +94,7 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
   useEffect(() => {
     const targets: Record<string, HTMLElement | null> = {
       recent: recentRef.current,
+      mymusic: myMusicRef.current,
       picks: picksRef.current,
       insight: insightRef.current
     }
@@ -120,11 +110,9 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
             {greeting(now)} · {dateText(now)}
           </p>
           <div className="home-hero__title">{hero ? hero.title : '从一首歌开始'}</div>
-          <p className="home-hero__sub">
-            {hero
-              ? [hero.artist, hero.album].filter(Boolean).join(' · ')
-              : '曲库是空的，也没有播放记录。加一个音乐文件夹，或者从下面的推荐里挑一张。'}
-          </p>
+          {hero ? (
+            <p className="home-hero__sub">{[hero.artist, hero.album].filter(Boolean).join(' · ')}</p>
+          ) : null}
           <div className="home-hero__actions">
             <button className="btn btn--accent" type="button" disabled={!hero} onClick={onHeroPlay}>
               {current && playing ? (
@@ -140,7 +128,7 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
             <button
               className="btn"
               type="button"
-              onClick={() => onNavigate({ view: 'library', source: 'local', tab: 'songs' })}
+              onClick={() => onNavigate({ view: 'library', tab: 'songs' })}
             >
               <Library size={15} /> 音乐库
             </button>
@@ -153,44 +141,34 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
           ) : null}
         </div>
         <div className="home-hero__art">
-          <Artwork src={hero ? artworkFor(hero) : null} alt="" fallback={<Note size={38} />} />
+          <Artwork
+            src={hero ? artworkFor(hero) : picksCover ? remoteImageUrl(sizedImage(picksCover, 520)) : null}
+            alt=""
+            fallback={<Note size={38} />}
+          />
         </div>
       </section>
 
-      <div className="home-quick">
-        <QuickCard
-          label={QUICK_LABELS[0]}
-          icon={<Play size={14} />}
-          title={current ? current.title : recent[0] ? recent[0].title : '还没有播放'}
-          sub={current ? current.artist + ' · 队列 ' + queue.length + ' 首' : '点一下，从上次的地方接着放'}
-          onClick={onHeroPlay}
-        />
-        <QuickCard
-          label={QUICK_LABELS[1]}
-          icon={<Library size={14} />}
-          title="音乐库"
-          sub={tracks.length + ' 首 · ' + albums.length + ' 张专辑 · ' + artists.length + ' 位艺术家'}
-          onClick={() => onNavigate({ view: 'library', source: 'local', tab: 'songs' })}
-        />
-        <QuickCard
-          label={QUICK_LABELS[2]}
-          icon={<Compass size={14} />}
-          title="每日推荐"
-          sub={playlists.length > 0 ? '平台推荐与你的 ' + playlists.length + ' 个歌单' : '平台推荐，不用登录也能听'}
-          onClick={() => picksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        />
-        <QuickCard
-          label={QUICK_LABELS[3]}
-          icon={<Note size={14} />}
-          title={recentRows.length > 0 ? history.recent.length + ' 首' : '还没有记录'}
-          sub={recentRows.length > 0 ? '最近放过的，点一下重放' : '听过一首歌之后这里就会有'}
-          onClick={() => recentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        />
-      </div>
+      <section className="home-mymusic" ref={myMusicRef}>
+        <div className="home-section-head">
+          <h2 className="home-panel__title">我的音乐</h2>
+        </div>
+        <MyMusic onNavigate={onNavigate} />
+      </section>
 
-      <div className="home-insight" ref={insightRef}>
+      <section className="home-picks" ref={picksRef}>
+        <div className="home-section-head">
+          <h2 className="home-panel__title">为你挑选</h2>
+        </div>
+        <DiscoverView embedded />
+      </section>
+
+      <div className="home-split" ref={insightRef}>
         <section className="home-panel">
           <h2 className="home-panel__title">今日聆听</h2>
+          {today.seconds === 0 && today.tracks === 0 ? (
+            <p className="home-panel__empty">今天还没有听歌。</p>
+          ) : (
           <div className="home-stats">
             <div className="home-stat">
               <span className="home-stat__value">{formatTime(today.seconds)}</span>
@@ -207,35 +185,13 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
               <span className="home-stat__label">最常听</span>
             </div>
           </div>
-        </section>
-
-        <section className="home-panel">
-          <h2 className="home-panel__title">接下来播放</h2>
-          {next ? (
-            <button className="home-next" type="button" onClick={() => player.jumpTo(index + 1)}>
-              <span className="home-next__art">
-                <Artwork src={artworkFor(next)} alt="" fallback={<Note size={20} />} />
-              </span>
-              <span className="home-next__text">
-                <span className="home-next__title">{next.title}</span>
-                <span className="home-next__sub">{next.artist}</span>
-              </span>
-              <span className="home-next__play">
-                <Play size={14} />
-              </span>
-            </button>
-          ) : (
-            <p className="home-panel__empty">
-              {queue.length > 0 ? '队列就到这里了。' : '队列是空的，从曲库或推荐里挑一首。'}
-            </p>
           )}
         </section>
-      </div>
 
+        
       <section className="home-recent" ref={recentRef}>
         <div className="home-section-head">
           <h2 className="home-panel__title">最近播放</h2>
-          <span className="home-section-head__note">点一行就放</span>
         </div>
         {recentRows.length === 0 ? (
           <p className="home-panel__empty">还没有播放记录。</p>
@@ -264,14 +220,9 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
           </div>
         )}
       </section>
+      </div>
 
-      <section className="home-picks" ref={picksRef}>
-        <div className="home-section-head">
-          <h2 className="home-panel__title">为你挑选</h2>
-          <span className="home-section-head__note">公开推荐，不用登录</span>
-        </div>
-        <DiscoverView />
-      </section>
+      <PlatformLoginDialogs />
     </div>
   )
 }

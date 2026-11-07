@@ -91,6 +91,19 @@ function asDiscoverLimit(value: unknown): number | undefined {
   return Math.min(MAX_DISCOVER_LIMIT, Math.max(1, Math.trunc(value)))
 }
 
+/**
+ * 换一批的游标：已经看过多少条。
+ *
+ * 上限挡住一个坏渲染层把 offset 撑到天上去（上游会把大 offset 当空结果）。
+ * 24 条一批，2000 够翻八十多次，远超一个人在一页上会点的次数。
+ */
+const MAX_DISCOVER_OFFSET = 2000
+
+function asDiscoverOffset(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.min(MAX_DISCOVER_OFFSET, Math.max(0, Math.trunc(value)))
+}
+
 function asIds(value: unknown): number[] {
   if (!Array.isArray(value)) return []
   const ids = value.map(asId).filter((id): id is number => id !== null)
@@ -283,7 +296,7 @@ export function registerNeteaseIpc(): void {
     }
     if (!kind) return empty
     return guard<NeteaseDiscoverResult>('discover', empty, () =>
-      client.neteaseDiscover(kind, asDiscoverLimit(args.limit))
+      client.neteaseDiscover(kind, asDiscoverLimit(args.limit), asDiscoverOffset(args.offset))
     )
   })
 

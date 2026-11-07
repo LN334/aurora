@@ -38,8 +38,11 @@ interface SceneInstance {
  * 场景第一次挂载时让界面先出来。
  *
  * 启动瞬间同时做三件事最吃亏：React 首帧、WebGL 引擎求值（懒块 1.1 MB）、
- * 场景包解码。壁纸是背景，晚半秒没人看得出来，界面晚半秒却很明显。
+ * 场景包解码。壁纸是背景，晚一两帧没人看得出来，界面晚一两帧却很明显。
  * 之后用户主动换壁纸不推迟——那时候他正盯着画面等结果。
+ *
+ * 只让出 120ms（约两帧多一点），不是半秒：实测主进程那 137 MB 的包读盘只占
+ * 0.5s，真正慢的是 parsePkg + 纹理上传的 2.2s 主线程长任务，等得再久也不省。
  */
 let firstMountDone = false
 
@@ -160,7 +163,7 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       }
     }
 
-    const delay = firstMountDone ? 0 : 400
+    const delay = firstMountDone ? 0 : 120
     firstMountDone = true
     if (delay > 0) timer = window.setTimeout(() => void start(), delay)
     else void start()

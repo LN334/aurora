@@ -54,15 +54,17 @@ const LIBRARY = args.get('library') ? path.resolve(ROOT, args.get('library')) : 
 const JOURNEY = [
   { view: 'discover', kind: 'rail', label: '主页', title: '主页' },
   { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' },
-  { view: 'library-albums', kind: 'tab', label: '专辑', title: '音乐库' },
-  { view: 'library-artists', kind: 'tab', label: '艺术家', title: '音乐库' },
-  { view: 'library-playlists', kind: 'tab', label: '歌单', title: '音乐库' },
-  { view: 'library-folders', kind: 'tab', label: '文件夹', title: '音乐库' },
-  { view: 'library-netease', kind: 'source', label: '网易云', title: '未登录' },
-  { view: 'library-qq', kind: 'source', label: 'QQ 音乐', title: 'QQ 音乐' },
+  { view: 'library-albums', kind: 'rail', label: '专辑', title: '音乐库' },
+  { view: 'library-artists', kind: 'rail', label: '艺术家', title: '音乐库' },
+  { view: 'library-folders', kind: 'rail', label: '文件夹', title: '音乐库' },
+  // 收藏是独立的一级：歌单与喜欢在这里，不在音乐库（那一页只有磁盘上的文件）。
+  { view: 'collection-liked', kind: 'rail', label: '收藏', title: '收藏' },
+  { view: 'collection-playlists', kind: 'rail', label: '我的歌单', title: '收藏' },
   { view: 'settings', kind: 'rail', label: '设置', title: '设置' },
   // 账号页不在侧栏的一级项里：它是底部那张头像点进来的，所以单独一种 kind。
-  { view: 'account', kind: 'profile', label: '', title: '账号' }
+  { view: 'account', kind: 'profile', label: '', title: '账号' },
+  // 平台页从账号页的「进入」按钮打开：平台内容挂在账号上，不占导航。
+  { view: 'platform-netease', kind: 'button', label: '进入', title: '未登录' }
 ]
 
 function fail(message) {
@@ -120,8 +122,10 @@ async function evaluate(cdp, expression) {
 /** Where each kind of step keeps its clickable rows. */
 const STEP_SELECTORS = {
   rail: '.rail .nav-item',
-  tab: '.tabs--sub .tab',
-  source: '.tabs--sources .tab',
+  // 栏目那排：音乐库与收藏都用 .tabs--head，发现页的栏目还带着自己的内层 tab。
+  tab: '.tabs--head .tab, .tabs--sub .tab',
+  // 账号页里「进入平台页」的按钮。
+  button: 'button.btn--small',
   // 侧栏底部的档案入口：只此一个，不需要按名字匹配（档案名由用户改）。
   profile: '.rail__profile'
 }

@@ -437,7 +437,11 @@ export interface NeteaseApi {
    * 可选：浏览器预览与部分构建没有主进程的这条通道，页面据此显示空态而不是
    * 每个操作都报一次网络错误。`bridge.ts` 的回退对象没有实现它。
    */
-  discover?(kind: NeteaseDiscoverKind, limit?: number): Promise<NeteaseDiscoverResult>
+  discover?(
+    kind: NeteaseDiscoverKind,
+    limit?: number,
+    offset?: number
+  ): Promise<NeteaseDiscoverResult>
 
   /** Personal music. Empty arrays (not errors) when signed out. */
   myPlaylists(): Promise<NeteasePlaylistSummary[]>

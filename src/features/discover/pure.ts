@@ -18,17 +18,31 @@ export interface DiscoverTab {
 
 /** 网易云公开接口对应的三栏；名字对齐接口内容，不是空泛的分类。 */
 export const DISCOVER_TABS: readonly DiscoverTab[] = [
+  { id: 'newsongs', label: '推荐歌曲' },
   { id: 'playlists', label: '推荐歌单' },
-  { id: 'newsongs', label: '新歌速递' },
-  { id: 'quality', label: '精品歌单' }
+  { id: 'quality', label: '分类歌单' }
 ]
+
+/**
+ * 三栏各自从哪来。
+ *
+ * 推荐歌单与分类歌单听起来像同一件事，实际上是两个不同的上游：前者的第一批是
+ * 平台给这个人的推荐（未登录时是公开的编辑推荐），换一批进歌单广场按热度翻页；
+ * 后者按风格甄选，换一批换一个风格。把来源写在这里、放在标签的 title 上，
+ * 用户指一下就知道了，不用在页面上占一行解释文字。
+ */
+export const DISCOVER_TAB_HINTS: Record<DiscoverKind, string> = {
+  newsongs: '平台每天推的新歌。换一批换一个榜单。',
+  playlists: '平台按热度推的歌单。换一批换下一批。',
+  quality: '按风格甄选。换一批换一个风格。'
+}
 
 export function isDiscoverKind(value: string): value is DiscoverKind {
   return DISCOVER_TABS.some((tab) => tab.id === value)
 }
 
 export function tabLabel(kind: DiscoverKind): string {
-  return DISCOVER_TABS.find((tab) => tab.id === kind)?.label ?? '推荐歌单'
+  return DISCOVER_TABS.find((tab) => tab.id === kind)?.label ?? '推荐歌曲'
 }
 
 /** 播放量/曲目数用同一个紧凑写法：12.3万、1.2亿。 */
@@ -120,7 +134,7 @@ export function emptyTextFor(kind: DiscoverKind, platformName: string): string {
     return `${platformName} 这会儿没有返回新歌，稍后再试试。`
   }
   if (kind === 'quality') {
-    return `${platformName} 这会儿没有返回精品歌单，稍后再试试。`
+    return `${platformName} 这会儿没有返回分类歌单，稍后再试试。`
   }
   return `${platformName} 这会儿没有返回推荐歌单，稍后再试试。`
 }

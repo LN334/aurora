@@ -42,6 +42,8 @@ export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] a
   enqueue(tracks: Track[], position?: 'next' | 'end'): void
   removeAt(queueIndex: number): void
   clearQueue(): void
+  /** Drops everything that has not played yet; the current track keeps going. */
+  clearUpcoming(): void
   jumpTo(queueIndex: number): void
   setPosition(position: number): void
   setDuration(duration: number): void
@@ -148,6 +150,28 @@ export const usePlayer = create<PlayerState>()(
 
       clearQueue() {
         set({ queue: [], order: [], index: -1, position: 0, duration: 0, playing: false })
+      },
+
+      /*
+       * Clearing used to mean "stop everything", which also throws away the
+       * track you are listening to. This keeps the played list and the current
+       * track and drops only what is still queued - the same split Rhine makes
+       * (清空仅移除待播歌曲，当前歌曲继续播放).
+       */
+      clearUpcoming() {
+        const { queue, order, index, position, playing } = get()
+        if (index < 0 || queue.length === 0) return
+        const at = order.indexOf(index)
+        if (at === -1) return
+        const keep = order.slice(0, at + 1)
+        const nextQueue = keep.map((i) => queue[i])
+        set({
+          queue: nextQueue,
+          order: nextQueue.map((_, i) => i),
+          index: nextQueue.length - 1,
+          position,
+          playing
+        })
       },
 
       jumpTo(queueIndex) {

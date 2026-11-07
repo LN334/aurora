@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { Route } from '../../../app/routing'
 import { bridge, isNative } from '../../../bridge'
 import { useAccounts } from '../../../features/accounts/store'
 import { useRoots } from '../../../features/library/roots'
 import { runScan } from '../../../features/library/scan'
 import { useAvailableProviders } from '../../../features/online/hooks'
+import { platformView } from '../../../features/online/registry'
 import { useOnlineStore } from '../../../features/online/store'
 import type { OnlineMusicProvider } from '../../../features/online/types'
 import { Plus, Trash } from '../../../ui/icons'
@@ -22,7 +24,7 @@ import { openPlatformLogin } from './PlatformSignIn'
  * 档案列表直接复用 AccountsView（它的受控 props 与本页需要的完全一致），不复制一份
  * 增删改与绑定逻辑；这里的职责只是把 store 的动作接上去，并在解绑后让它重新读一次绑定。
  */
-export function AccountPane() {
+export function AccountPane({ onNavigate }: { onNavigate(route: Route): void }) {
   const accounts = useAccounts((state) => state.accounts)
   const activeId = useAccounts((state) => state.activeId)
 
@@ -77,7 +79,7 @@ export function AccountPane() {
       </Sub>
 
       <Sub title="在线平台">
-        <OnlinePlatformRows />
+        <OnlinePlatformRows onNavigate={onNavigate} />
       </Sub>
 
       <Sub
@@ -116,7 +118,7 @@ export function AccountPane() {
 }
 
 /** 一行一个在线平台：名称、登录状态、登录或退出。 */
-function OnlinePlatformRows() {
+function OnlinePlatformRows({ onNavigate }: { onNavigate(route: Route): void }) {
   const providers = useAvailableProviders()
 
   if (providers.length === 0) {
@@ -126,13 +128,19 @@ function OnlinePlatformRows() {
   return (
     <Rows>
       {providers.map((provider) => (
-        <OnlinePlatformRow key={provider.id} provider={provider} />
+        <OnlinePlatformRow key={provider.id} provider={provider} onNavigate={onNavigate} />
       ))}
     </Rows>
   )
 }
 
-function OnlinePlatformRow({ provider }: { provider: OnlineMusicProvider }) {
+function OnlinePlatformRow({
+  provider,
+  onNavigate
+}: {
+  provider: OnlineMusicProvider
+  onNavigate(route: Route): void
+}) {
   const store = useOnlineStore(provider.id)
   const account = store((state) => state.account)
   const ready = store((state) => state.ready)
@@ -164,6 +172,13 @@ function OnlinePlatformRow({ provider }: { provider: OnlineMusicProvider }) {
       <span className={`set-state${account ? ' set-state--on' : ''}`}>
         {account ? '已登录' : '未登录'}
       </span>
+      {/* 平台页本身也能看公开内容（搜索、未登录也能放的歌），所以「进入」不要求登录。 */}
+      <button
+        className="btn btn--small"
+        onClick={() => onNavigate({ view: platformView(provider) })}
+      >
+        进入
+      </button>
       {account ? (
         <button className="btn btn--small" onClick={() => void logout()}>
           退出登录

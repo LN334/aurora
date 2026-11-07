@@ -233,6 +233,7 @@ input::placeholder {
 }
 
 .icon-btn {
+  position: relative;
   display: grid;
   place-items: center;
   width: 28px;
@@ -248,6 +249,43 @@ input::placeholder {
 .icon-btn:disabled {
   color: var(--ink-500);
   cursor: default;
+}
+
+/* Five icons in a row and no words anywhere: hovering has to say what each
+   one is, without covering the controls underneath. */
+.icon-btn[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgb(8 10 12 / 0.94);
+  color: var(--text-hi);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 60;
+}
+
+/* The queue opens as a panel, so the count is the only hint that the icon is
+   the queue and not another view switch. */
+.icon-btn__badge {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink-1000);
+  font-size: 9px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 /* Search lives in the title bar: in a library app, finding a track is a
@@ -1792,4 +1830,60 @@ input::placeholder {
 }
 .is-collapsed .rail__sub {
   display: none;
+}
+
+/* ---- 收藏（一级入口）与音乐库共用的「栏目」那排 tab ----
+ * 与 .tabs--sources 同形，只是这一排下面是内容本身，不是再分一层来源。
+ */
+.tabs--head {
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: var(--s2);
+}
+.tabs--head .tab {
+  height: 34px;
+  font-size: var(--fs-body);
+}
+
+/* 收藏里的歌单再下一层：比栏目子项再缩进一点，才能在长列表里读成两层。 */
+.rail__sub .nav-item--sub2 {
+  padding-left: 26px;
+  height: 26px;
+}
+
+/* 行内的「已喜欢」标记。只是标记，不是按钮：整行点击是播放，喜欢/取消走右键菜单。 */
+.trk__liked {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.collection__liked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-height: 0;
+}
+.collection__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--line-soft);
+}
+.collection__count {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.collection__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s5) 0;
+}
+.collection__empty .notice {
+  margin: 0;
 }

@@ -21,7 +21,7 @@ src/
     playlists/    歌单：m3u 读写、存储、导入导出的流程
     home/         主页（侧栏第一项，路由仍是 discover）：问候、上次听到、四张快捷卡、
                   今日聆听、最近播放；平台推荐直接嵌 discover/
-    discover/     平台公开内容（推荐歌单/新歌速递/精品歌单）+ 它的纯函数与 store
+    discover/     平台公开内容（推荐歌单/新歌速递/分类歌单）+ 它的纯函数与 store
     settings/     设置状态的读写；motion.ts 是「动态效果」开关（只有渲染层，存 localStorage）
     wallpaper/    动态背景：选择规则的纯函数、开关与可见度的存储、场景挂载
   views/        页面与面板，一个文件一个屏幕或一块面板；views/settings/ 是单页设置的

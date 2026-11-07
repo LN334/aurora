@@ -284,7 +284,10 @@
 
 .queue-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  /* 行高钉死：切歌时「正在播放」那行会换上另一首歌，内容长度不同就会让
+     行高呼吸一下。 */
+  min-height: 34px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s1);
   border-radius: var(--r-control);
@@ -293,8 +296,54 @@
 .queue-row:hover {
   background: var(--ink-800);
 }
+/* 当前行用左竖条钉住位置：长队列里滚着滚着就找不到播放到哪了。 */
+.queue-row.is-current {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 .queue-row.is-current .queue-row__title-text {
   color: var(--accent);
+}
+
+.queue-row__ops {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  /* Fixed width: the current row carries fewer buttons, and letting the column
+     size to content made every title shift sideways whenever the track changed. */
+  width: 70px;
+  flex: none;
+  padding-right: var(--s1);
+  opacity: 0;
+  transition: opacity 120ms var(--ease-out);
+}
+.queue-row:hover .queue-row__ops,
+.queue-row:focus-within .queue-row__ops {
+  opacity: 1;
+}
+.queue-row__op {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-low);
+  transition: background 100ms var(--ease-out), color 100ms var(--ease-out);
+}
+.queue-row__op:hover {
+  background: rgb(255 255 255 / 0.1);
+  color: var(--text-hi);
+}
+.queue-row__op.is-on {
+  color: var(--accent);
+}
+
+/* Header actions sit between the count and the close button. */
+.queue-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--s2);
 }
 
 .queue-row__main {

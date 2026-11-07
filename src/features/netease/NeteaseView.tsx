@@ -16,7 +16,7 @@ import { setLoginOpen, useNeteaseLoginOpen } from './store'
  * specifics that would have had to be copied for the next platform. The copy is
  * what the layer removed.
  */
-export function NeteaseView() {
+export function NeteaseView({ collection }: { collection?: string }) {
   const provider = getProvider('netease')
   const loginOpen = useNeteaseLoginOpen()
 
@@ -29,7 +29,11 @@ export function NeteaseView() {
 
   return (
     <>
-      <PlatformView provider={provider} onLogin={() => setLoginOpen(true)} />
+      <PlatformView
+        provider={provider}
+        initialCollection={collection}
+        onLogin={() => setLoginOpen(true)}
+      />
       {loginOpen ? <NeteaseLogin onClose={() => setLoginOpen(false)} /> : null}
     </>
   )

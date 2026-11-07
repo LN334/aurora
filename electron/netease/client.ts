@@ -94,6 +94,9 @@ interface Upstream {
   personalized_newsong: UpstreamCall
   personalized: UpstreamCall
   top_playlist_highquality: UpstreamCall
+  /** 换一批要用的两个公开端点：榜单歌曲、可分页的歌单广场。 */
+  playlist_detail: UpstreamCall
+  top_playlist: UpstreamCall
 }
 
 let upstream: Upstream | null = null
@@ -934,10 +937,10 @@ export async function neteaseDailySongs(): Promise<NeteaseSong[]> {
  * request signing key is minted there, and without it the package's own request
  * layer fails before it reaches upstream.
  *
- * 12 is what one upstream page holds; the cap keeps a stale renderer from
- * asking for a page size upstream never fills.
+ * 24 是一条卡片墙够用的量：12 条在宽窗口里只铺满一行半，剩下半行是空白，
+ * 看起来像没加载完。上限仍是 30（上游一页就这么多），挡住旧渲染层要更大的页。
  */
-const DISCOVER_DEFAULT_LIMIT = 12
+const DISCOVER_DEFAULT_LIMIT = 24
 const DISCOVER_MAX_LIMIT = 30
 
 /**
@@ -1016,7 +1019,32 @@ function toDiscoverPlaylist(value: unknown): NeteaseDiscoverPlaylist | null {
 }
 
 /**
+ * 换一批时轮换的公开榜单。
+ *
+ * 「推荐新歌」一个人一天只有一份：同一个账号连续请求两次，拿到的是同一个列表
+ * （实测顺序都一致）。用户点两下「换一批」看到一模一样的歌，只会以为按钮坏了。
+ * 所以第一批用真实推荐，之后按顺序换到热歌榜 / 说唱榜 / 飙升榜 / 原创榜，再往后
+ * 在每个榜内部翻页。这四个榜都是公开接口，不需要登录。
+ *
+ * 新歌榜（3779629）故意不在这里：实测它前 24 首与 `personalized_newsong` 的
+ * 30 首重叠 24/24，等于没换。下面四个榜与推荐的重叠依次是 3 / 3 / 11 / 9 首。
+ */
+const DISCOVER_TOPLISTS = [3778678, 2809513713, 19723756, 2884035] as const
+
+/**
+ * 分类歌单按风格轮换。
+ *
+ * `top_playlist_highquality` 没有 offset，翻不动；`top_playlist` 有分类和
+ * 分页，所以「分类歌单」改成按风格走：同一次会话里点「换一批」会依次看到全部、
+ * 华语、欧美……而不是永远同一批。
+ */
+const DISCOVER_GENRES = ['全部', '华语', '欧美', '电子', '民谣', '摇滚', '古风', '轻音乐'] as const
+
+/**
  * One block of the discover page, for anonymous visitors as well as accounts.
+ *
+ * `offset` is "how many rows have already been shown for this block", so the
+ * renderer can ask for the next batch without the main process keeping any state.
  *
  * Never throws for a normal upstream failure: the caller replaces a rejected
  * `invoke` with nothing at all, so a network error would reach the page as an
@@ -1025,25 +1053,81 @@ function toDiscoverPlaylist(value: unknown): NeteaseDiscoverPlaylist | null {
  */
 export async function neteaseDiscover(
   kind: NeteaseDiscoverKind,
-  limit?: number
+  limit?: number,
+  offset?: number
 ): Promise<NeteaseDiscoverResult> {
   const size = clamp(asNumber(limit) || DISCOVER_DEFAULT_LIMIT, 1, DISCOVER_MAX_LIMIT)
+  const start = Math.max(0, Math.trunc(asNumber(offset)))
+  const batch = Math.floor(start / size)
   await bootstrapOnce()
 
   if (kind === 'newsongs') {
-    const res = await call('personalized_newsong', { limit: size })
-    const songs = discoverRows(res.body, ['result'])
-      .map(toDiscoverSong)
+    if (batch === 0) {
+      const res = await call('personalized_newsong', { limit: DISCOVER_MAX_LIMIT })
+      const songs = discoverRows(res.body, ['result'])
+        .map(toDiscoverSong)
+        .filter((song): song is NeteaseSong => song !== null)
+        .slice(0, size)
+      return { kind, songs, playlists: [] }
+    }
+
+    const listIndex = (batch - 1) % DISCOVER_TOPLISTS.length
+    const round = Math.floor((batch - 1) / DISCOVER_TOPLISTS.length)
+    const res = await call('playlist_detail', { id: DISCOVER_TOPLISTS[listIndex] })
+    const tracks = asArray(asRecord(asRecord(res.body).playlist).tracks)
+    const songs = tracks
+      .map(toSong)
       .filter((song): song is NeteaseSong => song !== null)
-      .slice(0, size)
-    return { kind, songs, playlists: [] }
+    if (songs.length === 0) return { kind, songs: [], playlists: [] }
+
+    // 榜单长度不固定（100 / 200 首都有），翻到底就绕回开头：按钮永远有东西可给，
+    // 不会变成一次空列表让页面闪一下空态。
+    const from = (round * size) % songs.length
+    const window = songs.slice(from, from + size)
+    const wrapped =
+      window.length === size ? window : window.concat(songs.slice(0, size - window.length))
+    return { kind, songs: wrapped, playlists: [] }
   }
 
-  const endpoint = kind === 'quality' ? 'top_playlist_highquality' : 'personalized'
-  // 精品歌单走 body.playlists；「推荐歌单」(personalized) 把列表直接放在 body.result。
-  const listKeys = kind === 'quality' ? ['playlists'] : ['result', 'recommend', 'playlists']
-  const res = await call(endpoint, { limit: size })
-  const playlists = discoverRows(res.body, listKeys)
+  /*
+   * 两个歌单栏目走两条不同的路，页面上的区别才对得上栏目名：
+   *
+   * - 推荐歌单：第一批是平台给这个人的推荐（未登录时是公开的编辑推荐），之后
+   *   换到歌单广场按热度分页。两者实测只重叠 1/24，点一次就是另一批。
+   * - 分类歌单：走 `top_playlist_highquality`，这是平台按风格人工甄选的那一栏，
+   *   每换一次换一个风格（全部 → 华语 → 欧美 …）。同一个风格里不翻页：那个接口
+   *   的分页游标是上一页最后一条的更新时间，拿不到就只能重来，8 个风格够点 8 次。
+   */
+  if (kind === 'playlists' && batch === 0) {
+    const res = await call('personalized', { limit: DISCOVER_MAX_LIMIT })
+    const playlists = discoverRows(res.body, ['result', 'playlists'])
+      .map(toDiscoverPlaylist)
+      .filter((playlist): playlist is NeteaseDiscoverPlaylist => playlist !== null)
+      .slice(0, size)
+    return { kind, songs: [], playlists }
+  }
+
+  if (kind === 'quality') {
+    const res = await call('top_playlist_highquality', {
+      cat: DISCOVER_GENRES[batch % DISCOVER_GENRES.length],
+      limit: size,
+      // 0 表示从头取这一风格里最新的那批。
+      before: 0
+    })
+    const playlists = discoverRows(res.body, ['playlists', 'result'])
+      .map(toDiscoverPlaylist)
+      .filter((playlist): playlist is NeteaseDiscoverPlaylist => playlist !== null)
+      .slice(0, size)
+    return { kind, songs: [], playlists }
+  }
+
+  const res = await call('top_playlist', {
+    cat: '全部',
+    order: 'hot',
+    limit: size,
+    offset: (batch - 1) * size
+  })
+  const playlists = discoverRows(res.body, ['playlists', 'result'])
     .map(toDiscoverPlaylist)
     .filter((playlist): playlist is NeteaseDiscoverPlaylist => playlist !== null)
     .slice(0, size)

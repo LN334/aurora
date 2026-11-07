@@ -262,6 +262,13 @@ export const DesktopLyrics = (p: IconProps) => (
   </Svg>
 )
 
+/** 展开成全屏：播放条上「全屏歌词」用它，和「桌面歌词」那张副屏图标区分开。 */
+export const Expand = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5" />
+  </Svg>
+)
+
 export const Pencil = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4.5 19.5h3.2L18.9 8.3a1.8 1.8 0 0 0 0-2.5l-.7-.7a1.8 1.8 0 0 0-2.5 0L4.5 16.3Z" />
@@ -306,6 +313,13 @@ export const Refresh = (p: IconProps) => (
   <Svg {...p}>
     <path d="M20 12a8 8 0 1 1-2.6-5.9" />
     <path d="M20.5 4.5V10h-5.2" />
+  </Svg>
+)
+
+/** 喜欢（我喜欢的歌曲、收藏页的一级入口）。 */
+export const Heart = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 20.2 4.9 13a4.6 4.6 0 0 1 6.5-6.5l.6.6.6-.6A4.6 4.6 0 0 1 19.1 13Z" />
   </Svg>
 )
 
