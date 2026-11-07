@@ -147,37 +147,41 @@
 }
 
 .home-stats {
-  display: flex;
-  gap: var(--s6);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s4);
 }
 
 .home-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
+/* 数字与歌手名共用一条 30px 行高：字号可以不同，标签永远落在同一条基线上。 */
 .home-stat__value {
   font-family: var(--font-display, inherit);
   font-size: 26px;
   font-weight: 600;
   color: var(--text-hi);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 30px;
 }
 
 .home-stat__value--text {
-  font-size: 18px;
+  display: block;
+  font-size: 20px;
+  line-height: 30px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 14ch;
 }
 
 .home-stat__label {
   font-size: var(--fs-micro);
   color: var(--text-low);
+  white-space: nowrap;
 }
 
 

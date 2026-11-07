@@ -75,13 +75,16 @@ export function initialRoute(): Route {
   return { view: 'discover' }
 }
 
-/** 这些视图展示本机文件，所以「重新扫描 / 添加文件夹」只出现在它们上面。 */
+/**
+ * 这些视图展示本机文件，所以「重新扫描 / 添加文件夹」只出现在它们上面。
+ *
+ * 收藏（collection / playlists）不在这里：它装的是人挑的东西，里面可以有
+ * 没有文件的在线歌，磁盘上的扫描与它无关。
+ */
 export const LIBRARY_VIEWS: ReadonlySet<ViewId> = new Set<ViewId>([
   'library',
   'albums',
   'artists',
   'songs',
-  'folders',
-  'collection',
-  'playlists'
+  'folders'
 ])

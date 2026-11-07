@@ -22,8 +22,8 @@ import { Compass, Heart, Library, Settings, Sidebar, User } from '../ui/icons'
  * 栏目，后者由人决定，所以歌单和喜欢都归收藏。
  *
  * 一级下面挂子项，但只挂「同一件事的下一层」：
- * - 主页挂的是主页里那几块的位置（最近播放、我的音乐、为你挑选、今日聆听），
- *   点了滚过去；
+ * - 主页不挂子项：最近播放、我的音乐、为你挑选、今日聆听都是这一页里的区块，
+ *   一页滚下去就能看到，再给一份重复的目录没有意义；
  * - 音乐库挂它自己的栏目（歌曲、专辑、艺术家、文件夹）；
  * - 收藏挂「我喜欢的歌曲」「我的歌单」和每个歌单本身。
  *   平台账号主页不在这里：它从侧栏底部的头像进。
@@ -65,14 +65,6 @@ const PRIMARY: PrimaryItem[] = [
   { group: 'library', view: 'library', label: '音乐库', icon: Library },
   { group: 'collection', view: 'collection', label: '收藏', icon: Heart },
   { group: 'settings', view: 'settings', label: '设置', icon: Settings }
-]
-
-/** 主页里的三块；点击只是滚到那里，不换页。 */
-const HOME_SECTIONS = [
-  { section: 'recent', label: '最近播放' },
-  { section: 'mymusic', label: '我的音乐' },
-  { section: 'picks', label: '为你挑选' },
-  { section: 'insight', label: '今日聆听' }
 ]
 
 /** 音乐库的栏目，与 LibraryView 的标签页一一对应。 */
@@ -126,25 +118,6 @@ export function Rail({ route, onNavigate, collapsed, onToggleCollapsed, profileL
                   <item.icon size={17} />
                   <span className="nav-item__label">{item.label}</span>
                 </button>
-
-                {item.group === 'discover' ? (
-                  <div className="rail__sub">
-                    {HOME_SECTIONS.map((section) => {
-                      const current = view === 'discover' && route.tab === section.section
-                      return (
-                        <button
-                          key={section.section}
-                          className={`nav-item nav-item--sub${current ? ' is-active' : ''}`}
-                          onClick={() => onNavigate({ view: 'discover', tab: section.section })}
-                          aria-current={current ? 'page' : undefined}
-                        >
-                          <span className="nav-item__dot" />
-                          <span className="nav-item__label">{section.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : null}
 
                 {item.group === 'library' ? (
                   <div className="rail__sub">

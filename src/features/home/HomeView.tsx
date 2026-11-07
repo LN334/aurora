@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import type { Route } from '../../app/routing'
 import type { Track } from '../../types'
 import { Artwork } from '../../ui/Artwork'
@@ -41,7 +41,7 @@ function playTrack(track: Track): void {
   player.playTrack(track)
 }
 
-export function HomeView({ onNavigate, section }: { onNavigate(route: Route): void; section?: string }) {
+export function HomeView({ onNavigate }: { onNavigate(route: Route): void }) {
 
   const queue = usePlayer((state) => state.queue)
   const index = usePlayer((state) => state.index)
@@ -67,12 +67,6 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
     void useDiscover.getState().load('playlists').catch(() => {})
   }, [])
 
-  const recentRef = useRef<HTMLElement | null>(null)
-  const picksRef = useRef<HTMLElement | null>(null)
-  const insightRef = useRef<HTMLDivElement | null>(null)
-  const myMusicRef = useRef<HTMLElement | null>(null)
-
-
   const current = index >= 0 ? (queue[index] ?? null) : null
   /* 没在播的时候，把「上次听到的」当作 hero，避免首屏是一块空白。 */
   const hero = current ?? recent[0]?.track ?? null
@@ -86,21 +80,6 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
   }
 
   const recentRows = recent.slice(0, 10)
-
-  /*
-   * 侧栏「主页」下面的三个子项不是三个页面，是这一页里的三块。点了滚过去；
-   * route.tab 一变化就滚一次，所以从别处点「最近播放」也能落到位。
-   */
-  useEffect(() => {
-    const targets: Record<string, HTMLElement | null> = {
-      recent: recentRef.current,
-      mymusic: myMusicRef.current,
-      picks: picksRef.current,
-      insight: insightRef.current
-    }
-    const node = section ? targets[section] : null
-    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [section])
 
   return (
     <div className="home">
@@ -149,21 +128,21 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
         </div>
       </section>
 
-      <section className="home-mymusic" ref={myMusicRef}>
+      <section className="home-mymusic">
         <div className="home-section-head">
           <h2 className="home-panel__title">我的音乐</h2>
         </div>
         <MyMusic onNavigate={onNavigate} />
       </section>
 
-      <section className="home-picks" ref={picksRef}>
+      <section className="home-picks">
         <div className="home-section-head">
           <h2 className="home-panel__title">为你挑选</h2>
         </div>
         <DiscoverView embedded />
       </section>
 
-      <div className="home-split" ref={insightRef}>
+      <div className="home-split">
         <section className="home-panel">
           <h2 className="home-panel__title">今日聆听</h2>
           {today.seconds === 0 && today.tracks === 0 ? (
@@ -189,7 +168,7 @@ export function HomeView({ onNavigate, section }: { onNavigate(route: Route): vo
         </section>
 
         
-      <section className="home-recent" ref={recentRef}>
+      <section className="home-recent">
         <div className="home-section-head">
           <h2 className="home-panel__title">最近播放</h2>
         </div>
