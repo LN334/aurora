@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WallpaperEntry } from '../../env'
-import { propertyValues } from './pure'
+import { propertyValues, sceneRenderOptions } from './pure'
 import type { PropertyValue } from './pure'
 import { useWallpaper } from './store'
 
@@ -59,6 +59,7 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
    * 换壁纸时自然拿到新的一套，不会把上一张的键传进新场景。
    */
   const saved = useWallpaper((state) => (entry ? state.values[entry.id] : undefined))
+  const quality = useWallpaper((state) => state.quality)
   const props = useMemo(() => propertyValues(entry?.properties, saved), [entry?.properties, saved])
   /*
    * 挂载是异步的（懒块 + 解包），读 ref 而不是闭包里的 props，这样挂载期间
@@ -122,13 +123,15 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
     let timer = 0
 
     /*
-     * 渲染分辨率上限。场景按这个倍数光栅化，纹理显存与片元开销都随像素数
-     * 线性走：这台机器 dpr 1.5 时全屏约 2.7 M 像素，压到 1.25 直接省三成。
-     * 壁纸是被压在面板下面的背景，不值得为它开满物理像素。
+     * 帧率与渲染分辨率由设置页的「壁纸画质」决定：场景按这个倍数光栅化，
+     * 纹理显存与片元开销都随像素数线性走。壁纸是被压在面板下面的背景，
+     * 默认档不值得为它开满物理像素。
      */
-    const dpr = window.devicePixelRatio || 1
-    const pixels = Math.max(1, window.innerWidth * window.innerHeight)
-    const renderDpr = Math.max(0.75, Math.min(dpr, 1.25, Math.sqrt(2_600_000 / pixels)))
+    const { fps, renderDpr } = sceneRenderOptions(
+      quality,
+      window.devicePixelRatio || 1,
+      Math.max(1, window.innerWidth * window.innerHeight)
+    )
 
     const start = async () => {
       try {
@@ -137,8 +140,8 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
         instance = await mount(host, {
           source: httpSource(entry.sourceUrl),
           fit: 'cover',
-          // 30 fps is what a background needs; the scene is not the subject.
-          fps: 30,
+          // 帧率跟着画质档走；均衡档的 30 fps 就是背景该有的样子。
+          fps,
           renderDpr,
           // 工程自带的属性：作者在 project.json 里声明的可调项，用户改过的值优先。
           properties: propsRef.current,
@@ -180,7 +183,7 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       instanceRef.current = null
       host.replaceChildren()
     }
-  }, [runsScene, entry?.id, entry?.sourceUrl])
+  }, [runsScene, entry?.id, entry?.sourceUrl, quality])
 
   /*
    * 拖动滑杆改属性时不用重建场景，直接把新值推给已挂载的实例。

@@ -214,6 +214,22 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
 - **体积**：`webwallgl`（约 1.1 MB）只能经 `Backdrop.tsx` 的动态 import 到达；
   `vite.config.ts` 的 manualChunks 明确把它排除在共享 vendor 之外，不用壁纸的人不下载它。
 
+## 清理与维护
+
+「设置 → 05 清理与维护」的实现在 `electron/maintenance.ts`，两个动作：
+
+- **释放内存**：`releaseMemory()` 找出应用自己的全部进程（主进程、GPU、渲染进程、utility），
+  用 PowerShell 的 `EmptyWorkingSet` 逐个把工作集交还系统，前后各读一次 `WorkingSet64` 报告
+  实际释放量。播放不会中断：交还的只是暂时用不到的页，用过再缺页换回来。
+- **垃圾文件**：`scanJunk()` 量三类——缓存（`settings.ts` 导出的 `CACHE_DIRS` 九个目录）、
+  日志、崩溃转储。`sweepJunk()` 的结论有一条是实测出来的：**缓存删不掉**。Chromium 以
+  共享删除方式打开这些文件，`unlink` 返回成功但空间不归还，清理前后两次测量一个字节都不差。
+  所以缓存一律写进 `userData/junk-pending.json`，由 `sweepPendingJunk()` 在
+  `app.whenReady()` 里、建窗口之前清掉；日志与崩溃转储当场删。
+- `JunkScan` 因此带两个数字：`cleanedBytes`（两次测量真实下降的量）与 `deferredBytes`
+  （排进下次启动、取清理后缓存总量）。两者互为补数，界面上写「已清理」和「下次启动再清」，
+  不会同一批字节既算清掉又算没清。
+
 ## 搬迁工具
 
 `scripts/move-files.mjs` 移动文件并改写所有相对 import（静态、动态、type-only、

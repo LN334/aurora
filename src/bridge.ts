@@ -151,6 +151,13 @@ const webFallback: AuroraApi = {
       userDataBytes: null
     })
   },
+  maintenance: {
+    // 浏览器里没有「本应用的进程」，也没有数据目录：如实回答没有可做的事，
+    // 而不是编一个「已释放 0 B」让人以为清理过了。
+    memory: async () => ({ freedBytes: 0, processes: 0 }),
+    scan: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 }),
+    clean: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 })
+  },
   player: {
     reportState: async () => true,
     onCommand: () => () => undefined

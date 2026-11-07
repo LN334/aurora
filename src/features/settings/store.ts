@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../../bridge'
 import type {
   AppSettings,
+  JunkId,
+  JunkScan,
+  MemoryRelease,
   StorageUsage,
   UpdateInterval,
   UpdatePrefs,
@@ -35,6 +38,12 @@ const FALLBACK_SETTINGS: AppSettings = {
   update: UpdateResult | null
   checking: boolean
   clearing: boolean
+  /** 上次「释放内存」的结果；null 表示这次打开页面后还没点过。 */
+  memory: MemoryRelease | null
+  memoryBusy: boolean
+  /** 垃圾扫描结果。不自动扫描：量目录要遍历磁盘，进页面就扫会拖慢首屏。 */
+  junk: JunkScan | null
+  junkBusy: boolean
   /** True while a write is in flight, so controls can be disabled. */
   busy: boolean
   error: string | null
@@ -49,6 +58,9 @@ const FALLBACK_SETTINGS: AppSettings = {
   installUpdate(): Promise<void>
   clearCache(): Promise<void>
   refreshStorage(): Promise<void>
+  releaseMemory(): Promise<void>
+  scanJunk(): Promise<void>
+  cleanJunk(ids: JunkId[]): Promise<void>
 }
 
 export function useSettingsPage(): SettingsPage {
@@ -63,6 +75,10 @@ export function useSettingsPage(): SettingsPage {
   const [update, setUpdate] = useState<UpdateResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [memory, setMemory] = useState<MemoryRelease | null>(null)
+  const [memoryBusy, setMemoryBusy] = useState(false)
+  const [junk, setJunk] = useState<JunkScan | null>(null)
+  const [junkBusy, setJunkBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -115,6 +131,10 @@ export function useSettingsPage(): SettingsPage {
     update,
     checking,
     clearing,
+    memory,
+    memoryBusy,
+    junk,
+    junkBusy,
     busy,
     error,
 
@@ -187,6 +207,42 @@ export function useSettingsPage(): SettingsPage {
         setStorage(await bridge.settings.getStorage())
       } catch (problem) {
         setError(describe(problem))
+      }
+    },
+
+    async releaseMemory() {
+      setMemoryBusy(true)
+      setError(null)
+      try {
+        setMemory(await bridge.maintenance.memory())
+      } catch (problem) {
+        setError(describe(problem))
+      } finally {
+        setMemoryBusy(false)
+      }
+    },
+
+    async scanJunk() {
+      setJunkBusy(true)
+      setError(null)
+      try {
+        setJunk(await bridge.maintenance.scan())
+      } catch (problem) {
+        setError(describe(problem))
+      } finally {
+        setJunkBusy(false)
+      }
+    },
+
+    async cleanJunk(ids) {
+      setJunkBusy(true)
+      setError(null)
+      try {
+        setJunk(await bridge.maintenance.clean(ids))
+      } catch (problem) {
+        setError(describe(problem))
+      } finally {
+        setJunkBusy(false)
       }
     }
   }

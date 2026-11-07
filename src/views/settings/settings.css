@@ -6,9 +6,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--s6);
-  max-width: 800px;
+  max-width: 720px;
+  /* 主区比这一页宽得多：靠左会让右边空出一大片，看起来像没写完。 */
+  margin-inline: auto;
   padding-bottom: var(--s7);
 }
+
+
 
 /* =============================================================================
    编号分区（01 / 02 / 03 / 04）
@@ -576,4 +580,102 @@
 .wp-prop__select {
   width: 100%;
   min-width: 0;
+}
+
+/*
+ * 宽窗口下把分区抬头挪到左边一列：编号、英文小标、中文名竖排在左，行在右。
+ *
+ * 原来抬头压在 800px 行宽的上方，一行里的 label 与开关隔着半个屏幕，
+ * 读一行要横扫两次，页面整体也因此显得很空。两栏之后同一行的两端回到一段视线里，
+ * 左栏的编号又成了往下扫时的路标。
+ */
+@media (min-width: 1080px) {
+  .settings {
+    max-width: 880px;
+  }
+
+  .set-part {
+    display: grid;
+    grid-template-columns: 172px minmax(0, 1fr);
+    column-gap: var(--s5);
+    align-items: start;
+  }
+
+  .set-part__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 0;
+    padding-top: var(--s1);
+  }
+
+  /* 竖排之后这条发丝线没有收住任何东西，去掉。 */
+  .set-part__rule {
+    display: none;
+  }
+
+  .set-part__en {
+    letter-spacing: 0.1em;
+  }
+
+  .set-part__title {
+    white-space: normal;
+    line-height: 1.25;
+  }
+}
+
+/*
+ * 每一小节落成一块浅底卡片。
+ *
+ * 单列长表在壁纸背景上会显得整页很空：行与行只靠一条发丝线串着，眼睛找不到
+ * 「这里换了组」。卡片把一小节收成一个块，一屏里就能数清有几组设置；
+ * 底色取主页 .picks 用的同一个值，不是给设置页另造一套。
+ */
+@media (min-width: 1080px) {
+  .set-part__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+  }
+
+  .set-sub {
+    padding: var(--s4);
+    border: 1px solid rgb(255 255 255 / 0.06);
+    border-radius: var(--r-panel);
+    background: rgb(9 12 15 / 0.34);
+  }
+
+  .set-sub__head {
+    padding: 0 0 var(--s2);
+  }
+
+  /* 卡片里第一条行不再补上边线：那一圈卡片边框已经把它收住了。 */
+  .settings__row {
+    padding: var(--s3) 0;
+  }
+
+  .settings__row:first-child {
+    border-top: 0;
+  }
+}
+
+/* 上面那圈卡片在壁纸透出来的背景上几乎看不见：底色提到 0.5、边线提到 0.08，
+   让「一小节」真的读成一个块，而不是一条压在壁纸上的长表。 */
+@media (min-width: 1080px) {
+  .settings {
+    max-width: 820px;
+  }
+
+  .set-part {
+    grid-template-columns: 152px minmax(0, 1fr);
+  }
+
+  .set-sub {
+    background: rgb(9 12 15 / 0.5);
+    border-color: rgb(255 255 255 / 0.08);
+  }
+
+  .settings__hint {
+    max-width: 42ch;
+  }
 }

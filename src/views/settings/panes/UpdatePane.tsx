@@ -7,7 +7,6 @@ import {
   useSettingsPage
 } from '../../../features/settings/store'
 import { UpdatePanel } from '../../../ui/UpdatePanel'
-import { Refresh } from '../../../ui/icons'
 import { Row, Rows, Sub, Toggle } from '../parts'
 
 const REPO_URL = 'https://github.com/LN334/aurora'
@@ -16,8 +15,8 @@ const REPO_URL = 'https://github.com/LN334/aurora'
  * 04 更新与关于。
  *
  * 检查更新是主进程的事，这里只保留原来那三种入口：检查频率、自动下载安装、以及
- * UpdatePanel 自己的「检查更新」按钮与结果。数据与缓存、版本信息、仓库链接都在这一屏，
- * 因为它们回答的是同一个问题：这个应用现在是什么状态，坏了去哪。
+ * UpdatePanel 自己的「检查更新」按钮与结果。版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
+ * 数据与缓存搬到了 05 清理与维护，因为那里还有释放内存，两件事该放在一起。
  */
 export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const { updateInterval } = page.settings
@@ -75,73 +74,9 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
         ) : null}
       </Sub>
 
-      <Sub title="数据与缓存" hint="这些东西删掉只是要重新下载，不会丢曲库与账号。">
-        <CacheRows page={page} />
-      </Sub>
-
       <Sub title="关于" hint="这个应用是什么、跑在什么上、源码在哪。">
         <About />
       </Sub>
-    </>
-  )
-}
-
-function CacheRows({ page }: { page: ReturnType<typeof useSettingsPage> }) {
-  const [confirmingClear, setConfirmingClear] = useState(false)
-  const cacheBytes = page.storage?.cacheBytes ?? null
-
-  return (
-    <>
-      <Rows>
-        <Row label="数据目录" hint={page.storage?.userData ?? '—'}>
-          <span className="settings__number">
-            {formatBytes(page.storage?.userDataBytes ?? null)}
-          </span>
-        </Row>
-        <Row
-          label="缓存"
-          hint="浏览器缓存、着色器缓存与封面缓存。清空只是让它们重新下载，不会动你的曲库、歌单、档案或登录状态。"
-        >
-          <span className="settings__number">{formatBytes(cacheBytes)}</span>
-          <button
-            className="btn"
-            onClick={() => void page.refreshStorage()}
-            title="重新测量占用"
-          >
-            <Refresh size={14} />
-          </button>
-        </Row>
-      </Rows>
-
-      {confirmingClear ? (
-        <>
-          <p className="settings__confirm">
-            清空缓存会删除 {formatBytes(cacheBytes)}{' '}
-            的可再生数据（封面、歌词、网络与着色器缓存）。曲库索引、播放列表、档案和网易云登录状态不会被动。
-          </p>
-          <div className="settings__danger">
-            <button
-              className="btn btn--danger"
-              disabled={page.clearing}
-              onClick={() => {
-                setConfirmingClear(false)
-                void page.clearCache()
-              }}
-            >
-              {page.clearing ? '正在清空' : '确认清空'}
-            </button>
-            <button className="btn" onClick={() => setConfirmingClear(false)}>
-              取消
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="set-actions">
-          <button className="btn btn--danger" onClick={() => setConfirmingClear(true)}>
-            清空缓存
-          </button>
-        </div>
-      )}
     </>
   )
 }

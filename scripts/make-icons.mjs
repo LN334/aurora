@@ -189,94 +189,115 @@ function insideRoundedRect(x, y, size, radius) {
 
 const DESIGN = 512
 
-const PLATE = linearStops([
-  [0, '#1a212a'],
-  [0.55, '#0f1319'],
-  [1, '#07090c']
+/*
+ * The mark: a capital A drawn with three round-capped strokes.
+ *
+ * Earlier versions were three horizontal aurora arcs - a picture of the sky, not
+ * a mark - and they turned into three grey lines in the taskbar. A letter survives
+ * that far better. The plate carries the brand gradient and the letter is white,
+ * which is the pair that still reads at 16 px and on a white page.
+ */
+const BG_GRAD = linearStops([
+  [0, '#2ad9c8'],
+  [0.3, '#36aef3'],
+  [0.58, '#3f8cf5'],
+  [0.82, '#6c6cf0'],
+  [1, '#8f5cf0']
 ])
-const BLOOM = hex('#4fd1c5')
-const INK = linearStops([
-  [0, '#7ef0c0'],
-  [0.45, '#4fd1c5'],
-  [1, '#6f9dff']
-])
 
-// Same curves as scripts/icon.html.
-const ARCS = [
-  { c: [[104, 212], [168, 130], [344, 130], [408, 212]], width: 27 },
-  { c: [[146, 292], [192, 242], [320, 242], [366, 292]], width: 24 },
-  { c: [[198, 372], [218, 344], [294, 344], [314, 372]], width: 21 }
-].map((arc) => ({ ...arc, line: flattenCubic(...arc.c) }))
+const APP_STROKES = [
+  { line: straight(150, 410, 256, 104), width: 46 },
+  { line: straight(362, 410, 256, 104), width: 46 },
+  // 横杠两端收进腿内，不然圆头会从腿的外侧鼓出来。
+  { line: straight(210, 304, 302, 304), width: 42 }
+]
 
-const TRAY_ARCS = [
-  { c: [[4.5, 15], [9.5, 8.5], [22.5, 8.5], [27.5, 15]], width: 3.2 },
-  { c: [[10, 23.5], [13, 19.8], [19, 19.8], [22, 23.5]], width: 3.2 }
-].map((arc) => ({ ...arc, line: flattenCubic(...arc.c, 24) }))
-
-/** Premultiplied one-sample evaluation of the app icon at design coordinates. */
-function sampleAppIcon(x, y) {
-  const radius = 116
-  if (!insideRoundedRect(x, y, DESIGN, radius)) return [0, 0, 0, 0]
-
-  const plate = gradientAt(PLATE, [0, 0], [0.55 * DESIGN, DESIGN], x, y)
-  let r = plate[0]
-  let g = plate[1]
-  let b = plate[2]
-
-  // Radial bloom behind the mark.
-  const bx = x - 0.5 * DESIGN
-  const by = y - 0.4 * DESIGN
-  const bloomRadius = 0.62 * DESIGN
-  const bloomT = Math.sqrt(bx * bx + by * by) / bloomRadius
-  if (bloomT < 1) {
-    const a = 0.4 * (1 - bloomT)
-    r += (BLOOM[0] - r) * a
-    g += (BLOOM[1] - g) * a
-    b += (BLOOM[2] - b) * a
-  }
-
-  for (const arc of ARCS) {
-    const box = arc.box
-    if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue
-    const half = arc.width / 2
-    if (distanceToPolylineSq(x, y, arc.line) <= half * half) {
-      const ink = gradientAt(INK, [0.1 * DESIGN, 0], [0.9 * DESIGN, DESIGN], x, y)
-      r = ink[0]
-      g = ink[1]
-      b = ink[2]
-    }
-  }
-
-  return [r, g, b, 255]
+/** Line from a to b, as a two-point polyline, so the same distance code applies. */
+function straight(ax, ay, bx, by) {
+  return [ax, ay, bx, by]
 }
 
-for (const arc of [...ARCS, ...TRAY_ARCS]) {
-  const pad = arc.width / 2 + 1
-  arc.box = polylineBounds(arc.line, pad)
+/**
+ * Distance from a point to the nearest A stroke, in design coordinates.
+ *
+ * Kept separate from the icon sampler because the installer art draws the same
+ * letter at other scales: one definition means the mark cannot drift between the
+ * executable icon and the wizard panel.
+ */
+function markDistance(x, y) {
+  let nearest = Infinity
+  let half = 0
+  for (const stroke of APP_STROKES) {
+    const box = stroke.box
+    if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue
+    const d = Math.sqrt(distanceToPolylineSq(x, y, stroke.line))
+    if (d < nearest) {
+      nearest = d
+      half = stroke.width / 2
+    }
+  }
+  return { nearest, half }
+}
+
+for (const stroke of APP_STROKES) {
+  // The box also has to cover the soft edge around the letter.
+  stroke.box = polylineBounds(stroke.line, stroke.width / 2 + 64)
+}
+
+/**
+ * Premultiplied one-sample evaluation of the app icon at design coordinates.
+ *
+ * The A keeps its round caps but is drawn 8% smaller than the shared geometry so
+ * it never touches the rounded corners at 128 px and up.
+ */
+function sampleAppIcon(x, y) {
+  if (!insideRoundedRect(x, y, DESIGN, 116)) return [0, 0, 0, 0]
+  const bg = gradientAt(BG_GRAD, [0.05 * DESIGN, 0], [0.95 * DESIGN, DESIGN], x, y)
+  // Vignette: the middle of the plate stays luminous, the corners settle down.
+  const vx = x - 0.5 * DESIGN
+  const vy = y - 0.42 * DESIGN
+  const vign = 1.06 - 0.18 * Math.min(1, Math.sqrt(vx * vx + vy * vy) / (0.78 * DESIGN)) ** 2
+  const r0 = bg[0] * vign
+  const g0 = bg[1] * vign
+  const b0 = bg[2] * vign
+
+  const mx = 0.5 * DESIGN + (x - 0.5 * DESIGN) / 0.92
+  const my = 0.5 * DESIGN + (y - 0.5 * DESIGN) / 0.92
+  const { nearest, half } = markDistance(mx, my)
+  if (nearest <= half) return [255, 255, 255, 255]
+  if (nearest <= half + 16) {
+    // A shadow side, not an outline: the letter darkens the gradient under its own
+    // edge by a few percent, which separates it from the light part of the plate.
+    const a = 0.16 * (1 - (nearest - half) / 16) ** 2
+    return [r0 * (1 - a), g0 * (1 - a), b0 * (1 - a), 255]
+  }
+  return [r0, g0, b0, 255]
 }
 
 /**
  * Rasterise with supersampling. Averaging happens in premultiplied space,
  * otherwise the colour of edge pixels bleeds toward black.
  */
-function render(size, sampler, designSize = DESIGN) {
-  const out = Buffer.alloc(size * size * 4)
-  const scale = designSize / size
+function render(width, height, sampler, designWidth = width, designHeight = height) {
+  const out = Buffer.alloc(width * height * 4)
+  const scaleX = designWidth / width
+  const scaleY = designHeight / height
   const SUB = 4
   const taps = SUB * SUB
-  const step = scale / SUB
+  const stepX = scaleX / SUB
+  const stepY = scaleY / SUB
 
-  for (let py = 0; py < size; py += 1) {
-    for (let px = 0; px < size; px += 1) {
+  for (let py = 0; py < height; py += 1) {
+    for (let px = 0; px < width; px += 1) {
       let sr = 0
       let sg = 0
       let sb = 0
       let sa = 0
 
       for (let sy = 0; sy < SUB; sy += 1) {
-        const y = py * scale + sy * step + step / 2
+        const y = py * scaleY + sy * stepY + stepY / 2
         for (let sx = 0; sx < SUB; sx += 1) {
-          const x = px * scale + sx * step + step / 2
+          const x = px * scaleX + sx * stepX + stepX / 2
           const [r, g, b, a] = sampler(x, y)
           if (a === 0) continue
           const w = a / 255
@@ -287,7 +308,7 @@ function render(size, sampler, designSize = DESIGN) {
         }
       }
 
-      const index = (py * size + px) * 4
+      const index = (py * width + px) * 4
       if (sa > 0) {
         out[index] = Math.round(Math.min(255, sr / sa))
         out[index + 1] = Math.round(Math.min(255, sg / sa))
@@ -377,11 +398,11 @@ function sampleShapes(shapes, colour, x, y) {
 }
 
 /** The tray mark expressed as strokes so the same sampler can draw it. */
-const TRAY_STROKES = TRAY_ARCS.map((arc) => ({
-  type: 'stroke',
-  line: arc.line,
-  width: arc.width
-}))
+const TRAY_STROKES = [
+  { type: 'stroke', line: straight(10, 26, 16, 8), width: 3.4 },
+  { type: 'stroke', line: straight(22, 26, 16, 8), width: 3.4 },
+  { type: 'stroke', line: straight(12.4, 19, 19.6, 19), width: 3.2 }
+]
 
 const WHITE = hex('#ffffff')
 const TRAY_DARK = hex('#1b2027')
@@ -395,7 +416,7 @@ const icoSizes = [16, 24, 32, 48, 64, 128, 256]
 const icoEntries = []
 
 for (const size of icoSizes) {
-  const pixels = render(size, sampleAppIcon)
+  const pixels = render(size, size, sampleAppIcon, DESIGN, DESIGN)
   const png = encodePng(size, size, pixels)
   icoEntries.push({ size, png })
   if (size === 256) fs.writeFileSync(path.join(buildDir, 'icon.png'), png)
@@ -414,7 +435,7 @@ for (const [suffix, colour] of [
   ['-dark', TRAY_DARK]
 ]) {
   for (const size of [16, 32]) {
-    const pixels = render(size, (x, y) => sampleShapes(TRAY_STROKES, colour, x, y), 32)
+    const pixels = render(size, size, (x, y) => sampleShapes(TRAY_STROKES, colour, x, y), 32, 32)
     const name = size === 16 ? `tray${suffix}.png` : `tray${suffix}@2x.png`
     fs.writeFileSync(path.join(assetDir, name), encodePng(size, size, pixels))
   }
@@ -423,7 +444,7 @@ for (const [suffix, colour] of [
 /* 16px is what the Windows thumbnail toolbar asks for; 32px covers 200% DPI. */
 for (const [name, shapes] of Object.entries(GLYPHS)) {
   for (const size of [16, 32]) {
-    const pixels = render(size, (x, y) => sampleShapes(shapes, WHITE, x, y), 32)
+    const pixels = render(size, size, (x, y) => sampleShapes(shapes, WHITE, x, y), 32, 32)
     fs.writeFileSync(
       path.join(assetDir, `thumb-${name}${size === 16 ? '' : '@2x'}.png`),
       encodePng(size, size, pixels)
@@ -442,3 +463,133 @@ for (const dir of [buildDir, assetDir]) {
   for (const name of names) report(dir, name)
 }
 
+// --- installer art ---------------------------------------------------------
+
+/*
+ * electron-builder's NSIS target wants two bitmaps no browser can produce: the
+ * 164x314 sidebar panel and the 150x57 header strip. They are rasterised here
+ * with the same sampler as the icon, so the first screen of the installer is the
+ * mark the user is about to launch. BMP, not PNG: NSIS loads them through its own
+ * decoder.
+ */
+
+function encodeBmp(width, height, rgba) {
+  const rowSize = Math.ceil((width * 3) / 4) * 4
+  const pixels = Buffer.alloc(rowSize * height)
+  for (let y = 0; y < height; y += 1) {
+    // BMP rows are bottom-up, and the bytes are BGR.
+    const sourceY = height - 1 - y
+    for (let x = 0; x < width; x += 1) {
+      const at = (sourceY * width + x) * 4
+      const out = y * rowSize + x * 3
+      pixels[out] = rgba[at + 2]
+      pixels[out + 1] = rgba[at + 1]
+      pixels[out + 2] = rgba[at]
+    }
+  }
+
+  const header = Buffer.alloc(14)
+  header.write('BM', 0, 'ascii')
+  header.writeUInt32LE(14 + 40 + pixels.length, 2)
+  header.writeUInt32LE(14 + 40, 10)
+
+  const dib = Buffer.alloc(40)
+  dib.writeUInt32LE(40, 0)
+  dib.writeInt32LE(width, 4)
+  dib.writeInt32LE(height, 8)
+  dib.writeUInt16LE(1, 12)
+  dib.writeUInt16LE(24, 14)
+  dib.writeUInt32LE(pixels.length, 20)
+  dib.writeInt32LE(2835, 24)
+  dib.writeInt32LE(2835, 28)
+
+  return Buffer.concat([header, dib, pixels])
+}
+
+/** Signed distance to the A mark in panel pixels: <= 0 is inside the letter. */
+function markSignedAt(x, y, cx, cy, height) {
+  const scale = height / 306
+  const dx = (x - cx) / scale + 256
+  const dy = (y - cy) / scale + 256
+  const { nearest, half } = markDistance(dx, dy)
+  return (nearest - half) * scale
+}
+
+const SIDEBAR_W = 164
+const SIDEBAR_H = 314
+
+/*
+ * Left panel of the NSIS wizard: the gradient plate and the white letter, the same
+ * pair as the app icon. No text - the wizard already says Aurora everywhere, and
+ * rasterised type at this size would only look broken.
+ */
+function sampleSidebar(x, y) {
+  const bg = gradientAt(BG_GRAD, [0, 0], [SIDEBAR_W, SIDEBAR_H], x, y)
+  const vx = x - SIDEBAR_W * 0.5
+  const vy = y - SIDEBAR_H * 0.38
+  const vign = 1.05 - 0.17 * Math.min(1, Math.sqrt(vx * vx + vy * vy) / (0.78 * SIDEBAR_H)) ** 2
+  let r = bg[0] * vign
+  let g = bg[1] * vign
+  let b = bg[2] * vign
+
+  if (markSignedAt(x, y, SIDEBAR_W / 2, 146, 122) <= 0) return [255, 255, 255, 255]
+
+  if (y >= 260 && y < 262 && x > 30 && x < 134) {
+    r += (255 - r) * 0.42
+    g += (255 - g) * 0.42
+    b += (255 - b) * 0.42
+  }
+  if (y >= 272 && y < 274 && x > 30 && x < 88) {
+    r += (255 - r) * 0.2
+    g += (255 - g) * 0.2
+    b += (255 - b) * 0.2
+  }
+  return [Math.min(255, r), Math.min(255, g), Math.min(255, b), 255]
+}
+
+const HEADER_W = 150
+const HEADER_H = 57
+
+const HEADER_INK = linearStops([
+  [0, '#0f9e8d'],
+  [0.5, '#2563d8'],
+  [1, '#5b3fd0']
+])
+
+/*
+ * Header strip: pale on purpose. NSIS draws the wizard's step title in black to
+ * the right of this bitmap and electron-builder gives no hook to recolour it, so
+ * a saturated plate here would hide the text. The brand survives as the gradient
+ * letter on the left.
+ */
+function sampleHeader(x, y) {
+  if (markSignedAt(x, y, 42, HEADER_H / 2 - 2, 38) <= 0) {
+    return gradientAt(HEADER_INK, [42 - 22, 6], [42 + 22, HEADER_H - 6], x, y)
+  }
+  return gradientAt(
+    linearStops([
+      [0, '#ffffff'],
+      [0.55, '#f4f8ff'],
+      [1, '#e8f1ff']
+    ]),
+    [0, 0],
+    [HEADER_W, 0],
+    x,
+    y
+  )
+}
+
+const sidebarPixels = render(SIDEBAR_W, SIDEBAR_H, sampleSidebar, SIDEBAR_W, SIDEBAR_H)
+const sidebarBmp = encodeBmp(SIDEBAR_W, SIDEBAR_H, sidebarPixels)
+fs.writeFileSync(path.join(buildDir, 'installerSidebar.bmp'), sidebarBmp)
+fs.writeFileSync(path.join(buildDir, 'uninstallerSidebar.bmp'), sidebarBmp)
+// PNG twins of the installer art: NSIS needs BMP, but a reviewer needs an image a
+// normal viewer can open. Harmless in buildResources - the packaging config never
+// references them.
+fs.writeFileSync(path.join(buildDir, 'installerSidebar.png'), encodePng(SIDEBAR_W, SIDEBAR_H, sidebarPixels))
+
+const headerPixels = render(HEADER_W, HEADER_H, sampleHeader, HEADER_W, HEADER_H)
+fs.writeFileSync(path.join(buildDir, 'installerHeader.bmp'), encodeBmp(HEADER_W, HEADER_H, headerPixels))
+fs.writeFileSync(path.join(buildDir, 'installerHeader.png'), encodePng(HEADER_W, HEADER_H, headerPixels))
+
+console.log('installer art written to build/')

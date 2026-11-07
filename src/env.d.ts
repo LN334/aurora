@@ -142,6 +142,48 @@ export interface StorageUsage {
   userDataBytes: number | null
 }
 
+/**
+ * 「释放内存」的结果。
+ *
+ * 工作集是操作系统能看到的那部分物理内存；让出去之后页面本身还在，
+ * 只是下次访问要重新从页面文件换入，所以播放不会中断。
+ */
+export interface MemoryRelease {
+  freedBytes: number
+  processes: number
+}
+
+/** 可清理的三类垃圾。都是可再生数据，不包含曲库、歌单、档案与登录状态。 */
+export type JunkId = 'cache' | 'logs' | 'crashes'
+
+export interface JunkPart {
+  id: JunkId
+  label: string
+  /** 占用字节；null 表示这个位置测不到。 */
+  bytes: number | null
+}
+
+export interface JunkScan {
+  parts: JunkPart[]
+  totalBytes: number
+  /**
+   * 这次清理里暂时删不掉的字节数，已排进下次启动的清单。
+   *
+   * Chromium 运行期间握着缓存文件的句柄，Windows 不允许删除；所以点清理后
+   * 有一部分只能等下次启动最早期再删。界面用这句话解释数字为什么没立刻归零。
+   */
+  deferredBytes: number
+  /** 这次清理实际让占用下降了多少（清理前后两次测量之差）。 */
+  cleanedBytes: number
+}
+
+/** 维护：只动本应用自己的进程与目录，不接受任何外部路径。 */
+export interface MaintenanceApi {
+  memory(): Promise<MemoryRelease>
+  scan(): Promise<JunkScan>
+  clean(ids: JunkId[]): Promise<JunkScan>
+}
+
 export type MediaCommand = 'toggle' | 'next' | 'prev'
 
  interface PlayerApi {
@@ -684,6 +726,7 @@ export interface AuroraApi {
   netease: NeteaseApi
   qq: QqApi
   wallpaper: WallpaperApi
+  maintenance: MaintenanceApi
   window: WindowApi
 }
 

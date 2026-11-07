@@ -1,8 +1,14 @@
 import { create } from 'zustand'
 import { bridge } from '../../bridge'
 import type { WallpaperEntry, WallpaperInfo } from '../../env'
-import { FOLLOW_SELECTION, clampStrength, parseEnabled, parseStrength } from './pure'
-import type { PropertyValue } from './pure'
+import {
+  FOLLOW_SELECTION,
+  clampStrength,
+  parseEnabled,
+  parseQuality,
+  parseStrength
+} from './pure'
+import type { PropertyValue, WallpaperQuality } from './pure'
 
 /**
  * Which wallpaper the shell paints behind itself.
@@ -16,6 +22,7 @@ import type { PropertyValue } from './pure'
 const ENABLED_KEY = 'aurora.backdrop.wallpaper'
 const SELECTION_KEY = 'aurora.backdrop.wallpaper.id'
 const STRENGTH_KEY = 'aurora.backdrop.wallpaper.strength'
+const QUALITY_KEY = 'aurora.backdrop.quality'
 /**
  * 壁纸工程自带的可调项按壁纸 id 分开记：每张壁纸都有自己的一套属性名，
  * 混在一起既会互相覆盖，也会在换壁纸时把不相干的键传给着色器。
@@ -75,6 +82,8 @@ interface WallpaperState {
   selection: string
   /** 0..1 - how visible the wallpaper is against the shell's scrim. */
   strength: number
+  /** 场景壁纸的帧率与光栅化分辨率档位。 */
+  quality: WallpaperQuality
   info: WallpaperInfo | null
   list: WallpaperEntry[]
   loading: boolean
@@ -84,6 +93,7 @@ interface WallpaperState {
   setEnabled(next: boolean): void
   setSelection(id: string): void
   setStrength(value: number): void
+  setQuality(next: WallpaperQuality): void
   /** Re-probe the main process; `force` bypasses its 30 second scan cache. */
   refresh(force?: boolean): void
   /** 改一项壁纸属性：立刻生效并落盘，下次打开同一张壁纸还是这个值。 */
@@ -96,6 +106,7 @@ export const useWallpaper = create<WallpaperState>((set, get) => ({
   enabled: parseEnabled(read(ENABLED_KEY)),
   selection: read(SELECTION_KEY) ?? FOLLOW_SELECTION,
   strength: parseStrength(read(STRENGTH_KEY)),
+  quality: parseQuality(read(QUALITY_KEY)),
   info: null,
   list: [],
   loading: false,
@@ -118,6 +129,11 @@ export const useWallpaper = create<WallpaperState>((set, get) => ({
     const next = clampStrength(value)
     write(STRENGTH_KEY, String(next))
     set({ strength: next })
+  },
+
+  setQuality(next) {
+    write(QUALITY_KEY, next)
+    set({ quality: next })
   },
 
   refresh(force = false) {

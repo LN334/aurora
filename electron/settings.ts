@@ -222,7 +222,7 @@ export function isInsideRoots(candidate: string): boolean {
  * library index, playlists, profiles, window geometry and the encrypted session
  * cookie out of reach of the "clear cache" button.
  */
-const CACHE_DIRS = [
+export const CACHE_DIRS = [
   'Cache',
   'Code Cache',
   'GPUCache',
@@ -235,7 +235,7 @@ const CACHE_DIRS = [
 ] as const
 
 /** Recursive byte count. Symlinks are skipped so a link cannot double-count. */
-async function directoryBytes(target: string): Promise<number | null> {
+export async function directoryBytes(target: string): Promise<number | null> {
   let total = 0
   try {
     const entries = await fs.promises.readdir(target, { withFileTypes: true })
@@ -259,7 +259,7 @@ async function directoryBytes(target: string): Promise<number | null> {
   }
 }
 
-async function cacheBytes(): Promise<number | null> {
+export async function cacheBytes(): Promise<number | null> {
   const root = app.getPath('userData')
   let total: number | null = null
   for (const name of CACHE_DIRS) {

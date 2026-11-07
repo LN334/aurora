@@ -7,6 +7,7 @@ import type { OverlayState, OverlayStatus } from './lyrics-overlay'
 import type { MediaCommand } from './tray'
 import type { WindowVisibilityState } from './pure/scan-progress'
 import type { WallpaperEntry, WallpaperInfo } from './wallpaper'
+import type { JunkId, JunkScan, MemoryRelease } from './maintenance'
 
 /**
  * The only surface the renderer gets. Everything crossing this bridge is an
@@ -117,6 +118,19 @@ const api = {
       ipcRenderer.invoke('settings:setCloseToTray', enabled) as Promise<AppSettings>,
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
     clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>
+  },
+
+  /**
+   * 维护：释放内存、扫描与清理垃圾。
+   *
+   * 和设置分开，因为这三件事不是「偏好」——它们会动到磁盘与本进程的内存，
+   * 而且刷新页面后不需要记住任何值。
+   */
+  maintenance: {
+    memory: () => ipcRenderer.invoke('maintenance:memory') as Promise<MemoryRelease>,
+    scan: () => ipcRenderer.invoke('maintenance:scan') as Promise<JunkScan>,
+    clean: (ids: JunkId[]) =>
+      ipcRenderer.invoke('maintenance:clean', ids) as Promise<JunkScan>
   },
 
   /**

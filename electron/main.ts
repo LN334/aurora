@@ -40,6 +40,8 @@ import { registerUpdatesIpc } from './ipc/updates'
 import { registerLyricsIpc } from './ipc/lyrics'
 import { registerPlayerIpc } from './ipc/player'
 import { registerSettingsIpc } from './ipc/settings'
+import { registerMaintenanceIpc } from './ipc/maintenance'
+import { sweepPendingJunk } from './maintenance'
 import type { IpcHost, ScanControl } from './ipc/host'
 
 const isDev = process.argv.includes('--dev')
@@ -459,6 +461,7 @@ function registerIpc(): void {
   registerLyricsIpc()
   registerPlayerIpc(ipcHost)
   registerSettingsIpc(ipcHost)
+  registerMaintenanceIpc()
 }
 
 // Single instance: a second launch focuses the running player instead of
@@ -485,6 +488,10 @@ if (!app.requestSingleInstanceLock()) {
     write(`userData=${app.getPath('userData')}`)
     write(`appPath=${app.getAppPath()}`)
     write(`argv=${process.argv.slice(1).join(' ')}`)
+    //
+    // 上次清理时被占用、没删掉的垃圾在这里补删。必须赶在窗口建起来之前：
+    // 一旦渲染进程启动，Chromium 又会把那些缓存文件重新打开并锁住。
+    void sweepPendingJunk()
     // Window geometry is read here, off `createWindow`'s synchronous path.
     void preloadWinState()
     // Scan progress is coalesced in its own module so the throttle is testable;

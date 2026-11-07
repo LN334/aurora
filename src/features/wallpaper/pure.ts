@@ -149,3 +149,51 @@ export function propertyValues(
   }
   return out
 }
+
+/**
+ * 场景壁纸的画质档。
+ *
+ * 场景是常驻的 WebGL 循环，帧率和光栅化分辨率直接决定它吃多少 GPU 和电。
+ * 壁纸只是背景，所以默认不开满：均衡档 30fps + 压到 1.25 dpr 已经够看。
+ */
+export type WallpaperQuality = 'saver' | 'balanced' | 'sharp'
+
+export const DEFAULT_QUALITY: WallpaperQuality = 'balanced'
+
+const QUALITIES: readonly WallpaperQuality[] = ['saver', 'balanced', 'sharp']
+
+/** 存坏的值当成默认档，不要因为一个 localStorage 字符串把壁纸关掉。 */
+export function parseQuality(raw: string | null): WallpaperQuality {
+  return raw !== null && (QUALITIES as readonly string[]).includes(raw)
+    ? (raw as WallpaperQuality)
+    : DEFAULT_QUALITY
+}
+
+export interface SceneRenderOptions {
+  fps: number
+  renderDpr: number
+}
+
+/**
+ * 把画质档换算成传给场景引擎的两个数。
+ *
+ * dpr 是屏幕的物理像素比，pixels 是窗口像素数——高分屏 + 大窗口时即使 1.25
+ * 也已经很贵，所以再按 2.6M 像素总量兜一道（1080p 附近约等于不裁）。
+ */
+export function sceneRenderOptions(
+  quality: WallpaperQuality,
+  dpr: number,
+  pixels: number
+): SceneRenderOptions {
+  const safeDpr = Number.isFinite(dpr) && dpr > 0 ? dpr : 1
+  const safePixels = Number.isFinite(pixels) && pixels > 0 ? pixels : 1
+  const cap = Math.sqrt(2_600_000 / safePixels)
+
+  if (quality === 'saver') {
+    return { fps: 20, renderDpr: Math.max(0.75, Math.min(safeDpr, 1, cap)) }
+  }
+  if (quality === 'sharp') {
+    return { fps: 60, renderDpr: Math.max(0.75, Math.min(safeDpr, cap)) }
+  }
+  return { fps: 30, renderDpr: Math.max(0.75, Math.min(safeDpr, 1.25, cap)) }
+}

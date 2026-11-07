@@ -4,6 +4,7 @@ import { AppearancePane } from './panes/AppearancePane'
 import { PlaybackPane } from './panes/PlaybackPane'
 import { HotkeysPane } from './panes/HotkeysPane'
 import { UpdatePane } from './panes/UpdatePane'
+import { MaintenancePane } from './panes/MaintenancePane'
 import './settings.css'
 
 /**
@@ -40,6 +41,10 @@ export function SettingsView() {
 
       <Part num="04" en="UPDATE & ABOUT" zh="更新与关于">
         <UpdatePane page={page} />
+      </Part>
+
+      <Part num="05" en="CLEANUP & MEMORY" zh="清理与维护">
+        <MaintenancePane page={page} />
       </Part>
 
     </div>

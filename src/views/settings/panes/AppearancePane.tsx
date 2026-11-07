@@ -23,6 +23,8 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const setWallpaperSelection = useWallpaper((state) => state.setSelection)
   const wallpaperStrength = useWallpaper((state) => state.strength)
   const setWallpaperStrength = useWallpaper((state) => state.setStrength)
+  const wallpaperQuality = useWallpaper((state) => state.quality)
+  const setWallpaperQuality = useWallpaper((state) => state.setQuality)
   const wallpaperInfo = useWallpaper((state) => state.info)
   const wallpaperList = useWallpaper((state) => state.list)
   const wallpaperLoading = useWallpaper((state) => state.loading)
@@ -130,7 +132,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
       </Row>
       <Row
         label="动态效果"
-        hint="关掉之后，面板展开、页面切换、歌词滚动都直接到位，不再有过渡。壁纸场景本身仍会运行（那是它自己的节奏），想省电就把壁纸也关掉。"
+        hint="关掉之后，面板展开、页面切换、歌词滚动都直接到位，不再有过渡。壁纸场景本身仍会运行（那是它自己的节奏），想省电就把壁纸画质调低或直接关掉。"
       >
         <Toggle
           checked={reduceMotion}
@@ -191,6 +193,41 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
                 onChange={(name, value) => setWallpaperProperty(wallpaperEntry.id, name, value)}
                 onReset={() => resetWallpaperProperties(wallpaperEntry.id)}
               />
+            </div>
+          ) : null}
+
+          {/*
+            只有场景壁纸有帧率与光栅化分辨率可调；视频/网页/图片是原样播放的
+            文件，所以这一行只在选中场景时出现，不给用户一个点了没反应的分区。
+          */}
+          {wallpaperEntry &&
+          wallpaperEntry.kind === 'scene' &&
+          wallpaperEntry.hasPackage ? (
+            <div className="settings__row settings__row--stacked">
+              <div className="settings__text">
+                <div className="settings__label">壁纸画质</div>
+                <p className="settings__hint">
+                  场景壁纸一直在出帧，档位越高越清晰，也越吃显卡和电。省电档 20 帧；清晰档按屏幕物理像素渲染、最高 60 帧。
+                </p>
+              </div>
+              <div className="seg">
+                {(
+                  [
+                    ['saver', '省电'],
+                    ['balanced', '均衡'],
+                    ['sharp', '清晰']
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={wallpaperQuality === value ? 'is-active' : ''}
+                    aria-pressed={wallpaperQuality === value}
+                    onClick={() => setWallpaperQuality(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 

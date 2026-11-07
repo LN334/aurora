@@ -2,12 +2,15 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { WallpaperEntry, WallpaperInfo } from '../src/env'
 import {
+  DEFAULT_QUALITY,
   DEFAULT_STRENGTH,
   FOLLOW_SELECTION,
   chooseEntry,
   clampStrength,
   parseEnabled,
-  parseStrength
+  parseQuality,
+  parseStrength,
+  sceneRenderOptions
 } from '../src/features/wallpaper/pure.ts'
 
 /**
@@ -138,4 +141,42 @@ test('a scene project without .pkg is still an entry - the renderer falls back t
   })
   assert.equal(picked?.id, 'a')
   assert.equal(picked?.hasPackage, false)
+})
+
+test('quality falls back to balanced for anything unreadable', () => {
+  assert.equal(DEFAULT_QUALITY, 'balanced')
+  assert.equal(parseQuality(null), 'balanced')
+  assert.equal(parseQuality('HIGH'), 'balanced')
+  assert.equal(parseQuality(''), 'balanced')
+  assert.equal(parseQuality('saver'), 'saver')
+  assert.equal(parseQuality('sharp'), 'sharp')
+})
+
+test('every quality climbs in frame rate', () => {
+  // 1080p、dpr 1：分辨率上限不触发，只看帧率与分辨率档的先后。
+  const saver = sceneRenderOptions('saver', 1, 1920 * 1080)
+  const balanced = sceneRenderOptions('balanced', 1, 1920 * 1080)
+  const sharp = sceneRenderOptions('sharp', 1, 1920 * 1080)
+  assert.equal(saver.fps, 20)
+  assert.equal(balanced.fps, 30)
+  assert.equal(sharp.fps, 60)
+  for (const option of [saver, balanced, sharp]) {
+    assert.ok(option.renderDpr >= 0.75, 'never drop below 0.75 - the scene turns to mush')
+  }
+})
+
+test('a huge high-DPI window is capped by total pixels, not by the quality label alone', () => {
+  // 4K + dpr 2：即便清晰档也不能按物理像素铺满，2.6M 像素的上限要压住它。
+  const sharp = sceneRenderOptions('sharp', 2, 3840 * 2160)
+  assert.ok(sharp.renderDpr < 1, '4K 上的清晰档应当被像素上限压到 1 以下')
+  assert.ok(sharp.renderDpr >= 0.75)
+  // 均衡档还要额外压到 1.25 以内。
+  const balanced = sceneRenderOptions('balanced', 2, 1280 * 720)
+  assert.ok(balanced.renderDpr <= 1.25)
+})
+
+test('garbage dpr or pixel counts never produce NaN', () => {
+  const options = sceneRenderOptions('balanced', Number.NaN, 0)
+  assert.ok(Number.isFinite(options.renderDpr))
+  assert.ok(options.renderDpr >= 0.75)
 })
