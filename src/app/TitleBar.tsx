@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, Mark, Search } from '../ui/icons'
+import { ChevronLeft, ChevronRight, Search } from '../ui/icons'
+import { BrandMark } from './BrandMark'
 
 /**
  * The one search field in the app.
@@ -45,8 +46,8 @@ export function TitleBar({
   return (
     <header className="titlebar">
       <div className="titlebar__mark">
-        <Mark size={17} />
-        <span>Aurora</span>
+        <BrandMark size={21} />
+        <span className="titlebar__wordmark">Aurora</span>
       </div>
 
       <div className="titlebar__history">

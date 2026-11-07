@@ -36,15 +36,6 @@ function Svg({
   )
 }
 
-/** Aurora ribbons, which double as a stack of waveform envelopes. */
-export const Mark = (p: IconProps) => (
-  <Svg {...p} strokeWidth={2}>
-    <path d="M3 8.5C7 4 17 4 21 8.5" />
-    <path d="M5.5 13.5C8.5 10.5 15.5 10.5 18.5 13.5" />
-    <path d="M8.5 18.5C10 17 14 17 15.5 18.5" />
-  </Svg>
-)
-
 export const ChevronLeft = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14.5 6 9 12l5.5 6" />

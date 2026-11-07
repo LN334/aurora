@@ -214,16 +214,27 @@ input::placeholder {
 .titlebar__mark {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: 7px;
   font-family: var(--font-display);
   font-size: var(--fs-title);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
-.titlebar__mark svg {
-  color: var(--accent);
-  transition: color var(--tint-ms) var(--ease-out);
+/* The mark carries its own fixed gradient, so it owns no colour token here. */
+.brand-mark {
+  flex: none;
+  filter: drop-shadow(0 0 7px rgb(54 174 243 / 0.32));
+  transition: filter var(--tint-ms) var(--ease-out);
+}
+
+.titlebar__mark:hover .brand-mark {
+  filter: drop-shadow(0 0 11px rgb(54 174 243 / 0.5));
+}
+
+.titlebar__wordmark {
+  /* Optical alignment: the lowercase body sits a touch low next to a round mark. */
+  transform: translateY(-0.5px);
 }
 
 .titlebar__history {
