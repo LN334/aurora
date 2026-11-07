@@ -72,7 +72,7 @@ const CAPABILITIES: ProviderCapabilities = {
   lyrics: true,
   auth: true,
   playlists: true,
-  albums: false,
+  albums: true,
   artists: false,
   recommendations: true,
   userCloud: false,
@@ -293,9 +293,20 @@ const qqBackend: PlatformBackend = {
   },
 
   catalog: {
-    // No album or artist page upstream: answering "nothing" is the whole story,
-    // and `capabilities` above keeps the interface from asking.
-    album: async () => null,
+    async album(id) {
+      const bundle = await client()?.album(id)
+      if (!bundle) return null
+      return {
+        id: bundle.detail.id,
+        name: bundle.detail.name,
+        coverUrl: bundle.detail.coverUrl,
+        songs: bundle.songs.map((song) => normalizeSong(song)),
+        year: bundle.detail.year,
+        description: bundle.detail.description,
+        artistName: bundle.detail.artistName
+      }
+    },
+    // 艺人页还没有取数通道：热门歌曲走 QQ 的歌手搜索，曲目列表上游不给。
     artistTopSongs: async () => [],
     playlistTracks: (id) => qqBackend.playlistTracks!(id),
     myPlaylists: () => qqBackend.myPlaylists!()

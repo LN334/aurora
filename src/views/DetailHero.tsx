@@ -15,6 +15,8 @@ export function DetailHero({
   title,
   meta,
   actions,
+  facts,
+  brief,
   children
 }: {
   art: ReactNode
@@ -23,6 +25,10 @@ export function DetailHero({
   title: ReactNode
   meta?: ReactNode
   actions?: ReactNode
+  /** 右侧那列事实（平台、发行年、曲目数…）。宽窗口才出现，窄窗直接收起。 */
+  facts?: { label: string; value: ReactNode }[]
+  /** 一段简介。有就写两行，没有就不占位置。 */
+  brief?: string
   children?: ReactNode
 }) {
   return (
@@ -33,7 +39,18 @@ export function DetailHero({
         <h1 className="dh__title">{title}</h1>
         {meta ? <div className="dh__meta">{meta}</div> : null}
         {actions ? <div className="dh__actions">{actions}</div> : null}
+        {brief ? <p className="dh__brief">{brief}</p> : null}
         {children}
+        {facts && facts.length > 0 ? (
+          <dl className="dh__facts">
+            {facts.map((fact) => (
+              <div className="dh__fact" key={fact.label}>
+                <dt>{fact.label}</dt>
+                <dd>{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
     </header>
   )

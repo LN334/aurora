@@ -275,7 +275,9 @@ const webFallback: AuroraApi = {
     myPlaylists: async () => [],
     playlistTracks: async () => [],
     daily: async () => [],
-    liked: async () => []
+    liked: async () => [],
+    collectedAlbums: async () => [],
+    album: async () => null
   },
   kugou: {
     /*

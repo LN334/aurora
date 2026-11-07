@@ -299,6 +299,13 @@ export function App() {  if (!isNative) {
     if (window.location.hash !== hash) {
       window.history.replaceState(null, '', hash)
     }
+    /*
+     * 换页回到顶部。
+     *
+     * 不这么做的话，从一张五百多行的歌单点进专辑，新页会停在上一页的滚动位置——
+     * 看上去像「页面从中间开始」，页头直接看不见。
+     */
+    document.querySelector('.main__body')?.scrollTo({ top: 0 })
   }, [shell])
 
   /* 舞台是外壳里的一页，但画法是浮层：外壳说在舞台，就把浮层打开。 */
@@ -646,7 +653,7 @@ export function App() {  if (!isNative) {
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
     if (shell.view === 'onlinealbum' || shell.view === 'onlineartist' || shell.view === 'onlineplaylist') {
-      return <OnlinePage route={shell} onNavigate={goShell} />
+      return <OnlinePage route={shell} />
     }
     if (shell.view === 'home') {
       return <HomeView onNavigate={goShell} />

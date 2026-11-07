@@ -197,6 +197,25 @@ export interface QqQrResult {
  * QQ identifies an album by its mid (a string), never by the numeric id alone -
  * both are present in responses, but only the mid resolves the detail routes.
  */
+/**
+ * One album on the "collected" shelf.
+ *
+ * The collection route answers a shorter row than the detail route: no
+ * description, no label, but the cover is a ready URL and the song count is
+ * already a number. Kept apart from QqAlbumDetail so neither shape has to
+ * pretend to carry fields upstream never sent.
+ */
+export interface QqCollectedAlbum {
+  id: number
+  mid: string
+  name: string
+  coverUrl: string | null
+  artistName: string
+  artistMid: string | null
+  year: number | null
+  songCount: number
+}
+
 export interface QqAlbumDetail {
   id: number
   mid: string
@@ -216,6 +235,12 @@ export interface QqAlbumDetail {
  * description out of it. The avatar is built from the mid (the same photo_new
  * rule the album cover uses); the document itself carries no image.
  */
+/** One album page: the head plus its rows, fetched together. */
+export interface QqAlbumBundle {
+  detail: QqAlbumDetail
+  songs: QqSong[]
+}
+
 export interface QqArtistProfile {
   id: number
   mid: string

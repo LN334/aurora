@@ -74,11 +74,9 @@ export function PlaylistDetail({
           />
         }
         meta={
-          <>
-            <span>{tracks.length} 首</span>
-            {total > 0 ? <span>{formatTime(total)}</span> : null}
-            <span className="dh__hint">可拖动排序</span>
-          </>
+          <span>
+            {tracks.length} 首{total > 0 ? ' · ' + formatTime(total) : ''}
+          </span>
         }
         actions={
           <>
@@ -96,6 +94,12 @@ export function PlaylistDetail({
             </button>
           </>
         }
+        facts={[
+          { label: '来源', value: '本机' },
+          { label: '曲目', value: tracks.length + ' 首' },
+          { label: '时长', value: total > 0 ? formatTime(total) : '—' },
+          { label: '排序', value: '可拖动' }
+        ]}
       />
 
       {missingCount > 0 ? (

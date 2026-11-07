@@ -5,6 +5,8 @@ import { describeFailure } from './reasons'
 import { isQqQuality } from './types'
 import type {
   QqAccount,
+  QqAlbumBundle,
+  QqCollectedAlbum,
   QqPlaylistSummary,
   QqQuality,
   QqQrResult,
@@ -198,4 +200,16 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
 
   ipcMain.handle('qq:liked', () => guard<QqSong[]>('liked', [], () => client.qqLiked()))
+
+  ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) => {
+    const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 200
+    return guard<QqCollectedAlbum[]>('collectedAlbums', [], () => client.qqCollectedAlbums(limit))
+  })
+
+  ipcMain.handle('qq:album', (_event, value: unknown) => {
+    // Album ids are numeric and only ever come from our own lists.
+    const id = typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0
+    if (!id) return Promise.resolve<null>(null)
+    return guard<QqAlbumBundle | null>('album', null, () => client.qqAlbum(id))
+  })
 }

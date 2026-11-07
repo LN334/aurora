@@ -38,43 +38,77 @@ export interface CollectedPlaylist {
   creator: string
 }
 
-/** 收藏的专辑。目前只有网易云有这条通道，其它平台未登录也给不出收藏。 */
+/**
+ * 收藏的专辑，各家平台合在一起。
+ *
+ * 只有网易云和 QQ 有这条通道：酷狗和汽水没有「收藏专辑」这种关系，未登录的
+ * 平台也交不出任何东西。拿不到的平台直接不出现，而不是占一块写着「暂无」的
+ * 空位——那会让「本来就没有」看起来像「没加载出来」。
+ */
 export function useCollectedAlbums(): CollectedAlbum[] {
-  const account = useOnlineStore('netease')((state) => state.account)
+  const neteaseAccount = useOnlineStore('netease')((state) => state.account)
+  const qqAccount = useOnlineStore('qq')((state) => state.account)
   const [rows, setRows] = useState<CollectedAlbum[]>([])
 
   useEffect(() => {
     let alive = true
-    const api = window.aurora?.netease
-    if (!api?.albumSublist) {
+    const loads: Promise<CollectedAlbum[]>[] = []
+
+    const netease = window.aurora?.netease
+    if (netease?.albumSublist) {
+      loads.push(
+        netease
+          .albumSublist()
+          .then((list) =>
+            list.map((album) => ({
+              key: 'netease:' + album.id,
+              providerId: 'netease' as ProviderId,
+              providerLabel: '网易云音乐',
+              id: album.id,
+              name: album.name,
+              coverUrl: album.coverUrl,
+              artistName: album.artistName,
+              year: album.year,
+              songCount: album.songCount
+            }))
+          )
+          .catch(() => [])
+      )
+    }
+
+    const qq = window.aurora?.qq
+    if (qq?.collectedAlbums) {
+      loads.push(
+        qq
+          .collectedAlbums()
+          .then((list) =>
+            list.map((album) => ({
+              key: 'qq:' + album.id,
+              providerId: 'qq' as ProviderId,
+              providerLabel: 'QQ 音乐',
+              id: album.id,
+              name: album.name,
+              coverUrl: album.coverUrl,
+              artistName: album.artistName,
+              year: album.year ?? 0,
+              songCount: album.songCount
+            }))
+          )
+          .catch(() => [])
+      )
+    }
+
+    if (loads.length === 0) {
       setRows([])
       return
     }
-    void api
-      .albumSublist()
-      .then((list) => {
-        if (!alive) return
-        setRows(
-          list.map((album) => ({
-            key: 'netease:' + album.id,
-            providerId: 'netease' as ProviderId,
-            providerLabel: '网易云音乐',
-            id: album.id,
-            name: album.name,
-            coverUrl: album.coverUrl,
-            artistName: album.artistName,
-            year: album.year,
-            songCount: album.songCount
-          }))
-        )
-      })
-      .catch(() => {
-        if (alive) setRows([])
-      })
+    void Promise.all(loads).then((groups) => {
+      if (alive) setRows(groups.flat())
+    })
     return () => {
       alive = false
     }
-  }, [account])
+  }, [neteaseAccount, qqAccount])
 
   return rows
 }

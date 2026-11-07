@@ -12,6 +12,7 @@ import { openOnlineAlbum, openOnlineArtist, parseRefId } from '../features/refs/
 import { formatTime } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList } from '../ui/TrackList'
+import { DetailHero } from './DetailHero'
 import type { NeteaseSong } from '../env'
 import type { Track } from '../types'
 
@@ -25,13 +26,8 @@ import type { Track } from '../types'
  * 它们是真页面而不是弹层：从一首歌的名字点出去以后，回退键、地址栏、重新打开
  * 都该落在这一页上——弹层做不到这三件事。
  */
-export function OnlinePage({ route, onNavigate }: { route: ShellRoute; onNavigate(route: ShellRoute): void }) {
+export function OnlinePage({ route }: { route: ShellRoute }) {
   const ref = parseRefId(route.id)
-
-  const back = () => {
-    if (window.history.length > 1) window.history.back()
-    else onNavigate({ view: 'playlists' })
-  }
 
   if (!ref) {
     return (
@@ -42,18 +38,18 @@ export function OnlinePage({ route, onNavigate }: { route: ShellRoute; onNavigat
   }
 
   if (route.view === 'onlineplaylist') {
-    return <PlaylistPage providerId={ref.providerId} playlistId={ref.id} onBack={back} />
+    return <PlaylistPage providerId={ref.providerId} playlistId={ref.id} />
   }
 
   if (route.view === 'onlineartist') {
-    return <ArtistPage providerId={ref.providerId} id={ref.id} onBack={back} />
+    return <ArtistPage providerId={ref.providerId} id={ref.id} />
   }
 
-  return <AlbumPage providerId={ref.providerId} id={ref.id} onBack={back} />
+  return <AlbumPage providerId={ref.providerId} id={ref.id} />
 }
 
 /** 一张平台歌单。 */
-function PlaylistPage({ providerId, playlistId, onBack }: { providerId: string; playlistId: number; onBack(): void }) {
+function PlaylistPage({ providerId, playlistId }: { providerId: string; playlistId: number }) {
   const store = useOnlineStore(providerId)
   const state = store()
   const provider = getProvider(providerId)
@@ -76,38 +72,39 @@ function PlaylistPage({ providerId, playlistId, onBack }: { providerId: string; 
 
   return (
     <div className="col ol-page">
-      <button className="pg-back" type="button" onClick={onBack}>
-        ‹ 返回
-      </button>
-
-      <header className="ol-hero">
-        <div className="ol-hero__art">
-          {summary?.coverUrl ? (
+      <DetailHero
+        art={
+          summary?.coverUrl ? (
             <img src={remoteImageUrl(sizedImage(summary.coverUrl, 400))} alt="" />
           ) : (
-            <Note size={32} />
-          )}
-        </div>
-        <div className="ol-hero__text">
-          <span className="ol-hero__kicker">{provider?.displayName ?? providerId} · 歌单</span>
-          <h1 className="ol-hero__title">{summary?.name ?? '歌单'}</h1>
-          <p className="ol-hero__meta">
-            {rows.length} 首{rows.length > 0 ? ` · ${formatTime(total)}` : ''}
-            {summary?.creator ? ` · ${summary.creator}` : ''}
-          </p>
-          <div className="ol-hero__acts">
-            <button
-              className="rh-btn rh-btn--main"
-              type="button"
-              disabled={songs.length === 0}
-              onClick={() => void store.getState().playAt(songs, 0)}
-            >
-              <Play size={13} />
-              播放全部
-            </button>
-          </div>
-        </div>
-      </header>
+            <Note size={34} />
+          )
+        }
+        kicker={(provider?.displayName ?? providerId) + ' · 歌单'}
+        title={summary?.name ?? '歌单'}
+        meta={
+          <span>
+            {rows.length} 首{rows.length > 0 ? ' · ' + formatTime(total) : ''}
+          </span>
+        }
+        actions={
+          <button
+            className="rh-btn rh-btn--main"
+            type="button"
+            disabled={songs.length === 0}
+            onClick={() => void store.getState().playAt(songs, 0)}
+          >
+            <Play size={15} />
+            播放全部
+          </button>
+        }
+        facts={[
+          { label: '平台', value: provider?.displayName ?? providerId },
+          { label: '曲目', value: rows.length + ' 首' },
+          { label: '时长', value: rows.length > 0 ? formatTime(total) : '—' },
+          { label: '创建者', value: summary?.creator || '—' }
+        ]}
+      />
 
       {rows.length > 0 ? (
         <TrackList
@@ -131,16 +128,19 @@ function PlaylistPage({ providerId, playlistId, onBack }: { providerId: string; 
  * 只有网易云有这两类取数接口。别的平台在这一层不装作有：不给入口，也就不存在
  * 点进来一堆空格子的事。
  */
-function AlbumPage({ providerId, id, onBack }: { providerId: string; id: number; onBack(): void }) {
+function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   const [title, setTitle] = useState('')
   const [meta, setMeta] = useState('读取中…')
   const [cover, setCover] = useState<string | null>(null)
   const [artist, setArtist] = useState<{ id: number; name: string } | null>(null)
+  const [year, setYear] = useState<number | null>(null)
+  const [brief, setBrief] = useState('')
   const [tracks, setTracks] = useState<Track[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
+  const platform = getProvider(providerId as ProviderId)
 
   useEffect(() => {
     let live = true
@@ -149,24 +149,34 @@ function AlbumPage({ providerId, id, onBack }: { providerId: string; id: number;
     setMeta('读取中…')
 
     const load = async () => {
-      if (providerId !== 'netease') {
+      /*
+       * 走统一层：每家的专辑都回同一形状（抬头 + 曲目），页面不必知道是哪一家。
+       * 没有专辑接口的平台在这里拿到 null，页面会说「没取到内容」而不是假装空。
+       */
+      const source = getProvider(providerId as ProviderId)
+      const backend = source?.backend as PlatformBackend | undefined
+      if (!source?.catalog?.album || !backend) {
         setError('暂不支持该平台')
         setMeta('')
         return
       }
       try {
-        const album = await bridge.netease.album(id)
+        const album = await source.catalog.album(id)
         if (!live) return
         if (!album) {
           setError('这张专辑没有取到内容')
           return
         }
+        const toTrackFor = backend.toTrack as (song: never) => Track
+        const rows = album.songs.map((song) => toTrackFor(song as never))
         setTitle(album.name)
         setCover(album.coverUrl)
-        setArtist(album.artistId ? { id: album.artistId, name: album.artist } : null)
-        const rows = album.songs.map((song: NeteaseSong) => toTrack(song))
         setTracks(rows)
-        setMeta([album.year ? String(album.year) : '', `${rows.length} 首`].filter(Boolean).join(' · '))
+        const first = rows[0]
+        setArtist(first?.artistId ? { id: first.artistId, name: first.artist } : null)
+        setYear(album.year ?? null)
+        setBrief(album.description ?? '')
+        setMeta([String(rows.length) + ' 首'].filter(Boolean).join(' · '))
       } catch (failure) {
         if (live) setError(failure instanceof Error ? failure.message : String(failure))
       }
@@ -179,44 +189,43 @@ function AlbumPage({ providerId, id, onBack }: { providerId: string; id: number;
 
   return (
     <div className="col ol-page">
-      <button className="pg-back" type="button" onClick={onBack}>
-        ‹ 返回
-      </button>
-
-      <header className="ol-hero">
-        <div className="ol-hero__art">
-          {cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={32} />}
-        </div>
-        <div className="ol-hero__text">
-          <span className="ol-hero__kicker">网易云音乐 · 专辑</span>
-          <h1 className="ol-hero__title">{title || ' '}</h1>
-          <p className="ol-hero__meta">
+      <DetailHero
+        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={34} />}
+        kicker={(platform?.displayName ?? '在线') + ' · 专辑'}
+        title={title || ' '}
+        meta={
+          <>
             {artist ? (
               <button
-                className="trk__ref"
+                className="dh__link"
                 type="button"
-                onClick={() => openOnlineArtist('netease', artist.id)}
-                title={`去 ${artist.name} 的页面`}
+                onClick={() => openOnlineArtist(providerId as ProviderId, artist.id)}
               >
                 {artist.name}
               </button>
             ) : null}
-            {artist ? ' · ' : ''}
-            {meta}
-          </p>
-          <div className="ol-hero__acts">
-            <button
-              className="rh-btn rh-btn--main"
-              type="button"
-              disabled={tracks.length === 0}
-              onClick={() => player.playQueue(tracks, 0)}
-            >
-              <Play size={13} />
-              播放全部
-            </button>
-          </div>
-        </div>
-      </header>
+            <span>{meta}</span>
+          </>
+        }
+        actions={
+          <button
+            className="rh-btn rh-btn--main"
+            type="button"
+            disabled={tracks.length === 0}
+            onClick={() => player.playQueue(tracks, 0)}
+          >
+            <Play size={15} />
+            播放全部
+          </button>
+        }
+        facts={[
+          { label: '平台', value: platform?.displayName ?? '在线' },
+          { label: '发行', value: year ? String(year) : '—' },
+          { label: '曲目', value: String(tracks.length) + ' 首' },
+          { label: '艺人', value: artist?.name ?? '—' }
+        ]}
+        brief={brief}
+      />
 
       {error ? (
         <p className="pg-note">{error}</p>
@@ -243,7 +252,7 @@ type ArtistTab = 'hot' | 'all' | 'albums'
  * 歌」和「他出了哪些专辑」。所以这里三块都给：热门、全部歌曲（能接着往后取）、
  * 专辑墙（点得进专辑页）。
  */
-function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number; onBack(): void }) {
+function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
   const [tab, setTab] = useState<ArtistTab>('hot')
   const [name, setName] = useState('')
   const [brief, setBrief] = useState('')
@@ -362,41 +371,42 @@ function ArtistPage({ providerId, id, onBack }: { providerId: string; id: number
 
   return (
     <div className="col ol-page">
-      <button className="pg-back" type="button" onClick={onBack}>
-        ‹ 返回
-      </button>
-
-      <header className="ol-hero">
-        <div className="ol-hero__art is-round">
-          {cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={32} />}
-        </div>
-        <div className="ol-hero__text">
-          <span className="ol-hero__kicker">{platform?.displayName ?? '在线平台'} · 艺人</span>
-          <h1 className="ol-hero__title">{name || ' '}</h1>
-          <p className="ol-hero__meta">
+      <DetailHero
+        round
+        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={34} />}
+        kicker={(platform?.displayName ?? '在线平台') + ' · 艺人'}
+        title={name || ' '}
+        meta={
+          <span>
             {counts
               ? [
-                  counts.albums > 0 ? `${counts.albums} 张专辑` : '',
-                  counts.songs > 0 ? `${counts.songs} 首歌` : ''
+                  counts.albums > 0 ? counts.albums + ' 张专辑' : '',
+                  counts.songs > 0 ? counts.songs + ' 首歌' : ''
                 ]
                   .filter(Boolean)
                   .join(' · ')
-              : `热门 ${hot.length} 首`}
-          </p>
-          {brief ? <p className="ol-hero__brief">{brief}</p> : null}
-          <div className="ol-hero__acts">
-            <button
-              className="rh-btn rh-btn--main"
-              type="button"
-              disabled={hot.length === 0}
-              onClick={() => player.playQueue(hot, 0)}
-            >
-              <Play size={13} />
-              播放热门
-            </button>
-          </div>
-        </div>
-      </header>
+              : '热门 ' + hot.length + ' 首'}
+          </span>
+        }
+        actions={
+          <button
+            className="rh-btn rh-btn--main"
+            type="button"
+            disabled={hot.length === 0}
+            onClick={() => player.playQueue(hot, 0)}
+          >
+            <Play size={15} />
+            播放热门
+          </button>
+        }
+        facts={[
+          { label: '平台', value: platform?.displayName ?? '在线' },
+          { label: '单曲', value: counts ? String(counts.songs) : String(hot.length) },
+          { label: '专辑', value: counts && counts.albums > 0 ? String(counts.albums) : '—' },
+          { label: '热门', value: hot.length + ' 首' }
+        ]}
+        brief={brief}
+      />
 
       {fullPages ? (
         <div className="ol-tabs" role="tablist">

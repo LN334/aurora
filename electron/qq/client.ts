@@ -1,5 +1,8 @@
 import {
   mergeTranslation,
+  normalizeAlbumInfo,
+  normalizeAlbumSongs,
+  normalizeCollectedAlbums,
   normalizeLyrics,
   normalizePlaylistTracks,
   normalizePlaylists,
@@ -10,6 +13,7 @@ import {
   readQrCheck,
   readVipProbe
 } from './normalize'
+import { write as log } from '../startup-log'
 import { classifyStreamFailure, describeFailure } from './reasons'
 import type { QqFailureReason } from './reasons'
 import { clearSession, hasSession, readState, writeState } from './session'
@@ -19,6 +23,9 @@ import {
   loadSdk,
   playInfoOf,
   requestAccount,
+  requestAlbumInfo,
+  requestAlbumSongs,
+  requestCollectedAlbums,
   requestDailyRecommend,
   requestLikedSongs,
   requestLoginQr,
@@ -34,6 +41,8 @@ import {
 } from './transport'
 import type {
   QqAccount,
+  QqAlbumBundle,
+  QqCollectedAlbum,
   QqPlaylistSummary,
   QqQuality,
   QqQrResult,
@@ -527,6 +536,73 @@ export async function qqPlaylistTracks(disstid: string | number): Promise<QqSong
   } catch (error) {
     console.error('[aurora] qq playlist detail failed', messageOf(error))
     return []
+  }
+}
+
+/**
+ * Album numeric id -> mid, learned from every list that carried both.
+ *
+ * The detail and tracklist routes accept the mid only, while the rest of the app
+ * addresses albums by number. Anything opened from a shelf or a search result has
+ * been through here, so the lookup works; an id seen nowhere answers null rather
+ * than inventing a mid.
+ */
+const albumMids = new Map<number, string>()
+
+/** Remember the pair so a later detail call can resolve it. */
+function rememberAlbum(id: number, mid: string): void {
+  if (id && mid) albumMids.set(id, mid)
+}
+
+/**
+ * Albums this profile collected on the platform.
+ *
+ * Signed out answers an empty shelf, never an error: the collections page shows
+ * what exists rather than a failure notice, and the platform card already says
+ * "not signed in".
+ */
+export async function qqCollectedAlbums(limit = 200): Promise<QqCollectedAlbum[]> {
+  const state = readState(activeProfileId)
+  if (!state.cookie) return []
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return []
+
+  try {
+    const response = await requestCollectedAlbums({ uin, cookie: state.cookie, limit })
+    const albums = normalizeCollectedAlbums(response)
+    for (const album of albums) rememberAlbum(album.id, album.mid)
+    return albums
+  } catch (error) {
+    console.error('[aurora] qq album shelf failed', messageOf(error))
+    return []
+  }
+}
+
+/**
+ * One album with its tracklist, or null when it cannot be resolved.
+ *
+ * Two requests on purpose: the head carries the name, cover, year and brief, and
+ * the tracklist is a separate paged route. Rows are remembered so the page can
+ * play them without a second round-trip per song.
+ */
+export async function qqAlbum(
+  id: number
+): Promise<QqAlbumBundle | null> {
+  const mid = albumMids.get(id)
+  if (!mid) return null
+
+  try {
+    const [head, rows] = await Promise.all([
+      requestAlbumInfo({ albummid: mid }),
+      requestAlbumSongs({ albummid: mid })
+    ])
+    const detail = normalizeAlbumInfo(head, mid)
+    if (!detail) return null
+    rememberAlbum(detail.id, mid)
+    return { detail, songs: rememberAll(normalizeAlbumSongs(rows)) }
+  } catch (error) {
+    log('qq album failed ' + messageOf(error))
+    return null
   }
 }
 

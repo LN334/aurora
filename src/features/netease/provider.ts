@@ -236,7 +236,16 @@ export const neteaseBackend: PlatformBackend = {
   catalog: {
     album: async (id) => {
       const album = await netease.album(id)
-      return album ? { id: album.id, name: album.name, coverUrl: album.coverUrl, songs: album.songs } : null
+      if (!album) return null
+      return {
+        id: album.id,
+        name: album.name,
+        coverUrl: album.coverUrl,
+        songs: album.songs,
+        year: album.year,
+        description: album.description,
+        artistName: album.artist
+      }
     },
     artist: async (id) => {
       const detail = await netease.artistDetail(id)

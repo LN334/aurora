@@ -351,7 +351,9 @@ const api = {
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qq:myPlaylists', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
     daily: () => ipcRenderer.invoke('qq:daily'),
-    liked: () => ipcRenderer.invoke('qq:liked')
+    liked: () => ipcRenderer.invoke('qq:liked'),
+    collectedAlbums: (limit?: number) => ipcRenderer.invoke('qq:collectedAlbums', limit),
+    album: (id: number) => ipcRenderer.invoke('qq:album', id)
   },
 
   /*

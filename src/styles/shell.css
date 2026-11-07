@@ -2316,3 +2316,200 @@
   right: 20px;
   z-index: 2;
 }
+
+/*
+ * 详情页头的右侧事实列与简介。
+ *
+ * 一页只有封面和标题时，宽窗口右半边是空的：专辑页尤其明显，因为一张专辑
+ * 能说的其实不止名字。事实列把平台、发行年、曲目数、艺人摆到同一条竖线上，
+ * 简介跟在标题下面两行；窄窗口收起事实列，免得多出一列把正文挤窄。
+ */
+.dh {
+  align-items: center;
+}
+.dh__facts {
+  display: grid;
+  flex: none;
+  gap: 9px;
+  width: 216px;
+  margin: 0;
+  align-self: center;
+}
+.dh__fact {
+  display: flex;
+  gap: 10px;
+  font-size: var(--fs-meta);
+  line-height: 1.5;
+}
+.dh__fact dt {
+  flex: none;
+  width: 40px;
+  color: var(--text-low);
+}
+.dh__fact dd {
+  margin: 0;
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dh__brief {
+  display: -webkit-box;
+  margin: 8px 0 0;
+  max-width: 64ch;
+  overflow: hidden;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ol-hero {
+  align-items: center;
+}
+@media (max-width: 1280px) {
+  .dh__facts {
+    display: none;
+  }
+}
+
+/*
+ * 详情页头第二版：留白。
+ *
+ * 上一版把平台/发行/曲目挂在最右侧独立一列，正文被挤在中间一条，
+ * 结果两边空、中间挤——信息没多，呼吸感反倒更差。这一版把事实改成
+ * 简介下面的一排小字，正文独占右半边、列宽跟着简介走；标题放大，
+ * 按钮与简介之间留出真正的间隙，封面也不再和正文抢高度。
+ */
+.ol-page .pg-back {
+  margin-bottom: 20px;
+}
+.dh {
+  align-items: center;
+  gap: 36px;
+  margin-bottom: 34px;
+  padding-bottom: 0;
+}
+.dh__art {
+  width: 224px;
+  height: 224px;
+}
+.dh__body {
+  gap: 10px;
+}
+.dh__title {
+  font-size: 38px;
+  line-height: 1.12;
+}
+.dh__meta {
+  margin-top: 6px;
+  gap: 6px 16px;
+}
+/* 按钮与前文的间隙：8px 时代按钮像贴在标题上，看不出哪里开始是动作。 */
+.dh__actions {
+  margin-top: 22px;
+}
+.dh__brief {
+  display: -webkit-box;
+  margin: 20px 0 0;
+  max-width: 66ch;
+  overflow: hidden;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.8;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.dh__facts {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  width: auto;
+  margin: 16px 0 0;
+  align-self: auto;
+}
+.dh__fact {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.dh__fact dt {
+  flex: none;
+  width: auto;
+  color: var(--text-low);
+}
+.dh__fact dd {
+  margin: 0;
+  color: var(--text-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1280px) {
+  .dh__facts {
+    display: flex;
+  }
+  .dh__art {
+    width: 188px;
+    height: 188px;
+  }
+  .dh__title {
+    font-size: 32px;
+  }
+}
+
+/*
+ * 详情页头第三版：收高度。
+ *
+ * 上一版把间距放开后，页头吃到 262px 高、第一行曲目要到 466 才出现——
+ * 1360 宽的窗口里，题目还没看就先滚了一屏。这一版收封面、收标题、收行距，
+ * 把页头压在 200px 上下：够看出「这是哪张专辑」，又不抢曲目的地盘。
+ */
+.ol-page > .pg-back,
+.col > .pg-back {
+  margin-bottom: 12px;
+}
+.dh {
+  gap: 30px;
+  margin-bottom: 24px;
+}
+.dh__art {
+  width: 184px;
+  height: 184px;
+}
+.dh__art--round {
+  width: 160px;
+  height: 160px;
+}
+.dh__body {
+  gap: 8px;
+}
+.dh__title {
+  font-size: 32px;
+}
+.dh__meta {
+  margin-top: 4px;
+}
+.dh__actions {
+  margin-top: 16px;
+}
+.dh__brief {
+  margin-top: 14px;
+  max-width: 70ch;
+  line-height: 1.7;
+  -webkit-line-clamp: 2;
+}
+.dh__facts {
+  margin-top: 12px;
+}
+@media (max-width: 1280px) {
+  .dh__art {
+    width: 168px;
+    height: 168px;
+  }
+  .dh__title {
+    font-size: 28px;
+  }
+}

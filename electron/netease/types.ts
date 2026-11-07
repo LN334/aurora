@@ -142,6 +142,8 @@ export interface NeteaseAlbum {
   artistId: number | null
   coverUrl: string | null
   year: number | null
+  /** 专辑简介。上游两个字段都见过，取到哪个算哪个，都没有就是空串。 */
+  description: string
   songs: NeteaseSong[]
 }
 

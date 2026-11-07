@@ -566,6 +566,7 @@ export async function neteaseAlbum(id: number): Promise<NeteaseAlbum | null> {
     artistId: asNumber(asRecord(asArray(raw.artists)[0]).id) || null,
     coverUrl: asNullableString(raw.picUrl),
     year: yearOf(raw.publishTime),
+    description: asString(raw.description) || asString(raw.briefDesc),
     songs: toSongs(body.songs)
   }
 }

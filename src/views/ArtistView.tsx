@@ -42,11 +42,9 @@ export function ArtistView({
         kicker="艺人"
         title={artist.name}
         meta={
-          <>
-            <span>{artist.albumIds.length} 张专辑</span>
-            <span>{artist.trackCount} 首</span>
-            {total > 0 ? <span>{formatTime(total)}</span> : null}
-          </>
+          <span>
+            {artist.albumIds.length} 张专辑 · {artist.trackCount} 首
+          </span>
         }
         actions={
           <button
@@ -59,6 +57,12 @@ export function ArtistView({
             播放全部
           </button>
         }
+        facts={[
+          { label: '来源', value: '本机' },
+          { label: '专辑', value: artist.albumIds.length + ' 张' },
+          { label: '单曲', value: artist.trackCount + ' 首' },
+          { label: '时长', value: total > 0 ? formatTime(total) : '—' }
+        ]}
       />
 
       {tracks.length > 0 ? (

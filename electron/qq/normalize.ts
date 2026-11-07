@@ -1,4 +1,4 @@
-import type { QqAlbumDetail, QqArtist, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
+import type { QqAlbumDetail, QqArtist, QqCollectedAlbum, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
 
 /**
  * QQ upstream responses -> Aurora's shapes. Pure functions, no Electron, no
@@ -733,6 +733,40 @@ const ALBUM_INFO_DESC_LIMIT = 4000
 const SINGER_DESC_LIMIT = 8000
 
 /**
+ * The collected-albums shelf.
+ *
+ * Live shape: body.response.data.albumlist[], rows carrying albumid, albummid,
+ * albumname, singername, pic, songnum and pubtime. The total is totalalbum; it is
+ * not read here because the page counts what it actually got, and a total the
+ * list cannot back up reads as a missing page.
+ */
+export function normalizeCollectedAlbums(response: unknown): QqCollectedAlbum[] {
+  // 信封有一层 body：`{status, body:{response:{data}}}`。
+  const envelope = record(record(response).body ?? response)
+  const data = record(record(envelope.response).data)
+  const rows = list(data.albumlist).length > 0 ? list(data.albumlist) : list(data.list)
+  const albums: QqCollectedAlbum[] = []
+  for (const row of rows) {
+    const entry = record(row)
+    const id = integer(pick(entry, 'albumid', 'id', 'albumID'))
+    const mid = text(pick(entry, 'albummid', 'mid'))
+    const name = text(pick(entry, 'albumname', 'name', 'title'))
+    if (!id || !name) continue
+    const singer = record(list(entry.singer)[0])
+    albums.push({
+      id,
+      mid,
+      name,
+      coverUrl: text(pick(entry, 'pic', 'cover')) || (mid ? albumCoverUrl(mid) : null),
+      artistName: text(pick(entry, 'singername', 'singer_name')) || text(singer.name),
+      artistMid: text(pick(entry, 'singermid')) || text(singer.mid) || null,
+      year: yearOf(String(integer(pick(entry, 'pubtime', 'publishTime')) || '')),
+      songCount: integer(pick(entry, 'songnum', 'song_count', 'size'))
+    })
+  }
+  return albums
+}
+/**
  * One album's head.
  *
  * Live shape: `body.response.data` with `id`, `aDate`, `desc`, `genre`, `lan`,
@@ -741,14 +775,18 @@ const SINGER_DESC_LIMIT = 8000
  * identity the detail routes accept.
  */
 export function normalizeAlbumInfo(response: unknown, mid: string): QqAlbumDetail | null {
-  const body = record(response)
+  const body = record(record(response).body ?? response)
   const data = record(record(body.response).data)
   const albumId = integer(pick(data, 'id', 'albumid', 'albumID'))
-  const name = text(pick(data, 'name', 'albumname', 'title'))
-  if (!albumId || !name) return null
-
   const songs = list(data.list)
   const first = record(songs[0])
+  /*
+   * 详情接口不回报专辑名：抬头只有 id、日期、简介、厂牌与曲目，名字长在每首歌的
+   * albumname 上。首曲没有时再看 data 上的几个别名，别的都给不出名字才认失败。
+   */
+  const name =
+    text(pick(data, 'name', 'albumname', 'title')) || text(pick(first, 'albumname', 'album_name'))
+  if (!albumId || !name) return null
   const singer = record(list(first.singer)[0])
   const company = record(data.company_new).name ? record(data.company_new) : record(data.company)
   const stamp = text(pick(data, 'aDate', 'time_public', 'publishTime'))
@@ -777,7 +815,7 @@ export function normalizeAlbumInfo(response: unknown, mid: string): QqAlbumDetai
  * package answered `data.songList` directly.
  */
 export function normalizeAlbumSongs(response: unknown): QqSong[] {
-  const body = record(response)
+  const body = record(record(response).body ?? response)
   const albumSonglist = record(record(body.response).albumSonglist)
   const data = record(albumSonglist.data)
   const rows =

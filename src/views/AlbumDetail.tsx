@@ -52,9 +52,6 @@ export function AlbumDetail({
               {album.albumArtist}
             </button>
             {album.year ? <span>{album.year}</span> : null}
-            <span>{tracks.length} 首</span>
-            {total > 0 ? <span>{formatTime(total)}</span> : null}
-            {formats.length > 0 ? <span>{formats.join(' / ')}</span> : null}
           </>
         }
         actions={
@@ -74,6 +71,12 @@ export function AlbumDetail({
             </button>
           </>
         }
+        facts={[
+          { label: '来源', value: '本机' },
+          { label: '曲目', value: tracks.length + ' 首' },
+          { label: '时长', value: total > 0 ? formatTime(total) : '—' },
+          { label: '格式', value: formats.length > 0 ? formats.join(' / ') : '—' }
+        ]}
       />
 
       {tracks.length === 0 ? (

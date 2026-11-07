@@ -463,6 +463,8 @@ export interface NeteaseApi {
     artistId: number | null
     coverUrl: string | null
     year: number | null
+    /** 专辑简介，没有就是空串。 */
+    description: string
     songs: NeteaseSong[]
   } | null>
 
@@ -665,6 +667,40 @@ export interface QqApi {
   daily(): Promise<QqSong[]>
   /** 我喜欢的音乐。 */
   liked(): Promise<QqSong[]>
+  /** 收藏的专辑（需要登录；未登录返回空数组）。 */
+  collectedAlbums(limit?: number): Promise<QqCollectedAlbum[]>
+  /**
+   * 一张专辑：抬头 + 曲目。
+   *
+   * QQ 的专辑详情只认 albummid，而页面按数字 id 寻址；主进程会从最近读过的
+   * 列表里把 mid 找出来。没见过的 id 返回 null，不猜一个。
+   */
+  album(id: number): Promise<{ detail: QqAlbumDetail; songs: QqSong[] } | null>
+}
+
+/** 收藏专辑的一行。列表接口比详情接口短：没有简介和厂牌，但封面已经是成品地址。 */
+export interface QqCollectedAlbum {
+  id: number
+  mid: string
+  name: string
+  coverUrl: string | null
+  artistName: string
+  artistMid: string | null
+  year: number | null
+  songCount: number
+}
+
+/** 一张 QQ 专辑的抬头。 */
+export interface QqAlbumDetail {
+  id: number
+  mid: string
+  name: string
+  coverUrl: string | null
+  artistName: string
+  artistMid: string | null
+  year: number | null
+  trackCount: number
+  description: string
 }
 
 /**

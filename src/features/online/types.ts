@@ -256,7 +256,16 @@ export interface OnlineArtistProfile {
 }
 
  interface ProviderCatalogApi {
-  album(id: number): Promise<{ id: number; name: string; coverUrl: string | null; songs: OnlineSong[] } | null>
+  album(id: number): Promise<{
+    id: number
+    name: string
+    coverUrl: string | null
+    songs: OnlineSong[]
+    /** 发行年份、简介、专辑艺人：能给就给，页面缺哪项就不显示那一项。 */
+    year?: number | null
+    description?: string
+    artistName?: string
+  } | null>
   /** 可选：没有这个接口的平台，艺人页只显示热门歌曲。 */
   artist?(id: number): Promise<OnlineArtistProfile | null>
   artistTopSongs(id: number, limit?: number): Promise<OnlineSong[]>

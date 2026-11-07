@@ -276,6 +276,9 @@ interface QqServices {
   songListDetail: (params: Record<string, unknown>) => Promise<unknown>
   getDailyRecommend: (params: Record<string, unknown>) => Promise<unknown>
   getUserLikedSongs: (params: Record<string, unknown>) => Promise<unknown>
+  getUserCollectedAlbums: (params: Record<string, unknown>) => Promise<unknown>
+  getAlbumInfo: (params: Record<string, unknown>) => Promise<unknown>
+  getAlbumSongs: (params: Record<string, unknown>) => Promise<unknown>
 }
 
 const SDK_PACKAGE = '@sansenjian/qq-music-api/sdk'
@@ -410,4 +413,41 @@ export async function requestDailyRecommend(params: { cookie: string }): Promise
 
 export async function requestLikedSongs(params: { uin: string; cookie: string }): Promise<unknown> {
   return await loadServices().getUserLikedSongs({ uin: params.uin, cookie: params.cookie })
+}
+
+/**
+ * One album's head.
+ *
+ * The detail route is keyed by albummid only - the numeric id is not accepted -
+ * so callers resolve mid first and pass it here.
+ */
+export async function requestAlbumInfo(params: { albummid: string }): Promise<unknown> {
+  return await loadServices().getAlbumInfo({ method: 'get', params: { albummid: params.albummid } })
+}
+
+/** One album's tracklist, paged because a box set can pass 300 rows. */
+export async function requestAlbumSongs(params: {
+  albummid: string
+  begin?: number
+  limit?: number
+}): Promise<unknown> {
+  return await loadServices().getAlbumSongs({
+    method: 'post',
+    params: { albummid: params.albummid, begin: params.begin ?? 0, limit: params.limit ?? 200 }
+  })
+}
+
+/** Albums this profile collected on the platform. */
+export async function requestCollectedAlbums(params: {
+  uin: string
+  cookie: string
+  page?: number
+  limit?: number
+}): Promise<unknown> {
+  return await loadServices().getUserCollectedAlbums({
+    uin: params.uin,
+    page: params.page ?? 1,
+    limit: params.limit ?? 60,
+    cookie: params.cookie
+  })
 }
