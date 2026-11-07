@@ -60,7 +60,6 @@ import {
 } from './app/shell'
 import { useKeyboardShortcuts } from './app/useKeyboardShortcuts'
 import { useTrackActions } from './app/useTrackActions'
-import { QuickSearch } from './app/search/QuickSearch'
 import { SearchView } from './app/search/SearchView'
 import { useSearch } from './app/search/store'
 import { useLibraryData } from './app/useLibraryData'
@@ -136,7 +135,6 @@ export function App() {  if (!isNative) {
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   // 顶栏那个框自己的结果浮层。搜索不再是「跳去一个页面」。
-  const [quickOpen, setQuickOpen] = useState(false)
   /** Mirrors the desktop lyric window's state, owned by the main process. */
   const [overlayStatus, setOverlayStatus] = useState<OverlayStatus>({
     open: false,
@@ -625,13 +623,13 @@ export function App() {  if (!isNative) {
   }, [])
 
   /*
-   * 回车就地出结果，不再换页。
+   * 回车进搜索页，结果只在那儿显示。
    *
-   * 换页那一步是多余的：搜索框本来就在眼前，跳走只会让人再按一次「搜索」，
-   * 还要自己找路回来。范围标签与「看全部」放在浮层页脚，需要时才去搜索页。
+   * 顶栏那个框只是入口：在那里敲词、回车，然后整页看结果。不在框下面再开一个
+   * 浮窗——同一份结果画两遍，改一处就得改两处。
    */
   const submitSearch = useCallback(() => {
-    setQuickOpen(true)
+    navigate({ view: 'search' })
     void useSearch.getState().submit(useLibrary.getState().tracks)
   }, [])
 
@@ -879,30 +877,12 @@ export function App() {  if (!isNative) {
           query={searchValue}
           onQuery={onSearchInput}
           onSubmit={submitSearch}
-          onFocus={() => setQuickOpen(true)}
           placeholder={searchPlaceholder}
           shortcut={view === 'netease' ? undefined : 'Ctrl K'}
           onBack={goBack}
           onForward={goForward}
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
-        />
-
-        {/*
-          浮层挂在标题栏后面而不是某个页面里：它属于那个输入框，
-          不属于当前是被谁打开的。
-        */}
-        <QuickSearch
-          open={quickOpen}
-          localTracks={tracks}
-          currentId={track?.id ?? null}
-          playing={playing}
-          onMenu={setTrackMenu}
-          onClose={() => setQuickOpen(false)}
-          onSeeAll={() => {
-            setQuickOpen(false)
-            navigate({ view: 'search' })
-          }}
         />
 
         <Rail
