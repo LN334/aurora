@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { Route } from '../../app/routing'
 import type { Track } from '../../types'
@@ -63,7 +63,7 @@ function QuickCard({ label, title, sub, icon, onClick }: QuickCardProps) {
   )
 }
 
-export function HomeView({ onNavigate }: { onNavigate(route: Route): void }) {
+export function HomeView({ onNavigate, section }: { onNavigate(route: Route): void; section?: string }) {
   const tracks = useLibrary((state) => state.tracks)
   const playlists = usePlaylists((state) => state.playlists)
 
@@ -78,6 +78,7 @@ export function HomeView({ onNavigate }: { onNavigate(route: Route): void }) {
 
   const recentRef = useRef<HTMLElement | null>(null)
   const picksRef = useRef<HTMLElement | null>(null)
+  const insightRef = useRef<HTMLDivElement | null>(null)
 
   const albums = useMemo(() => groupAlbums(tracks), [tracks])
   const artists = useMemo(() => groupArtists(tracks), [tracks])
@@ -96,6 +97,20 @@ export function HomeView({ onNavigate }: { onNavigate(route: Route): void }) {
   }
 
   const recentRows = recent.slice(0, 10)
+
+  /*
+   * 侧栏「主页」下面的三个子项不是三个页面，是这一页里的三块。点了滚过去；
+   * route.tab 一变化就滚一次，所以从别处点「最近播放」也能落到位。
+   */
+  useEffect(() => {
+    const targets: Record<string, HTMLElement | null> = {
+      recent: recentRef.current,
+      picks: picksRef.current,
+      insight: insightRef.current
+    }
+    const node = section ? targets[section] : null
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [section])
 
   return (
     <div className="home">
@@ -173,7 +188,7 @@ export function HomeView({ onNavigate }: { onNavigate(route: Route): void }) {
         />
       </div>
 
-      <div className="home-insight">
+      <div className="home-insight" ref={insightRef}>
         <section className="home-panel">
           <h2 className="home-panel__title">今日聆听</h2>
           <div className="home-stats">

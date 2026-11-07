@@ -543,7 +543,7 @@ export function App() {  if (!isNative) {
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
     // 一级入口：发现（有什么可听，未登录也有内容）。
-    if (view === 'discover') return <HomeView onNavigate={navigate} />
+    if (view === 'discover') return <HomeView onNavigate={navigate} section={route.tab} />
     // 一级入口：音乐库（我的东西，按来源切；本地只是来源之一）。
     if (view === 'library') {
       return (
@@ -726,8 +726,8 @@ export function App() {  if (!isNative) {
         />
 
         <Rail
-          view={view}
-          onView={(next) => navigate({ view: next })}
+          route={route}
+          onNavigate={navigate}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           profileLabel={activeAccount?.label ?? null}

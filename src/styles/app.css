@@ -1751,3 +1751,45 @@ input::placeholder {
 .wallpaper.is-ready {
   opacity: 1;
 }
+
+
+/*
+ * 一级下面的子项：同一件事的下一层，不是新的一级。
+ * 主页下面挂这一页里的三块（点了滚过去），音乐库下面挂歌单。
+ * 平台与本地文件夹不在这里——它们是音乐的来源，在音乐库页里选。
+ */
+.rail__section {
+  display: flex;
+  flex-direction: column;
+}
+.rail__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px 0 var(--s2);
+}
+.rail__sub .nav-item--sub {
+  /* 子项没有图标，用圆点占位；14px 让文字与一级标题的图标右侧对齐。 */
+  padding-left: 14px;
+  height: 28px;
+  gap: var(--s2);
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+.rail__sub .nav-item--sub:hover {
+  color: var(--text-hi);
+}
+.rail__sub .nav-item--sub.is-active {
+  color: var(--text-hi);
+  background: transparent;
+}
+.rail__sub .nav-item--sub.is-active .nav-item__dot {
+  background: var(--accent);
+  opacity: 1;
+}
+.rail__sub .nav-item--sub .nav-item__count {
+  opacity: 0.75;
+}
+.is-collapsed .rail__sub {
+  display: none;
+}

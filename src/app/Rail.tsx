@@ -1,29 +1,34 @@
 import type { ComponentType } from 'react'
-import { navGroupOf, type NavGroup } from './routing'
+import { navGroupOf, type NavGroup, type Route } from './routing'
 import type { ViewId } from '../types'
 import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
+import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
 import { Compass, Library, Settings, Sidebar, User } from '../ui/icons'
 
 /**
- * The rail: four destinations, one per intent.
+ * The rail: three destinations, one per intent.
  *
  * 以前这里按平台和媒体类型分组：网易云一组（含每日推荐、红心、云盘、歌单）、
  * QQ 一组、歌单一组、本地音乐四项、设置三项。平台数和本地分类数都在长，而这个
  * 栏位不区分「你要去哪」和「东西从哪来」——于是本地音乐看起来像一个和网易云
  * 平级的应用，设置被切成三页。
  *
- * 现在一级只有三项：主页（接着听什么）、音乐库（我的东西，按来源切）、设置。
- * 平台与本地文件都退到「音乐库」里做来源标签页；搜索是标题栏那一个搜索框的动作，
- * 不占一级；详情页（专辑/艺术家/歌单）在路由里，但不在导航里——它们是从某一层
- * 进去的，靠返回键回来。
+ * 一级仍然是三项：主页（接着听什么）、音乐库（我的东西）、设置。
+ *
+ * 一级下面挂子项，但只挂「同一件事的下一层」，不镜像来源：
+ * - 主页挂的是主页里那几块的位置（最近播放、为你挑选、今日聆听），点了滚过去；
+ * - 音乐库挂的是歌单——歌单本身就是跨来源的（本地建的、平台同步的都算），
+ *   不是「XX 音乐的曲库」。平台与本地文件夹是音乐的来源，在音乐库页里用一排
+ *   标签页选，不在这里再列一遍；本地播放器的歌曲/专辑/艺术家/文件夹也不铺到
+ *   这里，否则本地音乐的比重会压过所有平台。
  */
 
 interface RailProps {
-  view: ViewId
-  onView: (view: ViewId) => void
+  route: Route
+  onNavigate: (route: Route) => void
   collapsed: boolean
   onToggleCollapsed: () => void
   /** 当前档案名，显示在底部；档案是设置的第一个分区，不是导航项。 */
@@ -55,7 +60,15 @@ const PRIMARY: PrimaryItem[] = [
   { group: 'settings', view: 'settings', label: '设置', icon: Settings }
 ]
 
-export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel, onOpenProfile }: RailProps) {
+/** 主页里的三块；点击只是滚到那里，不换页。 */
+const HOME_SECTIONS = [
+  { section: 'recent', label: '最近播放' },
+  { section: 'picks', label: '为你挑选' },
+  { section: 'insight', label: '今日聆听' }
+]
+
+export function Rail({ route, onNavigate, collapsed, onToggleCollapsed, profileLabel, onOpenProfile }: RailProps) {
+  const view = route.view
   const group = navGroupOf(view)
 
   /*
@@ -74,6 +87,10 @@ export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel,
   // 旁边这一行本来就写着档案名，头像里再放一次首字只会读成「我 我」。
   const fallbackAvatar = <User size={17} />
 
+  // 歌单挂在音乐库下面。数组引用来自 store，稳定；这里只读不派生。
+  const playlists = usePlaylists((state) => state.playlists)
+  const onPlaylists = view === 'library' && route.source === 'local' && route.tab === 'playlists'
+
   return (
     <nav className="rail" aria-label="主导航">
       <div className="rail__scroll">
@@ -81,16 +98,64 @@ export function Rail({ view, onView, collapsed, onToggleCollapsed, profileLabel,
           {PRIMARY.map((item) => {
             const active = group === item.group
             return (
-              <button
-                key={item.group}
-                className={`nav-item${active ? ' is-active' : ''}`}
-                onClick={() => onView(item.view)}
-                aria-current={active ? 'page' : undefined}
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon size={17} />
-                <span className="nav-item__label">{item.label}</span>
-              </button>
+              <div key={item.group} className="rail__section">
+                <button
+                  className={`nav-item${active ? ' is-active' : ''}`}
+                  onClick={() => onNavigate({ view: item.view })}
+                  aria-current={active ? 'page' : undefined}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon size={17} />
+                  <span className="nav-item__label">{item.label}</span>
+                </button>
+
+                {item.group === 'discover' ? (
+                  <div className="rail__sub">
+                    {HOME_SECTIONS.map((section) => {
+                      const current = view === 'discover' && route.tab === section.section
+                      return (
+                        <button
+                          key={section.section}
+                          className={`nav-item nav-item--sub${current ? ' is-active' : ''}`}
+                          onClick={() => onNavigate({ view: 'discover', tab: section.section })}
+                          aria-current={current ? 'page' : undefined}
+                        >
+                          <span className="nav-item__dot" />
+                          <span className="nav-item__label">{section.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {item.group === 'library' ? (
+                  <div className="rail__sub">
+                    <button
+                      className={`nav-item nav-item--sub${onPlaylists || view === 'playlists' ? ' is-active' : ''}`}
+                      onClick={() => onNavigate({ view: 'library', source: 'local', tab: 'playlists' })}
+                    >
+                      <span className="nav-item__dot" />
+                      <span className="nav-item__label">播放列表</span>
+                    </button>
+                    {playlists.map((playlist) => {
+                      const current = route.playlistId === playlist.id
+                      return (
+                        <button
+                          key={playlist.id}
+                          className={`nav-item nav-item--sub${current ? ' is-active' : ''}`}
+                          onClick={() => onNavigate({ view: 'playlists', playlistId: playlist.id })}
+                          title={playlist.name}
+                          aria-current={current ? 'page' : undefined}
+                        >
+                          <span className="nav-item__dot" />
+                          <span className="nav-item__label">{playlist.name}</span>
+                          <span className="nav-item__count">{playlist.trackIds.length}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
             )
           })}
         </div>
