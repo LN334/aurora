@@ -7,8 +7,10 @@ import { ChevronLeft, Note, Next, Pause, Play, Prev, Volume, VolumeMute } from '
 import { Artwork } from '../ui/Artwork'
 import { artworkFor } from '../features/library/source'
 import { usePlayer } from '../features/player/store'
+import { STAGE_STYLES, setStageStyle, useStageStyle, type StageStyleId } from '../features/lyrics/stage-style'
+import { splitLyricLine } from '../features/lyrics/line-parts'
 import { player } from '../features/player/actions'
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Visualizer } from './Visualizer'
 import { Backdrop } from '../features/wallpaper/Backdrop'
 import { chooseEntry } from '../features/wallpaper/pure'
@@ -21,24 +23,79 @@ const SLOTS = SPAN * 2 + 1
 interface LyricColumnProps {
   lyrics: Lyrics
   onSeek(seconds: number): void
+  style: StageStyleId
 }
 
 /**
- * The lyric window.
+ * 卡拉 OK：底色是暗的，彩色那层按演唱进度从左往右推开。
  *
- * This is where performance matters most in the whole app: the visualizer canvas
- * and the control chrome must not re-render sixty times a second just because
- * the playhead moved.
- *
- * Subscribing to a *derived number* rather than to `position` is what does it.
- * The selector returns the index of the highlighted line, so sixty position
- * ticks per second collapse into one re-render each time the lyric actually
- * advances - a handful per song.
+ * 只有当前行挂这个组件，所以 125ms 一次的重渲染只影响一行文字，父级的九个
+ * 槽位和可视化 canvas 完全不动。
  */
-function LyricColumn({ lyrics, onSeek }: LyricColumnProps) {
+function KaraokeText({
+  text,
+  start,
+  end,
+  onSeek,
+  title
+}: {
+  text: string
+  start: number
+  end: number
+  onSeek(): void
+  title: string
+}) {
+  const position = useProgressPosition()
+  const span = Math.max(0.4, end - start)
+  const ratio = Math.min(1, Math.max(0, (position - start) / span))
+  const { main, sub } = splitLyricLine(text)
+
+  return (
+    <button
+      type="button"
+      className="lyr__text lyr__text--karaoke"
+      style={{ '--fill': (ratio * 100).toFixed(2) + '%' } as CSSProperties}
+      onClick={onSeek}
+      title={title}
+    >
+      <span className="lyr__main">{main}</span>
+      {sub ? <span className="lyr__sub">{sub}</span> : null}
+    </button>
+  )
+}
+
+/**
+ * 逐字：把当前行拆成单字，第 i 个字延迟 i*55ms 浮出来。
+ *
+ * key 用的是行号（在 LyricColumn 里给），换行时整个组件重挂载，动画重播。
+ */
+function TypewriterText({ text, onSeek, title }: { text: string; onSeek(): void; title: string }) {
+  const { main, sub } = splitLyricLine(text)
+  const chars = Array.from(main)
+  /*
+   * 整行别超过 0.9 秒落地：短句每个字慢慢来才有呼吸感，长句照 55ms 排下去要两秒
+   * 多，读到一半歌已经唱到下一句了。
+   */
+  const step = Math.min(55, Math.max(16, Math.round(900 / Math.max(1, chars.length))))
+  return (
+    <button type="button" className="lyr__text lyr__text--chars" onClick={onSeek} title={title}>
+      <span className="lyr__chars">
+        {chars.map((ch, index) => (
+          <span key={index} className="lyr__ch" style={{ '--i': String(index), '--step': step + 'ms' } as CSSProperties}>
+            {ch === ' ' ? '\u00a0' : ch}
+          </span>
+        ))}
+      </span>
+      {sub ? <span className="lyr__sub">{sub}</span> : null}
+    </button>
+  )
+}
+
+function LyricColumn({ lyrics, onSeek, style }: LyricColumnProps) {
   const active = usePlayer((state) => activeLineAt(lyrics.lines, state.position))
   // Before the first line starts, anchor on it so the stage is never blank.
   const anchor = active < 0 ? 0 : active
+  const nextLine = lyrics.lines[anchor + 1]
 
   const slots = Array.from({ length: SLOTS }, (_, i) => {
     const lineIndex = anchor - SPAN + i
@@ -61,17 +118,43 @@ function LyricColumn({ lyrics, onSeek }: LyricColumnProps) {
         <div
           key={slot.key}
           role="listitem"
-          className={`lyr lyr--d${Math.min(slot.distance, 4)}${slot.isActive ? ' is-active' : ''}${slot.isPending ? ' is-pending' : ''}`}
+          className={'lyr lyr--d' + Math.min(slot.distance, 4) + (slot.isActive ? ' is-active' : '') + (slot.isPending ? ' is-pending' : '')}
         >
           {slot.line ? (
-            <button
-              type="button"
-              className="lyr__text"
-              onClick={() => onSeek(slot.line.time)}
-              title={`跳到 ${formatTime(slot.line.time)}`}
-            >
-              {slot.line.text || '·'}
-            </button>
+            slot.isActive && style === 'karaoke' ? (
+              <KaraokeText
+                key={slot.key}
+                text={slot.line.text || '·'}
+                start={slot.line.time}
+                end={nextLine ? nextLine.time : slot.line.time + 4}
+                onSeek={() => onSeek(slot.line.time)}
+                title={'跳到 ' + formatTime(slot.line.time)}
+              />
+            ) : slot.isActive && style === 'typewriter' ? (
+              <TypewriterText
+                key={slot.key}
+                text={slot.line.text || '·'}
+                onSeek={() => onSeek(slot.line.time)}
+                title={'跳到 ' + formatTime(slot.line.time)}
+              />
+            ) : (
+              <button
+                type="button"
+                className="lyr__text"
+                onClick={() => onSeek(slot.line.time)}
+                title={'跳到 ' + formatTime(slot.line.time)}
+              >
+                {(() => {
+                  const { main, sub } = splitLyricLine(slot.line.text || '·')
+                  return (
+                    <>
+                      <span className="lyr__main">{main}</span>
+                      {sub ? <span className="lyr__sub">{sub}</span> : null}
+                    </>
+                  )
+                })()}
+              </button>
+            )
           ) : (
             <span className="lyr__text lyr__text--empty" />
           )}
@@ -156,6 +239,9 @@ export function LyricsStage({
   onToggle,
   onClose
 }: LyricsStageProps) {
+  const style = useStageStyle()
+  const [looksOpen, setLooksOpen] = useState(false)
+
   /*
    * 沉浸页用和外壳同一张壁纸。
    *
@@ -189,7 +275,7 @@ export function LyricsStage({
 
   return (
     <div
-      className={wallpaper ? 'stage stage--wallpaper' : 'stage'}
+      className={['stage', wallpaper ? 'stage--wallpaper' : '', 'stage--lyric-' + style].filter(Boolean).join(' ')}
       // --wp-level 同时喂给壁纸的遮罩和舞台自己的渐变，和外壳用的是同一个值。
       style={
         wallpaper
@@ -233,6 +319,37 @@ export function LyricsStage({
             <span className="stage__artist">没有在播放</span>
           )}
         </div>
+        <div className="stage__aside">
+          <button
+            type="button"
+            className={'stage__look' + (looksOpen ? ' is-open' : '')}
+            onClick={() => setLooksOpen((open) => !open)}
+            aria-expanded={looksOpen}
+            aria-haspopup="listbox"
+          >
+            样式
+          </button>
+          {looksOpen ? (
+            <div className="stage__looks" role="listbox" aria-label="歌词演出模板">
+              {STAGE_STYLES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={item.id === style}
+                  className={'stage__look-item' + (item.id === style ? ' is-on' : '')}
+                  onClick={() => {
+                    setStageStyle(item.id)
+                    setLooksOpen(false)
+                  }}
+                >
+                  <span className="stage__look-name">{item.name}</span>
+                  <span className="stage__look-note">{item.note}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </header>
 
       {lyrics.empty ? (
@@ -261,7 +378,7 @@ export function LyricsStage({
           </div>
         </div>
       ) : (
-        <LyricColumn lyrics={lyrics} onSeek={onSeek} />
+        <LyricColumn lyrics={lyrics} onSeek={onSeek} style={style} />
       )}
 
       <footer className="stage__bottom">

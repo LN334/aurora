@@ -504,3 +504,214 @@
 .lyr--d0 {
   height: clamp(76px, 10vh, 132px);
 }
+
+/* --- 歌词演出模板 --------------------------------------------------------
+   舞台只有一套排版（九个固定槽位、中间永远是当前行），模板只改「当前行怎么被
+   演出来」。都挂在 .stage--lyric-{id} 前缀下，切换只换一个类名，不动数据。
+   经典那一套就是上面的默认样式，所以这里只有三套覆盖 + 选择面板。 */
+
+.stage__aside {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.stage__look {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(10 12 16 / 0.45);
+  transition: color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.stage__look:hover {
+  color: var(--text-hi);
+  border-color: rgb(255 255 255 / 0.24);
+}
+.stage__look.is-open {
+  color: var(--text-hi);
+  border-color: rgb(var(--accent-rgb) / 0.5);
+}
+
+.stage__looks {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  z-index: 5;
+  width: 264px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(12 14 18 / 0.94);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.45);
+}
+
+.stage__look-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text-mid);
+}
+.stage__look-item:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--text-hi);
+}
+.stage__look-item.is-on {
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--text-hi);
+}
+.stage__look-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.stage__look-note {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+/* 卡拉 OK：一层渐变，硬切点跟着 --fill 走，左边已经唱过，右边还没到 */
+.stage--lyric-karaoke .lyr__text--karaoke {
+  /* 已经唱过的一段用纯白，还没到的压到 0.26 —— 只靠 accent 时遇到冷灰封面
+     两张颜色几乎分不开，填了跟没填一样。光晕仍然取封面色。 */
+  background: linear-gradient(
+    90deg,
+    #fff 0%,
+    #fff var(--fill, 0%),
+    rgb(255 255 255 / 0.26) var(--fill, 0%),
+    rgb(255 255 255 / 0.26) 100%
+  );
+  filter: drop-shadow(0 0 18px rgb(var(--accent-rgb) / 0.4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 逐字：当前行拆成单字，逐个浮上来 */
+.stage--lyric-typewriter .lyr--d0 .lyr__text {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.stage--lyric-typewriter .lyr__text--chars {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.02em;
+}
+.stage--lyric-typewriter .lyr__ch {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.32em) scale(0.92);
+  animation: lyrChIn 420ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * var(--step, 55ms));
+}
+@keyframes lyrChIn {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 诗行：左对齐，当前行压一条底色和一根竖线，像诗稿上的批注 */
+.stage--lyric-verse .stage__lyrics {
+  align-items: flex-start;
+  padding-left: clamp(28px, 8vw, 160px);
+}
+.stage--lyric-verse .lyr {
+  place-items: start;
+}
+.stage--lyric-verse .lyr__text {
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(16px, 1.7vw, 26px);
+  letter-spacing: 0;
+}
+.stage--lyric-verse .lyr--d0 .lyr__text {
+  display: inline-block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  font-size: clamp(30px, 3.6vw, 52px);
+  padding: 6px 18px 8px 16px;
+  border-left: 3px solid rgb(var(--accent-rgb));
+  background: rgb(10 12 16 / 0.34);
+  border-radius: 0 10px 10px 0;
+  text-shadow: 0 2px 24px rgb(0 0 0 / 0.5);
+}
+.stage--lyric-verse .lyr--d1 .lyr__text { opacity: 0.5; transform: none; }
+.stage--lyric-verse .lyr--d2 .lyr__text { opacity: 0.28; transform: none; }
+.stage--lyric-verse .lyr--d3 .lyr__text,
+.stage--lyric-verse .lyr--d4 .lyr__text { opacity: 0.12; transform: none; }
+
+/* 面板要能点：三块主区（顶栏 / 歌词 / 底栏）同属 z-index:1 的层，谁在后面谁
+   盖住谁，而歌词那一块铺满整片 1fr，正好压在顶栏展开的菜单上。把顶栏抬到歌词
+   之上，菜单才有命中的机会。 */
+.stage > .stage__top:not(.viz):not(.wallpaper) {
+  z-index: 3;
+}
+
+/* --- 翻译分行：原文一行，译文一行小字 --- */
+.lyr__main { display: block; }
+.lyr__sub {
+  display: block;
+  margin-top: 0.3em;
+  font-size: 0.56em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.6;
+}
+.lyr.is-active .lyr__sub { opacity: 0.82; }
+.lyr__text--chars { display: block; }
+.lyr__chars {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.02em;
+}
+
+/*
+ * 卡拉 OK 的填充只推原文那一层：按钮本身不再裁字，译文保持统一的淡色，
+ * 否则译文会跟着原文一起由灰变白，读起来分不清哪句是原文。
+ */
+.stage--lyric-karaoke .lyr__text--karaoke {
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: inherit;
+  filter: none;
+}
+.stage--lyric-karaoke .lyr__text--karaoke .lyr__main {
+  background: linear-gradient(
+    90deg,
+    #fff 0%,
+    #fff var(--fill, 0%),
+    rgb(255 255 255 / 0.26) var(--fill, 0%),
+    rgb(255 255 255 / 0.26) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 18px rgb(var(--accent-rgb) / 0.4));
+}
+.stage--lyric-verse .lyr__sub { text-align: left; }
+
+/*
+ * 九宫格每个槽位的高度是固定的（居中靠固定槽高算出来），一行放两句就要
+ * 溢出到隔壁槽、和上下句叠在一起。所以译文只跟当前这一句走 —— 和桌面歌词
+ * 一样：上面几行是已经唱过的原文，译文只解释正在唱的这句。
+ */
+.lyr:not(.is-active) .lyr__sub { display: none; }
+.lyr.is-active .lyr__sub { opacity: 0.62; }
