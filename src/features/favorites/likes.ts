@@ -44,6 +44,14 @@ interface LikesState {
   refresh(source: LikeSource, force?: boolean): Promise<void>
   refreshAll(force?: boolean): Promise<void>
   toggle(track: Track): Promise<LikeToggleResult>
+  /**
+   * 把别处已经拉到的平台喜欢交进来。
+   *
+   * 「我喜欢的」页走的是自己的缓存（`online/platform-liked.ts`），而心形按钮读的
+   * 是这里。不交进来，同一页会出现「列表里有这首歌、心却是空的」——两套缓存
+   * 各拉各的时候，心标亮不亮取决于用户先去过哪个页面。
+   */
+  seed(source: LikeSource, tracks: Track[]): void
 }
 
 const emptySlice = (state: LikeSourceState, error: string | null = null): LikeSourceSlice => ({
@@ -113,6 +121,13 @@ export const useLikes = create<LikesState>()((set, get) => ({
     await Promise.all(likeProviders().map((provider) => get().refresh(provider.id, force)))
   },
 
+  seed(source, tracks) {
+    if (source === 'local') return
+    set((state) => ({
+      sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } }
+    }))
+  },
+
   async toggle(track) {
     const source = likeSourceOf(track)
 
@@ -173,6 +188,48 @@ export const useLikes = create<LikesState>()((set, get) => ({
   }
 }))
 
+/**
+ * 每个来源各自喜欢了哪些 id。
+ *
+ * 与 `useLikedIds`（所有来源并成一个集合）不同，这张表保留「谁点的」：一行
+ * 里挂着网易云与 QQ 两个版本时，徽章上要能分别看出哪家点过心、哪家没有。
+ * 逐行各查一次 store 会让每次渲染做 N 次订阅，所以在这里一次算完，行只读
+ * Map。
+ */
+export function useLikeMarks(): ReadonlyMap<LikeSource, ReadonlySet<string>> {
+  const liked = useFavorites((state) => state.liked)
+  const sources = useLikes((state) => state.sources)
+  return useMemo(() => {
+    const marks = new Map<LikeSource, Set<string>>()
+    marks.set('local', new Set(liked.map((entry) => entry.id)))
+    for (const [source, slice] of Object.entries(sources)) {
+      marks.set(source, new Set(slice.tracks.map((row) => row.id)))
+    }
+    return marks
+  }, [liked, sources])
+}
+
+/**
+ * 这一行里，哪几个来源已经喜欢了。
+ *
+ * 只认「这一版自己的来源」——主行是网易云、挂着的 QQ 版本点过心时说 QQ，
+ * 不能因为主行亮着就把标签算到别的平台头上。
+ */
+export function likedSourcesOf(
+  track: Track,
+  marks: ReadonlyMap<LikeSource, ReadonlySet<string>>
+): LikeSource[] {
+  const out: LikeSource[] = []
+  const seen = new Set<LikeSource>()
+  for (const version of [track, ...(track.versions ?? [])]) {
+    const source = likeSourceOf(version)
+    if (seen.has(source)) continue
+    seen.add(source)
+    if (marks.get(source)?.has(version.id)) out.push(source)
+  }
+  return out
+}
+
 /*
  * 已喜欢的全部 id：本地收藏 + 每个在线来源缓存的那一份。
  *
@@ -180,16 +237,14 @@ export const useLikes = create<LikesState>()((set, get) => ({
  * N 次订阅；这里一次算完，行只读集合。
  */
 export function useLikedIds(): ReadonlySet<string> {
-  const liked = useFavorites((state) => state.liked)
-  const sources = useLikes((state) => state.sources)
+  const marks = useLikeMarks()
   return useMemo(() => {
     const ids = new Set<string>()
-    for (const entry of liked) ids.add(entry.id)
-    for (const slice of Object.values(sources)) {
-      for (const row of slice.tracks) ids.add(row.id)
+    for (const set of marks.values()) {
+      for (const id of set) ids.add(id)
     }
     return ids
-  }, [liked, sources])
+  }, [marks])
 }
 
 /** 喜欢/取消喜欢。返回值里带着失败原因，由调用方决定怎么提示。 */

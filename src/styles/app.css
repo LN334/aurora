@@ -1457,6 +1457,8 @@ input::placeholder {
 }
 /* 徽章不参与压缩：宁可标题先省略，也要让「QQ」「FLAC」完整露出来。 */
 .trk__flags {
+  position: relative;
+  z-index: 3;
   display: flex;
   flex: none;
   align-items: center;
@@ -1566,6 +1568,7 @@ input::placeholder {
 }
 
 .trk__like {
+  position: relative;
   display: grid;
   place-items: center;
   width: 24px;
@@ -1592,7 +1595,6 @@ input::placeholder {
 .trk__like.is-liked svg {
   fill: currentColor;
 }
-
 .trk__more {
   position: relative;
   z-index: 2;
@@ -1630,9 +1632,41 @@ input::placeholder {
 }
 
 .badge.trk__src {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 3px;
   background: none;
   border-color: rgb(255 255 255 / 0.09);
   color: var(--text-low);
+}
+/*
+ * 徽章上那枚心：只在「这家收过」时出现。
+ *
+ * 一首歌在哪些平台有音源并不一样，所以「收了几成」没有稳定分母；要区分平台
+ * 就落到每家自己的徽章上——亮着心的那家收了，点它取消。
+ *
+ * 没收藏的那家不画心：一屏三十行全是灰心，会把徽章列撑得不齐，读起来也全是
+ * 噪音。没收的样子就是原来那个纯标签。
+ */
+.trk__src-like {
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  color: var(--accent-strong);
+  transition: color 120ms var(--ease-out);
+}
+.trk__src-like svg {
+  fill: currentColor;
+}
+.trk__src-like:hover {
+  color: var(--text-hi);
+}
+.badge.trk__src.is-liked {
+  border-color: rgb(var(--accent-rgb) / 0.42);
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--text-hi);
 }
 .badge.trk__src--local {
   border-color: rgb(255 255 255 / 0.14);

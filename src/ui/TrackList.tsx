@@ -3,8 +3,9 @@ import { sourceLabelById } from '../features/online/registry'
 import { sourcesOf } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
-import { toggleLiked, useLikedIds } from '../features/favorites/likes'
+import { likedSourcesOf, toggleLiked, useLikeMarks } from '../features/favorites/likes'
 import { likeTargets } from '../features/favorites/like-targets'
+import type { LikeTarget } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { formatTime } from './format'
 import { showFlash } from './flash'
@@ -16,14 +17,18 @@ import { artistParts } from './NameRef'
 import type { Track } from '../types'
 
 /**
- * 这一行亮不亮心。
+ * 这一行的喜欢状态。
  *
  * 合并行的主行只是「优先级最高的那一版」，用户可能喜欢的是挂在后面另一家的
  * 那一版；只看主行会让心形明明收藏过却还是空的，所以整行任一版本喜欢过都算亮。
+ *
+ * 至于「哪家收了」——一颗心撑不起这个意思，落点是每行标题后面那几个平台徽章，
+ * 每家一枚自己的心（见下面 flags 里那段）。一首歌在哪些平台有音源本来就各不相同，
+ * 拿「平台全集」当分母去算「收了几成」是错的，所以这里只回答亮不亮。
  */
-function likedRow(track: Track, likedIds: ReadonlySet<string>): boolean {
-  if (likedIds.has(track.id)) return true
-  return (track.versions ?? []).some((version) => likedIds.has(version.id))
+function rowLikeState(track: Track, marks: ReadonlyMap<string, ReadonlySet<string>>) {
+  const liked = likedSourcesOf(track, marks)
+  return { liked, isLiked: liked.length > 0 }
 }
 
 /** 一次挂多少行。够填满一屏还有富余，滚动时不至于每滚一下就补一批。 */
@@ -109,7 +114,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    * 每一行右侧那颗心。收藏页、歌单、搜索结果、平台歌单都是同一份列表组件，
    * 所以「能不能喜欢」在这里做一次，所有列表就地都有了收藏键。
    */
-  const likedIds = useLikedIds()
+  const likeMarks = useLikeMarks()
   /* 音源优先级一变，同一行的主版本与徽章顺序都要跟着重排。 */
   const order = useSourceOrder()
 
@@ -227,7 +232,29 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
          * 的最近播放历史里。这里在渲染时兜掉，免得列表里冒出一个孤零零的问号。
          */
         const albumLabel = track.album && track.album.trim() !== '?' ? track.album : ''
-        const isLiked = likedRow(track, likedIds)
+        const like = rowLikeState(track, likeMarks)
+        const isLiked = like.isLiked
+        const likedLabel = like.liked.map((source) => sourceLabelById(source)).join('、')
+        const targets = likeTargets(track)
+        /*
+         * 往「这一家」的收藏里写一下。
+         *
+         * 徽章上的心与行尾的大心共用这一段：写不了的那家（QQ 目前没有收藏
+         * 接口）说一句实话，而不是发一个注定被拒的请求。
+         */
+        const likeAt = (target: LikeTarget | undefined, name: string) => {
+          if (!target || !target.writable) {
+            showFlash(name + ' 没有收藏接口，这一版收不进去')
+            return
+          }
+          void toggleLiked(target.track).then((result) => {
+            if (!result.ok) {
+              if (result.message) showFlash(result.message)
+              return
+            }
+            showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+          })
+        }
         return (
           <div
             key={track.id}
@@ -304,15 +331,46 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
               <span className="trk__title">
                 <span className="trk__title-text">{track.title || '（无标题）'}</span>
                 <span className="trk__flags">
-                  {platforms.map((platform) => (
-                    <span
-                      key={platform}
-                      className={`badge trk__src trk__src--${platform}`}
-                      title={`来自${sourceLabelById(platform)}`}
-                    >
-                      {sourceLabelById(platform)}
-                    </span>
-                  ))}
+                  {platforms.map((platform) => {
+                    /*
+                     * 徽章说的是「这一版来自这家」；心说的是「这家收没收」。
+                     *
+                     * 一首歌在哪些平台有音源各不相同（有的只在网易云，有的两家
+                     * 都有），所以「收了几成」没有稳定分母；要区分平台，就把心
+                     * 拆到每家徽章上：亮的那家收了，灰的那家没收，点一下直接切
+                     * 这家的收藏，不用再去弹菜单选落点。
+                     */
+                    const marked = like.liked.includes(platform)
+                    const name = sourceLabelById(platform)
+                    const target = targets.find((item) => item.source === platform)
+                    return (
+                      <span
+                        key={platform}
+                        className={`badge trk__src trk__src--${platform}${marked ? ' is-liked' : ''}`}
+                      >
+                        {/*
+                         * 心只在「这家收了」时出现。每家都挂一颗灰心的话，一屏
+                         * 三十行就是三十颗没用的灰点——宽度也被撑得不齐，这才是
+                         * 真正的「布局乱」。没收的那家保持原来的纯标签。
+                         */}
+                        {marked ? (
+                          <button
+                            className="trk__src-like"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              likeAt(target, name)
+                            }}
+                            title={`${name} · 已喜欢，点一下取消`}
+                            aria-label={'取消喜欢 ' + track.title + ' · ' + name}
+                            aria-pressed
+                          >
+                            <Heart size={10} />
+                          </button>
+                        ) : null}
+                        {name}
+                      </span>
+                    )
+                  })}
                   {track.lossless ? (
                     <span className="badge" title={`${track.codec} 无损`}>
                       FLAC
@@ -408,7 +466,6 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                    * 一行里有两个以上落点时先问收藏到哪儿；只有一个时直接切换。
                    * 菜单从按钮左上弹出，靠近哪边由 LikeMenu 自己夹进视口。
                    */
-                  const targets = likeTargets(track)
                   if (targets.length > 1) {
                     /*
                      * 一行里有好几个版本就先列出来。不能写的平台也列，并写明
@@ -423,19 +480,9 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                    * 而这一版就是它时，给一句实话，而不是发一个注定失败的请求。
                    */
                   const target = targets[0]
-                  if (!target || !target.writable) {
-                    showFlash('这首歌所在的平台还没有收藏接口')
-                    return
-                  }
-                  void toggleLiked(target.track).then((result) => {
-                    if (!result.ok) {
-                      if (result.message) showFlash(result.message)
-                    } else {
-                      showFlash(result.liked ? '已收藏到' + target.label : '已从' + target.label + '取消')
-                    }
-                  })
+                  likeAt(target, target?.label ?? '这一家')
                 }}
-                title={isLiked ? '取消喜欢' : '喜欢'}
+                title={isLiked ? `已喜欢：${likedLabel}` : '喜欢'}
                 aria-label={(isLiked ? '取消喜欢 ' : '喜欢 ') + track.title}
                 aria-pressed={isLiked}
               >

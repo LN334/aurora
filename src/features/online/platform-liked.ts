@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
+import { useLikes } from '../favorites/likes'
 import { getProvider, listAvailableProviders } from './registry'
 import { useOnlineStore, type PlatformBackend } from './store'
 import type { OnlineSong } from './types'
@@ -29,7 +30,13 @@ export async function loadPlatformLiked(): Promise<Track[]> {
         const backend = (getProvider(provider.id)?.backend as PlatformBackend | undefined) ?? null
         if (!backend?.collection) return [] as Track[]
         const songs = await backend.collection('likes', 200)
-        return songs.map((song: OnlineSong) => backend.toTrack(song))
+        const tracks = songs.map((song: OnlineSong) => backend.toTrack(song))
+        /*
+         * 交一份给喜欢模块：列表上的心形按钮读的是那份缓存。不交的话，这一页
+         * 里的歌在别处（播放条、详情页、跨平台合并的行）看着像没喜欢过。
+         */
+        useLikes.getState().seed(provider.id, tracks)
+        return tracks
       } catch {
         return [] as Track[]
       }
