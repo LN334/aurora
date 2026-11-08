@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { appSettings, loadSettings, saveSettings, type UpdateInterval } from './settings'
+import { applyUpdaterProxy } from './proxy'
+import { write } from './startup-log'
 import { isNewer } from './pure/version'
 import { repositoryTarget } from './pure/release-target'
 
@@ -290,9 +292,25 @@ interface FeedOptions {
   repo: string
 }
 
+interface UpdateLogger {
+  info(message: string): void
+  warn(message: string): void
+  error(message: string): void
+  debug(message: string): void
+}
+
 interface AutoUpdaterLike {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
+  /**
+   * Where electron-updater's own diagnostics go.
+   *
+   * Its default sink is the console, which a packaged Windows build has no
+   * window for, so the one line that says whether the differential path was
+   * taken - or why it was abandoned - used to be invisible. The startup log is
+   * the file users are already asked to send.
+   */
+  logger: UpdateLogger | null
   on(event: 'download-progress', listener: (progress: ProgressInfo) => void): unknown
   on(event: 'update-downloaded', listener: () => void): unknown
   setFeedURL(options: FeedOptions): void
@@ -340,7 +358,15 @@ async function loadUpdater(): Promise<AutoUpdaterLike | null> {
   try {
     const module = requireFromHere('electron-updater') as { autoUpdater: AutoUpdaterLike }
     const updater = module.autoUpdater ?? null
-    if (updater) ensureFeed(updater)
+    if (updater) {
+      updater.logger = {
+        info: (message) => write(`updater: ${message}`),
+        warn: (message) => write(`updater warn: ${message}`),
+        error: (message) => write(`updater error: ${message}`),
+        debug: (message) => write(`updater debug: ${message}`)
+      }
+      ensureFeed(updater)
+    }
     return updater
   } catch (error) {
     console.error('[aurora] electron-updater is unavailable', error)
@@ -365,6 +391,13 @@ let installing = false
   try {
     const updater = await loadUpdater()
     if (!updater) return
+    /*
+     * GitHub's download hosts are unreachable on many networks, and
+     * electron-updater downloads through a session of its own, which never sees
+     * a proxy that the desktop client only exposes as a local port. Find one
+     * that really reaches GitHub before asking for the first byte.
+     */
+    await applyUpdaterProxy()
     /*
      * `autoDownload = false` plus an explicit `downloadUpdate()` is the ordering
      * the API expects: check first, then download. The alternative -
