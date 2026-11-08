@@ -538,26 +538,27 @@ export async function qqMyPlaylists(limit = 60): Promise<QqPlaylistSummary[]> {
  * 位只回歌曲。排行榜是 QQ 唯一条匿名也给全的表面板，每一榜都能直接打开播放。
  */
 export async function qqRecommendPlaylists(limit = 12): Promise<QqPlaylistSummary[]> {
-  // 公开歌单广场先来：这条不需要账号，能出就用它。
+  // 登录了就先要它自己那份推荐；这三条未登录一律 500003，所以只在有 cookie 时试。
+  if (hasSession(activeProfileId)) {
+    for (const variant of ['a', 'b', 'c'] as const) {
+      try {
+        const response = await requestRecommendPlaylists(variant)
+        const rows = collectPlaylists(response)
+        log('qq recmd pl ' + variant + ' rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 700))
+        if (rows.length > 0) return rows.slice(0, limit)
+      } catch (error) {
+        log('qq recmd pl ' + variant + ' failed ' + messageOf(error))
+      }
+    }
+  }
+  // 兜底：公开歌单广场（匿名可用），至少这一栏不会空着。
   try {
     const response = await requestPublicSonglists(limit)
     const rows = collectPlaylists(response)
-    log('qq recmd pl public rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 500))
+    log('qq recmd pl public rows=' + rows.length)
     if (rows.length > 0) return rows.slice(0, limit)
   } catch (error) {
     log('qq recmd pl public failed ' + messageOf(error))
-  }
-  // 要账号的那几条只在他登录之后才试，未登录必是 500003。
-  if (!hasSession(activeProfileId)) return []
-  for (const variant of ['a', 'b', 'c'] as const) {
-    try {
-      const response = await requestRecommendPlaylists(variant)
-      const rows = collectPlaylists(response)
-      log('qq recmd pl ' + variant + ' rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 700))
-      if (rows.length > 0) return rows.slice(0, limit)
-    } catch (error) {
-      log('qq recmd pl ' + variant + ' failed ' + messageOf(error))
-    }
   }
   return []
 }
