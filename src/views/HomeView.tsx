@@ -99,7 +99,7 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
    * 所以先剥掉那层壳，取回原始地址再按尺寸重包。
    */
   const upstream = art.startsWith(REMOTE_IMAGE) ? decodeURIComponent(art.slice(REMOTE_IMAGE.length)) : art
-  return remoteImageUrl(sizedImage(upstream, px))
+  return remoteImageUrl(sizedImage(upstream, px), px)
 }
 
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
@@ -141,14 +141,14 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   /* 歌单那一格的封面：随便挑一张平台歌单，比本机凑出来的渐变更像个入口。 */
   const mineArt = useMemo(() => {
     const first = accountCards.find((card) => Boolean(card.coverUrl))
-    return first?.coverUrl ? remoteImageUrl(sizedImage(first.coverUrl, 120)) : null
+    return first?.coverUrl ? remoteImageUrl(sizedImage(first.coverUrl, 120), 120) : null
   }, [accountCards])
 
   /* 收藏格的缩略图：先看收藏歌单，没有再退到收藏专辑。 */
   const collectionArt = useMemo(() => {
     const first = collectedPlaylists[0] ?? collectedAlbums[0]
     if (!first?.coverUrl) return null
-    return remoteImageUrl(sizedImage(first.coverUrl, 120))
+    return remoteImageUrl(sizedImage(first.coverUrl, 120), 120)
   }, [collectedPlaylists, collectedAlbums])
 
   const newBlock = useDiscover((state) => state.blocks.newsongs)
@@ -520,7 +520,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
               >
                 <span className="rh-card__art" style={tintOf(row.key)}>
                   <Artwork
-                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 360)) : null}
+                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 360), 360) : null}
                     alt=""
                     fallback={<Note size={20} />}
                     priority={at < 6}
@@ -551,7 +551,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
               >
                 <span className="rh-mini__art" style={tintOf(row.key)}>
                   <Artwork
-                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240)) : null}
+                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240), 240) : null}
                     alt=""
                     fallback={<Note size={18} />}
                     priority={at < 5}

@@ -117,7 +117,7 @@ function PlaylistPage({
       <DetailHero
         art={
           summary?.coverUrl ? (
-            <img src={remoteImageUrl(sizedImage(summary.coverUrl, 400))} alt="" />
+            <img src={remoteImageUrl(sizedImage(summary.coverUrl, 400), 400)} alt="" />
           ) : (
             <Note size={34} />
           )
@@ -305,7 +305,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   return (
     <div className="col ol-page">
       <DetailHero
-        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={34} />}
+        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400), 400)} alt="" /> : <Note size={34} />}
         kicker={(platform?.displayName ?? '在线') + ' · 专辑'}
         title={title || ' '}
         meta={
@@ -534,7 +534,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
     <div className="col ol-page">
       <DetailHero
         round
-        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400))} alt="" /> : <Note size={34} />}
+        art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400), 400)} alt="" /> : <Note size={34} />}
         kicker={(platform?.displayName ?? '在线平台') + ' · 艺人'}
         title={name || ' '}
         meta={
@@ -627,7 +627,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
               >
                 <span className="ol-alb__art">
                   {album.coverUrl ? (
-                    <img src={remoteImageUrl(sizedImage(album.coverUrl, 300))} alt="" loading="lazy" />
+                    <img src={remoteImageUrl(sizedImage(album.coverUrl, 300), 300)} alt="" loading="lazy" />
                   ) : (
                     <Note size={22} />
                   )}

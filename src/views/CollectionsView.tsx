@@ -47,7 +47,7 @@ export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute):
             >
               <span className="rh-card__art" style={{ background: tint(album.key) }}>
                 <Artwork
-                  src={album.coverUrl ? remoteImageUrl(sizedImage(album.coverUrl, 300)) : null}
+                  src={album.coverUrl ? remoteImageUrl(sizedImage(album.coverUrl, 300), 300) : null}
                   alt=""
                   fallback={<Note size={18} />}
                 />

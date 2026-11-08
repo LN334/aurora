@@ -211,7 +211,7 @@ test('public addresses are not swept up by the private ranges', () => {
  * 保留；以及它不构成第二条绕过地址检查的路。
  */
 test('a sized image URL keeps the upstream address intact', () => {
-  const upstream = 'https://p1.music.126.net/abc/cover.jpg?param=600y600'
+  const upstream = 'https://p1.music.126.net/abc/cover.jpg'
   assert.equal(remoteImageUrl(upstream, 96), `${REMOTE_SCHEME}://image/n96/${encodeURIComponent(upstream)}`)
   assert.equal(remoteImageUrl(upstream), `${REMOTE_SCHEME}://image/${encodeURIComponent(upstream)}`)
 })

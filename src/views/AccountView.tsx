@@ -104,7 +104,7 @@ function ProfilePart() {
           <img src={active.avatar} alt="" />
         ) : bound?.avatarUrl ? (
           <Artwork
-            src={remoteImageUrl(sizedImage(bound.avatarUrl, 128))}
+            src={remoteImageUrl(sizedImage(bound.avatarUrl, 128), 128)}
             fallback={active.label.slice(0, 1)}
           />
         ) : (

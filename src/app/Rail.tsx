@@ -85,7 +85,7 @@ export function Rail({
   const bindings = useOnlineBindings(accounts)
   const active = accounts.find((account) => account.id === activeId) ?? null
   const boundAvatar = activeId ? (bindings[activeId]?.avatarUrl ?? null) : null
-  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96)) : null)
+  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96), 96) : null)
   const fallbackAvatar = <User size={17} />
 
   const likedCount = useFavorites((state) => state.liked.length)

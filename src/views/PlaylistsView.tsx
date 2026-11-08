@@ -131,7 +131,7 @@ function Card({ row }: { row: PlaylistCard }) {
         {/* 封面走主进程代理：页面 CSP 不允许外域图片，原地址由 aurora-remote:// 转发。 */}
         {row.coverUrl ? (
           <img
-            src={remoteImageUrl(sizedImage(row.coverUrl, 300))}
+            src={remoteImageUrl(sizedImage(row.coverUrl, 300), 300)}
             alt=""
             loading="lazy"
             /* 失效的封面藏起来退回渐变底，别留浏览器那张碎图图标。 */

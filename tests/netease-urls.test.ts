@@ -98,3 +98,15 @@ test('the two builders are distinguishable, so a cover can never be played as au
 test('the builders are pure: the same upstream gives the same string', () => {
   assert.equal(remoteStreamUrl('https://h/x'), remoteStreamUrl('https://h/x'))
 })
+
+test('a CDN-sized image is not handed to the main process for a second resize', () => {
+  /*
+   * 网易云图床已经按 ?param= 给过小图，主进程再缩一次只是多花一次解码和
+   * 重编码，画质还掉一档。其它平台没有这个能力，才交给主进程缩。
+   */
+  const cdn = 'https://p1.music.126.net/cover.jpg?param=300y300'
+  assert.equal(remoteImageUrl(cdn, 300), `${REMOTE_SCHEME}://image/${encodeURIComponent(cdn)}`)
+
+  const other = 'https://y.gtimg.cn/music/photo_new/T002R300x300M000abc.jpg'
+  assert.equal(remoteImageUrl(other, 300), `${REMOTE_SCHEME}://image/n300/${encodeURIComponent(other)}`)
+})

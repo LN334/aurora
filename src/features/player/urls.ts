@@ -49,7 +49,11 @@ export function remoteStreamUrl(upstream: string): string {
  * 几百行叠起来是几十兆常驻内存，而屏幕上根本看不出差别。
  */
 export function remoteImageUrl(upstream: string, px?: number): string {
-  const size = px && px > 0 ? `n${Math.round(px)}/` : ''
+  /*
+   * 已经带 `param=` 的地址是网易云图床按尺寸给过的小图（见 sizedImage），
+   * 主进程再缩一次只会多花一次解码和重编码，画质还掉一档。
+   */
+  const size = px && px > 0 && !/[?&]param=/.test(upstream) ? `n${Math.round(px)}/` : ''
   return `${REMOTE_SCHEME}://image/${size}${encodeURIComponent(upstream)}`
 }
 
