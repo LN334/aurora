@@ -23,12 +23,6 @@ const IDLE: OverlayState = {
   accent: ''
 }
 
-function clock(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
-  const total = Math.floor(seconds)
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
-}
-
 /**
  * The desktop lyric strip.
  *
@@ -59,7 +53,6 @@ export function Overlay() {
   const [hovering, setHovering] = useState(false)
   const stack = useRef<HTMLDivElement | null>(null)
   const fill = useRef<HTMLSpanElement | null>(null)
-  const clockText = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => bridge.overlay.onState(setState), [])
 
@@ -158,10 +151,6 @@ export function Overlay() {
         const ratio = Math.min(1, Math.max(0, (now - at) / (to - at)))
         element.style.setProperty('--cut', `${Math.round((1 - ratio) * 1000) / 10}%`)
       }
-      if (clockText.current) {
-        const now = playing ? position + (performance.now() - stamp) / 1000 : position
-        clockText.current.textContent = `${clock(now)} / ${clock(state.duration)}`
-      }
     }
     // Anchored once per state push: `stamp` is when that position was read.
     stamp = performance.now()
@@ -209,12 +198,6 @@ export function Overlay() {
         <div className="lyric-words">{words}</div>
 
         <div className="lyric-toolbar">
-          <span className="lyric-toolbar__meta">
-            <span className="lyric-toolbar__note">{state.playing ? '♪' : '❙❙'}</span>
-            <b>{state.title || 'Aurora'}</b>
-            {state.artist ? <span className="lyric-toolbar__artist"> · {state.artist}</span> : null}
-          </span>
-
           <span className="lyric-toolbar__transport">
             <button
               className="lyric-tool"
@@ -240,10 +223,6 @@ export function Overlay() {
             >
               <Next size={18} strokeWidth={1.9} />
             </button>
-          </span>
-
-          <span ref={clockText} className="lyric-toolbar__clock">
-            0:00 / 0:00
           </span>
 
           <span className="lyric-toolbar__tools">

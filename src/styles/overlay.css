@@ -154,7 +154,7 @@ body.overlay-body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 10px 6px 14px;
+  padding: 6px 12px;
   border: 1px solid rgb(255 255 255 / 0.08);
   border-radius: 999px;
   background: rgb(12 14 18 / 0.82);
@@ -175,44 +175,10 @@ body.overlay-body {
   visibility: visible;
 }
 
-.lyric-toolbar__meta {
-  max-width: 300px;
-  overflow: hidden;
-  color: rgb(255 255 255 / 0.56);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lyric-toolbar__meta b {
-  color: rgb(255 255 255 / 0.94);
-  font-weight: 600;
-}
-
-.lyric-toolbar__artist {
-  color: rgb(255 255 255 / 0.46);
-}
-
-.lyric-toolbar__note {
-  margin-right: 6px;
-  color: var(--accent, #7d8899);
-  font-size: 11px;
-}
-
 .lyric-toolbar__transport {
   display: flex;
   align-items: center;
   gap: 3px;
-}
-
-.lyric-toolbar__clock {
-  padding-left: 11px;
-  border-left: 1px solid rgb(255 255 255 / 0.1);
-  color: rgb(255 255 255 / 0.56);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
 }
 
 .lyric-toolbar__tools {
