@@ -194,16 +194,33 @@ const HOST_TTL_MS = 60_000
   return allowed
 }
 
+interface ResolvedTarget {
+  target: string
+  /** 0 表示不缩、直接给原图——播放器封面和舞台要的是这张。 */
+  px: number
+}
+
 /** `aurora-remote://stream/<percent-encoded http(s) URL>` -> the upstream URL. */
-function targetOf(url: URL): string | null {
-  const encoded = url.pathname.replace(/^\/+/, '')
+function targetOf(url: URL): ResolvedTarget | null {
+  let encoded = url.pathname.replace(/^\/+/, '')
+  let px = 0
+  /*
+   * 形如 `image/n96/<percent-encoded URL>`：列表缩略图走这条。尺寸放在路径
+   * 最前面而不是查询串里，是因为上游地址本身已经编码成一段，再叠参数容易和
+   * 它自带的 `?` 撞上。
+   */
+  const sized = /^n(\d{2,4})\/(.+)$/.exec(encoded)
+  if (sized) {
+    px = Number(sized[1])
+    encoded = sized[2]
+  }
   if (!encoded) return null
   try {
     const target = new URL(decodeURIComponent(encoded))
     // Anything but plain web traffic is a different protocol smuggled through
     // a URL parser - `file:`, `data:`, `ftp:` - and has no business here.
     if (target.protocol !== 'http:' && target.protocol !== 'https:') return null
-    return target.toString()
+    return { target: target.toString(), px }
   } catch {
     return null
   }
@@ -531,6 +548,46 @@ function imageResponse(body: Buffer, type: string, head: boolean): Response {
 }
 
 /**
+ * 把封面缩到不超过 px 的边长。
+ *
+ * 用主进程里已有的 nativeImage，不引任何新依赖：几百 KB 的封面缩一张是毫秒级。
+ * 缩完统一转 JPEG——封面没有透明通道，原格式（png/webp）在小尺寸下也省不了
+ * 多少，反而让渲染进程多走一种解码路径。
+ *
+ * 纯 Node 环境（单元测试、冒烟探针）里 require('electron') 拿不到 nativeImage，
+ * 这时返回 null、原图照发：缩图是省内存的手段，不该变成图片能不能显示的条件。
+ */
+function shrinkImage(body: Buffer, px: number): { body: Buffer; type: string } | null {
+  try {
+    const { nativeImage } = require('electron') as {
+      nativeImage: {
+        createFromBuffer(buffer: Buffer): {
+          isEmpty(): boolean
+          getSize(): { width: number; height: number }
+          resize(options: { width?: number; height?: number; quality?: string }): {
+            toJPEG(quality: number): Buffer
+          }
+        }
+      }
+    }
+    const image = nativeImage.createFromBuffer(body)
+    if (image.isEmpty()) return null
+    const { width, height } = image.getSize()
+    if (width <= px && height <= px) return null
+    // 只给长边，另一边按原比例走——封面偶尔不是正方形，拉伸比模糊更难看。
+    const resized =
+      width >= height
+        ? image.resize({ width: px, quality: 'good' })
+        : image.resize({ height: px, quality: 'good' })
+    const out = resized.toJPEG(82)
+    if (!out || out.byteLength === 0) return null
+    return { body: out, type: 'image/jpeg' }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Covers take a different path from audio: they are small, they repeat on every
  * launch, and they never need a Range. Buffering one is cheap; buffering a track
  * would not be.
@@ -538,13 +595,19 @@ function imageResponse(body: Buffer, type: string, head: boolean): Response {
 async function proxyImage(
   target: string,
   request: Request,
-  cacheDir: string | null
+  cacheDir: string | null,
+  px: number
 ): Promise<Response> {
   const cache = cacheDir ? cacheFor(cacheDir) : null
   const head = request.method === 'HEAD'
+  /*
+   * 同一张封面会有两种尺寸在跑：列表要 96，大卡要 300。缓存 key 带上尺寸，
+   * 免得 96 的那份被大卡拿去铺满 300px 的格子。
+   */
+  const key = px > 0 ? `n${px}|${target}` : target
 
   if (cache) {
-    const hit = await cache.get(target)
+    const hit = await cache.get(key)
     if (hit) return imageResponse(hit.body, hit.type, head)
   }
 
@@ -564,9 +627,17 @@ async function proxyImage(
       return new Response(upstream.body, { status: upstream.status, headers })
     }
 
-    const body = Buffer.from(await upstream.arrayBuffer())
-    if (cache) cache.put(target, body, type)
-    return imageResponse(body, type, head)
+    let body: Buffer = Buffer.from(await upstream.arrayBuffer())
+    let outType = type
+    if (px > 0) {
+      const shrunk = shrinkImage(body, px)
+      if (shrunk) {
+        body = shrunk.body
+        outType = shrunk.type
+      }
+    }
+    if (cache) cache.put(key, body, outType)
+    return imageResponse(body, outType, head)
   } finally {
     releaseImage()
   }
@@ -601,12 +672,12 @@ export async function handleRemoteRequest(
     return new Response('not found', { status: 404, headers: CORS_HEADERS })
   }
 
-  const target = targetOf(url)
-  if (!target) return new Response('bad target', { status: 400, headers: CORS_HEADERS })
+  const resolved = targetOf(url)
+  if (!resolved) return new Response('bad target', { status: 400, headers: CORS_HEADERS })
 
   let hostname: string
   try {
-    hostname = new URL(target).hostname
+    hostname = new URL(resolved.target).hostname
   } catch {
     return new Response('bad target', { status: 400, headers: CORS_HEADERS })
   }
@@ -617,8 +688,8 @@ export async function handleRemoteRequest(
   }
 
   try {
-    if (image) return await proxyImage(target, request, options.cacheDir ?? null)
-    return await proxy(target, request, false)
+    if (image) return await proxyImage(resolved.target, request, options.cacheDir ?? null, resolved.px)
+    return await proxy(resolved.target, request, false)
   } catch (error) {
     // The upstream URL can carry a signed token, so only the host is logged.
     console.error('[aurora] remote stream failed', hostname, error)

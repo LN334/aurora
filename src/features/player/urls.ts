@@ -41,9 +41,16 @@ export function remoteStreamUrl(upstream: string): string {
   return `${REMOTE_SCHEME}://stream/${encodeURIComponent(upstream)}`
 }
 
-/** Proxy URL for an upstream image (cover art). */
-export function remoteImageUrl(upstream: string): string {
-  return `${REMOTE_SCHEME}://image/${encodeURIComponent(upstream)}`
+/**
+ * Proxy URL for an upstream image (cover art).
+ *
+ * `px` 是可选的缩略尺寸：给出时主进程把图缩到不超过这个边长再交给页面。
+ * 列表行封面只显示 40px，而源图常见 600px——一张解码就是一兆多的位图，
+ * 几百行叠起来是几十兆常驻内存，而屏幕上根本看不出差别。
+ */
+export function remoteImageUrl(upstream: string, px?: number): string {
+  const size = px && px > 0 ? `n${Math.round(px)}/` : ''
+  return `${REMOTE_SCHEME}://image/${size}${encodeURIComponent(upstream)}`
 }
 
 /**

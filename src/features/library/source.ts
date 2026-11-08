@@ -246,3 +246,20 @@ export function artworkFor(track: Track | null): string | null {
   if (!track) return null
   return sourceFor(track).artUrl(track)
 }
+
+/**
+ * 列表行要的小图。
+ *
+ * 行封面在屏幕上只有 40px（2x 屏 80px），而 `artworkFor` 给的是播放器封面和
+ * 舞台用的原图：网易云的封面常见 600px，一张解码完是 1.4MB 的位图。一屏二十
+ * 行看不出什么，收藏页几百行就是几十兆常驻内存，而眼睛分辨不出区别。
+ *
+ * 在线源统一要 px 的缩略版（主进程缩好再发）；本机文件没有缩图能力，退回原
+ * 地址——本机封面本来就来自文件内嵌的小图。
+ */
+export function artThumbFor(track: Track | null, px = 96): string | null {
+  if (!track) return null
+  const source = sourceFor(track)
+  if (source.online && track.coverUrl) return remoteImageUrl(track.coverUrl, px)
+  return source.artUrl(track)
+}

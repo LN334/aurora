@@ -11,7 +11,7 @@ import { formatTime } from './format'
 import { showFlash } from './flash'
 import { ArrowUp, Heart, Locate, Note, Play } from './icons'
 import { coverFor } from '../features/library/cover'
-import { artworkFor } from '../features/library/source'
+import { artThumbFor } from '../features/library/source'
 import { rememberTracks } from '../features/library/seen'
 import { artistParts } from './NameRef'
 import type { Track } from '../types'
@@ -308,7 +308,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
             */}
             <span className="trk__art" role="cell" aria-hidden>
               <img
-                src={artworkFor(track) ?? coverFor(track.id, 96)}
+                src={artThumbFor(track) ?? coverFor(track.id, 96)}
                 alt=""
                 loading="lazy"
                 decoding="async"

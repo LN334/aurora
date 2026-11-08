@@ -204,3 +204,21 @@ test('public addresses are not swept up by the private ranges', () => {
     assert.equal(isPrivateAddress(address), false, `${address} should be allowed`)
   }
 })
+
+/*
+ * 缩略图是列表页省内存的手段（行封面 40px 不该拉 600px 原图），但它给代理
+ * 协议多加了一段路径。这里钉住两件事：尺寸段只是路径前缀，原始地址被完整
+ * 保留；以及它不构成第二条绕过地址检查的路。
+ */
+test('a sized image URL keeps the upstream address intact', () => {
+  const upstream = 'https://p1.music.126.net/abc/cover.jpg?param=600y600'
+  assert.equal(remoteImageUrl(upstream, 96), `${REMOTE_SCHEME}://image/n96/${encodeURIComponent(upstream)}`)
+  assert.equal(remoteImageUrl(upstream), `${REMOTE_SCHEME}://image/${encodeURIComponent(upstream)}`)
+})
+
+test('the sized path is refused for a private address exactly like the plain one', async () => {
+  const before = reached
+  const response = await handleRemoteRequest(new Request(remoteImageUrl(loopback, 96)))
+  assert.equal(response.status, 403)
+  assert.equal(reached, before, 'the private address was actually fetched through the sized path')
+})
