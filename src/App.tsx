@@ -134,7 +134,25 @@ export function App() {  if (!isNative) {
   const route = useMemo(() => shellToRoute(shell), [shell])
   const view = route.view
 
-  const [collapsed, setCollapsed] = useState(false)
+  // 侧栏收没收起是「人的习惯」，不是临时状态：下次开还按上次那样。
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('aurora.rail.collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((value) => {
+      const next = !value
+      try {
+        localStorage.setItem('aurora.rail.collapsed', next ? '1' : '0')
+      } catch {
+        /* 存不下就算了，不值得为这个报错 */
+      }
+      return next
+    })
+  }, [])
   const [stageOpen, setStageOpen] = useState(false)
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
@@ -954,7 +972,7 @@ export function App() {  if (!isNative) {
           route={shell}
           onNavigate={goShell}
           collapsed={collapsed}
-          onToggleCollapsed={() => setCollapsed((value) => !value)}
+          onToggleCollapsed={toggleCollapsed}
           profileLabel={activeAccount?.label ?? null}
           onOpenProfile={() => goShell({ view: 'me' })}
         />

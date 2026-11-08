@@ -364,6 +364,7 @@ input::placeholder {
   color: var(--text-low);
   padding: 0 var(--s2) var(--s1);
   white-space: nowrap;
+  transition: opacity var(--dur-1) var(--ease-out);
 }
 .is-collapsed .rail__heading {
   opacity: 0;
@@ -460,22 +461,35 @@ input::placeholder {
   color: var(--text-hi);
   background: var(--ink-800);
 }
+/* 收起侧栏时文字不是直接消失，而是随着栏宽一起被裁掉——所以这里过渡
+ * max-width 而不是用 display:none，否则整条左栏会在 200ms 里突然换一副骨架。 */
 .nav-item__label {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: opacity var(--dur-1) var(--ease-out),
+    max-width var(--dur-2) var(--ease-out);
 }
 .nav-item__count {
+  flex: none;
+  max-width: 60px;
   font-size: var(--fs-micro);
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  transition: opacity var(--dur-1) var(--ease-out),
+    max-width var(--dur-2) var(--ease-out);
 }
 .is-collapsed .nav-item__label,
 .is-collapsed .nav-item__count {
-  display: none;
+  max-width: 0;
+  opacity: 0;
 }
 .is-collapsed .nav-item {
+  gap: 0;
   justify-content: center;
   padding: 0;
 }
