@@ -274,6 +274,9 @@ const api = {
       }
     },
     close: () => ipcRenderer.invoke('overlay:close') as Promise<OverlayStatus>,
+    /** 桌面歌词上的上一首/播放/下一首，转回主窗执行。 */
+    command: (command: MediaCommand) =>
+      ipcRenderer.invoke('overlay:command', command) as Promise<boolean>,
     push: (state: OverlayState) => ipcRenderer.invoke('overlay:push', state) as Promise<boolean>,
     /** The settings page resizes the strip; the overlay's own buttons do too. */
     setSize: (size: number) => ipcRenderer.invoke('overlay:setSize', size) as Promise<number>,

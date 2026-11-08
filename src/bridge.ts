@@ -232,6 +232,7 @@ const webFallback: AuroraApi = {
     setHitArea: async () => true,
     onHover: () => () => undefined,
     close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
+    command: async () => true,
     push: async () => true,
     setSize: async (size) => {
       previewSettings = {
@@ -242,12 +243,25 @@ const webFallback: AuroraApi = {
     },
     onSize: () => () => undefined,
     onState: (handler) => {
+      /*
+       * 预览里没有播放器，也就没有真的时间轴。给一句「正在唱到一半」的假
+       * 状态，是为了让 fill 那条走色在浏览器里也能被看见 —— 这正是桌面窗
+       * 唯一截不到图、只能靠预览验的部分。
+       */
       handler({
         text: '我把名字写在起雾的玻璃上',
         next: '写完就擦掉 像没发生过一样',
         title: '站台',
         artist: '陈默',
-        playing: true
+        playing: true,
+        at: 12,
+        // 拉长这一行，好让预览里的填充边界停在句子中间而不是秒满。
+        to: 30,
+        // 行首起步：预览页加载几秒后填充才走出一小段，边界才看得见。
+        position: 12,
+        duration: 214,
+        // 预览没有封面取色，用 tokens.css 里那支默认 accent。
+        accent: '#7d8899'
       })
       return () => undefined
     },

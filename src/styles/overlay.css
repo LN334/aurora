@@ -18,206 +18,259 @@ body.overlay-body {
 }
 
 /*
- * The window is deliberately larger than the words (a strip, roughly 980x150).
- * The wrapper fills it and stays click-through so that only the lyrics take the
- * pointer - see Overlay.tsx.
+ * The window is deliberately wider than the words (a strip, roughly 980x140).
+ * The layer fills it and stays click-through so that only the stack takes the
+ * pointer - see Overlay.tsx and the hit-area reporting in electron/lyrics-overlay.ts.
  */
-.stage-lyric__wrap {
+.lyric-layer {
   display: flex;
   width: 100%;
   height: 100%;
   align-items: center;
   justify-content: center;
-  padding: 10px 18px;
   box-sizing: border-box;
   pointer-events: none;
 }
 
-.stage-lyric {
-  position: relative;
+/*
+ * The stack is the hit area: it is what the page reports to the main process, so
+ * it must include everything the pointer should be able to reach - the words and
+ * the toolbar. It is centred rather than stretched so the invisible margins of the
+ * window stay click-through.
+ */
+.lyric-stack {
   display: flex;
   max-width: 100%;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  /* 控制条改到右侧竖排，文字块不再为顶部按钮预留空档。 */
-  padding: 6px 4px 6px 20px;
-  border-radius: 14px;
+  gap: 6px;
+  padding: 4px 18px;
+  box-sizing: border-box;
   pointer-events: auto;
-  /* Draggable, except for the controls, which opt out below. */
   -webkit-app-region: drag;
 }
 
-/* 歌词本体单独成块：柔光只跟文字走，不把控制条一起裹进暗底。 */
-.stage-lyric__body {
+.lyric-words {
   position: relative;
-  isolation: isolate;
   display: flex;
-  min-width: 0;
   max-width: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 /*
- * A soft halo behind the words instead of a black slab.
+ * Two copies of the same line, stacked exactly.
  *
- * The old plate (42% black plus a backdrop blur) read as a dark rectangle
- * floating on the desktop: it was legible but it looked like a bug. What the
- * text actually needs is local contrast, so this darkens only what sits
- * directly behind the line, fades to nothing, and lets the wallpaper show
- * through everywhere else.
+ * The base copy carries the contrast (a shadow stack, because a plate behind the
+ * words read as a rendering artefact on a wallpaper); the fill copy is painted in
+ * the artwork accent and clipped to the part already sung. Identical text and
+ * identical metrics are what make the clip look like progress through the line
+ * rather than a second element appearing.
  */
-.stage-lyric__body::before {
-  content: '';
-  position: absolute;
-  inset: -30% -6%;
-  z-index: -1;
-  border-radius: 26px;
-  background: radial-gradient(
-    68% 128% at 50% 50%,
-    rgb(0 0 0 / 0.42),
-    rgb(0 0 0 / 0.2) 58%,
-    rgb(0 0 0 / 0) 100%
-  );
-  filter: blur(16px);
-  opacity: 0.92;
-  pointer-events: none;
+.lyric-line {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  font-size: var(--size, 34px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-/*
- * 悬停时不再给整块铺半透明深底：那条压在壁纸上的暗矩形正是「抠图没扣干净」
- * 的来源。现在只留文字背后的柔光，按钮各自带圆形 hover 底。
- */
-
-.stage-lyric__line {
-  max-width: 100%;
-  font-size: var(--lyric-size, 34px);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  color: #fff;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.lyric-line__base {
+  display: block;
+  color: rgb(255 255 255 / 0.95);
   /*
-   * Strong enough to hold up over a white page, soft enough not to look like an
-   * outline: a tight dark ring plus two wide drops does the work that the black
-   * plate used to.
+   * Shadow, not a rim.
+   *
+   * Four one-pixel offsets were tried and rejected: on 34px Chinese glyphs a
+   * 1px shadow eats a third of a horizontal stroke, and the line reads grey
+   * instead of white. A soft shadow under the words keeps the letterform white
+   * and still separates it from the desktop; on a pale wallpaper it degrades to
+   * a drop shadow, which is legible, where a hard rim was not pretty either way.
    */
   text-shadow:
-    0 0 2px rgb(0 0 0 / 0.55),
-    0 1px 3px rgb(0 0 0 / 0.65),
-    0 3px 14px rgb(0 0 0 / 0.55),
-    0 8px 32px rgb(0 0 0 / 0.4);
+    0 1px 3px rgb(0 0 0 / 0.85),
+    0 4px 16px rgb(0 0 0 / 0.55),
+    0 0 34px rgb(0 0 0 / 0.35);
 }
 
-.stage-lyric__next {
+.lyric-line__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  color: var(--accent, #7d8899);
+  /* `--cut` is the still-unsung width, walked from 100% to 0% by Overlay.tsx. */
+  clip-path: inset(0 var(--cut, 100%) 0 0);
+  transition: clip-path 120ms linear;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 0 20px color-mix(in srgb, var(--accent, #7d8899) 34%, transparent);
+}
+
+.lyric-next {
   max-width: 100%;
-  font-size: calc(var(--lyric-size, 34px) * 0.5);
-  font-weight: 400;
-  color: rgb(255 255 255 / 0.62);
-  white-space: nowrap;
   overflow: hidden;
+  color: rgb(255 255 255 / 0.68);
+  font-size: calc(var(--size, 34px) * 0.58);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
   text-overflow: ellipsis;
   text-shadow:
-    0 0 2px rgb(0 0 0 / 0.5),
-    0 1px 6px rgb(0 0 0 / 0.7);
+    0 1px 1px rgb(0 0 0 / 0.6),
+    0 2px 7px rgb(0 0 0 / 0.5);
+  white-space: nowrap;
 }
 
-.stage-lyric__idle {
-  font-size: calc(var(--lyric-size, 34px) * 0.55);
-  font-weight: 400;
-  color: rgb(255 255 255 / 0.7);
-  white-space: nowrap;
+/* No lyric at all: show what is playing instead of an empty strip. */
+.lyric-idle {
+  max-width: 100%;
   overflow: hidden;
+  color: rgb(255 255 255 / 0.72);
+  font-size: calc(var(--size, 34px) * 0.72);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
   text-overflow: ellipsis;
   text-shadow:
-    0 0 2px rgb(0 0 0 / 0.5),
-    0 1px 6px rgb(0 0 0 / 0.7);
+    0 1px 2px rgb(0 0 0 / 0.6),
+    0 5px 18px rgb(0 0 0 / 0.5);
+  white-space: nowrap;
 }
 
-/* --- controls ------------------------------------------------------------ */
-
-.stage-lyric__controls {
+/*
+ * The only opaque surface in the window.
+ *
+ * It sits *under* the words rather than behind them, and it is always laid out -
+ * hidden with visibility, not display - so that showing it never resizes the
+ * stack. Resizing it would move the hit area out from under the pointer that is
+ * trying to reach its buttons.
+ */
+.lyric-toolbar {
   display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
+  padding: 5px 8px 5px 12px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 999px;
+  background: rgb(14 16 20 / 0.74);
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.38),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(18px) saturate(1.3);
   opacity: 0;
-  transform: translateX(6px);
+  visibility: hidden;
   transition:
-    opacity 160ms var(--ease-out),
-    transform 160ms var(--ease-out);
-  /* Buttons must receive clicks, so they cannot be part of the drag region. */
+    opacity 140ms ease,
+    visibility 140ms ease;
   -webkit-app-region: no-drag;
 }
 
-.stage-lyric.is-active .stage-lyric__controls,
-.stage-lyric__controls:focus-within {
+.lyric-stack.is-active .lyric-toolbar {
   opacity: 1;
-  transform: none;
+  visibility: visible;
 }
 
-.stage-lyric__button {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: rgb(255 255 255 / 0.72);
-  /* 透明窗没有底板，图标靠自身投影在亮壁纸上立住。 */
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
-  transition:
-    background 120ms var(--ease-out),
-    color 120ms var(--ease-out);
+.lyric-toolbar__meta {
+  max-width: 300px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.56);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.stage-lyric__button:hover,
-.stage-lyric__button:focus-visible {
-  background: rgb(10 12 14 / 0.55);
+
+.lyric-toolbar__meta b {
+  color: rgb(255 255 255 / 0.94);
+  font-weight: 600;
+}
+
+.lyric-toolbar__artist {
+  color: rgb(255 255 255 / 0.46);
+}
+
+.lyric-toolbar__note {
+  margin-right: 6px;
+  color: var(--accent, #7d8899);
+  font-size: 11px;
+}
+
+.lyric-toolbar__transport {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.lyric-toolbar__clock {
+  padding-left: 9px;
+  border-left: 1px solid rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.5);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.lyric-toolbar__tools {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding-left: 6px;
+  border-left: 1px solid rgb(255 255 255 / 0.1);
+}
+
+.lyric-tool {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgb(255 255 255 / 0.7);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.lyric-tool:hover {
+  background: rgb(255 255 255 / 0.12);
   color: #fff;
 }
-.stage-lyric__button:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.45);
-}
-.stage-lyric__button:disabled {
-  color: rgb(255 255 255 / 0.3);
+
+.lyric-tool:disabled {
+  color: rgb(255 255 255 / 0.24);
   cursor: default;
 }
-.stage-lyric__button:disabled:hover {
-  background: none;
+
+.lyric-tool:disabled:hover {
+  background: transparent;
+  color: rgb(255 255 255 / 0.24);
 }
 
-/* 锁定时加一圈细环：状态由「锁住」本身表达，不再堆一个图标。 */
-.stage-lyric__button--lock[data-locked='true'] {
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+.lyric-tool--key {
+  width: 32px;
+  height: 32px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
 }
 
-/* 悬停/聚焦才浮出名字；静止时只是一排几乎看不见的圆点。 */
-.stage-lyric__button::after {
-  content: attr(data-label);
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 10px);
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgb(8 10 12 / 0.58);
-  color: rgb(255 255 255 / 0.9);
-  font-size: 11px;
-  line-height: 1.5;
-  white-space: nowrap;
-  opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity 120ms var(--ease-out);
-  pointer-events: none;
+.lyric-tool--key:hover {
+  background: rgb(255 255 255 / 0.22);
 }
-.stage-lyric__button:hover::after,
-.stage-lyric__button:focus-visible::after {
-  opacity: 1;
+
+.lyric-tool--sm {
+  width: 24px;
+  height: 24px;
+}
+
+/* Locked is the settled state, so it is the one that gets a colour hint. */
+.lyric-tool--lock[data-locked='true'] {
+  color: var(--accent, #7d8899);
 }

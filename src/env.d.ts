@@ -283,6 +283,20 @@ export interface OverlayState {
   title: string
   artist: string
   playing: boolean
+  /**
+   * 当前行的起止时间（秒）。
+   *
+   * 桌面歌词要按「这一句唱到哪儿了」着色，所以时间轴得跟着歌词一起过来。
+   * 没有同步歌词时两者都是 null，那一行就整句白着，不做假扫描。
+   */
+  at: number | null
+  to: number | null
+  /** 推送瞬间的播放位置（秒）。桌面窗据此本地走时，不必每帧跨进程问。 */
+  position: number
+  /** 曲长（秒）；0 表示还不知道。 */
+  duration: number
+  /** 当前封面的主色，用来给已唱部分上色；取不到时为空串。 */
+  accent: string
 }
 
 export interface OverlayStatus {
@@ -311,6 +325,13 @@ export interface OverlayStatus {
    */
   onHover(handler: (hovering: boolean) => void): () => void
   close(): Promise<OverlayStatus>
+  /**
+   * 把桌面歌词上的按钮交回播放器。
+   *
+   * 桌面窗自己放不了歌：它只画字，播放状态与队列都在主窗里。这条命令走的是
+   * 托盘和任务栏缩略图按钮已经在用的同一条通道。
+   */
+  command(command: MediaCommand): Promise<boolean>
   push(state: OverlayState): Promise<boolean>
   onState(handler: (state: OverlayState) => void): () => void
   onStatus(handler: (status: OverlayStatus) => void): () => void

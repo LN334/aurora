@@ -525,7 +525,8 @@ function registerIpc(): void {
   registerAppIpc(ipcHost)
   registerLibraryIpc(ipcHost)
   registerWallpaperIpc()
-  registerOverlayIpc()
+  // 桌面歌词的工具条按钮和托盘走同一条播放命令通道。
+  registerOverlayIpc(sendMediaCommand)
   registerUpdatesIpc()
   registerDownloadsIpc()
   registerLyricsIpc()

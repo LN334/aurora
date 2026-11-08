@@ -32,6 +32,21 @@ export interface OverlayState {
   title: string
   artist: string
   playing: boolean
+  /**
+   * When the current line starts and ends, in seconds.
+   *
+   * The strip fills the line as it is sung, which it can only do if it knows the
+   * line's own span. Both are null for unsynchronised lyrics - the strip then
+   * paints the line plainly instead of inventing a progress that means nothing.
+   */
+  at: number | null
+  to: number | null
+  /** Playback position at push time, in seconds. The strip dead-reckons from here. */
+  position: number
+  /** Track length in seconds; 0 when unknown. */
+  duration: number
+  /** Artwork accent colour, so the sung part matches what is playing. */
+  accent: string
 }
 
 export interface OverlayStatus {
@@ -45,9 +60,18 @@ const DEV_URL = 'http://127.0.0.1:5173'
 const isDev = process.argv.includes('--dev')
 
 const DEFAULT_WIDTH = 980
-const DEFAULT_HEIGHT = 150
 const MIN_WIDTH = 320
 const MIN_HEIGHT = 88
+
+/**
+ * The strip has to hold three things: the line, the next line, and the toolbar
+ * that fades in underneath them on hover. The toolbar is always in the layout -
+ * it only changes opacity - so the window never resizes when the pointer moves,
+ * which would otherwise make the hit box jump under the cursor.
+ */
+function heightFor(size: number): number {
+  return Math.round(Math.min(320, Math.max(120, size * 1.875 + 76)))
+}
 
 let overlay: BrowserWindow | null = null
 let locked = true
@@ -91,12 +115,13 @@ function notifyStatus(): void {
 
 function defaultBounds(): Rectangle {
   const { workArea } = screen.getPrimaryDisplay()
+  const height = heightFor(lyricSize())
   const width = Math.min(DEFAULT_WIDTH, Math.round(workArea.width * 0.72))
   return {
     width,
-    height: DEFAULT_HEIGHT,
+    height,
     x: Math.round(workArea.x + (workArea.width - width) / 2),
-    y: Math.round(workArea.y + workArea.height - DEFAULT_HEIGHT - 72)
+    y: Math.round(workArea.y + workArea.height - height - 72)
   }
 }
 
@@ -212,7 +237,23 @@ function lyricSize(): number {
 export function setLyricSize(size: number): number {
   const next = Math.min(LYRIC_SIZE_MAX, Math.max(LYRIC_SIZE_MIN, Math.round(size)))
   saveSettings({ desktopLyricsSize: next })
-  if (overlay && !overlay.isDestroyed()) overlay.webContents.send('overlay:size', next)
+  if (overlay && !overlay.isDestroyed()) {
+    /*
+     * A bigger font needs a taller window, and the extra room has to come from
+     * above: growing downwards would push the strip onto the taskbar from the
+     * position the user had already settled on.
+     *
+     * Only ever grows. A window the user pulled taller by hand keeps its height -
+     * dragging is a deliberate act and silently undoing it on the next font nudge
+     * would read as the resize not sticking.
+     */
+    const bounds = overlay.getBounds()
+    const height = heightFor(next)
+    if (height > bounds.height) {
+      overlay.setBounds({ ...bounds, y: bounds.y + bounds.height - height, height })
+    }
+    overlay.webContents.send('overlay:size', next)
+  }
   notifyStatus()
   return next
 }
@@ -226,7 +267,12 @@ function open(): void {
     return
   }
 
-  const bounds = clampBounds(loadSettings().lyricsOverlayBounds ?? defaultBounds())
+  const saved = loadSettings().lyricsOverlayBounds
+  // A position saved before the strip grew a toolbar can be too short for the
+  // words it now has to hold; keep the user's width and x/y, insist on the height.
+  const bounds = clampBounds(
+    saved ? { ...saved, height: Math.max(saved.height, heightFor(lyricSize())) } : defaultBounds()
+  )
 
   overlay = new BrowserWindow({
     ...bounds,

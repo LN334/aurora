@@ -21,11 +21,26 @@ interface DesktopLyricsBridgeProps {
  * by scripts/probe-aurora-bg.mjs - the same trick that keeps the stage from
  * re-rendering also keeps this IPC channel quiet.
  *
+ * The strip walks the fill forward on its own from the position handed over with
+ * each push, which is why a line-level channel can still paint a per-second
+ * progress without a second stream of messages.
+ *
  * Renders nothing: it exists purely to project player state into the overlay
  * window.
  */
 export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: DesktopLyricsBridgeProps) {
   const active = usePlayer((state) => activeLineAt(lyrics.lines, state.position))
+  const duration = usePlayer((state) => state.duration)
+  /*
+   * A coarse copy of the position, only so a seek is noticed.
+   *
+   * The strip walks its own clock from the position handed over with a line, so it
+   * drifts once the user drags the seek bar - nothing would correct it until the
+   * next line change. One re-render every five seconds re-anchors it, which costs
+   * a handful of pushes per song and keeps a seek from being visible for more than
+   * a few seconds.
+   */
+  const bucket = usePlayer((state) => Math.floor(state.position / 5))
   /**
    * The payload is the dependency list made explicit.
    *
@@ -44,6 +59,18 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
       return text ? text : null
     }
 
+    const current = lyrics.lines[active]
+    const following = lyrics.lines[active + 1]
+    /*
+     * Read once per push instead of subscribing: the position changes every frame
+     * and this component must not re-render on it. The strip only needs the value
+     * at the moment a line is handed over.
+     */
+    const position = usePlayer.getState().position
+    // The artwork accent lives in a CSS variable on the player document; reading
+    // it here is what lets the sung part of the line match the cover.
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+
     const payload = {
       // Null while there is no lyric means the overlay falls back to showing the
       // track title, which keeps it useful for instrumentals.
@@ -51,7 +78,12 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
       next: lyrics.empty ? null : lineAt(active + 1),
       title: track?.title ?? '',
       artist: track?.artist ?? '',
-      playing
+      playing,
+      at: lyrics.empty || !current ? null : current.time,
+      to: lyrics.empty || !following ? null : following.time,
+      position,
+      duration,
+      accent: accent || '#7d8899'
     }
 
     /*
@@ -69,11 +101,24 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
       return
     }
 
-    const key = JSON.stringify([payload.text, payload.next, payload.title, payload.artist, payload.playing])
+    const key = JSON.stringify([
+      payload.text,
+      payload.next,
+      payload.title,
+      payload.artist,
+      payload.playing,
+      payload.at,
+      payload.to,
+      payload.duration,
+      payload.accent,
+      // The anchor itself is part of the identity: a seek that lands inside the
+      // same line must still reach the strip.
+      Math.round(payload.position * 10)
+    ])
     if (key === lastPushed.current) return
     lastPushed.current = key
     void bridge.overlay.push(payload)
-  }, [active, lyrics, track?.title, track?.artist, playing, overlayOpen])
+  }, [active, bucket, lyrics, track?.title, track?.artist, playing, overlayOpen, duration])
 
   return null
 }

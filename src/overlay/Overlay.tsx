@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Close, Lock, Minus, Plus, Unlock } from '../ui/icons'
+import { Close, Lock, Minus, Next, Pause, Play, Plus, Prev, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
 import type { OverlayState } from '../env'
 
@@ -9,28 +9,56 @@ const MIN_SIZE = 18
 const MAX_SIZE = 64
 const DEFAULT_SIZE = 34
 
-const IDLE: OverlayState = { text: null, next: null, title: '', artist: '', playing: false }
+const IDLE: OverlayState = {
+  text: null,
+  next: null,
+  title: '',
+  artist: '',
+  playing: false,
+  at: null,
+  to: null,
+  position: 0,
+  duration: 0,
+  accent: ''
+}
+
+function clock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
+  const total = Math.floor(seconds)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
 
 /**
  * The desktop lyric strip.
  *
- * Renders in its own transparent, always-on-top window. Three states matter:
+ * Three layers, in reading order of importance:
  *
- *  - **locked** the window ignores the mouse, so it never eats a click meant
- *    for the app underneath. While the pointer is over the lyrics the window
- *    takes the mouse back, which is what makes the buttons reachable without
- *    unlocking first;
- *  - **hovered** the pointer is on the strip - the control rail fades in so it
- *    is obvious the thing can be operated; the words keep only their own halo;
- *  - **unlocked** the window takes the mouse everywhere it covers, for dragging
- *    it around deliberately.
+ *  - **the words** carry no plate at all. A dark rectangle floating on the
+ *    desktop looked like a rendering mistake; what the text actually needs is
+ *    local contrast, which the shadow stack on the base layer provides.
+ *  - **the fill** is the same words again, clipped to the part already sung and
+ *    painted in the artwork accent. It is what makes the strip feel alive
+ *    instead of like a line of text that changes every four seconds.
+ *  - **the toolbar** is a single opaque pill under the words. It only fades in
+ *    on hover, but always occupies its space, so the window and its hit box
+ *    never resize while the pointer is moving.
+ *
+ * Three interaction states matter:
+ *
+ *  - **locked** the window ignores the mouse, so it never eats a click meant for
+ *    the app underneath. While the pointer is over the strip the window takes the
+ *    mouse back, which is what makes the toolbar reachable without unlocking;
+ *  - **hovered** the pointer is on the strip, so the toolbar fades in;
+ *  - **unlocked** the window takes the mouse everywhere it covers, for dragging.
  */
 export function Overlay() {
   const [state, setState] = useState<OverlayState>(IDLE)
   const [locked, setLocked] = useState(true)
   const [size, setSize] = useState(DEFAULT_SIZE)
   const [hovering, setHovering] = useState(false)
-  const plate = useRef<HTMLDivElement | null>(null)
+  const stack = useRef<HTMLDivElement | null>(null)
+  const fill = useRef<HTMLSpanElement | null>(null)
+  const clockText = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => bridge.overlay.onState(setState), [])
 
@@ -71,14 +99,16 @@ export function Overlay() {
   useEffect(() => bridge.overlay.onHover(setHovering), [])
 
   /*
-   * Report the plate's box whenever it changes size.
+   * Report the stack's box whenever it changes size.
    *
-   * The window is a strip (about 980x150) and the words are a small box inside
-   * it. Telling the main process where that box is means the invisible margins
-   * stay click-through even when the lyrics themselves are interactive.
+   * The window is a strip (about 980x150) and the words are a small column inside
+   * it. Telling the main process where that column is keeps the invisible margins
+   * click-through even when the lyrics themselves are interactive. The toolbar is
+   * part of the box on purpose: hiding it with `display:none` would shrink the
+   * hit area the moment the pointer moved down towards its buttons.
    */
   useEffect(() => {
-    const element = plate.current
+    const element = stack.current
     if (!element) return
     const report = () => {
       const rect = element.getBoundingClientRect()
@@ -93,7 +123,51 @@ export function Overlay() {
     const observer = new ResizeObserver(report)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [size, state.text, state.next, state.title])
+  }, [size, state.text, state.next, state.title, state.artist, state.playing])
+
+  /*
+   * Walk the fill forward locally.
+   *
+   * The line only crosses the process boundary when it changes, so the position
+   * handed over with it is a starting point, not a live value. Running the clock
+   * here - ten times a second, straight into a CSS variable - keeps the strip in
+   * sync without a second IPC stream.
+   */
+  useEffect(() => {
+    let lastText: string | null = null
+    const tick = () => {
+      const element = fill.current
+      if (!element) return
+      const { at, to, position, playing, text } = state
+      // A new line restarts from zero without animating backwards from the
+      // previous line's full width.
+      if (text !== lastText) {
+        lastText = text
+        element.style.transition = 'none'
+        element.style.setProperty('--cut', '100%')
+        void element.offsetWidth
+        element.style.transition = ''
+      }
+      if (at === null || to === null || to <= at) {
+        // Unsynchronised (or a line with no following timestamp): paint it
+        // plainly rather than faking a progress that means nothing.
+        element.style.setProperty('--cut', '0%')
+      } else {
+        const now = playing ? position + (performance.now() - stamp) / 1000 : position
+        const ratio = Math.min(1, Math.max(0, (now - at) / (to - at)))
+        element.style.setProperty('--cut', `${Math.round((1 - ratio) * 1000) / 10}%`)
+      }
+      if (clockText.current) {
+        const now = playing ? position + (performance.now() - stamp) / 1000 : position
+        clockText.current.textContent = `${clock(now)} / ${clock(state.duration)}`
+      }
+    }
+    // Anchored once per state push: `stamp` is when that position was read.
+    stamp = performance.now()
+    const timer = window.setInterval(tick, 100)
+    tick()
+    return () => window.clearInterval(timer)
+  }, [state])
 
   const applySize = (next: number) => {
     const clamped = Math.min(MAX_SIZE, Math.max(MIN_SIZE, next))
@@ -108,76 +182,118 @@ export function Overlay() {
 
   const active = hovering || !locked
 
-  return (
-    <div className="stage-lyric__wrap">
-      <div
-        ref={plate}
-        className={`stage-lyric${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}`}
-        style={{ ['--lyric-size' as string]: `${size}px` }}
-      >
-        <div className="stage-lyric__body">
-          {state.text ? (
-            <>
-              <div className="stage-lyric__line">{state.text}</div>
-              {state.next ? <div className="stage-lyric__next">{state.next}</div> : null}
-            </>
-          ) : state.title ? (
-            // Lyrics are not the only useful thing to show: this keeps the strip
-            // meaningful for instrumentals and untagged files.
-            <div className="stage-lyric__idle">
-              {state.playing ? '♪ ' : '❙❙ '}
-              {state.title}
-              {state.artist ? ` — ${state.artist}` : ''}
-            </div>
-          ) : (
-            <div className="stage-lyric__idle">Aurora 桌面歌词</div>
-          )}
-        </div>
+  const words = state.text ? (
+    <>
+      <div className="lyric-line">
+        <span className="lyric-line__base">{state.text}</span>
+        <span ref={fill} className="lyric-line__fill" aria-hidden="true">
+          {state.text}
+        </span>
+      </div>
+      {state.next ? <div className="lyric-next">{state.next}</div> : null}
+    </>
+  ) : state.title ? (
+    // Lyrics are not the only useful thing to show: this keeps the strip
+    // meaningful for instrumentals and untagged files.
+    <div className="lyric-idle">
+      {state.playing ? '♪ ' : '❙❙ '}
+      {state.title}
+      {state.artist ? ` — ${state.artist}` : ''}
+    </div>
+  ) : (
+    <div className="lyric-idle">Aurora 桌面歌词</div>
+  )
 
-        {/* 竖排右侧，不压歌词行；静止时整条隐去，悬停才浮出。 */}
-        <div className="stage-lyric__controls">
-          <button
-            className="stage-lyric__button"
-            data-label="缩小"
-            onClick={() => applySize(size - 2)}
-            disabled={size <= MIN_SIZE}
-            title="缩小字号"
-            aria-label="缩小字号"
-          >
-            <Minus size={14} />
-          </button>
-          <button
-            className="stage-lyric__button"
-            data-label="放大"
-            onClick={() => applySize(size + 2)}
-            disabled={size >= MAX_SIZE}
-            title="放大字号"
-            aria-label="放大字号"
-          >
-            <Plus size={14} />
-          </button>
-          <button
-            className="stage-lyric__button stage-lyric__button--lock"
-            data-label={locked ? '锁定中' : '已解锁'}
-            data-locked={locked}
-            aria-pressed={locked}
-            onClick={() => void setLock(!locked)}
-            title={locked ? '解锁：一直可以拖动和点按' : '锁定：鼠标穿透，不挡下面的窗口'}
-            aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
-          >
-            {locked ? <Lock size={14} /> : <Unlock size={14} />}
-          </button>
-          <button
-            className="stage-lyric__button"
-            data-label="关闭"
-            onClick={() => void bridge.overlay.close()}
-            title="关闭桌面歌词"
-            aria-label="关闭桌面歌词"
-          >
-            <Close size={14} />
-          </button>
+  return (
+    <div className="lyric-layer">
+      <div
+        ref={stack}
+        className={`lyric-stack${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}`}
+        style={{ ['--size' as string]: `${size}px`, ['--accent' as string]: state.accent || '#7d8899' }}
+      >
+        <div className="lyric-words">{words}</div>
+
+        <div className="lyric-toolbar">
+          <span className="lyric-toolbar__meta">
+            <span className="lyric-toolbar__note">{state.playing ? '♪' : '❙❙'}</span>
+            <b>{state.title || 'Aurora'}</b>
+            {state.artist ? <span className="lyric-toolbar__artist"> · {state.artist}</span> : null}
+          </span>
+
+          <span className="lyric-toolbar__transport">
+            <button
+              className="lyric-tool"
+              onClick={() => void bridge.overlay.command('prev')}
+              title="上一首"
+              aria-label="上一首"
+            >
+              <Prev size={16} />
+            </button>
+            <button
+              className="lyric-tool lyric-tool--key"
+              onClick={() => void bridge.overlay.command('toggle')}
+              title={state.playing ? '暂停' : '播放'}
+              aria-label={state.playing ? '暂停' : '播放'}
+            >
+              {state.playing ? <Pause size={16} /> : <Play size={16} />}
+            </button>
+            <button
+              className="lyric-tool"
+              onClick={() => void bridge.overlay.command('next')}
+              title="下一首"
+              aria-label="下一首"
+            >
+              <Next size={16} />
+            </button>
+          </span>
+
+          <span ref={clockText} className="lyric-toolbar__clock">
+            0:00 / 0:00
+          </span>
+
+          <span className="lyric-toolbar__tools">
+            <button
+              className="lyric-tool lyric-tool--sm"
+              onClick={() => applySize(size - 2)}
+              disabled={size <= MIN_SIZE}
+              title="缩小字号"
+              aria-label="缩小字号"
+            >
+              <Minus size={13} />
+            </button>
+            <button
+              className="lyric-tool lyric-tool--sm"
+              onClick={() => applySize(size + 2)}
+              disabled={size >= MAX_SIZE}
+              title="放大字号"
+              aria-label="放大字号"
+            >
+              <Plus size={13} />
+            </button>
+            <button
+              className="lyric-tool lyric-tool--sm lyric-tool--lock"
+              data-locked={locked}
+              aria-pressed={locked}
+              onClick={() => void setLock(!locked)}
+              title={locked ? '解锁：可以拖动这条歌词' : '锁定：鼠标穿透，不挡下面的窗口'}
+              aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
+            >
+              {locked ? <Lock size={13} /> : <Unlock size={13} />}
+            </button>
+            <button
+              className="lyric-tool lyric-tool--sm"
+              onClick={() => void bridge.overlay.close()}
+              title="关闭桌面歌词"
+              aria-label="关闭桌面歌词"
+            >
+              <Close size={13} />
+            </button>
+          </span>
         </div>
       </div>
     </div>
   )
 }
+
+/** When the current state's position was read off the player, in `performance.now()` ms. */
+let stamp = 0
