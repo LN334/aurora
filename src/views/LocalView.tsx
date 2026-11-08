@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { artworkFor } from '../features/library/source'
 import { groupAlbums, groupArtists, useLibrary } from '../features/library/store'
+import { buildFolderTree } from '../features/library/tree'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { Folder, Note, User } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
+import { FolderTree } from './FolderTree'
 
 type Tab = 'songs' | 'albums' | 'artists' | 'folders'
 
@@ -44,6 +46,19 @@ export function LocalView({
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
   const currentId = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index]?.id ?? null) : null))
   const playing = usePlayer((state) => state.playing)
+
+  /** 与「音乐库」同一棵树：两页看同一批文件，不该有两种目录形状。 */
+  const folderTree = useMemo(() => buildFolderTree(tracks), [tracks])
+
+  const currentFolder = useMemo(() => {
+    const current = tracks.find((track) => track.id === currentId) ?? null
+    return current ? current.path.replace(/[\\/][^\\/]*$/, '') : null
+  }, [tracks, currentId])
+
+  const playFolder = (path: string) => {
+    const inside = tracks.filter((track) => track.path.startsWith(path))
+    if (inside.length > 0) player.playQueue(inside, 0)
+  }
 
   if (tracks.length === 0 && !scanning) {
     return (
@@ -140,32 +155,35 @@ export function LocalView({
 
       {tab === 'folders' ? (
         <div className="lm-folders">
-          {roots.map((root) => {
-            const under = tracks.filter((track) => track.path.startsWith(root))
-            return (
-              <button
-                className="lm-folder"
-                type="button"
-                key={root}
-                onClick={() => onNavigate({ view: 'sources' })}
-              >
-                <span className="lm-folder__icon">
-                  <Folder size={17} />
-                </span>
-                <span className="lm-folder__name">{root.split(/[\\/]/).pop() || root}</span>
-                <span className="lm-folder__meta">{under.length} 首</span>
-                <span className="lm-folder__path">{root}</span>
-              </button>
-            )
-          })}
-          {roots.length === 0 ? (
-            <div className="lm-folder lm-folder--add">
-              <p className="pg-note">还没有监听任何文件夹。加一个，碟里的歌就会进来。</p>
-              <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'sources' })}>
-                添加文件夹
-              </button>
+          {/* 监听中的文件夹只是一行状态，不是这一页的主体：主体是下面那棵树。
+              以前这里把「我监听了哪些目录」当成文件夹页的全部内容，于是曲库
+              有 27 首歌却报「还没有监听任何文件夹」——两句话互相打脸。 */}
+          {roots.length > 0 ? (
+            <div className="lm-roots">
+              {roots.map((root) => {
+                const under = tracks.filter((track) => track.path.startsWith(root))
+                return (
+                  <button
+                    className="lm-root"
+                    type="button"
+                    key={root}
+                    title={'管理 ' + root}
+                    onClick={() => onNavigate({ view: 'sources' })}
+                  >
+                    <Folder size={14} />
+                    <span className="lm-root__name">{root.split(/[\\/]/).pop() || root}</span>
+                    <span className="lm-root__meta">{under.length} 首</span>
+                  </button>
+                )
+              })}
             </div>
-          ) : null}
+          ) : (
+            <p className="lm-hint">
+              这 {tracks.length} 首是手动加进来的，没有记下文件夹。右上角加一个文件夹之后，磁盘里增删的歌会跟着变。
+            </p>
+          )}
+
+          <FolderTree nodes={folderTree} currentFolder={currentFolder} onPlay={playFolder} />
         </div>
       ) : null}
     </div>

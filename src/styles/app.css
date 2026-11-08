@@ -1252,40 +1252,61 @@ input::placeholder {
    Track list
    ========================================================================== */
 
+/* =============================================================================
+   Track list
+
+   一屏二十行的歌单，眼睛要做的事只有一件：找到下一首想听的。所以这里不再
+   是「六列表格」，而是一列「带封面的两行条目」——
+
+   - 序号 / 封面 / 标题+艺术家 / 专辑 / 时长 / 两颗按钮，六段，中间没有竖线；
+   - 标题一行，副行只放艺术家；专辑单独一列，放不下就在列内省略，不会把
+     别的列从中间砍断；
+   - 每行 44px 封面。长列表靠封面认歌，靠文字认不出来——Twilight Echo、
+     网易云桌面端、汽水都是这个做法；
+   - 行高 60px，行间 2px，平时透明，悬停才浮起一层底。没有表头，没有横线，
+     没有斑马纹，也没有把整个列表包起来的面板（壁纸是界面的一部分）。
+
+   来源徽章缩成标题后的小字。它回答「这个版本从哪个平台来的」，属于标题的
+   注脚，不该占一整列、也不该是一块实心墨底。
+   ========================================================================== */
+
 .tracks {
   display: flex;
   flex-direction: column;
-  /* 最后一列同时放「喜欢」和「更多」两颗按钮，所以是 52px 而不是一颗的宽度。 */
-  --trk-cols: 34px minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.6fr) 54px 52px;
-}
-
-.tracks__head,
-.trk {
-  display: grid;
-  grid-template-columns: var(--trk-cols);
-  align-items: center;
-  gap: var(--s3);
-  padding: 0 var(--s3);
-}
-
-.tracks__head {
-  height: 30px;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  border-bottom: var(--line-soft);
-  position: sticky;
-  top: calc(var(--s3) * -1);
-  background: var(--ink-900);
-  z-index: 1;
+  gap: 2px;
+  /*
+   * 不铺面板底。壁纸是这套界面的一部分，列表压一块半透明的板子上去，
+   * 就等于在壁纸上贴了张纸——亮处能看见矩形边，暗处又白得发光。
+   * 这里让列表裸在壁纸上，靠行悬停、当前行的 accent 竖条和文字阴影
+   * 保持可读性。网易云桌面端与 Spotify 的列表都是这个做法。
+   */
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  /* 序号 / 封面 / 两行文字 / 专辑 / 时长 / 两颗按钮 */
+  /* 标题列固定上限，剩下的宽度全给专辑。否则宽屏上标题列会一路撑到屏幕
+     中间，专辑名被推到离标题几百像素之外，整行看着是散的。 */
+  --trk-cols: 32px 44px minmax(0, 340px) minmax(0, 1fr) 52px 54px;
+  --trk-gap: 16px;
+  --row-h: 60px;
 }
 
 .trk {
   position: relative;
-  height: var(--row-h);
-  border-radius: var(--r-control);
+  display: grid;
+  grid-template-columns: var(--trk-cols);
+  align-items: center;
+  gap: var(--trk-gap);
+  min-height: var(--row-h);
+  padding: 0 12px;
+  border-radius: 10px;
   text-align: left;
+  font-size: 13px;
   color: var(--text-mid);
-  transition: background 90ms var(--ease-out);
+  /*
+   * 行本身透明，只有悬停与当前行才浮起一层底。封面、序号和每行 60px 的
+   * 高度已经给了眼睛落点，不需要再画边界。
+   */
+  background: transparent;
+  transition: background 110ms var(--ease-out);
 }
 
 /* The row-wide click target. Underneath the actions button, above nothing else. */
@@ -1295,6 +1316,159 @@ input::placeholder {
   z-index: 1;
   width: 100%;
   border-radius: inherit;
+}
+
+.trk:hover {
+  background: rgb(9 12 16 / 0.42);
+}
+
+/* 正在播的那一行：左侧一根 accent 竖条 + 一层几乎看不出的底，标题与封面跟着亮。 */
+.trk.is-current {
+  color: var(--text-hi);
+  background: rgb(9 12 16 / 0.4);
+}
+.trk.is-current::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.trk.is-current .trk__title-text {
+  color: var(--accent);
+}
+
+/* 序号列：平时是数字，悬停变成播放三角——不用另起一列放播放键。 */
+.trk__idx {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--text-low);
+}
+.trk__num {
+  display: block;
+}
+.trk__go {
+  display: none;
+}
+.trk:hover .trk__num {
+  display: none;
+}
+.trk:hover .trk__go {
+  display: grid;
+  place-items: center;
+  color: var(--text-hi);
+}
+
+.trk__art {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ink-700);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+.trk__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.trk.is-current .trk__art {
+  box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+.trk__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.trk__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.trk__title-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 徽章不参与压缩：宁可标题先省略，也要让「QQ」「FLAC」完整露出来。 */
+.trk__flags {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.trk__sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-low);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.trk__sub > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.trk__sub .trk__sep {
+  flex: none;
+}
+
+/* 艺术家/专辑是可点的，按钮自己不会省略号——不设宽度就溢出被裁掉。 */
+.trk__ref {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+.trk__ref:hover {
+  color: var(--text-hi);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.trk__sep {
+  color: var(--text-low);
+  opacity: 0.6;
+}
+.trk__sep--dot {
+  margin: 0 1px;
+}
+
+.trk__album {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--text-low);
+  text-align: left;
+}
+.trk__album .trk__ref {
+  max-width: 100%;
+}
+
+.tracks__time {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-low);
 }
 
 /* 行尾两颗按钮的容器。整行点击层在下面，这里抬到它上面。 */
@@ -1357,70 +1531,28 @@ input::placeholder {
   background: var(--ink-700);
   color: var(--text-hi);
 }
-.trk:hover {
-  background: var(--ink-850);
-}
-.trk.is-current {
-  color: var(--text-hi);
-}
-.trk.is-current .trk__title-text {
-  color: var(--accent);
-}
 
-.trk__title {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  min-width: 0;
-  color: var(--text-hi);
-}
-.trk__title-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.trk__muted {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tracks__idx {
-  text-align: right;
-  font-size: var(--fs-meta);
-  color: var(--text-low);
-}
-.tracks__time {
-  text-align: right;
-  font-size: var(--fs-meta);
-  color: var(--text-low);
-}
-
+/* 来源与无损：小字、描边、不填色。它只是标题的注脚。 */
 .badge {
   flex: none;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
+  line-height: 1.5;
   color: var(--text-low);
-  border: 1px solid var(--ink-600);
+  border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 3px;
-  padding: 1px 4px;
+  padding: 0 4px;
 }
 
-/* A row's origin, printed only by a list that mixes origins (see TrackList).
-   The words carry the meaning - the fill only separates "a platform" from "a
-   file". A platform's brand colour would be the one chromatic value in the shell
-   that did not come from the artwork, which is the one rule the tokens exist to
-   keep. */
 .badge.trk__src {
-  background: var(--ink-700);
-  border-color: transparent;
-  color: var(--text-mid);
+  background: none;
+  border-color: rgb(255 255 255 / 0.09);
+  color: var(--text-low);
 }
 .badge.trk__src--local {
-  background: transparent;
-  border-color: var(--ink-600);
-  color: var(--text-low);
+  border-color: rgb(255 255 255 / 0.14);
+  color: var(--text-mid);
 }
 
 .tracks__empty {
@@ -1468,9 +1600,6 @@ input::placeholder {
     opacity: 0.9;
   }
 }
-
-
-
 
 /* =============================================================================
    Wallpaper Engine backdrop

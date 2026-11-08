@@ -8,7 +8,9 @@ import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { formatTime } from './format'
 import { showFlash } from './flash'
-import { ArrowUp, Heart, Locate, Note } from './icons'
+import { ArrowUp, Heart, Locate, Note, Play } from './icons'
+import { coverFor } from '../features/library/cover'
+import { artworkFor } from '../features/library/source'
 import type { Track } from '../types'
 
 /**
@@ -65,7 +67,6 @@ interface TrackListProps {
 export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
   const currentRow = useRef<HTMLDivElement | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
-  const headRef = useRef<HTMLDivElement | null>(null)
   /*
    * 长列表的两个去处：回到最上面，或者跳回正在播的那一行。
    *
@@ -139,7 +140,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   const scrollToTop = () => {
     const box = rootRef.current?.closest('.main__body') as HTMLElement | null
     if (box) box.scrollTo({ top: 0, behavior: 'smooth' })
-    else headRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    else rootRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }
 
   const showCurrent = () => {
@@ -161,21 +162,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   }
 
   return (
-    <div className="tracks" role="table" aria-label="歌曲" ref={rootRef}>
-      <div className="tracks__head" role="row" ref={headRef}>
-        <span className="tracks__idx" role="columnheader">
-          #
-        </span>
-        <span role="columnheader">标题</span>
-        <span role="columnheader">艺术家</span>
-        <span className="tracks__album" role="columnheader">
-          专辑
-        </span>
-        <span className="tracks__time" role="columnheader">
-          时长
-        </span>
-        <span role="columnheader" aria-label="操作" />
-      </div>
+    <div className="tracks" role="list" aria-label="歌曲" ref={rootRef}>
 
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentId
@@ -188,11 +175,16 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
          */
         const platforms = track.versions?.length ? sourcesOf(track, order) : mixed ? [track.source ?? 'local'] : []
         const refs = refOfTrack(track)
+        /*
+         * 早期版本给「没有专辑」的在线歌曲塞过一个 "?" 占位符，已经落进用户
+         * 的最近播放历史里。这里在渲染时兜掉，免得列表里冒出一个孤零零的问号。
+         */
+        const albumLabel = track.album && track.album.trim() !== '?' ? track.album : ''
         const isLiked = likedRow(track, likedIds)
         return (
           <div
             key={track.id}
-            role="row"
+            role="listitem"
             // Only the playing row holds the ref; React clears it from the row
             // that stopped being current.
             ref={isCurrent ? currentRow : undefined}
@@ -215,7 +207,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
               aria-label={`播放 ${track.title}`}
             />
 
-            <span className="tracks__idx" role="cell">
+            <span className="trk__idx" role="cell">
               {isCurrent ? (
                 <span className={`eq${playing ? ' is-live' : ''}`} aria-label="正在播放">
                   <i />
@@ -223,81 +215,136 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                   <i />
                 </span>
               ) : (
-                <span className="tnum">{index + 1}</span>
+                <>
+                  <span className="trk__num tnum">{index + 1}</span>
+                  <span className="trk__go" aria-hidden>
+                    <Play size={12} />
+                  </span>
+                </>
               )}
             </span>
-            <span className="trk__title" role="cell">
-              <span className="trk__title-text">{track.title || '（无标题）'}</span>
-              {platforms.map((platform) => (
-                <span
-                  key={platform}
-                  className={`badge trk__src trk__src--${platform}`}
-                  title={`来自${sourceLabelById(platform)}`}
-                >
-                  {sourceLabelById(platform)}
-                </span>
-              ))}
-              {track.lossless ? <span className="badge" title={`${track.codec} 无损`}>FLAC</span> : null}
+
+            {/*
+              封面的作用是给长列表一个视觉锚点。
+
+              Twilight Echo 的列表、网易云桌面端、汽水都用这个做法：每行一张
+              小封面，扫列表时眼睛先认出封面，再去读标题。没有它，一屏 20 行
+              全是一样长的灰字，只能一行行读——这是「挤」的真实来源，不是
+              行高。没有封面的歌退回按 id 生成的渐变图，不让格子空掉。
+            */}
+            <span className="trk__art" role="cell" aria-hidden>
+              <img
+                src={artworkFor(track) ?? coverFor(track.id, 96)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={(event) => {
+                  event.currentTarget.style.visibility = 'hidden'
+                }}
+              />
             </span>
-            <span className="trk__muted" role="cell">
-              {refs.artist ? (
-                artistParts(track).length > 1 ? (
-                  // 一行挂着几个歌手就是几张艺人页，逐个能点。
-                  <span className="trk__artists">
-                    {artistParts(track).map((person, index) => (
-                      <span key={`${person.id}:${index}`}>
-                        {index > 0 ? <span className="trk__sep">/</span> : null}
-                        {person.id ? (
-                        <button
-                          className="trk__ref"
-                          onClick={(event) => {
-                            // 行本身是一整块播放热区，名字要跳页就得自己截住这次点击。
-                            event.stopPropagation()
-                            openOnlineArtist(track.source ?? '', person.id)
-                          }}
-                          title={`去 ${person.name} 的页面`}
-                        >
-                          {person.name}
-                        </button>
-                        ) : (
-                          <span>{person.name}</span>
-                        )}
-                      </span>
-                    ))}
-                  </span>
+
+            {/*
+              两行一条：标题在上，艺术家在下；专辑单独一列。
+
+              上一版是网格表格——六列对齐、一行一个标题。它读起来像导出的
+              CSV：行高 34px，行与行贴成一条带；标题短时右边空一大片，标题
+              长时来源徽章被挤出去；专辑列永远只截到前半句。这里换成一屏
+              能扫、又不像表格的条目：主标题一眼可读，副行把艺术家和专辑
+              说清；专辑另起一列，宽度不够就在列内省略，而不是把别的列砍断。
+            */}
+            <span className="trk__main" role="cell">
+              <span className="trk__title">
+                <span className="trk__title-text">{track.title || '（无标题）'}</span>
+                <span className="trk__flags">
+                  {platforms.map((platform) => (
+                    <span
+                      key={platform}
+                      className={`badge trk__src trk__src--${platform}`}
+                      title={`来自${sourceLabelById(platform)}`}
+                    >
+                      {sourceLabelById(platform)}
+                    </span>
+                  ))}
+                  {track.lossless ? (
+                    <span className="badge" title={`${track.codec} 无损`}>
+                      FLAC
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+              <span className="trk__sub">
+                {refs.artist ? (
+                  artistParts(track).length > 1 ? (
+                    <span className="trk__artists">
+                      {artistParts(track).map((person, index) => (
+                        <span key={`${person.id}:${index}`}>
+                          {index > 0 ? <span className="trk__sep">/</span> : null}
+                          {person.id ? (
+                            <button
+                              className="trk__ref"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openOnlineArtist(track.source ?? '', person.id)
+                              }}
+                              title={`去 ${person.name} 的页面`}
+                            >
+                              {person.name}
+                            </button>
+                          ) : (
+                            <span>{person.name}</span>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <button
+                      className="trk__ref"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openOnlineArtist(track.source ?? '', refs.artist as number)
+                      }}
+                      title={`去 ${track.albumArtist || track.artist} 的页面`}
+                    >
+                      {track.artist}
+                    </button>
+                  )
                 ) : (
+                  <span>{track.artist}</span>
+                )}
+
+              </span>
+            </span>
+
+            {/*
+              专辑单独一列。
+
+              它不是副行的一部分：副行留给「谁唱的」，专辑放右列对齐。满宽的
+              列表里如果右半屏是空的，读起来就是「左边挤成一坨、右边一片荒」；
+              专辑列把这段空白填上，同时保留一条可扫的竖线。
+            */}
+            <span className="trk__album" role="cell">
+              {albumLabel ? (
+                refs.album ? (
                   <button
                     className="trk__ref"
                     onClick={(event) => {
                       event.stopPropagation()
-                      openOnlineArtist(track.source ?? '', refs.artist as number)
+                      openOnlineAlbum(track.source ?? '', refs.album as number)
                     }}
-                    title={`去 ${track.albumArtist || track.artist} 的页面`}
+                    title={`去《${albumLabel}》`}
                   >
-                    {track.artist}
+                    {albumLabel}
                   </button>
+                ) : (
+                  <span className="trk__muted">{albumLabel}</span>
                 )
               ) : (
-                track.artist
+                <span className="trk__muted">—</span>
               )}
             </span>
-            <span className="trk__muted tracks__album" role="cell" title={track.album}>
-              {refs.album ? (
-                <button
-                  className="trk__ref"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    openOnlineAlbum(track.source ?? '', refs.album as number)
-                  }}
-                  title={`去《${track.album}》`}
-                >
-                  {track.album}
-                </button>
-              ) : (
-                track.album
-              )}
-            </span>
-            <span className="tracks__time tnum" role="cell">
+
+            <span className="trk__time tnum" role="cell">
               {formatTime(track.duration)}
             </span>
 

@@ -2102,3 +2102,37 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 本机音乐的文件夹页：上面一行是监听中的目录，下面是文件树 */
+.lm-roots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.lm-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255/.1);
+  background: rgb(255 255 255/.04);
+  color: var(--text-mid);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background .16s, color .16s;
+}
+.lm-root:hover {
+  color: var(--text-hi);
+  background: rgb(255 255 255/.08);
+}
+.lm-root__name { color: var(--text-hi); }
+.lm-root__meta { color: var(--text-low); }
+.lm-hint {
+  margin: 0 0 14px;
+  max-width: 62ch;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-low);
+}
