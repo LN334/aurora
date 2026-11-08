@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { after, test } from 'node:test'
+import { after, before, test } from 'node:test'
 import { REMOTE_SCHEME, handleRemoteRequest, isPrivateAddress } from '../electron/protocols/remote-protocol.ts'
 import { remoteImageUrl, remoteStreamUrl } from '../src/features/player/urls.ts'
 
@@ -32,9 +32,15 @@ const server = http.createServer((_request, response) => {
   response.end('reached')
 })
 
-await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-const port = (server.address() as AddressInfo).port
-const loopback = `http://127.0.0.1:${port}/x`
+// 端口只有 listen 之后才知道，所以放进 before：顶层 await 会让这个文件被当成
+// 模块、在 cjs 输出下直接编译失败（node --test 跑 .ts 时的老毛病）。
+let loopback = ''
+
+before(async () => {
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as AddressInfo).port
+  loopback = `http://127.0.0.1:${port}/x`
+})
 
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()))
