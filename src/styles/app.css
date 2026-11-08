@@ -361,10 +361,29 @@ input::placeholder {
 .search input::placeholder {
   color: var(--text-low);
 }
-/* WebKit draws its own clear glyph; the field is short and the kbd badge is
-   already at the right edge, so a second affordance there only crowds it. */
+/* WebKit's own clear glyph is a grey box that ignores the theme; ours sits in
+   the same flow and borrows the shell's ink. */
 .search input::-webkit-search-cancel-button {
   -webkit-appearance: none;
+}
+.search__clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.09);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.search__clear:hover {
+  background: rgb(255 255 255 / 0.17);
+  color: var(--text-hi);
 }
 .search kbd {
   display: inline-grid;

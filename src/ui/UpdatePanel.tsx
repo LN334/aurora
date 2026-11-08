@@ -20,7 +20,6 @@ export function UpdatePanel() {
   const check = useUpdate((state) => state.check)
   const download = useUpdate((state) => state.download)
   const install = useUpdate((state) => state.install)
-  const open = useUpdate((state) => state.open)
 
   useEffect(() => {
     void bridge.info().then((info) => setVersion(info.version))
@@ -63,9 +62,6 @@ export function UpdatePanel() {
               <div className="update__actions">
                 <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
                   下载 {result.info.version}
-                </button>
-                <button className="btn" onClick={() => void open()}>
-                  更新内容
                 </button>
               </div>
             </>

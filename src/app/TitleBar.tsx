@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, Search } from '../ui/icons'
+import { useRef } from 'react'
+import { ChevronLeft, ChevronRight, Close, Search } from '../ui/icons'
 import { BrandMark } from './BrandMark'
 
 /**
@@ -49,6 +50,9 @@ export function TitleBar({
   canBack,
   canForward
 }: TitleBarProps) {
+  const field = useRef<HTMLInputElement>(null)
+  const typed = query.length > 0
+
   return (
     <header className="titlebar">
       <div className="titlebar__mark">
@@ -88,6 +92,7 @@ export function TitleBar({
       >
         <Search size={15} />
         <input
+          ref={field}
           id="global-search"
           type="search"
           value={query}
@@ -95,7 +100,32 @@ export function TitleBar({
           aria-label={placeholder}
           onFocus={onFocus}
           onChange={(event) => onQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            /*
+             * Escape used to be swallowed by the global shortcut handler, which
+             * ignores keys typed into an input - so the field had no way out.
+             * First press drops the text, second one leaves the field.
+             */
+            if (typed) onQuery('')
+            else field.current?.blur()
+          }}
         />
+        {typed ? (
+          <button
+            type="button"
+            className="search__clear"
+            title="清空"
+            aria-label="清空搜索"
+            onClick={() => {
+              onQuery('')
+              field.current?.focus()
+            }}
+          >
+            <Close size={12} />
+          </button>
+        ) : null}
         {shortcut ? <kbd>{shortcut}</kbd> : null}
       </form>
 

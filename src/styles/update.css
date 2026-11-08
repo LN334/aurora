@@ -158,16 +158,6 @@
   gap: 6px;
 }
 
-.updatebar__link {
-  padding: 0 var(--s1);
-  background: none;
-  border: 0;
-  font-size: var(--fs-micro);
-  color: var(--text-mid);
-  transition: color 120ms var(--ease-out);
-}
-.updatebar__link:hover { color: var(--text-hi); }
-
 .updatebar__close {
   width: 26px;
   height: 26px;

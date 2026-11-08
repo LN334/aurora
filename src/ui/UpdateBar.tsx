@@ -17,7 +17,6 @@ export function UpdateBar() {
   const busy = useUpdate((state) => state.busy)
   const download = useUpdate((state) => state.download)
   const install = useUpdate((state) => state.install)
-  const open = useUpdate((state) => state.open)
   const dismiss = useUpdate((state) => state.dismiss)
 
   if (!isNative || !result) return null
@@ -61,15 +60,10 @@ export function UpdateBar() {
             重启并安装
           </button>
         ) : downloading || installing ? null : (
-          <>
-            <button className="btn btn--accent updatebar__go" onClick={() => void download()} disabled={busy}>
-              <ArrowUp size={14} />
-              更新到 {info.version}
-            </button>
-            <button className="updatebar__link" onClick={() => void open()} title="在浏览器里看这次更新了什么">
-              更新内容
-            </button>
-          </>
+          <button className="btn btn--accent updatebar__go" onClick={() => void download()} disabled={busy}>
+            <ArrowUp size={14} />
+            更新到 {info.version}
+          </button>
         )}
         <button className="icon-btn updatebar__close" onClick={dismiss} title="这个版本先不提醒" aria-label="关闭更新提示">
           <Close size={14} />
