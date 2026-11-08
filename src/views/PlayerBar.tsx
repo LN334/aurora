@@ -252,9 +252,9 @@ export function PlayerBar({
           className="icon-btn"
           onClick={onOpenStage}
           disabled={!track}
-          title="全屏歌词 (L)"
-          data-tip="全屏歌词"
-          aria-label="全屏歌词"
+          title="舞台 (L)"
+          data-tip="舞台"
+          aria-label="舞台"
         >
           <Expand size={17} />
         </button>

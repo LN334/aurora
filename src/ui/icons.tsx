@@ -253,7 +253,7 @@ export const DesktopLyrics = (p: IconProps) => (
   </Svg>
 )
 
-/** 展开成全屏：播放条上「全屏歌词」用它，和「桌面歌词」那张副屏图标区分开。 */
+/** 展开：播放条与正在播放页都用它打开「舞台」，和「桌面歌词」那张副屏图标区分开。 */
 export const Expand = (p: IconProps) => (
   <Svg {...p}>
     <path d="M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5" />
