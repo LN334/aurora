@@ -25,105 +25,35 @@
 
 /* --- 分区抬头 ------------------------------------------------------------- */
 
-.acct-sec {
-  display: flex;
-  flex-direction: column;
-}
+
 
 /* 一行：编号、英文小标、中文名、发丝线、右侧操作。窄窗口也只会压缩发丝线。 */
-.acct-sec__head {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  margin-bottom: var(--s3);
-}
 
-.acct-sec__num {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 26px;
-  height: 18px;
-  border-radius: 2px;
-  background: var(--ink-700);
-  color: var(--text-hi);
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
 
-.acct-sec__en {
-  flex: none;
-  font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-low);
-  white-space: nowrap;
-}
 
-.acct-sec__title {
-  flex: none;
-  margin: 0;
-  font-size: var(--fs-title);
-  font-weight: 600;
-  color: var(--text-hi);
-  white-space: nowrap;
-}
 
-.acct-sec__rule {
-  flex: 1;
-  min-width: var(--s4);
-  border-top: var(--line-soft);
-}
 
-.acct-sec__actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-left: var(--s2);
-}
 
-.acct-sec__body {
-  display: flex;
-  flex-direction: column;
-}
+
+
+
+
+
+
+
 
 /* --- 行 ------------------------------------------------------------------- */
 
-.acct-rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-}
+
 
 /*
  * 平台两行在宽窗口并排：只有两个平台时，一列长条会让整页看起来只有一条竖线。
  * 用 auto-fit 而不是固定两列，平台数量变化（以后加酷狗之类）也不用手改样式。
  */
-.acct-platforms {
-  display: grid;
-  /* 380 是「两列时每列还放得下完整的一句状态说明」的下限；再窄就掉成一列。 */
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: var(--s2);
-}
 
-.acct-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  min-height: 58px;
-  padding: var(--s2) var(--s3);
-  border-radius: var(--r-panel);
-  border: 1px solid rgb(255 255 255 / 0.055);
-  background: rgb(255 255 255 / 0.035);
-  transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
-}
-.acct-row:hover {
-  background: rgb(255 255 255 / 0.06);
-}
+
+
+
 /* 当前档案用封面主色标出来，和「正在播放」同一套强调色。 */
 .acct-row.is-active {
   background: rgb(var(--accent-rgb) / 0.1);
@@ -132,34 +62,13 @@
 
 /* --- 头像 ----------------------------------------------------------------- */
 
-.acct-avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--ink-700);
-  color: var(--text-mid);
-  font-size: var(--fs-body);
-  font-weight: 600;
-  cursor: pointer;
-  transition: box-shadow 120ms var(--ease-out), background 120ms var(--ease-out);
-}
+
 /* 有图时不要再刷底色：首字那种纯色底会从圆角外溢出来一圈。 */
 .acct-avatar.has-image {
   background: var(--ink-800);
 }
-.acct-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.acct-avatar:hover {
-  box-shadow: 0 0 0 2px rgb(var(--accent-rgb) / 0.35);
-}
+
+
 .acct-row.is-active .acct-avatar:not(.has-image) {
   background: var(--accent);
   color: var(--ink-1000);
@@ -167,185 +76,49 @@
 
 /* --- 名字与第二行 --------------------------------------------------------- */
 
-.acct-name {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-  padding: var(--s2) 0;
-  text-align: left;
-}
-.acct-name__label {
-  font-size: var(--fs-body);
-  color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.acct-name__meta {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.acct-edit {
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 var(--s2);
-  border-radius: var(--r-control);
-  background: rgb(255 255 255 / 0.06);
-  border: 1px solid rgb(var(--accent-rgb) / 0.5);
-  color: var(--text-hi);
-  outline: none;
-}
 
-.acct-row__actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
+
+
+
+
+
 
 /* 状态徽标：小、方、只用现有色板。 */
-.acct-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 22px;
-  padding: 0 var(--s2);
-  border-radius: 999px;
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--accent-strong);
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  white-space: nowrap;
-}
+
 
 /* --- 新建档案 ------------------------------------------------------------- */
 
-.acct-new {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s2);
-}
-.acct-new input {
-  flex: 1;
-  min-width: 0;
-  height: 34px;
-  padding: 0 var(--s3);
-  border-radius: var(--r-control);
-  background: rgb(255 255 255 / 0.06);
-  border: 1px solid rgb(var(--accent-rgb) / 0.45);
-  color: var(--text-hi);
-  outline: none;
-}
-.acct-new input::placeholder {
-  color: var(--text-low);
-}
+
+
+
 
 /* --- 平台与文件夹 --------------------------------------------------------- */
 
 /* 平台首字 / 文件夹图标所在的方块：比头像方，与「圆 = 人」区分开。 */
-.acct-mark {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgb(255 255 255 / 0.07);
-  color: var(--text-hi);
-  font-family: var(--font-display);
-  font-size: var(--fs-body);
-  font-weight: 600;
-}
 
-.acct-platform {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-.acct-platform__head {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  min-width: 0;
-}
-.acct-platform__name {
-  font-size: var(--fs-body);
-  color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.acct-platform__meta {
-  font-size: var(--fs-micro);
-  line-height: 1.5;
-  color: var(--text-low);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.acct-state {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  height: 19px;
-  padding: 0 6px;
-  border-radius: 3px;
-  background: rgb(255 255 255 / 0.07);
-  color: var(--text-low);
-  font-size: var(--fs-micro);
-  font-weight: 500;
-  white-space: nowrap;
-}
+
+
+
+
+
+
 .acct-state.is-on {
   background: rgb(var(--accent-rgb) / 0.16);
   color: var(--accent-strong);
 }
 
-.acct-count {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  font-variant-numeric: tabular-nums;
-}
 
-.acct-empty {
-  padding: var(--s2) 2px;
-  font-size: var(--fs-meta);
-  line-height: 1.6;
-  color: var(--text-low);
-  max-width: 52ch;
-}
 
-.acct-error {
-  margin-bottom: var(--s2);
-  padding: var(--s2) var(--s3);
-  border-radius: var(--r-panel);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  color: var(--text-hi);
-  font-size: var(--fs-meta);
-}
+
+
+
 
 @media (max-width: 720px) {
-  .acct-row {
-    flex-wrap: wrap;
-  }
-  .acct-row__actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  .acct-sec__rule {
-    display: none;
-  }
+
+
+
 }
 
 /* =============================================================================
@@ -391,19 +164,9 @@
    与新外壳对齐：分区头交给 .rh-sec，卡片换成玻璃面 + 大圆角
    ========================================================================== */
 
-.acct-sec {
-  margin-bottom: 28px;
-}
-.acct-sec__body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.acct-sec__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+
+
+
 
 .account-page .acct-row {
   border-radius: 12px;
