@@ -1,0 +1,9 @@
+=== start 2026-11-08T02:14:55.435Z
+video=D:\PC\Videos\屏幕录制\屏幕录制
+args=["D:\\Aurora\\node_modules\\electron\\dist\\electron.exe","C:\\Users\\PC\\Documents\\deepseek-harness\\default-workspace\\frames","D:\\PC\\Videos\\屏幕录制\\屏幕录制","2026-11-08","100849.mp4","C:\\Users\\PC\\Documents\\deepseek-harness\\default-workspace\\frames\\out"]
+fileUrl=file:///D%3A/PC/Videos/%E5%B1%8F%E5%B9%95%E5%BD%95%E5%88%B6/%E5%B1%8F%E5%B9%95%E5%BD%95%E5%88%B6
+whenReady
+loaded html
+META {"timeout":true,"ready":0}
+SHOT 2026-11-08\frame-00-NaNs.png ok=false
+=== done

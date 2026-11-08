@@ -1289,7 +1289,7 @@ export async function neteaseLike(songId: number, liked: boolean): Promise<boole
  * 收藏的专辑（album_sublist）。未登录返回空：收藏页该空着，不是报错。
  */
 export async function neteaseAlbumSublist(
-  limit = 200,
+  limit = 500,
   offset = 0
 ): Promise<NeteaseCollectedAlbum[]> {
   await bootstrapOnce()
