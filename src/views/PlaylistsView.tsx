@@ -41,7 +41,7 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
             className="rh-card pl-card"
             type="button"
             key={row.key}
-            onClick={() => openOnlinePlaylist(row.providerId, row.id)}
+            onClick={() => openOnlinePlaylist(row.providerId, row)}
           >
             <span className="rh-card__art" style={{ background: tint(row.key) }}>
               {/* 封面走主进程代理：页面 CSP 不允许外域图片，原地址由 aurora-remote:// 转发。 */}

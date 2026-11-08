@@ -1,4 +1,5 @@
 import type { ShellRoute } from '../../app/shell'
+import { useOnlineStore, type PlaylistFace } from '../online/store'
 
 /**
  * 「去这个专辑 / 艺人 / 歌单的页面」——从歌曲行里那两个名字点出去。
@@ -35,8 +36,25 @@ export function refOfTrack(track: { source?: string; albumId?: number; artistId?
   return { album: track.albumId ?? null, artist: track.artistId ?? null }
 }
 
-export function openOnlinePlaylist(providerId: string, id: number): void {
-  navigate?.({ view: 'onlineplaylist', id: idOf(providerId, id) })
+/**
+ * 打开一张平台歌单。
+ *
+ * 顺手把卡片上的名字 / 封面 / 创建者记进那一侧的 store：详情页的头部就靠这三样，
+ * 而推荐位上的单子往往不在「我的歌单」里。不记的话页面只能显示「歌单」和空封面。
+ */
+export function openOnlinePlaylist(
+  providerId: string,
+  playlist: Pick<PlaylistFace, 'id' | 'name' | 'coverUrl'> & { creator?: string }
+): void {
+  useOnlineStore(providerId)
+    .getState()
+    .rememberPlaylist({
+      id: playlist.id,
+      name: playlist.name,
+      coverUrl: playlist.coverUrl,
+      creator: playlist.creator ?? ''
+    })
+  navigate?.({ view: 'onlineplaylist', id: idOf(providerId, playlist.id) })
 }
 
 /** `netease/123` -> 两段。解析不了就给 null，页面自己回落。 */

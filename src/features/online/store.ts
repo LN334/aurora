@@ -172,6 +172,13 @@ export interface OnlineStore {
 
   playlists: OnlinePlaylistSummary[]
   playlistsLoading: boolean
+  /**
+   * 从卡片点进来的那一份「脸」：名字 / 封面 / 创建者。
+   *
+   * 详情页要拿这三样画头部，但推荐位上的单子不一定在「我的歌单」里，
+   * `playlists` 因此查不到它。点卡片时顺手记下来，页面就不必为了一个标题再问一次上游。
+   */
+  knownPlaylists: Record<number, PlaylistFace>
 
   fail: PlatformFail | null
   loadingTracks: boolean
@@ -183,6 +190,7 @@ export interface OnlineStore {
   submitSearch(): Promise<void>
   loadPlaylists(): Promise<void>
   openCollection(kind: OnlineCollectionKind): Promise<void>
+  rememberPlaylist(face: PlaylistFace): void
   openPlaylist(id: number): Promise<void>
   openAlbum(id: number): Promise<void>
   openArtist(id: number): Promise<void>
@@ -192,6 +200,19 @@ export interface OnlineStore {
   clearFail(): void
   refreshAccount(): Promise<void>
   logout(): Promise<void>
+}
+
+/**
+ * 一张歌单的最小画像：详情页头部只需要这三样。
+ *
+ * 不复用 `OnlinePlaylistSummary`：那份形状带着归属、播放数、订阅标记，
+ * 推荐位上的卡片本来就没有这些东西，硬填只会编出假数据。
+ */
+export interface PlaylistFace {
+  id: number
+  name: string
+  coverUrl: string | null
+  creator: string
 }
 
 /** Fetched collections are cached: both upstreams rate-limit and change slowly. */
@@ -404,6 +425,7 @@ function createOnlineStore(providerId: ProviderId) {
 
       playlists: [],
       playlistsLoading: false,
+      knownPlaylists: {},
 
       fail: null,
       loadingTracks: false,
@@ -560,13 +582,18 @@ function createOnlineStore(providerId: ProviderId) {
         }
       },
 
+      rememberPlaylist(face) {
+        set({ knownPlaylists: { ...get().knownPlaylists, [face.id]: face } })
+      },
+
       async openPlaylist(id) {
         const platform = backend()
         if (!platform?.playlistTracks) return
+        const face = get().knownPlaylists[id]
         const summary = get().playlists.find((item) => item.id === id)
-        await openInto('playlists', id, summary?.name ?? null, summary?.coverUrl ?? null, () =>
-          platform.playlistTracks!(id)
-        )
+        const name = face?.name ?? summary?.name ?? null
+        const cover = face?.coverUrl ?? summary?.coverUrl ?? null
+        await openInto('playlists', id, name, cover, () => platform.playlistTracks!(id))
       },
 
       async openAlbum(id) {

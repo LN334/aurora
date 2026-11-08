@@ -366,7 +366,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 className="rh-card"
                 type="button"
                 key={row.key}
-                onClick={() => openOnlinePlaylist(row.providerId, row.id)}
+                onClick={() => openOnlinePlaylist(row.providerId, row)}
               >
                 <span className="rh-card__art" style={tintOf(row.key)}>
                   <Artwork

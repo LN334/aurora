@@ -71,7 +71,8 @@ function PlaylistPage({ providerId, playlistId }: { providerId: string; playlist
   )
   const currentId = currentTrack && provider && currentTrack.source === provider.id ? currentTrack.id : null
   const total = rows.reduce((sum, track) => sum + (track.duration ?? 0), 0)
-  const summary = state.playlists.find((item) => item.id === playlistId)
+  // 推荐位上的单子不在「我的歌单」里，名字和封面靠点卡片时记下的那份脸。
+  const summary = state.knownPlaylists[playlistId] ?? state.playlists.find((item) => item.id === playlistId)
 
   return (
     <div className="col ol-page">

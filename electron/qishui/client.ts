@@ -179,14 +179,25 @@ const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
 
 const text = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback)
 
-/** 抖音 CDN 把封面拆成「前缀数组 + uri」两段。 */
-function imageUrl(value: unknown): string | null {
+/**
+ * 抖音 CDN 把封面拆成「前缀数组 + uri」两段，而且**光拼两段会 400**。
+ *
+ * 实测（2026-11）：`https://p3-luna.douyinpic.com/img/tos-cn-i-xxxx/<hash>` 直连
+ * 返回 `{"code":2004,"error":"fail to handle request"}`；后面补上模板后缀才出图：
+ * `~tplv-xxxx-image.image` 是原图，`~tplv-xxxx-resize:360:360.jpeg` 是缩略图。
+ * 模板前缀就在同一个对象里（`template_prefix`），所以这里自己拼。
+ */
+function imageUrl(value: unknown, size = 360): string | null {
   const raw = record(value)
   const urls = list(raw.urls)
   const base = typeof urls[0] === 'string' ? urls[0] : ''
   const uri = text(raw.uri)
   if (!base || !uri) return null
-  return base + uri
+  const template = text(raw.template)
+  if (template) return base + uri + (template.startsWith('~') ? template : '~' + template)
+  const prefix = text(raw.template_prefix)
+  if (!prefix) return base + uri
+  return `${base}${uri}~tplv-${prefix.replace(/^tplv-/, '')}-resize:${size}:${size}.jpeg`
 }
 
 function toRawTrack(item: unknown): QishuiRawTrack | null {
@@ -526,11 +537,15 @@ function playlistCover(row: unknown): string | null {
   const display = record(record(row).display_info)
   const raw = display.url_cover ?? display.cover_url ?? display.cover
   if (typeof raw === 'string' && raw) return raw
-  const holder = record(raw)
-  const first = text(list(holder.urls ?? holder.url_list)[0] ?? holder.url)
-  const uri = text(holder.uri)
-  if (first && uri) return first + uri
-  if (first) return first
+  /*
+   * 真实的封面是 { urls: ['https://p3-luna.douyinpic.com/img/'], uri: 'tos-cn-...' }
+   * 这种两段式。imageUrl 认得这个形状，会拼成绝对地址。
+   *
+   * 注意不要把「已经拼好的字符串」再喂给 imageUrl：它只认对象，字符串进去会
+   * 读出空前缀和空 uri，返回 null —— 上一版整批封面为空就是这个原因。
+   */
+  const twoPart = imageUrl(raw)
+  if (twoPart) return twoPart
   const fallback = imageUrl(record(row).cover_url ?? record(row).cover ?? record(row).pic)
   if (!fallback) write('qishui:plcover miss keys=' + Object.keys(record(row)).join(','))
   return fallback
@@ -560,7 +575,11 @@ export async function qishuiSearchPlaylists(
     out.push({
       id: aliasFor({ kind: 'playlist', id, ownerId }),
       name: text(base.title) || text(base.name) || '未命名歌单',
-      coverUrl: playlistCover(row),
+      /*
+       * 搜索结果把封面放在 playlist_entity.display_info 里，不在最外层。之前
+       * 传的是 row，取到的 display_info 是空的，整批封面都是 null。
+       */
+      coverUrl: playlistCover(Object.keys(entity).length > 0 ? entity : row),
       trackCount: typeof base.track_count === 'number' ? base.track_count : 0,
       creator: text(record(base.owner).nickname) || text(base.owner_name)
     })

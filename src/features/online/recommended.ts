@@ -16,8 +16,16 @@ import { useOnlineStore } from './store'
  *
  * 推荐位的卡片没有归属（`ownership: 'unknown'`）：那是平台推的，不是谁的。
  */
-/** 汽水这一侧的「推荐」：公开歌单搜索，几个热词轮着用，不需要账号。 */
-const QISHUI_WORDS = ['热歌', '流行', '纯音乐']
+/**
+ * 汽水这一侧的「推荐」：公开歌单搜索，不需要账号。
+ *
+ * 关键词必须落在「歌单」的语境里。用「热歌」这种词搜回来的是
+ * 「2026抖音热歌排行榜」「车载DJ抖音热歌」这类榜单式条目，名字本身就在说
+ * 它不是歌单；换成「歌单 / 民谣 / 华语 / 夜晚」之后回来的才是别人整理的单子
+ * （「全球热门音乐歌单」「民谣合集｜适合一个人慢慢聆听」）。
+ * 三个词各取几张再合并，免得一整排都是同一个主题。
+ */
+const QISHUI_WORDS = ['歌单', '民谣', '夜晚']
 
 export function useRecommendedPlaylists(): PlaylistCard[] {
   const block = useDiscover((state) => state.blocks.playlists)
@@ -35,7 +43,15 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
     void (async () => {
       const api = window.aurora?.qishui
       if (!api?.searchPlaylists) return
-      const rows = await api.searchPlaylists(QISHUI_WORDS[0], 12).catch(() => [])
+      const batches = await Promise.all(
+        QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
+      )
+      const seen = new Set<number>()
+      const rows = batches.flat().filter((row) => {
+        if (seen.has(row.id)) return false
+        seen.add(row.id)
+        return true
+      })
       if (!alive || rows.length === 0) return
       setQishui(
         rows.map((row) => ({
