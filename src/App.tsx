@@ -13,6 +13,8 @@ import { LocalView } from './views/LocalView'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
 import { bindUpdateEvents } from './features/updates/store'
+import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
+import { DownloadsDock } from './ui/DownloadsDock'
 import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
@@ -300,6 +302,11 @@ export function App() {  if (!isNative) {
   // 更新状态由主进程推来（启动那次静默检查、下载进度、下载完成），这里把通道接上。
   useEffect(() => {
     bindUpdateEvents()
+  }, [])
+
+  // 下载列表同样归主进程：面板关掉了任务也得继续跑。
+  useEffect(() => {
+    bindDownloadEvents()
   }, [])
 
   /*
@@ -1170,6 +1177,9 @@ export function App() {  if (!isNative) {
       */}
       <LikeMenu />
 
+      {/* 下载浮条：右下角一枚小胶囊，展开是任务列表。 */}
+      <DownloadsDock />
+
       {/*
         Actions menu. Held by the app rather than by a row, because only one can
         be open at a time and rows are recycled as the library changes.
@@ -1191,6 +1201,23 @@ export function App() {  if (!isNative) {
             setTrackMenu(null)
             setFlash(`已把《${trackMenu.track.title}》排到下一首`)
           }}
+          onDownload={
+            trackMenu.track.source
+              ? () => {
+                  const request = downloadRequestOf(trackMenu.track)
+                  setTrackMenu(null)
+                  if (!request) {
+                    setFlash('这首歌取不到音源，没法下载')
+                    return
+                  }
+                  void useDownloads.getState().enqueue(request).then((queued) => {
+                    setFlash(
+                      queued ? `已把《${request.title}》加进下载` : '浏览器预览模式没有下载能力'
+                    )
+                  })
+                }
+              : undefined
+          }
           onAddToPlaylist={(key) => {
             const [providerId, rawId] = key.split(':')
             const id = Number(rawId)

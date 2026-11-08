@@ -17,6 +17,11 @@ interface TrackMenuProps {
   /** 三页里的第一层：先看这首歌是什么，再决定听不听。 */
   onOpenDetail(): void
   onPlayNext(): void
+  /**
+   * 把这首歌存到本地。本机文件已经在磁盘上，所以那种行不会拿到这个回调，
+   * 菜单里也不该出现一个按了没反应的「下载」。
+   */
+  onDownload?: () => void
   onAddToPlaylist(key: string): void
   /** 这一行来自某张平台歌单时，才给「从这张歌单移除」。 */
   onRemoveFromPlaylist?: () => void
@@ -40,6 +45,7 @@ export function TrackMenu({
   onClose,
   onOpenDetail,
   onPlayNext,
+  onDownload,
   onAddToPlaylist,
   onRemoveFromPlaylist,
   onReveal
@@ -114,6 +120,12 @@ export function TrackMenu({
       <button className="menu__item" role="menuitem" onClick={onPlayNext}>
         下一首播放
       </button>
+
+      {onDownload ? (
+        <button className="menu__item" role="menuitem" onClick={onDownload}>
+          下载到本地
+        </button>
+      ) : null}
 
       <button
         className="menu__item"

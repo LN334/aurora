@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { LibraryIndex, ScanProgress } from './library-scan'
 import type { AppSettings, StorageUsage } from './settings'
+import type { DownloadFormat, DownloadPrefs, DownloadRequest, DownloadView } from './downloads'
 import type { UpdateInterval, UpdatePrefs, UpdateResult } from './updates'
 import type { LyricsHit, LyricsQuery } from './lyrics'
 import type { OverlayState, OverlayStatus } from './lyrics-overlay'
@@ -160,6 +161,33 @@ const api = {
   window: {
     toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen') as Promise<boolean>,
     isFullscreen: () => ipcRenderer.invoke('window:isFullscreen') as Promise<boolean>
+  },
+
+  /**
+   * 下载：队列在主进程，渲染层只发命令、听状态。
+   *
+   * onState 一次给整份列表而不是增量：队列最多几条，整份替换比维护增量协议
+   * 少一类「漏了一条就永远对不上」的 bug。
+   */
+  downloads: {
+    enqueue: (request: DownloadRequest) =>
+      ipcRenderer.invoke('downloads:enqueue', request) as Promise<DownloadView>,
+    cancel: (id: string) => ipcRenderer.invoke('downloads:cancel', id) as Promise<boolean>,
+    list: () => ipcRenderer.invoke('downloads:list') as Promise<DownloadView[]>,
+    clear: () => ipcRenderer.invoke('downloads:clear') as Promise<boolean>,
+    reveal: (id: string) => ipcRenderer.invoke('downloads:reveal', id) as Promise<boolean>,
+    openFolder: () => ipcRenderer.invoke('downloads:openFolder') as Promise<boolean>,
+    getPrefs: () => ipcRenderer.invoke('downloads:getPrefs') as Promise<DownloadPrefs>,
+    setPrefs: (patch: { dir?: string; format?: DownloadFormat; bitrate?: number }) =>
+      ipcRenderer.invoke('downloads:setPrefs', patch) as Promise<DownloadPrefs>,
+    pickFolder: () => ipcRenderer.invoke('downloads:pickFolder') as Promise<string | null>,
+    onState: (handler: (views: DownloadView[]) => void) => {
+      const listener = (_event: IpcRendererEvent, views: DownloadView[]) => handler(views)
+      ipcRenderer.on('downloads:state', listener)
+      return () => {
+        ipcRenderer.removeListener('downloads:state', listener)
+      }
+    }
   },
 
   updates: {

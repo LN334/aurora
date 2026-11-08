@@ -1,4 +1,4 @@
-import type { AppSettings, AuroraApi, UpdatePrefs } from './env'
+import type { AppSettings, AuroraApi, DownloadPrefs, UpdatePrefs } from './env'
 import { demoLibrary } from './features/library/demo'
 
 /**
@@ -45,6 +45,14 @@ let previewSettings: AppSettings = {
  * `autoInstallAvailable: false` is the honest answer in a browser: there is no
  * installer to run, so the settings page renders that switch disabled.
  */
+let previewDownloadPrefs: DownloadPrefs = {
+  dir: '',
+  effectiveDir: 'C:\\Users\\PC\\Music\\Aurora',
+  format: 'original',
+  bitrate: 256,
+  ffmpeg: false
+}
+
 let previewPrefs: UpdatePrefs = {
   interval: 'manual',
   lastCheck: 0,
@@ -107,6 +115,36 @@ const webFallback: AuroraApi = {
     },
     export: async () => true
   },
+  downloads: {
+    /*
+     * A browser preview has no main process, so no file can be written. A
+     * failed entry that says why beats a progress bar that never moves.
+     */
+    enqueue: async (request) => ({
+      id: 'preview-' + request.trackId,
+      provider: request.provider,
+      title: request.title,
+      subtitle: request.artists.join('、'),
+      format: request.format ?? 'original',
+      state: 'failed',
+      percent: 0,
+      received: 0,
+      total: 0,
+      speed: 0,
+      message: '浏览器预览模式没有下载能力',
+      createdAt: Date.now()
+    }),
+    cancel: async () => false,
+    list: async () => [],
+    clear: async () => true,
+    reveal: async () => false,
+    openFolder: async () => false,
+    getPrefs: async () => previewDownloadPrefs,
+    setPrefs: async (patch) => (previewDownloadPrefs = { ...previewDownloadPrefs, ...patch }),
+    pickFolder: async () => null,
+    onState: () => () => undefined
+  },
+
   updates: {
     /*
      * A browser preview has no main process, so there is nothing to check

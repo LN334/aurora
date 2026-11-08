@@ -40,6 +40,7 @@ import { registerAppIpc } from './ipc/app'
 import { registerLibraryIpc } from './ipc/library'
 import { registerWallpaperIpc } from './ipc/wallpaper'
 import { registerOverlayIpc } from './ipc/overlay'
+import { registerDownloadsIpc } from './ipc/downloads'
 import { registerUpdatesIpc } from './ipc/updates'
 import { registerLyricsIpc } from './ipc/lyrics'
 import { registerPlayerIpc } from './ipc/player'
@@ -526,6 +527,7 @@ function registerIpc(): void {
   registerWallpaperIpc()
   registerOverlayIpc()
   registerUpdatesIpc()
+  registerDownloadsIpc()
   registerLyricsIpc()
   registerPlayerIpc(ipcHost)
   registerSettingsIpc(ipcHost, ipcHost.playing)

@@ -103,6 +103,12 @@ export interface Settings {
    * app can keep rather than one it silently downgrades.
    */
   neteaseQuality: NeteaseQuality
+  /** 下载目录；空字符串表示默认的「音乐/Aurora」。 */
+  downloadDir: string
+  /** 下载后转成什么；original 表示原样保存。 */
+  downloadFormat: 'original' | 'mp3' | 'flac' | 'm4a'
+  /** 有损目标的码率（kbps）。 */
+  downloadBitrate: number
   /** Last position and size of the desktop lyric strip. */
   lyricsOverlayBounds?: { x: number; y: number; width: number; height: number }
 }
@@ -120,7 +126,10 @@ const DEFAULTS: Settings = {
   closeToTray: true,
   launchAtLogin: false,
   preventSleepWhilePlaying: true,
-  neteaseQuality: 'exhigh'
+  neteaseQuality: 'exhigh',
+  downloadDir: '',
+  downloadFormat: 'original',
+  downloadBitrate: 256
 }
 
 let cache: Settings | null = null
@@ -148,7 +157,10 @@ export function loadSettings(): Settings {
       desktopLyricsSize: clampLyricSize(raw.desktopLyricsSize),
       closeToTray: raw.closeToTray !== false,
       launchAtLogin: raw.launchAtLogin === true,
-      preventSleepWhilePlaying: raw.preventSleepWhilePlaying !== false
+      preventSleepWhilePlaying: raw.preventSleepWhilePlaying !== false,
+      downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
+      downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
+      downloadBitrate: clampBitrate(raw.downloadBitrate)
     }
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
@@ -171,6 +183,17 @@ function migrateInterval(raw: Partial<Settings>): UpdateInterval {
 
 function isUpdateInterval(value: unknown): value is UpdateInterval {
   return value === 'manual' || value === 'daily' || value === 'weekly'
+}
+
+function isDownloadFormat(
+  value: unknown
+): value is 'original' | 'mp3' | 'flac' | 'm4a' {
+  return value === 'original' || value === 'mp3' || value === 'flac' || value === 'm4a'
+}
+
+function clampBitrate(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULTS.downloadBitrate
+  return Math.min(320, Math.max(96, Math.round(value)))
 }
 
 function clampLyricSize(value: unknown): number {

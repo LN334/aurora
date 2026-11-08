@@ -122,6 +122,64 @@ export interface UpdatePrefs {
   autoInstallAvailable: boolean
 }
 
+/** 下载：主进程队列，渲染层只发命令、听状态。 */
+export type DownloadFormat = 'original' | 'mp3' | 'flac' | 'm4a'
+export type DownloadState =
+  | 'queued'
+  | 'downloading'
+  | 'transcoding'
+  | 'done'
+  | 'failed'
+  | 'canceled'
+
+export interface DownloadRequest {
+  provider: 'netease' | 'qq' | 'kugou' | 'qishui'
+  trackId: string
+  title: string
+  artists: string[]
+  album: string
+  /** 秒；只用来给转码画进度。 */
+  duration?: number
+  format?: DownloadFormat
+}
+
+export interface DownloadView {
+  id: string
+  provider: DownloadRequest['provider']
+  title: string
+  subtitle: string
+  format: DownloadFormat
+  state: DownloadState
+  percent: number
+  received: number
+  total: number
+  speed: number
+  filePath?: string
+  message?: string
+  createdAt: number
+}
+
+export interface DownloadPrefs {
+  dir: string
+  effectiveDir: string
+  format: DownloadFormat
+  bitrate: number
+  ffmpeg: boolean
+}
+
+interface DownloadsApi {
+  enqueue(request: DownloadRequest): Promise<DownloadView>
+  cancel(id: string): Promise<boolean>
+  list(): Promise<DownloadView[]>
+  clear(): Promise<boolean>
+  reveal(id: string): Promise<boolean>
+  openFolder(): Promise<boolean>
+  getPrefs(): Promise<DownloadPrefs>
+  setPrefs(patch: { dir?: string; format?: DownloadFormat; bitrate?: number }): Promise<DownloadPrefs>
+  pickFolder(): Promise<string | null>
+  onState(handler: (views: DownloadView[]) => void): () => void
+}
+
  interface UpdatesApi {
   check(): Promise<UpdateResult>
   /** Fetch the release the last check reported; progress arrives on `onStatus`. */
@@ -1198,6 +1256,7 @@ export interface AuroraApi {
   playlists: PlaylistsApi
   app: AppApi
   settings: SettingsApi
+  downloads: DownloadsApi
   updates: UpdatesApi
   player: PlayerApi
   lyrics: LyricsApi
