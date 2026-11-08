@@ -1,6 +1,6 @@
 # Aurora
 
-A desktop music player for Windows. It doesn't ship any music. It connects to your own NetEase Cloud Music and QQ Music accounts, or reads the files already on your disk. Window colours follow the album cover that's playing.
+A desktop music player for Windows. It ships no music: it reads your own folders, and connects to your NetEase Cloud Music, QQ Music, KuGou and Qishui accounts. A track that exists on several platforms takes one row, and playback picks a source in the order you set. Window colours follow the cover that's playing.
 
 [中文](README.md) · [Download](https://github.com/LN334/aurora/releases/latest) · [Issues](https://github.com/LN334/aurora/issues)
 
@@ -10,14 +10,16 @@ A desktop music player for Windows. It doesn't ship any music. It connects to yo
 
 ---
 
-## What it does
+## Features
 
-- Plays local files: folder scanning, tag and cover reading, 14 audio formats
-- Connects to NetEase Cloud Music and QQ Music. Search and play free tracks without signing in; signing in brings in daily recommendations, liked songs, cloud drive and playlists
-- Full-screen lyrics page with a visualiser that reacts to the music
+- Local files: folder scanning, tags and embedded covers, 14 audio formats
+- Four online platforms: NetEase Cloud Music, QQ Music, KuGou, Qishui. Search and free tracks work signed out; daily recommendations and liked songs need an account
+- One row per track across platforms; playback picks whichever source can play it, in the order you set
+- Online tracks can be saved to disk
+- Full-screen lyrics page, coloured from the current cover
 - Desktop lyrics: a transparent always-on-top window that can be locked to click through
-- Playlists, a play queue, a 10-band equaliser, crossfade, ReplayGain
-- If Wallpaper Engine is installed, workshop wallpapers can run behind the UI: scene, video, web and image wallpapers
+- Play queue, 10-band equaliser, crossfade, ReplayGain
+- With Wallpaper Engine installed, workshop wallpapers can run behind the UI: scene, video, web and image
 - Tray icon, taskbar thumbnail buttons, Windows media controls and hardware media keys
 
 ## Install
@@ -30,35 +32,37 @@ The installer isn't code-signed, so Windows will warn once. Click "More info", t
 
 ## First launch
 
-Aurora looks for your music folder on first start (usually "Music" in your user directory) and begins scanning if it finds one. If it guessed wrong, or you keep music on another drive, add folders yourself from the account page (the avatar at the bottom of the sidebar). It won't add them back after you remove them.
+Aurora looks for your music folder on first start (usually "Music" in your user directory) and begins scanning if it finds one. If it guessed wrong, or you keep music on another drive, add folders yourself under "Mine" at the bottom of the sidebar. It won't add them back after you remove them.
 
-To hear something online: type a song name into the search box at the top and press Enter, then switch the results to NetEase Cloud Music. No account needed for that.
+To hear something online: type a song name into the search box at the top and press Enter, then switch the results page to the platform you want. Search doesn't need an account.
 
-## Where the music comes from
+## Sources
 
-| Source | What you need | Status |
-| --- | --- | --- |
-| Local files | Music files somewhere on your disk | Works |
-| NetEase Cloud Music | A NetEase account; search and part of the catalogue work signed out | Works |
-| QQ Music | A QQ Music account; signed out, only free tracks play | Works |
-| Spotify / Apple Music / Navidrome / Jellyfin | — | Not implemented; the integration point is in the code |
+| Source | Status |
+| --- | --- |
+| Local files | Works, as long as you have music files |
+| NetEase Cloud Music | Works; search and part of the catalogue work signed out |
+| QQ Music | Works; most tracks are preview-only signed out, so sign in |
+| KuGou Music | Works |
+| Qishui Music | Works |
+| Spotify / Apple Music / Navidrome / Jellyfin | Not implemented; the integration point is in the code |
 
 Music is licensed, and no player can bundle a catalogue. Either you use the permissions your own account already has, or you read your own files. There's no third route here that goes around platform payments.
 
-## About the two online platforms
+## Platform APIs
 
-Both are **unofficial and unlicensed**. NetEase goes through a community reverse-engineered API, [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced); QQ Music goes through [qq-music-api](https://github.com/Rain120/qq-music-api).
+All four are **unofficial and unlicensed**. NetEase goes through a community reverse-engineered API, [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced); QQ Music goes through [qq-music-api](https://github.com/Rain120/qq-music-api). KuGou and Qishui are wired up against their web and app endpoints directly.
 
-That means:
+What that means for you:
 
-- For personal study and use only. These APIs are unauthorised access and violate the platforms' terms
+- For personal use and study only. These endpoints are unauthorised access and break the platforms' terms
 - It can break at any time, and an account used this way carries some risk
-- No paywall bypass. Encrypted audio isn't decrypted, membership quality isn't unlocked, paid albums aren't opened. You get what your account can already play
-- Nothing is downloaded or reposted. Playback only
+- No paywall bypass. Encrypted audio, membership quality and paid albums are left alone. You get what your account can already play
+- Online tracks can be saved to disk, but you get the file the platform handed out. Whether it's the whole track depends on your account and the licensing; preview-only tracks are marked
 
-Neither platform offers an official API for individual desktop software. QQ Music's developer docs say outright that individual developers can't apply, and list only mobile apps, mini programs, smart hardware and in-car as supported clients, with requirements for a dedicated section, branding and usage reporting. NetEase's open platform is partner-only too. The unofficial route is the only one that works, and you take the risk.
+None of the four offers an official API for individual desktop software. QQ Music's developer docs say outright that individual developers can't apply, and list only mobile apps, mini programs, smart hardware and in-car as supported clients, with requirements for a dedicated section, branding and usage reporting. NetEase's open platform is partner-only too. The unofficial route is the only one that works, and you take the risk.
 
-### Signed out, the two platforms differ a lot
+### What works signed out
 
 | | NetEase | QQ Music |
 | --- | --- | --- |
@@ -71,44 +75,47 @@ The QQ Music number is measured: popular tracks are almost all paid (`payplay ==
 
 When something can't play, the UI says which reason applies: needs membership, region lock, preview only, taken down, rate limited, network error. It doesn't just say "playback failed".
 
-## The UI
+## The interface
 
 ### Navigation
 
-Four entries on the left, each with its own children:
+One column on the left:
 
-| Entry | Children | What it's for |
-| --- | --- | --- |
-| Home | Recently played, My music, Picks for you, Today's listening | What to play next |
-| Library | Songs, Albums, Artists, Folders | What's on disk |
-| Collection | Liked songs, My playlists | What you picked |
-| Settings | — | Preferences |
+| Position | Items |
+| --- | --- |
+| Top | Recommended, Roam |
+| Mine | Liked music, Recently played, Playlists, Saved playlists, Saved albums, Local music |
+| Bottom | Settings, Mine, Collapse sidebar |
 
-Platforms and local files aren't top-level entries. They're the source tabs inside Library: the first row switches source (Local / NetEase / QQ Music), the second row switches the section.
+Platforms don't get their own top-level entry. All four plus local files live in one library.
 
-There's exactly one search box, in the title bar. Enter opens the results page, and the page only switches source; it doesn't have a second input.
+There's exactly one search box, in the title bar; `Ctrl K` focuses it. Enter opens the results page, and the page only switches platform; it doesn't have a second input.
 
-The avatar at the bottom of the sidebar opens the account page: local profiles, the online account each profile is bound to, and local music folders. Accounts aren't a preference; you open them whenever you switch profiles or scan a login code, so they don't live in Settings.
+"Mine" at the bottom of the sidebar opens the account page: local profiles, the online account each profile is bound to, and local music folders.
 
-### Home
+### Recommended
 
-The app opens here. One screen answers three questions: what to play next, what's in the library, how much you've listened today.
+The app opens here. A greeting and today's listening time, then the track you last played, then four tiles into liked music, recently played, playlists and saved items.
 
-The top card is the current track, or the last one you played when nothing is playing, with play/pause, library and search buttons. Below it: My music (each platform's account state, with a sign-in button while signed out), Picks for you (recommended songs, recommended playlists, curated playlists, no sign-in needed, with "shuffle" for another batch), today's listening next to what's queued, and finally the recent list.
+Below that is "what to play today": 30 tracks picked from what you've been listening to, keyed to the date, a new batch tomorrow.
+
+Then recommended playlists (mixed across platforms, shufflable), curated playlists (horizontal), new releases, and recently played.
 
 Listening history stays on disk: daily totals, the last 60 entries, with repeats within three minutes counted once. It's flushed on pause, track change and window close; scrubbing the progress bar doesn't count.
 
-### Library and Collection
+### Mine
 
-Library is organised by disk. Scanning reads tags, embedded covers and a sibling `.lrc`; rescans only re-read files that changed. Sections are songs, albums, artists and folders, plus album detail in disc order.
+Liked music collects the likes from every platform in one place. The header breaks the count down by platform, and each row marks which platforms can play that track.
 
-Collection is organised by you: liked songs and playlists you built. A song belongs to your collection regardless of which folder or platform it came from, so a playlist can hold both local and online tracks. Playlists support rename and delete, drag to reorder (or `Alt+Up` / `Alt+Down`), and m3u / m3u8 import and export. Importing tells you how many entries weren't found in the library.
+Playlists are grouped by platform: ones you built on top, ones pulled from a platform below, and a new playlist asks which platform it belongs to. A track is in a playlist regardless of folder or platform, so one playlist can hold both local and online tracks. Playlists support rename and delete, drag to reorder (or `Alt+Up` / `Alt+Down`), and m3u / m3u8 import and export. Importing tells you how many entries weren't found.
+
+Local music reads files off the disk. Scanning reads tags, embedded covers and a sibling `.lrc`; rescans only re-read files that changed. Sections are songs, albums, artists and folders, and album detail keeps disc order.
 
 ### Playback
 
-The bar at the bottom has cover, title, artist, progress, previous / play / next, shuffle, repeat, queue, equaliser, desktop lyrics and volume.
+The bar at the bottom has cover, title, artist, progress, previous / play / next, then shuffle, repeat, queue, equaliser, desktop lyrics and volume. The volume slider takes the mouse wheel in 5% steps; dragging it to 0 and then unmuting returns to 60% instead of staying silent.
 
-Clicking the cover opens the lyrics page: the current line large in the middle, neighbouring lines fading with distance, a visualiser moving behind them. With no lyrics, it shows the cover and title and offers an online lookup.
+Clicking the cover opens the full-screen lyrics page: the current line large, neighbouring lines fading with distance. With no lyrics it shows the cover and title and offers an online lookup.
 
 - 10-band equaliser with 5 presets; double-clicking a slider resets it
 - Crossfade with adjustable overlap
@@ -118,7 +125,7 @@ Clicking the cover opens the lyrics page: the current line large in the middle, 
 
 ### Desktop lyrics
 
-A separate window that shows one line of lyrics with a faint halo and no background panel. Hover and a control strip appears (smaller, larger, lock, close); move away and it fades.
+A separate window with just the lyrics and no background panel. Hover and a pill-shaped toolbar appears: previous, play/pause, next, lock, close. Move away and it fades.
 
 While locked, clicks pass through to whatever is underneath, but hovering still lets you drag it and use the controls without unlocking first.
 
@@ -166,7 +173,7 @@ Rows have three shapes only: switch, segmented buttons, slider. Label on the lef
 
 ## Your data
 
-Nothing is uploaded and there is no telemetry. Only the items below touch the network, and most of them need you to ask. The exception is "Picks for you" on Home: opening Home requests one round of public recommendations, no sign-in needed.
+Nothing is uploaded and there is no telemetry. Only the items below touch the network, and most of them need you to ask. The exception is the recommended playlists on the first page: opening it requests one round of public recommendations, no sign-in needed.
 
 - **Music files and the index**: all local, nothing uploaded
 - **Login credentials**: encrypted with Windows DPAPI and stored locally per profile. No plaintext on disk, nothing in logs. Signing out removes them
@@ -182,7 +189,7 @@ No telemetry, no usage statistics, no crash reporting.
 The build isn't code-signed. "More info" → "Run anyway".
 
 **Can I use it without signing in?**
-Yes. NetEase search and free tracks work signed out. Signing in adds your playlists, daily recommendations, cloud drive and liked songs.
+Yes. Free tracks play signed out. Paid tracks depend on what your account can play, so they need a sign-in; daily recommendations, playlists and cloud drive only show up once you're signed in.
 
 **A track won't play.**
 The UI states the reason. That's the platform's permission check, and Aurora doesn't work around it.
