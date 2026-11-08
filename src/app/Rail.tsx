@@ -5,7 +5,7 @@ import { useLibrary } from '../features/library/store'
 import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Compass, Heart, Library, List, Note, Refresh, Settings, Shuffle, Sidebar, Sliders, User } from '../ui/icons'
+import { Compass, Heart, Library, List, Note, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
 import type { ShellRoute, ShellView } from './shell'
 
 /**
@@ -60,17 +60,14 @@ const MINE: MineItem[] = [
 ]
 
 /**
- * 左栏底部：扩展、设置，加上底部那一格档案。
+ * 左栏底部：设置，加上底部那一格档案。
  *
  * 舞台不在这里。它不是「去哪一页」，是「把正在听的东西摊满窗口」——所以入口
  * 跟着播放走：点播放条左边那张封面、按 L、或点播放条右侧的展开键。网易云、
  * Spotify、Apple Music 都是这么放的，左栏放一个「舞台」等于把播放态塞进导航，
  * 还会让「这是页面还是模式」分不清。
  */
-const FOOT: MineItem[] = [
-  { view: 'mods', label: '扩展', icon: Sliders },
-  { view: 'settings', label: '设置', icon: Settings }
-]
+const FOOT: MineItem[] = [{ view: 'settings', label: '设置', icon: Settings }]
 
 export function Rail({
   route,

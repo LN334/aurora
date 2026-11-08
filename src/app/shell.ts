@@ -34,7 +34,6 @@ export type ShellView =
   | 'track'
   | 'nowplaying'
   | 'stage'
-  | 'mods'
   | 'settings'
   | 'me'
   /* —— 不占左栏位置，但仍然是可达的页面 —— */
@@ -74,7 +73,6 @@ export const SHELL_TITLES: Record<ShellView, string> = {
   track: '歌曲',
   nowplaying: '正在播放',
   stage: '舞台',
-  mods: '扩展',
   settings: '设置',
   me: '我',
   search: '搜索',
@@ -189,7 +187,6 @@ export function shellToRoute(route: ShellRoute): Route {
     case 'recent':
     case 'nowplaying':
     case 'track':
-    case 'mods':
     case 'roam':
     case 'stage':
       return { view: 'discover' }

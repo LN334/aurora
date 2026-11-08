@@ -86,7 +86,6 @@ import { Sources } from './views/Sources'
 import { RecentView } from './views/RecentView'
 import { TrackView } from './views/TrackView'
 import { NowPlaying } from './views/NowPlaying'
-import { ModsView } from './views/ModsView'
 
 /**
  * One entry in the navigation stack. Keeping the artist drill-down in the route
@@ -665,7 +664,6 @@ export function App() {  if (!isNative) {
     if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
     if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
     if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={setTrackMenu} />
-    if (shell.view === 'mods') return <ModsView />
     if (shell.view === 'nowplaying') {
       return (
         <NowPlaying
