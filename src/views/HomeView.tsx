@@ -15,7 +15,7 @@ import { usePlaylists } from '../features/playlists/store'
 import { openOnlinePlaylist } from '../features/refs/navigate'
 import { usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
-import { interleaveByProvider, useShelves, windowOf } from '../features/online/shelves'
+import { picksByProvider, useRecommendedPlaylists } from '../features/online/recommended'
 import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
@@ -107,14 +107,20 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   const newBlock = useDiscover((state) => state.blocks.newsongs)
 
   /**
-   * 推荐歌单不再只问网易云一家。
+   * 歌单这一栏取的是「平台推荐了什么」，不是「我收藏了什么」。
    *
-   * 四家的单子本来就都在手边（账号一登录就有），再向其中一家的推荐接口要
-   * 一份是多余的：主页该显示「你有这些」，而不是「网易云觉得你该听这些」。
+   * 之前拿各平台的我的歌单来填，首屏就出现了自己的「我喜欢的音乐」和自建
+   * 歌单——推荐位放自己的收藏，等于把音乐库又摆了一遍。
    */
-  const shelves = useShelves()
+  const recommended = useRecommendedPlaylists()
   const [batch, setBatch] = useState(0)
-  const deck = useMemo(() => interleaveByProvider(shelves), [shelves])
+  /**
+   * 每平台各出 3 张，交错排。
+   *
+   * 之前是把两家的歌单倒在一起洗，池子大的那家占满整行 —— 用户看到的是「怎么
+   * 全是酷狗」。数量按平台限定之后，「换一批」只在各家内部换。
+   */
+  const { picks, rest } = useMemo(() => picksByProvider(recommended, batch, 3), [recommended, batch])
 
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。
@@ -179,9 +185,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 一屏只给六张太薄：四家轮一遍就没了，看起来像只接了一两家。两行铺满之后
    * 每一家在首屏都能出三张，「换一批」再往后挪一屏。
    */
-  const PER_BATCH = ROW * 2
-  const picks = useMemo(() => windowOf(deck, batch * PER_BATCH, PER_BATCH), [deck, batch])
-  const more = useMemo(() => windowOf(deck, batch * PER_BATCH + PER_BATCH, 12), [deck, batch])
+  const more = useMemo(() => rest, [rest])
   /**
    * 新歌不再只有网易云一家。
    *
@@ -237,7 +241,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
             type="button"
             onClick={() => onNavigate({ view: 'track', id: focus.id })}
             title="详情"
-            style={focusArt ? undefined : tintOf(focus.id)}
+            style={tintOf(focus.id)}
           >
             <Artwork src={focusArt} alt="" fallback={<Note size={18} />} />
           </button>
@@ -338,7 +342,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
           </div>
           <div className="rh-daily__art">
             {daily.slice(0, 3).map((track) => (
-              <span key={track.id} className="rh-daily__tile" style={artworkFor(track) ? undefined : tintOf(track.id)}>
+              <span key={track.id} className="rh-daily__tile" style={tintOf(track.id)}>
                 <Artwork src={artworkFor(track)} alt="" fallback={null} />
               </span>
             ))}
@@ -362,7 +366,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 key={row.key}
                 onClick={() => openOnlinePlaylist(row.providerId, row.id)}
               >
-                <span className="rh-card__art" style={row.coverUrl ? undefined : tintOf(row.key)}>
+                <span className="rh-card__art" style={tintOf(row.key)}>
                   <Artwork
                     src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 360)) : null}
                     alt=""
@@ -391,7 +395,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                 key={row.key}
                 onClick={() => openOnlinePlaylist(row.providerId, row.id)}
               >
-                <span className="rh-mini__art" style={row.coverUrl ? undefined : tintOf(row.key)}>
+                <span className="rh-mini__art" style={tintOf(row.key)}>
                   <Artwork
                     src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240)) : null}
                     alt=""
@@ -439,7 +443,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
               >
                 <span
                   className="rh-card__art"
-                  style={artworkFor(track) ? undefined : tintOf(track.id)}
+                  style={tintOf(track.id)}
                 >
                   <Artwork src={artworkFor(track)} alt="" fallback={<Note size={20} />} />
                 </span>

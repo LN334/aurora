@@ -681,6 +681,9 @@ export function likedPlaylistId(response: unknown): string {
  */
 export function normalizeSongCollection(response: unknown): QqSong[] {
   return songsFrom(response, [
+    // 每日推荐：body.recommend.data.songlist[]，每行是 { songinfo: {...} } 而不是歌本身。
+    (body) =>
+      list(record(record(body.recommend).data).songlist).map((row) => record(row).songinfo ?? row),
     (body) => record(body.data).songlist,
     (body) => body.songlist,
     (body) => record(record(body.data).body).songlist,

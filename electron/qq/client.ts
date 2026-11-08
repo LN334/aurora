@@ -629,11 +629,14 @@ export async function qqNewSongs(limit = 20): Promise<QqSong[]> {
 /** The account's daily recommendation. Same envelope family as the liked list. */
 export async function qqDaily(): Promise<QqSong[]> {
   const state = readState(activeProfileId)
+  if (!state.cookie) return []
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return []
   try {
-    const response = await requestDailyRecommend({ cookie: state.cookie })
+    const response = await requestDailyRecommend({ uin, cookie: state.cookie })
     return rememberAll(normalizeSongCollection(response))
   } catch (error) {
-    console.error('[aurora] qq daily failed', messageOf(error))
+    log('qq daily failed ' + messageOf(error))
     return []
   }
 }
@@ -670,4 +673,3 @@ function rememberAll(songs: QqSong[]): QqSong[] {
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
-

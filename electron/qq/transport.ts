@@ -419,8 +419,49 @@ export async function requestNewSongs(params: { areaId?: number; limit: number }
   return await loadServices().getNewSongs(params.areaId, params.limit)
 }
 
-export async function requestDailyRecommend(params: { cookie: string }): Promise<unknown> {
-  return await loadServices().getDailyRecommend({ cookie: params.cookie })
+/**
+ * 每日推荐。
+ *
+ * 包里的 getDailyRecommend 把 `param.uin` 与 `param.login` 写死成 0，cookie 传进
+ * 去也只会得到一份匿名榜单。所以这一支不走包，自己发同一个 musicu 请求，把真实
+ * uin 填进去——接口认的就是这两个字段。
+ */
+export async function requestDailyRecommend(params: {
+  uin: string
+  cookie: string
+  limit?: number
+}): Promise<unknown> {
+  const uin = Number(params.uin) || 0
+  const body = {
+    comm: {
+      ct: 24,
+      cv: 0,
+      format: 'json',
+      inCharset: 'utf-8',
+      outCharset: 'utf-8',
+      platform: 'yqq.json',
+      needNewCode: 0,
+      loginUin: uin
+    },
+    recommend: {
+      module: 'music.web_srf_svr',
+      method: 'get_recommend',
+      param: { page: 0, num: params.limit ?? 30, uin, login: uin > 0 ? 1 : 0 }
+    }
+  }
+  const response = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      referer: 'https://y.qq.com/portal/player.html',
+      cookie: params.cookie
+    },
+    body: JSON.stringify(body)
+  })
+  if (!response.ok) {
+    return { status: response.status, body: { error: 'daily recommend http ' + response.status } }
+  }
+  return { status: 200, body: await response.json() }
 }
 
 /**

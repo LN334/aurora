@@ -48,6 +48,16 @@ function ProfilePart() {
 
   const active = (accounts.find((item) => item.id === activeId) ?? accounts[0]) as Account
   const bound = bindings[active.id] ?? null
+  /**
+   * 这一行原来只写网易云，看着像「这个档案就是网易云账号」。
+   * 档案是本机的，平台只是挂在它下面的登录态，登了几家就都写出来。
+   */
+  const signedIn = [
+    useOnlineStore('netease')().account ? '网易云音乐' : '',
+    useOnlineStore('qq')().account ? 'QQ 音乐' : '',
+    useOnlineStore('kugou')().account ? '酷狗音乐' : '',
+    useOnlineStore('qishui')().account ? '汽水音乐' : ''
+  ].filter(Boolean)
 
   const pickAvatar = async (id: string, file: File | undefined) => {
     if (!file) return
@@ -123,7 +133,7 @@ function ProfilePart() {
             <Pencil size={13} />
           </button>
         )}
-        <p className="acct2-meta">{heroMeta(active, bound)}</p>
+        <p className="acct2-meta">{heroMeta(active, bound, signedIn)}</p>
       </div>
 
       <div className="acct2-acts">
@@ -375,8 +385,14 @@ function FolderPart() {
    工具
    ========================================================================== */
 
-function heroMeta(account: Account, bound: { nickname: string; vip?: boolean } | null): string {
+function heroMeta(
+  account: Account,
+  bound: { nickname: string; vip?: boolean } | null,
+  signedIn: string[]
+): string {
+  if (signedIn.length > 1) return signedIn.join(' · ') + ' 已登录'
   if (bound) return '网易云音乐 · ' + bound.nickname + (bound.vip ? ' · 会员' : '')
+  if (signedIn.length === 1) return signedIn[0] + ' 已登录'
   return account.createdAt ? '创建于 ' + formatDate(account.createdAt) : '本机档案'
 }
 
