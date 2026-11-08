@@ -24,6 +24,31 @@
   background: var(--ink-1000);
 }
 
+/*
+ * 顶栏与播放条各自淡入一点，让「打开舞台」看起来是这一层长出来的，
+ * 而不是唰一下换屏。只动 opacity、用 backwards 而不是 both：
+ * 动画一旦被冻住，元素停在基础样式（可见），不会像整层淡入那样把内容锁死。
+ * 歌词区不参与——它是阅读主体，且换行时自己会动，别叠两个 animation。
+ */
+@keyframes stage-part-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.stage__top,
+.stage__bottom {
+  animation: stage-part-in var(--dur-3) var(--ease-out) backwards;
+}
+.stage__top {
+  animation-delay: 60ms;
+}
+.stage__bottom {
+  animation-delay: 120ms;
+}
+
 @keyframes viz-in {
   from {
     opacity: 0;
