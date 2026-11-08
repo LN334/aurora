@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
 import { getProvider, listAvailableProviders } from './registry'
-import type { PlatformBackend } from './store'
+import { useOnlineStore, type PlatformBackend } from './store'
 import type { ProviderId } from './types'
 import { mergeVersions } from './unify'
 import { sourceOrder } from '../settings/source-order'
@@ -29,6 +29,8 @@ export async function loadPlatformDaily(): Promise<Track[]> {
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
+        // 同上：绑定档案在 init 里，跳过它上游会当游客。
+        await useOnlineStore(provider.id as never).getState().init().catch(() => {})
         const backend =
           (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
         const daily = provider.recommendations?.dailySongs

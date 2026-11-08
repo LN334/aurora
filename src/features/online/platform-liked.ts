@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
 import { getProvider, listAvailableProviders } from './registry'
-import type { PlatformBackend } from './store'
+import { useOnlineStore, type PlatformBackend } from './store'
 import type { OnlineSong } from './types'
 
 /**
@@ -21,6 +21,11 @@ export async function loadPlatformLiked(): Promise<Track[]> {
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
+        /*
+         * 必须先把这家 store 叫起来：绑定当前档案、读出账号都发生在 init 里，
+         * 跳过去直接取数据的话主进程还停在默认档案上，于是「未登录」。
+         */
+        await useOnlineStore(provider.id as never).getState().init().catch(() => {})
         const backend = (getProvider(provider.id)?.backend as PlatformBackend | undefined) ?? null
         if (!backend?.collection) return [] as Track[]
         const songs = await backend.collection('likes', 200)

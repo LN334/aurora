@@ -343,8 +343,16 @@ export function readAccountProbe(response: unknown): AccountProbe {
   }
 
   const data = record(payload.data)
-  // The profile has been seen under both `data` and the payload itself.
-  const profile = Object.keys(record(data.profile)).length > 0 ? record(data.profile) : data
+  /*
+   * 实测 getUserDetail 把账号放在 `data.creator`（昵称 `nick`、头像 `headpic`），
+   * 老版本放在 `data.profile`，更老的直接铺在 `data` 上。三处都认。
+   */
+  const profile =
+    Object.keys(record(data.creator)).length > 0
+      ? record(data.creator)
+      : Object.keys(record(data.profile)).length > 0
+        ? record(data.profile)
+        : data
   return {
     authenticated: code === 0,
     nickname: text(pick(profile, 'nickname', 'nick', 'name', 'userName')),
