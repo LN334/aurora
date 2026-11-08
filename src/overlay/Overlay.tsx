@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Close, Lock, Minus, Next, Pause, Play, Plus, Prev, Unlock } from '../ui/icons'
+import { Close, Lock, Next, Pause, Play, Prev, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
 import type { OverlayState } from '../env'
 
-/** Font size is a property of this window, so it lives in its own storage. */
+/**
+ * Font size belongs to the main process now (it is also a setting), so this file
+ * only remembers the key an older build wrote.
+ */
 const SIZE_KEY = 'aurora.desktopLyrics.size'
-const MIN_SIZE = 18
-const MAX_SIZE = 64
 const DEFAULT_SIZE = 34
 
 const IDLE: OverlayState = {
@@ -84,7 +85,7 @@ export function Overlay() {
     const legacy = Number.parseInt(localStorage.getItem(SIZE_KEY) ?? '', 10)
     if (Number.isFinite(legacy)) {
       localStorage.removeItem(SIZE_KEY)
-      void bridge.overlay.setSize(Math.min(MAX_SIZE, Math.max(MIN_SIZE, legacy)))
+      void bridge.overlay.setSize(Math.min(64, Math.max(18, legacy)))
     }
     return stop
   }, [])
@@ -169,12 +170,6 @@ export function Overlay() {
     return () => window.clearInterval(timer)
   }, [state])
 
-  const applySize = (next: number) => {
-    const clamped = Math.min(MAX_SIZE, Math.max(MIN_SIZE, next))
-    setSize(clamped)
-    void bridge.overlay.setSize(clamped)
-  }
-
   const setLock = async (next: boolean) => {
     const applied = await bridge.overlay.setLocked(next)
     setLocked(applied)
@@ -227,7 +222,7 @@ export function Overlay() {
               title="上一首"
               aria-label="上一首"
             >
-              <Prev size={16} />
+              <Prev size={18} strokeWidth={1.9} />
             </button>
             <button
               className="lyric-tool lyric-tool--key"
@@ -235,7 +230,7 @@ export function Overlay() {
               title={state.playing ? '暂停' : '播放'}
               aria-label={state.playing ? '暂停' : '播放'}
             >
-              {state.playing ? <Pause size={16} /> : <Play size={16} />}
+              {state.playing ? <Pause size={18} strokeWidth={1.9} /> : <Play size={18} strokeWidth={1.9} />}
             </button>
             <button
               className="lyric-tool"
@@ -243,7 +238,7 @@ export function Overlay() {
               title="下一首"
               aria-label="下一首"
             >
-              <Next size={16} />
+              <Next size={18} strokeWidth={1.9} />
             </button>
           </span>
 
@@ -253,32 +248,12 @@ export function Overlay() {
 
           <span className="lyric-toolbar__tools">
             <button
-              className="lyric-tool lyric-tool--sm"
-              onClick={() => applySize(size - 2)}
-              disabled={size <= MIN_SIZE}
-              title="缩小字号"
-              aria-label="缩小字号"
-            >
-              <Minus size={13} />
-            </button>
-            <button
-              className="lyric-tool lyric-tool--sm"
-              onClick={() => applySize(size + 2)}
-              disabled={size >= MAX_SIZE}
-              title="放大字号"
-              aria-label="放大字号"
-            >
-              <Plus size={13} />
-            </button>
-            <button
-              className="lyric-tool lyric-tool--sm lyric-tool--lock"
-              data-locked={locked}
-              aria-pressed={locked}
+              className={`lyric-tool lyric-tool--sm${locked ? ' is-on' : ''}`}
               onClick={() => void setLock(!locked)}
-              title={locked ? '解锁：可以拖动这条歌词' : '锁定：鼠标穿透，不挡下面的窗口'}
-              aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
+              title={locked ? '解锁位置（解锁后能拖动）' : '锁定位置（锁定后鼠标穿透）'}
+              aria-label={locked ? '解锁位置' : '锁定位置'}
             >
-              {locked ? <Lock size={13} /> : <Unlock size={13} />}
+              {locked ? <Lock size={15} strokeWidth={1.7} /> : <Unlock size={15} strokeWidth={1.7} />}
             </button>
             <button
               className="lyric-tool lyric-tool--sm"
@@ -286,7 +261,7 @@ export function Overlay() {
               title="关闭桌面歌词"
               aria-label="关闭桌面歌词"
             >
-              <Close size={13} />
+              <Close size={15} strokeWidth={1.7} />
             </button>
           </span>
         </div>
