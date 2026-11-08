@@ -419,6 +419,33 @@ export async function qishuiSearch(
   return { songs }
 }
 
+/**
+ * 推荐流。
+ *
+ * 汽水的个性化接口（recent_played / liked_songs）未登录一律答 auth-required，
+ * 唯独 `feed` 游客也发——一次 30 首、按场景编好，掺的正是没收藏过的东西，
+ * 所以它是这个平台唯一能进「漫游」的入口。
+ */
+export async function qishuiFeed(limit: number): Promise<QishuiSongShape[]> {
+  const api = apiFor(activeProfileId)
+  const result = (await api.request('feed', {})) as {
+    ok?: boolean
+    data?: { items?: unknown[] }
+    error?: { code?: string }
+  }
+  if (!result.ok) {
+    write('qishui:feed 失败 ' + (result.error?.code ?? ''))
+    return []
+  }
+  const songs: QishuiSongShape[] = []
+  for (const item of list(result.data?.items)) {
+    if (songs.length >= limit) break
+    const track = toRawTrack(item)
+    if (track) songs.push(songShape(track))
+  }
+  return songs
+}
+
 export async function qishuiSong(alias: number): Promise<QishuiSongShape | null> {
   const ref = refOf(alias)
   if (!ref || ref.kind !== 'track') return null
@@ -492,6 +519,48 @@ export async function qishuiLiked(limit = 200): Promise<QishuiSongShape[]> {
     if (songs.length >= limit) break
   }
   return songs
+}
+
+/**
+ * 收藏／取消收藏一首歌。
+ *
+ * 汽水这边「喜欢」就是账号里的一个收藏动作，写回之后平台自己的客户端也会变——
+ * 这是用户在 Aurora 点红心时的期待。id 是别名，先用 refOf 换回上游字符串。
+ */
+export async function qishuiLike(alias: number, liked: boolean): Promise<boolean> {
+  const ref = refOf(alias)
+  if (!ref || ref.kind !== 'track') return false
+  const result = (await apiFor(activeProfileId).request('like_song', {
+    id: ref.id,
+    liked
+  })) as { ok?: boolean; error?: { code?: string } }
+  return result.ok === true
+}
+
+/**
+ * 往自己的歌单里加歌／移出歌。
+ *
+ * 上游只给了这两个动作：不能建单、不能改名、不能删单（见 qishui-music-api 的
+ * QishuiOperation），所以汽水没有 `create / rename / remove` 这三支可挂。
+ */
+export async function qishuiPlaylistTracksEdit(
+  alias: number,
+  songAliases: number[],
+  add: boolean
+): Promise<boolean> {
+  const ref = refOf(alias)
+  if (!ref || ref.kind !== 'playlist') return false
+  const ids: string[] = []
+  for (const songAlias of songAliases) {
+    const song = refOf(songAlias)
+    if (song && song.kind === 'track') ids.push(song.id)
+  }
+  if (ids.length === 0) return false
+  const result = (await apiFor(activeProfileId).request(
+    add ? 'playlist_add_tracks' : 'playlist_remove_tracks',
+    { id: ref.id, ids }
+  )) as { ok?: boolean; error?: { code?: string } }
+  return result.ok === true
 }
 
 export async function qishuiMyPlaylists(limit: number): Promise<QishuiPlaylistShape[]> {

@@ -42,10 +42,11 @@ function client(): KugouApi | null {
 const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless']
 
 /**
- * 酷狗没有「每日推荐 / 我喜欢的音乐」这类账号集合可读，所以这里空着。
+ * 账号集合为空：酷狗没有「我喜欢的音乐 / 我的云盘」这类可读集合。
  *
- * 歌单不走 `collections`：`myPlaylists` 是平台无关的入口，登录后读账号自己的
- * 歌单，未登录读公开榜单——那是「能浏览」而不是「属于我」，所以不声明成集合。
+ * 每日推荐不在这里——它走 `recommendations.dailySongs`，是「平台今天给你的」，
+ * 不是「属于我的」。歌单也不走 `collections`：`myPlaylists` 是平台无关的入口，
+ * 登录后读账号自己的歌单，未登录读公开榜单——那是「能浏览」而不是「属于我」。
  */
 const COLLECTIONS: OnlineCollection[] = []
 
@@ -56,11 +57,12 @@ const CAPABILITIES: ProviderCapabilities = {
   lyrics: false,
   auth: true,
   playlists: true,
-  albums: false,
-  artists: false,
-  recommendations: false,
+  albums: true,
+  artists: true,
+  recommendations: true,
   userCloud: false,
-  likes: false
+  // 喜欢就是「把歌加进我喜欢那张云端歌单」，读也是读它——见 likes 的定义。
+  likes: true
 }
 
 const kugouBackend: PlatformBackend = {
@@ -138,6 +140,10 @@ const kugouBackend: PlatformBackend = {
        * 字符串身份都带在行上：前者给播放器，后者万一以后要按上游身份去重。
        */
       onlineId: song.id,
+      albumId: song.album.id || undefined,
+      artistId: song.artists[0]?.id || undefined,
+      // 名字串里有几个就留几个，缺 id 的退化成纯文字（同网易云）。
+      artistRefs: song.artists.map((item) => ({ id: item.id || 0, name: item.name })),
       gainDb: null,
       peak: null
     }
@@ -215,10 +221,10 @@ const kugouProvider: OnlineMusicProvider = {
   id: 'kugou',
   displayName: '酷狗音乐',
   shortName: '酷狗',
-  summary: '搜索酷狗音乐、打开歌单；取播放地址需要登录账号',
+  summary: '搜索酷狗音乐、打开歌单专辑与艺人页；取播放地址需要登录账号',
   disclosure:
     '通过第三方逆向接口（KuGouMusicApi 本地服务）接入，仅供个人学习自用，不是官方客户端，也不提供绕过付费或会员的能力。',
-  anonymousNote: '未登录也能搜索、浏览公开榜单；取播放地址需要登录酷狗账号。',
+  anonymousNote: '未登录也能搜索、浏览公开榜单、看每天 30 首推荐；取播放地址需要登录酷狗账号。',
   // 只有真正带主进程客户端的构建才为 true；浏览器预览与旧构建都是 false，
   // 侧栏因此不会出现一个点不开的入口。
   available: () => previewBackendsForced() || client() !== null,
@@ -247,16 +253,77 @@ const kugouProvider: OnlineMusicProvider = {
   },
 
   catalog: {
-    /*
-     * 目前只有歌单。
-     *
-     * 专辑页与艺人页要的接口上游其实有（vendor 里 album_detail / album_songs /
-     * artist_detail / artist_audios / artist_albums 都在），只是这一层还没接。
-     * 缺这个方法比答空更诚实：界面会说「还没有这一页」，而不是「没有取到内容」
-     * ——后者把「没做」说成了「上游没给」。
-     */
+    album: async (id) => {
+      const bundle = await client()?.album(id)
+      if (!bundle) return null
+      return {
+        id: bundle.detail.id,
+        name: bundle.detail.name,
+        coverUrl: bundle.detail.picUrl,
+        // 两个接口各回各的，曲目在 `bundle.songs` 里，已经过一遍主进程的读取器。
+        songs: bundle.songs.map((song) => normalizeSong(song)),
+        year: bundle.detail.year || null,
+        description: bundle.detail.intro,
+        artistName: bundle.detail.artist
+      }
+    },
+    artist: async (id) => {
+      const detail = await client()?.artist(id)
+      if (!detail) return null
+      return {
+        id: detail.id,
+        name: detail.name,
+        brief: detail.intro,
+        coverUrl: detail.picUrl,
+        albumCount: detail.albumCount,
+        songCount: detail.songCount
+      }
+    },
+    artistTopSongs: async (id, limit) => {
+      const rows = (await client()?.artistSongs(id, limit ?? 50, 0)) ?? []
+      return rows.map((song) => normalizeSong(song))
+    },
+    artistSongs: async (id, limit, offset) => {
+      const rows = (await client()?.artistSongs(id, limit, offset)) ?? []
+      return rows.map((song) => normalizeSong(song))
+    },
+    artistAlbums: async (id, limit, offset) => {
+      const rows = (await client()?.artistAlbums(id, limit, offset)) ?? []
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        artist: row.artist,
+        picUrl: row.picUrl,
+        year: row.year,
+        songCount: row.songCount
+      }))
+    },
     playlistTracks: (id) => kugouBackend.playlistTracks!(id),
     myPlaylists: () => kugouBackend.myPlaylists!()
+  },
+
+  /*
+   * 喜欢：酷狗没有独立的「点红心」接口，喜欢就是往「我喜欢」那张云端歌单加歌，
+   * 取消就是删歌。读与写都落在同一张表上，所以收藏页与红心状态天然一致。
+   */
+  likes: {
+    list: async () => {
+      const rows = (await client()?.likes()) ?? []
+      return rows.map((song) => normalizeSong(song))
+    },
+    set: async (songId, liked) => (await client()?.like(songId, liked)) ?? false
+  },
+
+  recommendations: {
+    /*
+     * `/recommend/songs`：30 首，**不用登录**。登录后同一个接口按账号口味给，
+     * 形状不变。接了它，`loadPlatformDaily()` 就会自动把酷狗那 30 首并进「今天
+     * 听什么」和漫游池——不需要页面单独再接一根线。
+     */
+    dailySongs: async () => {
+      const rows = (await client()?.dailyRecommend()) ?? []
+      return rows.map((song) => normalizeSong(song))
+    }
   },
 
   auth: {

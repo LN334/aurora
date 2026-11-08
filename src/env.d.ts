@@ -70,6 +70,8 @@ export interface WindowVisibilityState {
   openExternal(url: string): Promise<boolean>
   getVisibility(): Promise<WindowVisibilityState>
   onVisibility(handler: (state: WindowVisibilityState) => void): () => void
+  /** 窗口正被拖着改大小；true 期间界面该关掉毛玻璃这类重采样效果。 */
+  onResizing(handler: (resizing: boolean) => void): () => void
 }
 
 export interface UpdateInfo {
@@ -514,17 +516,31 @@ export interface NeteaseApi {
   myPlaylists(): Promise<NeteasePlaylistSummary[]>
   /** 收藏的专辑；未登录返回空数组。 */
   albumSublist(): Promise<
-    { id: number; name: string; coverUrl: string | null; artistName: string; year: number; songCount: number }[]
+    { id: number; name: string; coverUrl: string | null; artistName: string; artistId: number; year: number; songCount: number }[]
   >
   topAlbums(limit?: number): Promise<
-    { id: number; name: string; coverUrl: string | null; artistName: string; year: number; songCount: number }[]
+    { id: number; name: string; coverUrl: string | null; artistName: string; artistId: number; year: number; songCount: number }[]
   >
   playlistTracks(id: number): Promise<NeteaseSong[]>
   dailySongs(): Promise<NeteaseSong[]>
+  /** 私人漫游：一次几首没听过的，播到队尾再要下一批。 */
+  personalFm(limit?: number): Promise<NeteaseSong[]>
   cloudSongs(): Promise<NeteaseSong[]>
   likeList(): Promise<NeteaseSong[]>
   /** 喜欢/取消喜欢一首歌；未登录或上游失败返回 false。 */
   like(songId: number, liked: boolean): Promise<boolean>
+
+  /**
+   * 自己建的歌单的五处写：建、加减歌、改名、删单。
+   *
+   * 与读接口同一套失败口径：未登录或上游拒绝时回 false/null，不抛。歌单 id 是
+   * 网易云那一侧的，只有「我建的」才写得动——收藏来的别人的歌单上游也会拒。
+   */
+  playlistCreate(name: string): Promise<{ id: number; name: string } | null>
+  playlistAddTracks(id: number, trackIds: number[]): Promise<boolean>
+  playlistRemoveTracks(id: number, trackIds: number[]): Promise<boolean>
+  playlistRename(id: number, name: string): Promise<boolean>
+  playlistDelete(id: number): Promise<boolean>
 
   getQuality(): Promise<NeteaseQuality>
   setQuality(quality: NeteaseQuality): Promise<NeteaseQuality>
@@ -674,6 +690,25 @@ export interface QqApi {
   daily(): Promise<QqSong[]>
   /** 我喜欢的音乐。 */
   liked(): Promise<QqSong[]>
+  /**
+   * 点/取消红心，直接写回 QQ 音乐账号。
+   *
+   * true 才代表上游那侧真的变成想要的态——主进程先读一次、再写、再读回来核对；
+   * 没登录、不知道 mid、上游拒了、读不回来，一律 false（界面提示「没写成」）。
+   */
+  like(songId: number, liked: boolean): Promise<boolean>
+  /**
+   * 自己建的歌单（id 是 tid / dissid，与列表里那张卡的 id 一致）。
+   *
+   * 只列自建；「我喜欢」这类系统目录不在其中。未登录返回空数组。
+   */
+  playlistOwned(): Promise<{ id: number; name: string }[]>
+  /** 新建歌单。未登录或上游拒了回 null。 */
+  playlistCreate(name: string): Promise<{ id: number; name: string } | null>
+  playlistDelete(id: number): Promise<boolean>
+  playlistRename(id: number, name: string): Promise<boolean>
+  /** 加（add=true）/ 删（add=false）歌。写完主进程读回核对，false 表示没成。 */
+  playlistTracksEdit(id: number, songIds: number[], add: boolean): Promise<boolean>
   /** 收藏的专辑（需要登录；未登录返回空数组）。 */
   collectedAlbums(limit?: number): Promise<QqCollectedAlbum[]>
   /**
@@ -839,6 +874,45 @@ export interface KugouQrResult {
  * `id` 是主进程发的数字别名（上游 `global_collection_id` 是字符串，而共享界面
  * 按正整数取歌单）。别名在本次会话里稳定，重开应用后重新取一次列表即可。
  */
+/** 一张专辑的头部；曲目在 `KugouAlbumBundle.songs` 里。 */
+export interface KugouAlbumDetail {
+  id: number
+  name: string
+  artist: string
+  picUrl: string | null
+  year: number | null
+  /** 专辑简介；上游没写就是空串。 */
+  intro: string
+  /** 曲目数由曲目接口的 total 补；0 表示没问到。 */
+  songCount: number
+}
+
+export interface KugouAlbumBundle {
+  detail: KugouAlbumDetail
+  songs: KugouSong[]
+}
+
+/** 一个艺人的头部。三个数字都是上游自己报的，不是估算。 */
+export interface KugouArtistDetail {
+  id: number
+  name: string
+  picUrl: string | null
+  albumCount: number
+  songCount: number
+  fans: number
+  intro: string
+}
+
+/** 专辑列表的一行：与共享的 `OnlineAlbumRef` 同形。 */
+export interface KugouAlbumEntry {
+  id: number
+  name: string
+  artist: string
+  picUrl: string | null
+  year: number | null
+  songCount: number
+}
+
 export interface KugouPlaylistSummary {
   id: number
   name: string
@@ -928,8 +1002,8 @@ export interface WindowApi {
 /**
  * 酷狗的桥。
  *
- * 与 QQ 同一套方法名，少两个（没有歌词、没有每日推荐/我喜欢的），多出来的
- * `playlistTracks` 接受数字别名。`streamUrl` 的入参是数字钥匙或字符串上游 id。
+ * 与 QQ 同一套方法名，少一个（没有歌词），多出来的 `playlistTracks`/`album`/`artist`
+ * 接受数字别名。`streamUrl` 的入参是数字钥匙或字符串上游 id。
  */
 export interface KugouApi {
   setProfile(profileId: string): Promise<boolean>
@@ -957,6 +1031,24 @@ export interface KugouApi {
   newSongs(limit?: number): Promise<KugouSong[]>
   /** 一张歌单里的歌。`id` 是列表里那个数字别名。 */
   playlistTracks(id: string | number): Promise<KugouSong[]>
+  /** 「我喜欢」。酷狗没有独立接口，读的就是那张云端歌单。 */
+  likes(limit?: number): Promise<KugouSong[]>
+  /**
+   * 点红心 / 取消。酷狗这边等于把歌加进「我喜欢」歌单或从里面删掉，
+   * 主进程写完会读回核对，true 才代表上游真的变了。
+   */
+  like(songId: number, liked: boolean): Promise<boolean>
+
+  /** 一张专辑的头部 + 曲目；查不到时 null（不是空对象）。 */
+  album(id: number): Promise<KugouAlbumBundle | null>
+  /** 一个艺人的头部。 */
+  artist(id: number): Promise<KugouArtistDetail | null>
+  /** 艺人页「全部歌曲」，按热度排。 */
+  artistSongs(id: number, limit?: number, offset?: number): Promise<KugouSong[]>
+  /** 艺人页「专辑」。 */
+  artistAlbums(id: number, limit?: number, offset?: number): Promise<KugouAlbumEntry[]>
+  /** 每日推荐 30 首；不需要登录。 */
+  dailyRecommend(): Promise<KugouSong[]>
 }
 
 // --- 汽水音乐（抖音，第三方逆向接口 + npm SDK）-------------------------------
@@ -1070,6 +1162,19 @@ export interface QishuiApi {
 
   /** 「我喜欢的」。未登录时上游答 auth-required，这里给空数组。 */
   liked(limit?: number): Promise<QishuiSong[]>
+  /**
+   * 推荐流。与另外几个个性化接口不同，`feed` 游客也能读到——一天一批、一次
+   * 最多 30 首，是汽水唯一能进「漫游」的入口。
+   */
+  feed(limit?: number): Promise<QishuiSong[]>
+  /** 收藏／取消收藏。写回平台账号，未登录或上游拒绝回 false。 */
+  like(songId: number, liked: boolean): Promise<boolean>
+  /**
+   * 往自己的歌单里加歌／移出歌。
+   *
+   * 汽水上游只给了这两个动作，不能新建、改名、删单——所以另外三支没有。
+   */
+  playlistTracksEdit(playlistId: number, songIds: number[], add: boolean): Promise<boolean>
   /** 公开歌单搜索；首页推荐位用它拿「汽水推荐了什么」，不需要登录。 */
   searchPlaylists(keywords: string, limit?: number): Promise<QishuiPlaylistSummary[]>
   myPlaylists(limit?: number): Promise<QishuiPlaylistSummary[]>

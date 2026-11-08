@@ -304,6 +304,8 @@ export interface OnlineArtistProfile {
 
  interface ProviderRecommendationsApi {
   dailySongs?(): Promise<OnlineSong[]>
+  /** 可选：私人漫游流。一次几首，具体数量由平台决定。 */
+  personalFm?(limit?: number): Promise<OnlineSong[]>
   likeList?(): Promise<OnlineSong[]>
   cloudSongs?(): Promise<OnlineSong[]>
 }
@@ -320,6 +322,24 @@ export interface ProviderLikesApi {
   list(): Promise<OnlineSong[]>
   /** 喜欢（true）或取消喜欢（false）。返回是否真的写成功。 */
   set(songId: number, liked: boolean): Promise<boolean>
+}
+
+/**
+ * 平台账号里的歌单：写。
+ *
+ * 和「喜欢」同一条思路——账号动作单独成一支，界面上线哪一家就给哪一家。
+ * 只有**自己建的**歌单写得动：收藏来的别人的单上游也会拒，所以调用方要先看
+ * `OnlinePlaylistSummary.subscribed`，别等上游回错。
+ *
+ * `songId` 是平台侧的歌 id（不是 Track.id）：由 `backend.songIdOf(track)` 转换，
+ * 这样每条通道拿到的都是自己能直接发出去的数字。
+ */
+export interface ProviderPlaylistWriteApi {
+  create?(name: string): Promise<{ id: number; name: string } | null>
+  addTracks?(id: number, songIds: number[]): Promise<boolean>
+  removeTracks?(id: number, songIds: number[]): Promise<boolean>
+  rename?(id: number, name: string): Promise<boolean>
+  remove?(id: number): Promise<boolean>
 }
 
 export interface OnlineMusicProvider {
@@ -367,6 +387,8 @@ export interface OnlineMusicProvider {
   recommendations?: ProviderRecommendationsApi
   /** 喜欢的读写。`capabilities.likes` 决定界面给不给入口，这里才是调用。 */
   likes?: ProviderLikesApi
+  /** 自己建的歌单的写。没有这一支的平台，歌单页不给编辑入口。 */
+  playlists?: ProviderPlaylistWriteApi
 
   /** Collections this platform offers, in the order they should be listed. */
   collections?: OnlineCollection[]

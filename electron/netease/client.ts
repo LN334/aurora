@@ -88,6 +88,11 @@ interface Upstream {
   top_album: UpstreamCall
   album_newest: UpstreamCall
   likelist: UpstreamCall
+  /** 自己建的歌单的五处写：建、加减歌、改名、删单。 */
+  playlist_create: UpstreamCall
+  playlist_tracks: UpstreamCall
+  playlist_name_update: UpstreamCall
+  playlist_delete: UpstreamCall
   /** 喜欢/取消喜欢一首歌：写操作，需要真登录。 */
   like: UpstreamCall
   login_qr_key: UpstreamCall
@@ -108,6 +113,12 @@ interface Upstream {
   /** 换一批要用的两个公开端点：榜单歌曲、可分页的歌单广场。 */
   playlist_detail: UpstreamCall
   top_playlist: UpstreamCall
+  /**
+   * 私人漫游：两个都打 `/api/v1/radio/get`。`personal_fm_mode` 带 mode/limit，
+   * `personal_fm` 无参（老接口，作为前者空手时的兜底）。
+   */
+  personal_fm: UpstreamCall
+  personal_fm_mode: UpstreamCall
 }
 
 let upstream: Upstream | null = null
@@ -1006,6 +1017,27 @@ export async function neteaseDailySongs(): Promise<NeteaseSong[]> {
   return toSongs(asArray(data.dailySongs).length > 0 ? data.dailySongs : body.recommend)
 }
 
+/**
+ * 私人漫游。
+ *
+ * 网易云的「漫游」不是把曲库打乱，而是一条源源不断的推荐流：每次只给几首没听过的，
+ * 听完再要下一批。所以这里不缓存、不合并——调用方拉到几首就追加几首，重复由调用方
+ * 按 id 去重。未登录时上游只会给空数组，漫游页据此退回到「洗自己的库」。
+ *
+ * `personal_fm_mode` 能带 limit（默认 3）；它偶尔会因为 mode 参数被上游拒，兜底回到
+ * 无参的 `personal_fm`——两条路由打的是同一个 `/api/v1/radio/get`。
+ */
+export async function neteasePersonalFm(limit = 3): Promise<NeteaseSong[]> {
+  await bootstrapOnce()
+  if (!(await safeAccount())) return []
+  const want = Math.min(Math.max(Math.trunc(limit) || 3, 1), 20)
+  const first = await call('personal_fm_mode', { limit: want }).catch(() => null)
+  const rows = first ? asArray(asRecord(first.body).data) : []
+  if (rows.length > 0) return toSongs(rows)
+  const fallback = await call('personal_fm', {}).catch(() => null)
+  return fallback ? toSongs(asArray(asRecord(fallback.body).data)) : []
+}
+
 // --- discover ------------------------------------------------------------
 
 /**
@@ -1287,6 +1319,100 @@ export async function neteaseLike(songId: number, liked: boolean): Promise<boole
   return asNumber(asRecord(res.body).code) === 200
 }
 
+/*
+ * 自己建的歌单：建、加歌、删歌、改名、删单。
+ *
+ * 这几条和「喜欢」一样是写操作，未登录一律回 false/null——匿名 cookie 会被上游
+ * 拒绝，发出去只是让用户等一次注定失败的网络。判真伪只看 `code === 200`，上游
+ * 没有更细的结果字段。
+ *
+ * `playlist_tracks` 的 `tracks` 要逗号串而不是数组：模块内部自己 `split(',')`，
+ * 传数组会拼成 ""1,2"" 那种上游读不懂的东西。
+ */
+async function writeOk(name: keyof Upstream, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  await bootstrapOnce()
+  if (!(await safeAccount())) return null
+  const res = await call(name, params)
+  const body = asRecord(res.body)
+  /*
+   * 两种回包都见过：playlist_create 这类把 code 写在外面，playlist_tracks
+   * 这类包一层 { status, body: { code } }。只读外面会把「歌其实已经进单了」
+   * 误判成失败，所以两处都读。
+   */
+  const inner = asRecord(body.body)
+  if (asNumber(body.code) !== 200 && asNumber(inner.code) !== 200) return null
+  return asNumber(body.code) === 200 ? body : inner
+}
+
+export async function neteasePlaylistCreate(name: string): Promise<{ id: number; name: string } | null> {
+  const trimmed = String(name ?? '').trim()
+  if (!trimmed) return null
+  const body = await writeOk('playlist_create', { name: trimmed })
+  if (!body) return null
+  const created = asRecord(asRecord(body.playlist).id ? body.playlist : body)
+  const id = asNumber(created.id) || asNumber(body.id)
+  return id > 0 ? { id, name: asString(created.name) || trimmed } : null
+}
+
+export async function neteasePlaylistAddTracks(id: number, trackIds: readonly number[]): Promise<boolean> {
+  const ids = trackIds.filter((value) => Number.isSafeInteger(value) && value > 0)
+  if (!isUsableId(id) || ids.length === 0) return false
+  return (await writeOk('playlist_tracks', { op: 'add', pid: id, tracks: ids.join(',') })) !== null
+}
+
+/**
+ * 歌单内曲目 id（trackId）与歌曲 id（songId）的对照表。
+ *
+ * 加歌能用 songId，删歌只能用 trackId：playlist/manipulate/tracks 的 trackIds 指
+ * 的是「这首歌在这张歌单里的那一条」，拿 songId 去删上游不认（实测返回失败且
+ * 歌没动）。详情里 tracks 与 trackIds 同序等长，按位置对起来即可。
+ */
+async function playlistTrackIdMap(playlistId: number): Promise<Map<number, number>> {
+  const res = await call('playlist_detail', { id: playlistId, n: 1000, s: 0 })
+  const playlist = asRecord(asRecord(res.body).playlist)
+  const tracks = asArray(playlist.tracks).map((row) => asRecord(row))
+  const trackIds = asArray(playlist.trackIds).map((row) => asRecord(row))
+  const out = new Map<number, number>()
+  for (let index = 0; index < tracks.length; index += 1) {
+    const songId = asNumber(tracks[index].id)
+    const row = trackIds[index]
+    const trackId = row ? asNumber(row.id) : 0
+    if (songId > 0 && trackId > 0) out.set(songId, trackId)
+  }
+  return out
+}
+
+export async function neteasePlaylistRemoveTracks(id: number, songIds: readonly number[]): Promise<boolean> {
+  const ids = songIds.filter((value) => Number.isSafeInteger(value) && value > 0)
+  if (!isUsableId(id) || ids.length === 0) return false
+  const map = await playlistTrackIdMap(id)
+  const trackIds: number[] = []
+  for (const songId of ids) {
+    const trackId = map.get(songId)
+    if (trackId) trackIds.push(trackId)
+  }
+  if (trackIds.length === 0) return false
+  return (await writeOk('playlist_tracks', { op: 'del', pid: id, tracks: trackIds.join(',') })) !== null
+}
+
+export async function neteasePlaylistRename(id: number, name: string): Promise<boolean> {
+  const trimmed = String(name ?? '').trim()
+  if (!isUsableId(id) || !trimmed) return false
+  return (await writeOk('playlist_name_update', { id, name: trimmed })) !== null
+}
+
+export async function neteasePlaylistDelete(id: number): Promise<boolean> {
+  if (!isUsableId(id)) return false
+  const wrote = (await writeOk('playlist_delete', { id })) !== null
+  /*
+   * 这条接口的成功回包不稳：实测歌单已经删掉了，回包却不是 200。删是不可逆的，
+   * 报错会让用户以为没删成再点一次，所以以「列表里还在不在」为准，不以回包为准。
+   */
+  const left = await neteaseMyPlaylists().catch(() => null)
+  if (left) return !left.some((row) => row.id === id)
+  return wrote
+}
+
 /**
  * 新碟上架（`album_newest`）。
  *
@@ -1308,11 +1434,13 @@ export async function neteaseTopAlbums(limit = 24, offset = 0): Promise<NeteaseC
       const artists = asArray(raw.artists)
         .map((item) => asString(asRecord(item).name))
         .filter(Boolean)
+      const artistId = asNumber(asRecord(asArray(raw.artists)[0]).id)
       return {
         id: albumId,
         name: asString(raw.name),
         coverUrl: asNullableString(raw.picUrl),
         artistName: artists.join(' / ') || asString(asRecord(raw.artist).name),
+        artistId,
         year: yearOf(raw.publishTime),
         songCount: asNumber(raw.size)
       }
@@ -1341,12 +1469,14 @@ export async function neteaseAlbumSublist(
       const artists = asArray(raw.artists)
         .map((item) => asString(asRecord(item).name))
         .filter(Boolean)
+      const artistId = asNumber(asRecord(asArray(raw.artists)[0]).id)
       const fallback = asString(asRecord(raw.artist).name)
       return {
         id: albumId,
         name: asString(raw.name),
         coverUrl: asNullableString(raw.picUrl),
         artistName: artists.join(' / ') || fallback,
+        artistId,
         year: yearOf(raw.publishTime),
         songCount: asNumber(raw.size)
       }

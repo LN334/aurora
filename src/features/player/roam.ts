@@ -1,0 +1,116 @@
+import { loadPlatformDaily } from '../online/daily'
+import { loadPlatformLiked } from '../online/platform-liked'
+import { getProvider, listAvailableProviders } from '../online/registry'
+import { useOnlineStore, type PlatformBackend } from '../online/store'
+import type { ProviderId } from '../online/types'
+import { mergeVersions, trackKey } from '../online/unify'
+import { sourceOrder } from '../settings/source-order'
+import { useLibrary } from '../library/store'
+import { useHistory } from './history-store'
+import type { Track } from '../../types'
+
+export interface RoamPool {
+  /** 池子里所有的歌，同曲多版本已并成一行。 */
+  tracks: Track[]
+  /** 池子里不在「我的」里的那部分：平台推过来、还没收藏过的。 */
+  freshTracks: Track[]
+}
+
+/**
+ * 漫游池：平台每天推的，混上我有的。
+ *
+ * 只有「我有的」不算漫游——那些歌本来就在列表里，随机一遍只是换个顺序，听两
+ * 次就腻了。所以先要各平台的推荐（每日推荐 + 私人漫游），再把本机、最近听过、
+ * 收藏进来的一起并上。同一首在推荐与收藏里都出现时，`mergeVersions` 并成一行，
+ * 不会因为「今天推了」就多出一份。
+ */
+/**
+ * 池子。`platforms` 是用户勾的推流平台，空数组表示一家都没勾。
+ */
+export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> {
+  const order = sourceOrder()
+  const local = useLibrary.getState().tracks
+  const recent = useHistory
+    .getState()
+    .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
+  const [liked, daily, stream] = await Promise.all([
+    loadPlatformLiked().catch(() => [] as Track[]),
+    loadPlatformDaily(platforms).catch(() => [] as Track[]),
+    loadRoamStream(12, platforms).catch(() => [] as Track[])
+  ])
+
+  const mine = mergeVersions([...local, ...recent, ...liked], order)
+  const pushed = mergeVersions([...daily, ...stream], order)
+  const tracks = mergeVersions([...pushed, ...mine], order)
+  const known = new Set(mine.map((track) => trackKey(track)))
+  return { tracks, freshTracks: tracks.filter((track) => !known.has(trackKey(track))) }
+}
+
+/**
+ * 从池子里挑这一趟要放的几十首。
+ *
+ * 只放平台推过来的：收藏过的、听过的、本机有的都不进来。漫游是一份「今天可能
+ * 没听过」的流，掺一半旧歌就还是那批歌换个顺序，听两次就腻了。池子里的旧歌只
+ * 用来判断哪些是新的。
+ */
+export function buildRoamQueue(pool: RoamPool, size = 80): Track[] {
+  return shuffle(pool.freshTracks).slice(0, size)
+}
+
+/**
+ * Fisher–Yates。不改原数组：池子挂在 state 上，就地打乱会让同一个引用被改两次，
+ * React 认不出变化，页面上的顺序和实际播放顺序会对不上。
+ */
+
+/**
+ * 一批「还没听过的」。
+ *
+ * 原生客户端的漫游是一条流，不是一份列表：听到底就再要一批。这里把这件事做成
+ * 一次请求——先问平台的私人漫游（网易云有 `personalFm`），没有这个接口的退回
+ * 它的每日推荐。谁都没给就返回空数组，页面如实说「这一批和手上重复了」，不假装
+ * 还有更多。
+ */
+export async function loadRoamStream(limit = 12, platforms?: ProviderId[]): Promise<Track[]> {
+  const wanted = platforms === undefined ? null : new Set(platforms)
+  const providers = listAvailableProviders().filter(
+    (provider) =>
+      Boolean(provider.recommendations?.personalFm || provider.recommendations?.dailySongs) &&
+      (wanted === null || wanted.has(provider.id))
+  )
+
+  const lists = await Promise.all(
+    providers.map(async (provider) => {
+      try {
+        // 绑定档案在 init 里，跳过它上游会当游客。
+        await useOnlineStore(provider.id as never)
+          .getState()
+          .init()
+          .catch(() => {})
+        const backend =
+          (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
+        const api = provider.recommendations
+        if (!backend || !api) return [] as Track[]
+        const songs = api.personalFm
+          ? await api.personalFm(limit)
+          : await (api.dailySongs?.() ?? Promise.resolve([]))
+        // 每日推荐一次给几十首，这里只取前几首，剩下的留给下一次。
+        return songs.slice(0, limit).map((song) => backend.toTrack(song))
+      } catch {
+        return [] as Track[]
+      }
+    })
+  )
+
+  return mergeVersions(lists.flat(), sourceOrder())
+}
+
+export function shuffle<T>(items: T[]): T[] {
+  const out = items.slice()
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const swap = out[i]
+    out[i] = out[j]
+    out[j] = swap
+  }
+  return out
+}

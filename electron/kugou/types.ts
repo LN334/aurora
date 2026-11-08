@@ -154,3 +154,51 @@ export interface KugouPlaylistSummary {
   trackCount: number
   creator: string
 }
+
+/**
+ * 一张专辑的头部。
+ *
+ * 与曲目行里的 `album` 不同：那是「这首歌属于哪张专辑」，只有名字与封面；
+ * 这里是被打开的那张专辑本身，带简介、发行日期与作者。
+ */
+export interface KugouAlbumDetail {
+  id: number
+  name: string
+  artist: string
+  picUrl: string | null
+  year: number | null
+  /** 专辑简介；上游没写就是空串。 */
+  intro: string
+  /** 曲目数：详情接口不报，由 `/album/songs` 的 total 补；0 表示没问。 */
+  songCount: number
+}
+
+export interface KugouAlbumBundle {
+  detail: KugouAlbumDetail
+  songs: KugouSong[]
+}
+
+/**
+ * 一个艺人的头部。
+ *
+ * `fans` 与两个 count 都是上游自己报的数字，不是估算；`intro` 取第一段长简介
+ * （上游给数组，第一段是「简介」）。
+ */
+export interface KugouArtistDetail {
+  id: number
+  name: string
+  picUrl: string | null
+  albumCount: number
+  songCount: number
+  fans: number
+  intro: string
+}
+/** 专辑列表的一行：与共享的 `OnlineAlbumRef` 同形，上游不报曲目数时填 0。 */
+export interface KugouAlbumEntry {
+  id: number
+  name: string
+  artist: string
+  picUrl: string | null
+  year: number | null
+  songCount: number
+}

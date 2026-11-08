@@ -13,8 +13,16 @@ import { useSyncExternalStore } from 'react'
 
 const STORAGE_KEY = 'aurora.sourceOrder'
 
-/** 默认顺序：本机在前——它不需要联网，也不需要会员。 */
-export const DEFAULT_ORDER = ['local', 'netease', 'qq', 'kugou']
+/** 旧版把本机排在最前，升级后一次性挪到最后；用户之后手动调仍然算数。 */
+const LOCAL_LAST_KEY = 'aurora.sourceOrder.localLast'
+
+/**
+ * 默认顺序：平台在前，本机最后。
+ *
+ * 这个播放器是各音乐平台的客户端，本机文件只是其中一个来源——同名的歌能出流
+ * 时先问平台，本机排在末尾顶着。
+ */
+export const DEFAULT_ORDER = ['netease', 'qq', 'kugou', 'qishui', 'local']
 
 const listeners = new Set<() => void>()
 let current: string[] = read()
@@ -30,7 +38,7 @@ function read(): string[] {
     // 已知平台按存下的顺序在前，未登记的平台补在后面，免得升级后少一段。
     const known = values.filter((id) => DEFAULT_ORDER.includes(id))
     const extra = DEFAULT_ORDER.filter((id) => !known.includes(id))
-    return [...known, ...extra]
+    return migrateLocalLast([...known, ...extra])
   } catch {
     return [...DEFAULT_ORDER]
   }
@@ -38,6 +46,25 @@ function read(): string[] {
 
 export function sourceOrder(): string[] {
   return current
+}
+
+/**
+ * 把本机挪到末尾，只做一次。
+ *
+ * 旧默认是「本机在前」，读到的旧配置里本机常常在第一格。规则变了之后如果不
+ * 迁移，老用户会一直按旧顺序走，而设置页里看着又像是自己调过。
+ */
+function migrateLocalLast(order: string[]): string[] {
+  if (typeof localStorage === 'undefined') return order
+  try {
+    if (localStorage.getItem(LOCAL_LAST_KEY) === '1') return order
+    localStorage.setItem(LOCAL_LAST_KEY, '1')
+  } catch {
+    return order
+  }
+  if (!order.includes('local')) return order
+  const rest = order.filter((id) => id !== 'local')
+  return [...rest, 'local']
 }
 
 export function setSourceOrder(order: string[]): void {

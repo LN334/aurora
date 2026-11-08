@@ -41,11 +41,18 @@ import {
   requestPublicSonglists,
   requestRecommendPlaylists,
   requestSearch,
+  requestOwnedPlaylists,
+  requestPlaylistCreate,
+  requestPlaylistDelete,
+  requestPlaylistRename,
+  requestPlaylistTracksEdit,
+  requestSongLike,
   requestTopDetail,
   requestVipInfo,
   tierLadder,
   uinDigits
 } from './transport'
+import type { QqOwnedPlaylist } from './transport'
 import type {
   QqAccount,
   QqAlbumBundle,
@@ -761,6 +768,91 @@ export async function qqLiked(): Promise<QqSong[]> {
   }
 }
 
+
+
+
+/**
+ * QQ 的 g_tk：把 skey 逐字符累进 32 位哈希，取低 31 位。
+ *
+ * 网页版每个写请求都带这个数，算法是公开的（同为 hash33 的变体）；写错了上游
+ * 只会答一个 500026，所以放在一处，别各写一遍。返回十进制字符串——comm 里按数字用。
+ */
+function hash33(value: string): string {
+  let hash = 5381
+  for (let index = 0; index < value.length; index += 1) {
+    hash += (hash << 5) + value.charCodeAt(index)
+  }
+  return String(hash & 0x7fffffff)
+}
+
+
+
+/**
+ * 写操作要的三样：cookie、uin、authst。authst 就是 cookie 里的 qqmusic_key
+ * （网易那套叫 p_skey 的地方），安卓 comm 用它认人；没有它写不进去，所以缺一样
+ * 就当没登录处理。
+ */
+function credential(): { uin: string; cookie: string; authst: string } | null {
+  const state = readState(activeProfileId)
+  if (!state.cookie) return null
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return null
+  const authst =
+    cookieValue(state.cookie, 'p_skey') ||
+    cookieValue(state.cookie, 'qqmusic_key', 'qm_keyst') ||
+    cookieValue(state.cookie, 'skey') ||
+    ''
+  if (!authst) return null
+  return { uin, cookie: state.cookie, authst }
+}
+
+/**
+ * 在 Aurora 里点红心，等于在 QQ 音乐里点红心。
+ *
+ * 写接口要 id 与 mid 一对，而渲染层只带数字 id，mid 从这次会话见过的歌里找
+ * （`songIndex`，和播放走的是同一份缓存）。找不到就不写：拿错 mid 去写比不写更糟。
+ *
+ * 返回 false 表示「没写成」——没登录、mid 不明、上游拒了、写完读不回来，都算。
+ * 界面据此提示，不会把没发生的事说成发生了。
+ */
+export async function qqLike(songId: number, liked: boolean): Promise<boolean> {
+  const auth = credential()
+  if (!auth) return false
+  const uin = auth.uin
+
+  const cached = songIndex.get(songId)
+  const mid = cached?.songmid ?? ''
+  if (!mid) {
+    log('qq like missing mid ' + songId)
+    return false
+  }
+
+  /*
+   * 写接口要 g_tk：由 cookie 里的 p_skey（或 qqmusic_key / qm_keyst）经 hash33 算出。
+   * 没有它，同样的请求会从 80105 变成 500026——两种都是「没写成」，所以这里先算好。
+   */
+  const gtk = hash33(auth.authst)
+
+  try {
+    const result = await requestSongLike({
+      uin,
+      cookie: auth.cookie,
+      authst: auth.authst,
+      gtk,
+      id: songId,
+      mid,
+      liked
+    })
+    if (!result.ok) log('qq like failed ' + songId + ' ' + (result.detail ?? ''))
+    return result.ok
+  } catch (error) {
+    // 网络失败时真正的原因在 `cause` 里（ECONNRESET / DNS / 超时），只记 message 全是
+    // 「fetch failed」，等于什么都没记。
+    log('qq like failed ' + messageOf(error) + ' ' + messageOf((error as { cause?: unknown }).cause))
+    return false
+  }
+}
+
 /**
  * Record every row so a list fetched in one call can be played from another.
  *
@@ -779,4 +871,65 @@ function rememberAll(songs: QqSong[]): QqSong[] {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+// --- 歌单写 --------------------------------------------------------------
+//
+// 界面上歌单的 id 是 `tid`（dissid）；写要 `dirId`，由 transport 每次现读一次换出来。
+// 这里只做「取凭证 → 转发 → 记日志」，判断权限与读回核对都在 transport 里。
+
+export async function qqOwnedPlaylists(): Promise<QqOwnedPlaylist[]> {
+  const auth = credential()
+  if (!auth) return []
+  try {
+    return await requestOwnedPlaylists(auth)
+  } catch (error) {
+    log('qq playlists failed ' + messageOf(error) + ' ' + messageOf((error as { cause?: unknown }).cause))
+    return []
+  }
+}
+
+export async function qqPlaylistCreate(name: string): Promise<{ id: number; name: string } | null> {
+  const auth = credential()
+  if (!auth) return null
+  try {
+    const made = await requestPlaylistCreate(auth, name)
+    if (!made) return null
+    return { id: made.tid, name }
+  } catch (error) {
+    log('qq playlist create failed ' + messageOf(error))
+    return null
+  }
+}
+
+export async function qqPlaylistDelete(tid: number): Promise<boolean> {
+  const auth = credential()
+  if (!auth) return false
+  try {
+    return await requestPlaylistDelete(auth, tid)
+  } catch (error) {
+    log('qq playlist delete failed ' + messageOf(error))
+    return false
+  }
+}
+
+export async function qqPlaylistTracksEdit(tid: number, songIds: number[], add: boolean): Promise<boolean> {
+  const auth = credential()
+  if (!auth) return false
+  try {
+    return await requestPlaylistTracksEdit(auth, tid, songIds, add)
+  } catch (error) {
+    log('qq playlist tracks failed ' + messageOf(error))
+    return false
+  }
+}
+
+export async function qqPlaylistRename(tid: number, name: string): Promise<boolean> {
+  const auth = credential()
+  if (!auth) return false
+  try {
+    return await requestPlaylistRename(auth, tid, name)
+  } catch (error) {
+    log('qq playlist rename failed ' + messageOf(error))
+    return false
+  }
 }

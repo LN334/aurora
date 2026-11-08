@@ -39,7 +39,14 @@ export async function loadPlatformNewSongs(limit = 20): Promise<Track[]> {
   return mergeVersions(rounds.flat(), sourceOrder())
 }
 
-export function usePlatformNewSongs(limit = 20): Track[] {
+/**
+ * `tick` 变了就重取一次。
+ *
+ * 首页那块「最近新歌」要有换一批：只换本地切片的话，两次点的还是平台同一份
+ * 榜单；只重取不换切片的话，两个平台的新歌榜几小时才动一次，看起来又是没反应。
+ * 所以按钮同时做两件事——这里靠 tick 重取，页面上再向前挪一格切片。
+ */
+export function usePlatformNewSongs(limit = 20, tick = 0): Track[] {
   const [rows, setRows] = useState<Track[]>([])
 
   useEffect(() => {
@@ -52,7 +59,7 @@ export function usePlatformNewSongs(limit = 20): Track[] {
     return () => {
       alive = false
     }
-  }, [limit])
+  }, [limit, tick])
 
   return rows
 }

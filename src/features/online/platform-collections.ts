@@ -20,6 +20,8 @@ export interface CollectedAlbum {
   name: string
   coverUrl: string | null
   artistName: string
+  /** 艺人 id：卡片上那行名字据此点进艺人页；缺了就只是文字。 */
+  artistId?: number
   year: number
   songCount: number
 }
@@ -54,6 +56,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
               name: album.name,
               coverUrl: album.coverUrl,
               artistName: album.artistName,
+              artistId: album.artistId,
               year: album.year,
               songCount: album.songCount
             }))
@@ -76,6 +79,8 @@ export function useCollectedAlbums(): CollectedAlbum[] {
               name: album.name,
               coverUrl: album.coverUrl,
               artistName: album.artistName,
+              /* QQ 只回艺人 mid，没有数字 id，而艺人页按数字 id 打开：
+                 这一家的收藏卡上名字先只是文字，等按 mid 反查接通再补。 */
               year: album.year ?? 0,
               songCount: album.songCount
             }))

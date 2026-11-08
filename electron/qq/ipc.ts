@@ -37,6 +37,9 @@ const MAX_SONGMID = 64
 const SEARCH_TYPES = ['song', 'album', 'artist'] as const
 type SearchType = (typeof SEARCH_TYPES)[number]
 
+/** 正整数 id：歌单 tid 只会来自我们自己的列表。 */
+const asPositive = (value: unknown): number => (typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0)
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -213,6 +216,63 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
 
   ipcMain.handle('qq:liked', () => guard<QqSong[]>('liked', [], () => client.qqLiked()))
+
+  /*
+   * 点红心是写操作。上游对扫码登录的 cookie 认得不稳（每日推荐一律 500003 就是
+   * 这个毛病），所以这里只如实回 true/false：client 先读、再写、再读回来核对，
+   * 读不回来就答 false，页面提示「没写成」，不替上游宣称成功。
+   */
+  ipcMain.handle('qq:like', (_event, value: unknown, liked: unknown) => {
+    const songId = typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0
+    if (!songId) return Promise.resolve(false)
+    return guard<boolean>('like', false, () => client.qqLike(songId, liked === true))
+  })
+
+  /*
+   * 歌单写。界面的歌单 id 是 tid（dissid），加删改名都要它；上游真正认的是 dirId，
+   * 由 client→transport 现读现换，这里不缓存，免得用户刚在 QQ 里改过就写错单。
+   */
+  ipcMain.handle('qq:playlistOwned', () =>
+    guard<{ id: number; name: string }[]>('playlistOwned', [], async () => {
+      const rows = await client.qqOwnedPlaylists()
+      return rows
+        .filter((row) => row.dirType === 0 && row.dirId < 200)
+        .map((row) => ({ id: row.tid, name: row.name }))
+    })
+  )
+
+  ipcMain.handle('qq:playlistCreate', (_event, value: unknown) => {
+    const name = typeof value === 'string' ? value.trim().slice(0, 20) : ''
+    if (!name) return Promise.resolve<null>(null)
+    return guard<{ id: number; name: string } | null>('playlistCreate', null, () => client.qqPlaylistCreate(name))
+  })
+
+  ipcMain.handle('qq:playlistDelete', (_event, value: unknown) => {
+    const tid = asPositive(value)
+    if (!tid) return Promise.resolve(false)
+    return guard<boolean>('playlistDelete', false, () => client.qqPlaylistDelete(tid))
+  })
+
+  ipcMain.handle('qq:playlistRename', (_event, value: unknown, name: unknown) => {
+    const tid = asPositive(value)
+    const title = typeof name === 'string' ? name.trim().slice(0, 20) : ''
+    if (!tid || !title) return Promise.resolve(false)
+    return guard<boolean>('playlistRename', false, () => client.qqPlaylistRename(tid, title))
+  })
+
+  /*
+   * 加 / 删歌。songIds 与红心共用一份「见过的歌」缓存（songIndex），列表里没出现
+   * 过的 id 会被上游静默丢掉，所以一批最多带 200 首，且只接受正整数。
+   */
+  ipcMain.handle('qq:playlistTracksEdit', (_event, value: unknown, ids: unknown, add: unknown) => {
+    const tid = asPositive(value)
+    if (!tid || !Array.isArray(ids)) return Promise.resolve(false)
+    const songIds = ids
+      .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
+      .slice(0, 200)
+    if (songIds.length === 0) return Promise.resolve(false)
+    return guard<boolean>('playlistTracks', false, () => client.qqPlaylistTracksEdit(tid, songIds, add === true))
+  })
 
   ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) => {
     const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 200

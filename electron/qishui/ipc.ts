@@ -3,7 +3,10 @@ import { write } from '../startup-log'
 import {
   qishuiArtistProfile,
   qishuiArtistSongs,
+  qishuiFeed,
+  qishuiLike,
   qishuiLiked,
+  qishuiPlaylistTracksEdit,
   qishuiLoginStatus,
   qishuiLogout,
   qishuiMyPlaylists,
@@ -165,5 +168,31 @@ export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:liked', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 300) : 200
     return await guard('liked', [], async () => qishuiLiked(count))
+  })
+
+  // 上游一次只给 30 条，多要也没用。
+  ipcMain.handle('qishui:feed', async (_event, limit: unknown) => {
+    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 30) : 12
+    return await guard('feed', [], async () => qishuiFeed(count))
+  })
+
+  ipcMain.handle('qishui:like', async (_event, alias: unknown, liked: unknown) => {
+    const id = asAlias(alias)
+    return await guard('like', false, async () => {
+      if (!id || typeof liked !== 'boolean') return false
+      return await qishuiLike(id, liked)
+    })
+  })
+
+  ipcMain.handle('qishui:playlistTracksEdit', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const alias = asAlias(params.playlistId)
+    const add = params.add === true
+    const raw = Array.isArray(params.songIds) ? params.songIds : []
+    const ids = raw.map(asAlias).filter((value) => value > 0).slice(0, 200)
+    return await guard('playlistTracksEdit', false, async () => {
+      if (!alias || ids.length === 0) return false
+      return await qishuiPlaylistTracksEdit(alias, ids, add)
+    })
   })
 }

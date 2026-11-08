@@ -39,6 +39,32 @@ export function dailyTracks(
     .map((item) => item.track)
 }
 
+/**
+ * 按来源交错。
+ *
+ * 四家各推各的一批，直接拼起来就是「先网易云三十首、再 QQ 三十首」——第一屏
+ * 全是一个平台，看起来像只接了一家。轮转之后第一行四家都有。
+ */
+export function interleaveBySource(tracks: Track[]): Track[] {
+  const buckets = new Map<string, Track[]>()
+  for (const track of tracks) {
+    const key = track.source ?? 'local'
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(track)
+    else buckets.set(key, [track])
+  }
+  const lists = [...buckets.values()]
+  const longest = lists.reduce((max, rows) => Math.max(max, rows.length), 0)
+  const out: Track[] = []
+  for (let at = 0; at < longest; at += 1) {
+    for (const rows of lists) {
+      const next = rows[at]
+      if (next) out.push(next)
+    }
+  }
+  return out
+}
+
 export function dailyLabel(day = new Date()): string {
   return `${day.getMonth() + 1} 月 ${day.getDate()} 日`
 }

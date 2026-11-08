@@ -283,6 +283,7 @@ export const neteaseBackend: PlatformBackend = {
 
   recommendations: {
     dailySongs: () => netease.dailySongs(),
+    personalFm: (limit) => netease.personalFm(limit),
     likeList: () => netease.likeList(),
     cloudSongs: () => netease.cloudSongs()
   },
@@ -294,6 +295,21 @@ export const neteaseBackend: PlatformBackend = {
   likes: {
     list: () => netease.likeList(),
     set: (songId, liked) => netease.like(songId, liked)
+  },
+
+  /*
+   * 自己建的歌单：建、加减歌、改名、删单。
+   *
+   * 四家里目前只有网易云在接口上能写（QQ/酷狗/汽水那三家上游只给了读，或者
+   * 只给了加歌删歌没给建单）。所以这一支只挂在网易云上，别的平台没有它就等于
+   * 页面不给编辑入口——而不是给一个点了没反应的按钮。
+   */
+  playlists: {
+    create: (name) => netease.playlistCreate(name),
+    addTracks: (id, songIds) => netease.playlistAddTracks(id, songIds),
+    removeTracks: (id, songIds) => netease.playlistRemoveTracks(id, songIds),
+    rename: (id, name) => netease.playlistRename(id, name),
+    remove: (id) => netease.playlistDelete(id)
   }
 }
 

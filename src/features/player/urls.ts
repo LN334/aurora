@@ -57,6 +57,14 @@ export function sizedImage(upstream: string, px: number): string {
   try {
     const url = new URL(upstream)
     if (!/(^|\.)music\.126\.net$/.test(url.hostname)) return upstream
+    /*
+     * 网易云有些歌单封面带着客户端内部的视图参数一起回来：
+     * `?imageView=1&thumbnail=800y800&enlarge=1|imageView%3D1&watermark=…`
+     * 那串嵌套编码里的竖线会让图床直接回 400（一张 175 字节的伪图），
+     * 浏览器画出来就是碎图。图床只认路径 + param，其余参数一律丢掉——
+     * 顺带把地址缩短了一大截。
+     */
+    url.search = ''
     url.searchParams.set('param', `${px}y${px}`)
     return url.toString()
   } catch {

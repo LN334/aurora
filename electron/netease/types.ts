@@ -162,6 +162,8 @@ export interface NeteaseCollectedAlbum {
   name: string
   coverUrl: string | null
   artistName: string
+  /** 专辑艺人的平台 id；上游没给时是 0。带它卡片上的名字才点得进艺人页。 */
+  artistId: number
   year: number
   songCount: number
 }

@@ -21,6 +21,16 @@ function idOf(providerId: string, id: number): string {
   return `${providerId}/${id}`
 }
 
+/** 歌单里的歌变了（移出一首之后）就地重读，别让列表停在旧的那一份。 */
+export function refreshOnlinePlaylist(providerId: string, id: number): void {
+  void useOnlineStore(providerId).getState().openPlaylist(id)
+}
+
+/** 删掉一张歌单之后回列表：留在刚被删掉的那一页上没有意义。 */
+export function backToPlaylists(): void {
+  navigate?.({ view: 'playlists' })
+}
+
 export function openOnlineAlbum(providerId: string, id: number): void {
   navigate?.({ view: 'onlinealbum', id: idOf(providerId, id) })
 }

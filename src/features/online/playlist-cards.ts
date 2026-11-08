@@ -65,13 +65,22 @@ export function toCard(
   }
 }
 
+export interface AccountPlaylistsState {
+  cards: PlaylistCard[]
+  loading: boolean
+}
+
 /**
- * 四个平台账号里的歌单，摊成一张表。
+ * 四个平台**账号里**的歌单，摊成一张表。
+ *
+ * 只收登录过的平台。未登录的平台也会给一份歌单（酷狗的 `anonymousPlaylists`
+ * 读的就是公开榜单），那是平台的货架、给推荐位用的，不是谁收藏的东西——把它
+ * 算进「收藏歌单」会出现「我没登录、也没收藏过，这页却有 35 张酷狗歌单」。
  *
  * 调用次数写死成四：hooks 不能在循环里，而平台表本来就是常量。多一个平台只改
  * 这里的调用行，漏掉一处 tsc 会提醒。
  */
-export function useAccountPlaylists(): PlaylistCard[] {
+export function useAccountPlaylists(): AccountPlaylistsState {
   const netease = useOnlineStore('netease')()
   const qq = useOnlineStore('qq')()
   const kugou = useOnlineStore('kugou')()
@@ -84,14 +93,33 @@ export function useAccountPlaylists(): PlaylistCard[] {
     }
   }, [])
 
-  return useMemo(() => {
+  const cards = useMemo(() => {
     const rows: PlaylistCard[] = []
-    rows.push(...netease.playlists.map((row) => toCard(PLAYLIST_PROVIDERS[0], row)))
-    rows.push(...qq.playlists.map((row) => toCard(PLAYLIST_PROVIDERS[1], row)))
-    rows.push(...kugou.playlists.map((row) => toCard(PLAYLIST_PROVIDERS[2], row)))
-    rows.push(...qishui.playlists.map((row) => toCard(PLAYLIST_PROVIDERS[3], row)))
+    const add = (index: number, platform: { account: unknown; playlists: OnlinePlaylistSummary[] }): void => {
+      if (!platform.account) return
+      const provider = PLAYLIST_PROVIDERS[index]
+      if (!provider) return
+      rows.push(...platform.playlists.map((row) => toCard(provider, row)))
+    }
+    add(0, netease)
+    add(1, qq)
+    add(2, kugou)
+    add(3, qishui)
     return rows
-  }, [netease.playlists, qq.playlists, kugou.playlists, qishui.playlists])
+  }, [
+    netease.account,
+    netease.playlists,
+    qq.account,
+    qq.playlists,
+    kugou.account,
+    kugou.playlists,
+    qishui.account,
+    qishui.playlists
+  ])
+
+  const loading =
+    netease.playlistsLoading || qq.playlistsLoading || kugou.playlistsLoading || qishui.playlistsLoading
+  return { cards, loading }
 }
 
 /** 我收藏的：明确是收来的，加上平台分不出来但至少不是「我建的」。 */

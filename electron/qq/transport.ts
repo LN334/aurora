@@ -486,6 +486,331 @@ export async function requestLikedSongs(params: { uin: string; cookie: string })
 }
 
 /**
+ * QQ 的「我喜欢」。
+ *
+ * 包里那一版没有写接口（`@sansenjian/qq-music-api` 只有读），协议抄自
+ * `@yakult-green-tea/qq-music-api` 3.3.6 的 songLike 服务：
+ *
+ *   读 `music.musicasset.SongFavRead / IsSongFanByMid`，回 `data.m_fan[mid]`；
+ *   写 `music.musicasset.PlaylistDetailWrite / AddSonglist | DelSonglist`，
+ *   `dirId: 201` 就是「我喜欢」这张歌单。
+ *
+ * 先读一次：状态本来就对，一个字都不用写。写完再读一次核对——上游对扫码登录的
+ * cookie 时好时坏（`get_recommend` 一律答 500003 就是这个毛病），读回来对不上
+ * 就如实报失败，不替它宣称成功。
+ */
+/** 一次 musicu 调用。`code` 取 `req_0.code`，非 0 就是上游的拒绝理由。 */
+async function musicuRequest(
+  comm: unknown,
+  headers: Record<string, string>,
+  module: string,
+  method: string,
+  param: Record<string, unknown>
+): Promise<{ code: number; data?: unknown }> {
+  const body = JSON.stringify({ comm, req_0: { module, method, param } })
+  /*
+   * 这一层只重试「请求没出去」的情况（连接被重置、DNS、超时），不重试已经拿到
+   * 的应答：Add/Del 是幂等的，重发一次不会把状态搞坏；但响应码是上游的结论，
+   * 再问一遍只会得到同一个答案。
+   */
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+        method: 'POST',
+        headers,
+        body
+      })
+      if (!response.ok) return { code: -response.status }
+      const parsed = (await response.json()) as { req_0?: { code?: number; data?: unknown } }
+      const item = parsed?.req_0
+      return { code: typeof item?.code === 'number' ? item.code : -1, data: item?.data }
+    } catch (error) {
+      if (attempt >= 1) throw error
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+}
+
+/**
+ * QQ 的两个 comm，不是一个「风格」，是**两套权限**。实测（见 requestSongLike 的注释）：
+ *
+ *   * 网页 comm：只读没问题，加歌能过、删歌 80105；带 `g_tk` 才认写。
+ *   * 安卓 comm：读写都认，`authst` 必须是 cookie 里的 qqmusic_key。
+ *
+ * 所以读一律网页 comm（历史原因：它最稳），写一律安卓 comm。
+ */
+function webComm(uin: number, gtk: string) {
+  return {
+    ct: 24,
+    cv: 0,
+    format: 'json',
+    inCharset: 'utf-8',
+    outCharset: 'utf-8',
+    platform: 'yqq.json',
+    needNewCode: 0,
+    loginUin: uin,
+    uin,
+    g_tk: Number(gtk) || 0,
+    g_tk_new_20200303: Number(gtk) || 0
+  }
+}
+
+function webHeaders(cookie: string): Record<string, string> {
+  return { 'content-type': 'application/json', referer: 'https://y.qq.com/', cookie }
+}
+
+function androidComm(uin: number, authst: string) {
+  return {
+    ct: 11,
+    cv: 14090008,
+    v: 14090008,
+    chid: '10003505',
+    tmeAppID: 'qqmusic',
+    QIMEI: '',
+    QIMEI36: '',
+    qq: uin,
+    authst,
+    tmeLoginType: 2
+  }
+}
+
+function androidHeaders(cookie: string): Record<string, string> {
+  return {
+    'content-type': 'application/json',
+    cookie,
+    'User-Agent': 'QQMusic 14090008(android 10)'
+  }
+}
+
+export async function requestSongLike(params: {
+  uin: string
+  cookie: string
+  /** cookie 里的 qqmusic_key（或 p_skey）：安卓 comm 的 authst 就是它。 */
+  authst: string
+  /** hash33(authst)，网页 comm 的 g_tk。 */
+  gtk: string
+  id: number
+  mid: string
+  liked: boolean
+}): Promise<{ ok: boolean; liked: boolean; detail?: string }> {
+  const uin = Number(params.uin) || 0
+
+  /** null = 问不出来（没登录 / 上游答错），不等于「没喜欢」。 */
+  const read = async (): Promise<boolean | null> => {
+    const answer = await musicuRequest(
+      webComm(uin, params.gtk),
+      webHeaders(params.cookie),
+      'music.musicasset.SongFavRead',
+      'IsSongFanByMid',
+      { v_songMid: [params.mid] }
+    )
+    if (answer.code !== 0) return null
+    const fan = (answer.data as { m_fan?: Record<string, boolean> } | undefined)?.m_fan
+    const value = fan?.[params.mid]
+    return typeof value === 'boolean' ? value : null
+  }
+
+  const before = await read()
+  if (before === params.liked) return { ok: true, liked: before }
+
+  const write = await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.musicasset.PlaylistDetailWrite',
+    params.liked ? 'AddSonglist' : 'DelSonglist',
+    { dirId: 201, v_songInfo: [{ songId: params.id, songType: 0 }] }
+  )
+  if (write.code !== 0) return { ok: false, liked: !params.liked, detail: 'write code ' + write.code }
+
+  const after = await read()
+  if (after === null) return { ok: false, liked: !params.liked, detail: 'read back failed' }
+  return after === params.liked ? { ok: true, liked: after } : { ok: false, liked: after, detail: 'state mismatch' }
+}
+
+// --- 歌单的写 ------------------------------------------------------------
+//
+// QQ 的歌单不是「一个 id」：`tid`（dissid）给读取与展示，`dirId` 才是写操作的
+// 目标；两个都要，且 dirId < 200 才是用户自建的普通歌单（>=200 是系统列表）。
+// 所以每个写操作前先读一次 `GetPlaylistByUin`，用 tid 换出 dirId。
+
+export interface QqCredential {
+  uin: string
+  cookie: string
+  authst: string
+}
+
+export interface QqOwnedPlaylist {
+  tid: number
+  dirId: number
+  name: string
+  /** 0 = 自建；其它值是系统目录，不写。 */
+  dirType: number
+}
+
+/**
+ * 我的歌单列表（带 dirId）。
+ *
+ * `uin` 这一格必须是**字符串**：2026-11 实测，传数字一律答 10006（未登录），
+ * 传 `state.uin` 原样就通。所以别在这里 Number() 一下。
+ */
+export async function requestOwnedPlaylists(params: QqCredential): Promise<QqOwnedPlaylist[]> {
+  const uin = Number(params.uin) || 0
+  const answer = await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.musicasset.PlaylistBaseRead',
+    'GetPlaylistByUin',
+    { uin: params.uin }
+  )
+  if (answer.code !== 0) return []
+  const rows = (answer.data as { v_playlist?: unknown[] } | undefined)?.v_playlist
+  if (!Array.isArray(rows)) return []
+
+  return rows.flatMap((value) => {
+    if (!value || typeof value !== 'object') return []
+    const row = value as Record<string, unknown>
+    const tid = Number(row.tid ?? row.dissid)
+    const dirId = Number(row.dirId ?? row.dirid)
+    if (!Number.isSafeInteger(tid) || tid <= 0 || !Number.isSafeInteger(dirId) || dirId <= 0) return []
+    return [
+      {
+        tid,
+        dirId,
+        name: typeof row.dirName === 'string' ? row.dirName : '',
+        dirType: Number(row.dirType ?? 0) || 0
+      }
+    ]
+  })
+}
+
+/**
+ * 建一张歌单。
+ *
+ * 上游只认名字；response 里的 `tid`/`dirId` 是新建的两把钥匙。建完立刻读回
+ * 一次，确认这张歌单真的在列表里——「建好了」这类话只在上游承认之后才说。
+ */
+export async function requestPlaylistCreate(
+  params: QqCredential,
+  name: string
+): Promise<{ tid: number; dirId: number } | null> {
+  const uin = Number(params.uin) || 0
+  const answer = await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.musicasset.PlaylistBaseWrite',
+    'AddPlaylist',
+    { dirName: name }
+  )
+  if (answer.code !== 0) return null
+  const result = (answer.data as { result?: { tid?: unknown; dirId?: unknown } } | undefined)?.result
+  const tid = Number(result?.tid)
+  const dirId = Number(result?.dirId)
+  if (!Number.isSafeInteger(tid) || tid <= 0) return null
+  if (!Number.isSafeInteger(dirId) || dirId <= 0 || dirId >= 200) return null
+
+  const list = await requestOwnedPlaylists(params)
+  return list.some((row) => row.tid === tid && row.dirId === dirId) ? { tid, dirId } : null
+}
+
+export async function requestPlaylistDelete(params: QqCredential, tid: number): Promise<boolean> {
+  const uin = Number(params.uin) || 0
+  const before = await requestOwnedPlaylists(params)
+  const target = before.find((row) => row.tid === tid)
+  if (!target || target.dirType !== 0 || target.dirId >= 200) return false
+
+  const answer = await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.musicasset.PlaylistBaseWrite',
+    'DelPlaylist',
+    { dirId: target.dirId }
+  )
+  if (answer.code !== 0) return false
+
+  const after = await requestOwnedPlaylists(params)
+  return !after.some((row) => row.tid === tid || row.dirId === target.dirId)
+}
+
+/** 加 / 删歌。`songs` 是 `{songId, songType:0}`（实测只认这一种编码）。 */
+export async function requestPlaylistTracksEdit(
+  params: QqCredential,
+  tid: number,
+  songIds: number[],
+  add: boolean
+): Promise<boolean> {
+  const uin = Number(params.uin) || 0
+  const before = await requestOwnedPlaylists(params)
+  const target = before.find((row) => row.tid === tid)
+  if (!target || target.dirType !== 0 || target.dirId >= 200) return false
+
+  const answer = await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.musicasset.PlaylistDetailWrite',
+    add ? 'AddSonglist' : 'DelSonglist',
+    { dirId: target.dirId, v_songInfo: songIds.map((id) => ({ songId: id, songType: 0 })) }
+  )
+  return answer.code === 0
+}
+
+/**
+ * 改名。
+ *
+ * `EditPlaylist` 的 `mask: 95` 会**同时**接受名字、简介、封面、标签、可见性五个
+ * 字段，所以不能只传新名字——那会把简介和封面清空。先把现有值读出来，只替换
+ * 名字，其余原样回写。
+ */
+export async function requestPlaylistRename(
+  params: QqCredential,
+  tid: number,
+  name: string
+): Promise<boolean> {
+  const uin = Number(params.uin) || 0
+  const before = await requestOwnedPlaylists(params)
+  const target = before.find((row) => row.tid === tid)
+  if (!target || target.dirType !== 0 || target.dirId >= 200) return false
+
+  const comm = androidComm(uin, params.authst)
+  const headers = androidHeaders(params.cookie)
+  const read = await musicuRequest(comm, headers, 'music.srfDissInfo.aiDissInfo', 'uniform_get_Dissinfo', {
+    dirid: target.dirId,
+    optype: 3,
+    tag: 1,
+    userinfo: 0,
+    pic_dpi: 300
+  })
+  const info = (read.data as { dirinfo?: Record<string, unknown> } | undefined)?.dirinfo
+  if (read.code !== 0 || !info) return false
+
+  const tags = Array.isArray(info.tag)
+    ? info.tag
+        .map((item) => (item && typeof item === 'object' ? String((item as { id?: unknown }).id ?? '') : ''))
+        .filter(Boolean)
+        .join(',')
+    : ''
+
+  const answer = await musicuRequest(
+    comm,
+    headers,
+    'music.musicasset.PlaylistBaseWrite',
+    'EditPlaylist',
+    {
+      dirId: target.dirId,
+      mask: 95,
+      dirNewName: name,
+      dirNewDesc: typeof info.desc === 'string' ? info.desc : '',
+      dirNewPicUrl: typeof info.picurl === 'string' ? info.picurl : '',
+      dirNewPicUrl2: typeof info.picurl2 === 'string' ? info.picurl2 : '',
+      dirNewtaglist: tags,
+      dirShow: Number(info.dir_show ?? 1) || 1
+    }
+  )
+  if (answer.code !== 0) return false
+  const result = (answer.data as { result?: { dirId?: unknown; tid?: unknown } } | undefined)?.result
+  return Number(result?.dirId) === target.dirId && Number(result?.tid) === tid
+}
+
+/**
  * One album's head.
  *
  * The detail route is keyed by albummid only - the numeric id is not accepted -

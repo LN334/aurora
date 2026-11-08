@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDiscover } from '../discover/store'
+import { useRoamPlatforms } from '../player/roam-sources'
 import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
 import { useOnlineStore } from './store'
@@ -32,7 +33,16 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
   const kugou = useOnlineStore('kugou')()
   const [qishui, setQishui] = useState<PlaylistCard[]>([])
   const [qq, setQq] = useState<PlaylistCard[]>([])
+  /*
+   * 「推荐来源」那一页的勾选必须管到这里。
+   *
+   * 以前它只管漫游和每日推荐，首页这一排照样四家都上——用户在设置里关掉
+   * QQ、酷狗、汽水之后回到首页，看到的还是那三家，等于那个开关是假的。
+   */
+  const chosen = useRoamPlatforms()
+  const chosenKey = chosen.join(',')
 
+  // 取数只在进页面时做一次；勾选变化只影响下面两个 effect 与最后的过滤。
   useEffect(() => {
     void useDiscover.getState().load('playlists').catch(() => {})
     void useOnlineStore('kugou').getState().init().catch(() => {})
@@ -41,6 +51,10 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
   useEffect(() => {
     let alive = true
     void (async () => {
+      if (!chosen.includes('qishui')) {
+        setQishui([])
+        return
+      }
       const api = window.aurora?.qishui
       if (!api?.searchPlaylists) return
       const batches = await Promise.all(
@@ -70,11 +84,15 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
     return () => {
       alive = false
     }
-  }, [])
+  }, [chosenKey])
 
   useEffect(() => {
     let alive = true
     void (async () => {
+      if (!chosen.includes('qq')) {
+        setQq([])
+        return
+      }
       const api = window.aurora?.qq
       if (!api?.recommendPlaylists) return
       const rows = await api.recommendPlaylists(12).catch(() => [])
@@ -96,7 +114,7 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
     return () => {
       alive = false
     }
-  }, [])
+  }, [chosenKey])
 
   return useMemo(() => {
     const rows: PlaylistCard[] = block.playlists.map((playlist) => ({
@@ -125,8 +143,9 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
     }
     rows.push(...qq)
     rows.push(...qishui)
-    return rows
-  }, [block.playlists, kugou.playlists, qq, qishui])
+    // 最后再按勾选筛一遍：网易云与酷狗的行是上面拼进来的，没经过 effect。
+    return rows.filter((row) => chosen.includes(row.providerId as never))
+  }, [block.playlists, kugou.playlists, qq, qishui, chosenKey])
 }
 
 /**

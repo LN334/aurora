@@ -1,5 +1,7 @@
 import dns from 'node:dns'
 import net from 'node:net'
+import path from 'node:path'
+import { createCoverCache, type CoverCache } from './cover-cache'
 
 /**
  * A private, standard, secure scheme for media that lives on someone else's
@@ -307,11 +309,106 @@ async function proxy(target: string, request: Request, image: boolean): Promise<
   })
 }
 
+/* ---------------------------------------------------------------------------
+ * 封面缓存与并发闸门
+ *
+ * 自定义协议不进 Chromium 的 HTTP 磁盘缓存，冷启动一次要把首屏几十张封面全部
+ * 重新拉一遍。这里在主进程做两层缓存（内存 + userData 下的文件），并把并发压在
+ * 6 个以内：同时开几十条 TCP 去抢同一家 CDN，单张反而更慢。
+ * ------------------------------------------------------------------------- */
+
+const IMAGE_PARALLEL = 6
+let imageActive = 0
+const imageWaiters: (() => void)[] = []
+
+function acquireImage(): Promise<void> {
+  if (imageActive < IMAGE_PARALLEL) {
+    imageActive += 1
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => imageWaiters.push(resolve))
+}
+
+function releaseImage(): void {
+  const next = imageWaiters.shift()
+  // 有等待者就把名额直接转交，活跃计数不变。
+  if (next) next()
+  else imageActive -= 1
+}
+
+const caches = new Map<string, CoverCache>()
+
+function cacheFor(directory: string): CoverCache {
+  let cache = caches.get(directory)
+  if (!cache) {
+    cache = createCoverCache(directory)
+    caches.set(directory, cache)
+  }
+  return cache
+}
+
+/** Cache hits are served whole; they are a few tens of kilobytes. */
+function imageResponse(body: Buffer, type: string, head: boolean): Response {
+  const headers = new Headers(CORS_HEADERS)
+  headers.set('content-type', type)
+  headers.set('content-length', String(body.byteLength))
+  headers.set('cache-control', 'public, max-age=86400')
+  headers.set('access-control-expose-headers', 'content-range, content-length, accept-ranges')
+  return new Response(head ? null : body, { status: 200, headers })
+}
+
+/**
+ * Covers take a different path from audio: they are small, they repeat on every
+ * launch, and they never need a Range. Buffering one is cheap; buffering a track
+ * would not be.
+ */
+async function proxyImage(
+  target: string,
+  request: Request,
+  cacheDir: string | null
+): Promise<Response> {
+  const cache = cacheDir ? cacheFor(cacheDir) : null
+  const head = request.method === 'HEAD'
+
+  if (cache) {
+    const hit = await cache.get(target)
+    if (hit) return imageResponse(hit.body, hit.type, head)
+  }
+
+  await acquireImage()
+  try {
+    const upstream = await fetchUpstream(target, request.headers.get('range'))
+    const type = (upstream.headers.get('content-type') ?? 'image/jpeg').split(';')[0].trim()
+
+    if (!upstream.ok || !type.startsWith('image/')) {
+      // 上游拒绝或给的不是图：原样透传，不写缓存。
+      const headers = new Headers(CORS_HEADERS)
+      for (const name of PASSTHROUGH) {
+        const value = upstream.headers.get(name)
+        if (value) headers.set(name, value)
+      }
+      headers.set('cache-control', 'no-store')
+      return new Response(upstream.body, { status: upstream.status, headers })
+    }
+
+    const body = Buffer.from(await upstream.arrayBuffer())
+    if (cache) cache.put(target, body, type)
+    return imageResponse(body, type, head)
+  } finally {
+    releaseImage()
+  }
+}
+
 /**
  * One proxy request, decoupled from the scheme registration so the smoke probe
  * can drive it without an Electron runtime.
+ *
+ * `options.cacheDir` 有值才开封面缓存：测试与探针不传，行为与以前一致。
  */
-export async function handleRemoteRequest(request: Request): Promise<Response> {
+export async function handleRemoteRequest(
+  request: Request,
+  options: { cacheDir?: string | null } = {}
+): Promise<Response> {
   let url: URL
   try {
     url = new URL(request.url)
@@ -347,7 +444,8 @@ export async function handleRemoteRequest(request: Request): Promise<Response> {
   }
 
   try {
-    return await proxy(target, request, image)
+    if (image) return await proxyImage(target, request, options.cacheDir ?? null)
+    return await proxy(target, request, false)
   } catch (error) {
     // The upstream URL can carry a signed token, so only the host is logged.
     console.error('[aurora] remote stream failed', hostname, error)
@@ -355,7 +453,19 @@ export async function handleRemoteRequest(request: Request): Promise<Response> {
   }
 }
 
+/** 封面缓存放在 userData 下，跟着应用数据一起被卸载器清掉。 */
+function coverCacheDirectory(): string | null {
+  try {
+    const { app } = require('electron') as { app: { getPath(name: string): string } }
+    return path.join(app.getPath('userData'), 'cover-cache')
+  } catch {
+    // 拿不到目录就不缓存：缓存是加速，不是功能。
+    return null
+  }
+}
+
 export function handleRemoteProtocol(): void {
   const { protocol } = electronProtocol()
-  protocol.handle(REMOTE_SCHEME, handleRemoteRequest)
+  const cacheDir = coverCacheDirectory()
+  protocol.handle(REMOTE_SCHEME, (request) => handleRemoteRequest(request, { cacheDir }))
 }

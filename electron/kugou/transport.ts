@@ -1,4 +1,4 @@
-import type { KugouQuality, KugouSong } from './types'
+import type { KugouAlbumDetail, KugouAlbumEntry, KugouArtistDetail, KugouQuality, KugouSong } from './types'
 
 /**
  * 酷狗的线层：本地 vendor 服务的 HTTP，以及「把上游 JSON 读成形状」的读取器。
@@ -228,12 +228,18 @@ export function readSongRow(value: unknown): KugouSong | null {
   const albumInfo = asRecord(row.albuminfo)
   const durationMsOrSec = numberOr(
     row.Duration,
-    numberOr(row.timelength, numberOr(row.timelen, 0))
+    numberOr(row.timelength, numberOr(row.timelen, numberOr(row.time_length, 0)))
   )
   // 搜索给秒（269），歌单给毫秒（228911）。大于 3600 只可能是毫秒。
   const duration = durationMsOrSec > 3600 ? Math.round(durationMsOrSec / 1000) : durationMsOrSec
 
-  const id = numberOr(row.Audioid, numberOr(row.audio_id, numberOr(row.mixsongid, numberOr(row.MixSongID, 0))))
+  const id = numberOr(
+    row.Audioid,
+    numberOr(
+      row.audio_id,
+      numberOr(row.mixsongid, numberOr(row.MixSongID, numberOr(row.songid, 0)))
+    )
+  )
 
   const privilege = numberOr(row.Privilege, numberOr(row.privilege, 0))
   const payType = numberOr(row.PayType, numberOr(row.pay_type, 0))
@@ -244,8 +250,13 @@ export function readSongRow(value: unknown): KugouSong | null {
     id,
     songId: id,
     hash,
-    hqHash: asString(row.HQFileHash) || goodHash(320),
-    sqHash: asString(row.SQFileHash) || goodHash(1102) || goodHash(999),
+    hqHash: asString(row.HQFileHash) || asString(row.hash_320) || goodHash(320),
+    sqHash:
+      asString(row.SQFileHash) ||
+      asString(row.hash_flac) ||
+      asString(row.hash_ape) ||
+      goodHash(1102) ||
+      goodHash(999),
     albumAudioId: String(row.MixSongID ?? row.mixsongid ?? row.album_audio_id ?? ''),
     albumId: String(row.AlbumID ?? row.album_id ?? albumInfo.id ?? ''),
     name: title,
@@ -259,6 +270,7 @@ export function readSongRow(value: unknown): KugouSong | null {
           asString(row.album_sizable_cover) ||
           asString(row.album_cover) ||
           asString(row.album_image) ||
+        asString(row.sizable_cover) ||
           asString(asRecord(row.trans_param).union_cover) ||
           null,
         480
@@ -368,6 +380,69 @@ export interface RawPlaylist {
   coverUrl: string | null
   trackCount: number
   creator: string
+}
+
+// --- 「我喜欢」这一张歌单 -----------------------------------------------
+
+/**
+ * 酷狗没有「喜欢一首歌」的独立接口：喜欢就是**把歌加进「我喜欢」那张云端歌单**，
+ * 取消就是删掉。所以写喜欢之前先得认出这张歌单。
+ *
+ * 一张歌单有两个 id，混用会 100% 失败：
+ *   * `global_collection_id`（`collection_3_${uid}_0_${listid}_0`）——读曲目用；
+ *   * `list_create_listid`（纯数字）——加歌、删歌用。
+ *
+ * 名字优先认「我喜欢」，认不到再退到 `is_default`，最后从 `global_collection_id`
+ * 里拆数字；全都认不出就返回空串，让上层报「没有找到我喜欢」而不是瞎写。
+ */
+export function readFavoriteList(raw: unknown): { listId: string; globalId: string } {
+  const root = asRecord(raw)
+  const data = asRecord(root.data)
+  const rows = asArray(
+    [data.info, data.list, data.lists, data.playlists, root.info].find(
+      (value) => Array.isArray(value) && value.length > 0
+    )
+  ).map(asRecord)
+
+  if (rows.length === 0) return { listId: '', globalId: '' }
+  const nameOf = (row: Record<string, unknown>): string =>
+    asString(row.listname) || asString(row.name) || asString(row.specialname)
+
+  const favorite =
+    rows.find((row) => nameOf(row).includes('我喜欢')) ??
+    rows.find((row) => Number(row.is_default) === 1 || Number(row.default) === 1)
+  if (!favorite) return { listId: '', globalId: '' }
+
+  const globalId = asString(favorite.global_collection_id)
+  const direct =
+    asString(favorite.list_create_listid) || asString(favorite.listid) || asString(favorite.list_id)
+  if (direct) return { listId: direct, globalId }
+
+  // `collection_3_${uid}_0_${listid}_0`：第三段才是 listid。
+  const matched = globalId.match(/^collection_\d+_\d+_\d+_(\d+)_\d+$/)
+  return { listId: matched ? matched[1] : '', globalId }
+}
+
+/** 歌单曲目的原始行（写「取消喜欢」要 `fileid`，共享形状里没有这个字段）。 */
+export function readPlaylistRawSongs(raw: unknown): Record<string, unknown>[] {
+  const data = asRecord(asRecord(raw).data)
+  return asArray(data.songs).map(asRecord)
+}
+
+/**
+ * 写接口的成功判定。
+ *
+ * 酷狗网关对写请求的应答是 `{error_code, status, ...}`，`status` 为 1 或
+ * `error_code` 为 0 才算成；两者都没有就当作没成——宁可让上层报失败，也不把
+ * 「不知道」说成「已保存」。
+ */
+export function readWriteOk(raw: unknown): boolean {
+  const root = asRecord(raw)
+  const code = Number(root.error_code ?? root.err_code ?? root.errcode)
+  const status = Number(root.status)
+  if (Number.isFinite(code) && code === 0) return true
+  if (Number.isFinite(status) && status === 1) return true
+  return false
 }
 
 /**
@@ -600,3 +675,223 @@ function maybeNumber(value: unknown): number | null {
 function numberAt(values: unknown[], index: number): number {
   return numberOr(values[index], 0)
 }
+
+// --- 专辑与艺人 ---------------------------------------------------------
+
+/**
+ * 一个曲目行的时间：有的接口给秒，有的给毫秒。
+ *
+ * 与 `readSongRow` 里同一条经验：大于 3600 只可能是毫秒。
+ */
+function secondsFrom(value: number): number {
+  return value > 3600 ? Math.round(value / 1000) : value
+}
+
+function yearOf(value: string): number | null {
+  const match = /^(\d{4})/.exec(value)
+  return match ? Number(match[1]) : null
+}
+
+/**
+ * `/album/songs` 的一行。
+ *
+ * **结构与自己以为的不一样**：它不是 `/playlist/track/all` 那种扁平行，而是
+ * 分成 `base`（歌名、audio_id、album_audio_id）、`audio_info`（三档 hash 与
+ * 时长）、`album_info`（专辑名与封面）、`authors`（歌手 id 与名字）四块。
+ * 用扁平读取器读它只会得到 null，所以单写一个。
+ */
+function readAlbumSongRow(value: unknown): KugouSong | null {
+  const row = asRecord(value)
+  const base = asRecord(row.base)
+  const audio = asRecord(row.audio_info)
+  const name = asString(base.audio_name)
+  const hash = asString(audio.hash) || asString(audio.hash_128)
+  if (!name || !hash) return null
+
+  const albumInfo = asRecord(row.album_info)
+  const albumId = String(base.album_id ?? '')
+  const authors = asArray(row.authors).map(asRecord)
+  const artists = authors
+    .map((author) => ({
+      id: numberOr(author.author_id, 0),
+      name: asString(author.author_name),
+      avatar: null
+    }))
+    .filter((artist) => artist.name)
+  const payType = numberOr(asRecord(row.deprecated).pay_type, 0)
+
+  return {
+    id: numberOr(base.audio_id, 0),
+    songId: numberOr(base.audio_id, 0),
+    hash,
+    hqHash: asString(audio.hash_320),
+    sqHash: asString(audio.hash_flac),
+    albumAudioId: String(base.album_audio_id ?? ''),
+    albumId,
+    name,
+    artists,
+    album: {
+      id: albumId,
+      name: asString(albumInfo.album_name),
+      picUrl: sizedImage(
+        asString(albumInfo.cover) || asString(asRecord(row.trans_param).union_cover) || null,
+        480
+      )
+    },
+    duration: secondsFrom(numberOr(audio.duration, 0)),
+    fee: payType > 0 ? 1 : 0,
+    paid: payType > 0
+  }
+}
+
+/** `/album/songs` 实测：`{total, data:{total, songs:[...]}}`。 */
+export function readAlbumSongs(raw: unknown): KugouSong[] {
+  const data = asRecord(asRecord(raw).data)
+  return asArray(data.songs)
+    .map(readAlbumSongRow)
+    .filter((song): song is KugouSong => song !== null)
+}
+
+/** `/album/songs` 的 total：曲目数只有这里报。 */
+export function readAlbumSongCount(raw: unknown): number {
+  const data = asRecord(asRecord(raw).data)
+  return numberOr(data.total, numberOr(asRecord(raw).total, 0))
+}
+
+/**
+ * `/album/detail` 实测：`{status:1, data:[{album_id, album_name, sizable_cover,
+ * cover, intro, publish_date, author_name, ...}]}`。
+ *
+ * 注意 `data` 是**数组**，而且封面是带 `{size}` 占位的模板地址，要过
+ * `sizedImage` 才是一张能取的图。
+ */
+export function readAlbumDetail(raw: unknown): KugouAlbumDetail | null {
+  const row = asRecord(asArray(asRecord(raw).data)[0])
+  const id = numberOr(row.album_id, 0)
+  const name = asString(row.album_name)
+  if (!id || !name) return null
+
+  const authors = asArray(row.authors)
+    .map(asRecord)
+    .map((author) => asString(author.author_name))
+    .filter(Boolean)
+
+  return {
+    id,
+    name,
+    artist: asString(row.author_name) || authors.join(' / '),
+    picUrl: sizedImage(
+      asString(row.sizable_cover) || asString(row.cover) || null,
+      480
+    ),
+    year: yearOf(asString(row.publish_date)),
+    intro: asString(row.intro),
+    songCount: 0
+  }
+}
+
+/**
+ * `/artist/audios` 的一行。
+ *
+ * 这一家是**扁平行**（`hash`/`hash_320`/`audio_name`/`author_name`），但歌手
+ * 只有一个名字、没有 id——这一页本来就是同一个艺人，不需要再点回他；多歌手
+ * 的情况按分隔符拆名字，id 留 0，界面会渲染成纯文字。
+ */
+function readArtistAudioRow(value: unknown): KugouSong | null {
+  const row = asRecord(value)
+  const name = asString(row.audio_name)
+  const hash = asString(row.hash) || asString(row.hash_128)
+  if (!name || !hash) return null
+
+  const albumId = String(row.album_id ?? '')
+  const payType = numberOr(row.pay_type, 0)
+
+  return {
+    id: numberOr(row.audio_id, 0),
+    songId: numberOr(row.audio_id, 0),
+    hash,
+    hqHash: asString(row.hash_320),
+    sqHash: asString(row.hash_flac),
+    albumAudioId: String(row.album_audio_id ?? ''),
+    albumId,
+    name,
+    artists: splitSingers(asString(row.author_name), []),
+    album: {
+      id: albumId,
+      name: asString(row.album_name),
+      picUrl: sizedImage(asString(asRecord(row.trans_param).union_cover) || null, 480)
+    },
+    duration: secondsFrom(numberOr(row.timelength, 0)),
+    fee: payType > 0 ? 1 : 0,
+    paid: payType > 0
+  }
+}
+
+export function readArtistAudios(raw: unknown): KugouSong[] {
+  return asArray(asRecord(raw).data)
+    .map(readArtistAudioRow)
+    .filter((song): song is KugouSong => song !== null)
+}
+
+/** `/artist/detail` 实测：`{data:{author_id, author_name, sizable_avatar, album_count,
+ * song_count, fansnums, long_intro:[{title, content}]}}`。 */
+export function readArtistDetail(raw: unknown): KugouArtistDetail | null {
+  const data = asRecord(asRecord(raw).data)
+  const id = numberOr(data.author_id, 0)
+  const name = asString(data.author_name)
+  if (!id || !name) return null
+
+  const firstIntro = asRecord(asArray(data.long_intro)[0])
+  return {
+    id,
+    name,
+    picUrl: sizedImage(asString(data.sizable_avatar) || null, 480),
+    albumCount: numberOr(data.album_count, 0),
+    songCount: numberOr(data.song_count, 0),
+    fans: numberOr(data.fansnums, 0),
+    intro: asString(firstIntro.content) || asString(data.intro)
+  }
+}
+
+/** `/artist/albums` 实测：`{total, data:[{album_id, album_name, sizable_cover,
+ * publish_date, authors:[{author_id, author_name}], ...}]}`。 */
+export function readArtistAlbums(raw: unknown): KugouAlbumEntry[] {
+  return asArray(asRecord(raw).data)
+    .map(asRecord)
+    .map((row) => {
+      const id = numberOr(row.album_id, 0)
+      const name = asString(row.album_name)
+      if (!id || !name) return null
+      const authors = asArray(row.authors)
+        .map(asRecord)
+        .map((author) => asString(author.author_name))
+        .filter(Boolean)
+      return {
+        id,
+        name,
+        artist: asString(row.author_name) || authors.join(' / '),
+        picUrl: sizedImage(
+          asString(row.sizable_cover) || asString(row.cover) || null,
+          360
+        ),
+        year: yearOf(asString(row.publish_date)),
+        songCount: 0
+      }
+    })
+    .filter((album): album is KugouAlbumEntry => album !== null)
+}
+
+/**
+ * `/recommend/songs` 实测：`{status:1, data:{creation_date, song_list:[...]}}`。
+ *
+ * 30 首，**游客也给**——这是酷狗唯一不用扫码就能拿到的「今天该听什么」。行结构与搜索/
+ * 歌单那套不同：没有 `relate_goods`，音质 hash 平铺成 `hash_320`/`hash_flac`，时长叫
+ * `time_length`，封面叫 `sizable_cover`。这些都已在 `readSongRow` 里兼容。
+ */
+export function readDailySongs(raw: unknown): KugouSong[] {
+  const data = asRecord(asRecord(raw).data)
+  return asArray(data.song_list)
+    .map(readSongRow)
+    .filter((song): song is KugouSong => song !== null)
+}
+

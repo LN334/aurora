@@ -3,7 +3,14 @@ import { write } from '../startup-log'
 import {
   activeProfile,
   kugouAccountFor,
+  kugouAlbum,
+  kugouArtist,
+  kugouArtistAlbums,
+  kugouArtistSongs,
+  kugouDailyRecommend,
   kugouGetQuality,
+  kugouLike,
+  kugouLikes,
   kugouLoginStatus,
   kugouLogout,
   kugouLogoutProfile,
@@ -150,5 +157,60 @@ export function registerKugouIpc(): void {
       if (playlistId === '') return []
       return await kugouPlaylistTracks(playlistId)
     })
+  )
+
+  ipcMain.handle('kugou:likes', async (_event, limit: unknown) => {
+    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 200
+    return await guard('likes', [], async () => kugouLikes(count))
+  })
+
+  ipcMain.handle('kugou:like', async (_event, id: unknown, liked: unknown) =>
+    guard('like', false, async () => {
+      const songId = Number(id)
+      if (!Number.isSafeInteger(songId) || songId <= 0) return false
+      return await kugouLike(songId, liked === true)
+    })
+  )
+
+  ipcMain.handle('kugou:album', async (_event, id: unknown) =>
+    guard('album', null, async () => {
+      const albumId = asId(id)
+      if (albumId === '') return null
+      return await kugouAlbum(albumId)
+    })
+  )
+
+  ipcMain.handle('kugou:artist', async (_event, id: unknown) =>
+    guard('artist', null, async () => {
+      const artistId = asId(id)
+      if (artistId === '') return null
+      return await kugouArtist(artistId)
+    })
+  )
+
+  ipcMain.handle('kugou:artistSongs', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const artistId = asId(params.id)
+    const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 200) : 100
+    const offset = typeof params.offset === 'number' ? Math.max(Math.trunc(params.offset), 0) : 0
+    return await guard('artistSongs', [], async () => {
+      if (artistId === '') return []
+      return await kugouArtistSongs(artistId, limit, offset)
+    })
+  })
+
+  ipcMain.handle('kugou:artistAlbums', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const artistId = asId(params.id)
+    const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 200) : 60
+    const offset = typeof params.offset === 'number' ? Math.max(Math.trunc(params.offset), 0) : 0
+    return await guard('artistAlbums', [], async () => {
+      if (artistId === '') return []
+      return await kugouArtistAlbums(artistId, limit, offset)
+    })
+  })
+
+  ipcMain.handle('kugou:dailyRecommend', async () =>
+    guard('dailyRecommend', [], async () => await kugouDailyRecommend())
   )
 }

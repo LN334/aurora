@@ -44,6 +44,20 @@ const api = {
       return () => {
         ipcRenderer.removeListener('app:visibility', listener)
       }
+    },
+    /**
+     * 窗口正在被拖着改大小。
+     *
+     * 拖动期间界面里的毛玻璃要按新尺寸重新采样背景，那几帧慢到会把旧布局
+     * 留在屏幕上，看着就是「容器大小错位、闪一下才好」。渲染进程据此临时
+     * 关掉模糊，松手后再开。
+     */
+    onResizing: (handler: (resizing: boolean) => void) => {
+      const listener = (_event: IpcRendererEvent, resizing: boolean) => handler(resizing === true)
+      ipcRenderer.on('win:resizing', listener)
+      return () => {
+        ipcRenderer.removeListener('win:resizing', listener)
+      }
     }
   },
 
@@ -301,9 +315,18 @@ const api = {
     topAlbums: (limit?: number) => ipcRenderer.invoke('netease:topAlbums', limit),
     playlistTracks: (id: number) => ipcRenderer.invoke('netease:playlistTracks', id),
     dailySongs: () => ipcRenderer.invoke('netease:dailySongs'),
+  personalFm: (limit?: number) => ipcRenderer.invoke('netease:personalFm', limit),
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),
     likeList: () => ipcRenderer.invoke('netease:likeList'),
     like: (id: number, liked: boolean) => ipcRenderer.invoke('netease:like', { id, liked }),
+
+    playlistCreate: (name: string) => ipcRenderer.invoke('netease:playlistCreate', { name }),
+    playlistAddTracks: (id: number, trackIds: number[]) =>
+      ipcRenderer.invoke('netease:playlistAddTracks', { id, trackIds }),
+    playlistRemoveTracks: (id: number, trackIds: number[]) =>
+      ipcRenderer.invoke('netease:playlistRemoveTracks', { id, trackIds }),
+    playlistRename: (id: number, name: string) => ipcRenderer.invoke('netease:playlistRename', { id, name }),
+    playlistDelete: (id: number) => ipcRenderer.invoke('netease:playlistDelete', { id }),
 
     discover: (kind: string, limit?: number, offset?: number) =>
       ipcRenderer.invoke('netease:discover', { kind, limit, offset }),
@@ -355,6 +378,14 @@ const api = {
     newSongs: (limit?: number) => ipcRenderer.invoke('qq:newSongs', limit),
     daily: () => ipcRenderer.invoke('qq:daily'),
     liked: () => ipcRenderer.invoke('qq:liked'),
+    // 写操作：true 才代表上游那侧真的变成想要的态（client 写完会读回来核对）。
+    like: (songId: number, liked: boolean) => ipcRenderer.invoke('qq:like', songId, liked),
+    playlistOwned: () => ipcRenderer.invoke('qq:playlistOwned'),
+    playlistCreate: (name: string) => ipcRenderer.invoke('qq:playlistCreate', name),
+    playlistDelete: (id: number) => ipcRenderer.invoke('qq:playlistDelete', id),
+    playlistRename: (id: number, name: string) => ipcRenderer.invoke('qq:playlistRename', id, name),
+    playlistTracksEdit: (id: number, songIds: number[], add: boolean) =>
+      ipcRenderer.invoke('qq:playlistTracksEdit', id, songIds, add),
     collectedAlbums: (limit?: number) => ipcRenderer.invoke('qq:collectedAlbums', limit),
     album: (id: number) => ipcRenderer.invoke('qq:album', id)
   },
@@ -389,7 +420,17 @@ const api = {
 
     myPlaylists: (limit?: number) => ipcRenderer.invoke('kugou:myPlaylists', limit),
     newSongs: (limit?: number) => ipcRenderer.invoke('kugou:newSongs', limit),
-    playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id)
+    playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id),
+    likes: (limit?: number) => ipcRenderer.invoke('kugou:likes', limit),
+    like: (songId: number, liked: boolean) => ipcRenderer.invoke('kugou:like', songId, liked),
+
+    album: (id: number) => ipcRenderer.invoke('kugou:album', id),
+    artist: (id: number) => ipcRenderer.invoke('kugou:artist', id),
+    artistSongs: (id: number, limit?: number, offset?: number) =>
+      ipcRenderer.invoke('kugou:artistSongs', { id, limit, offset }),
+    artistAlbums: (id: number, limit?: number, offset?: number) =>
+      ipcRenderer.invoke('kugou:artistAlbums', { id, limit, offset }),
+    dailyRecommend: () => ipcRenderer.invoke('kugou:dailyRecommend')
   },
 
   /*
@@ -416,6 +457,10 @@ const api = {
     logout: () => ipcRenderer.invoke('qishui:logout'),
 
     liked: (limit?: number) => ipcRenderer.invoke('qishui:liked', limit),
+    feed: (limit?: number) => ipcRenderer.invoke('qishui:feed', limit),
+    like: (songId: number, liked: boolean) => ipcRenderer.invoke('qishui:like', songId, liked),
+    playlistTracksEdit: (playlistId: number, songIds: number[], add: boolean) =>
+      ipcRenderer.invoke('qishui:playlistTracksEdit', { playlistId, songIds, add }),
     searchPlaylists: (keywords: string, limit?: number) =>
       ipcRenderer.invoke('qishui:searchPlaylists', { keywords, limit }),
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qishui:myPlaylists', limit),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, shell } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { loadSettings } from './settings'
@@ -268,11 +268,30 @@ function scheduleNeteaseWarmUp(): void {
 function createWindow(): void {
   const state = loadWinState()
 
+  /*
+   * 上次是以最大化退出的，就直接按「最大化后的可用区域」建窗口，再补一次
+   * maximize()。
+   *
+   * 先按普通尺寸造出来、随后 maximize()，渲染进程会在中间拿到一次小尺寸的
+   * resize：那一帧里左栏还在按小窗口算、正文按小窗口排，下一帧才铺开——
+   * 用户看到的就是「打开时容器大小错位，闪一下又好了」。尺寸一上来就对，
+   * 这个中间帧根本不会产生。
+   */
+  const maximized = state.maximized === true
+  const area = maximized
+    ? screen.getDisplayMatching({
+        x: state.x ?? 0,
+        y: state.y ?? 0,
+        width: state.width,
+        height: state.height
+      }).workArea
+    : null
+
   mainWindow = new BrowserWindow({
-    width: state.width,
-    height: state.height,
-    x: state.x,
-    y: state.y,
+    width: area ? area.width : state.width,
+    height: area ? area.height : state.height,
+    x: area ? area.x : state.x,
+    y: area ? area.y : state.y,
     minWidth: 940,
     minHeight: 620,
     show: false,
@@ -299,6 +318,27 @@ function createWindow(): void {
   })
 
   if (state.maximized) mainWindow.maximize()
+
+  /*
+   * 拖窗口边缘时，界面里的毛玻璃（backdrop-filter）要按新尺寸重新采样背景，
+   * 那几帧会慢到把旧布局留在屏幕上——看着就是「容器大小错位，闪一下才好」。
+   * 拖动期间先关掉它，松手 120ms 后再开，眼睛只看见窗口变宽，看不见重排。
+   */
+  let resizeSettle: NodeJS.Timeout | null = null
+  mainWindow.on('resize', () => {
+    const window = mainWindow
+    if (!window || window.isDestroyed()) return
+    if (!resizeSettle) window.webContents.send('win:resizing', true)
+    else clearTimeout(resizeSettle)
+    resizeSettle = setTimeout(() => {
+      resizeSettle = null
+      if (!window.isDestroyed()) window.webContents.send('win:resizing', false)
+    }, 120)
+  })
+  mainWindow.on('closed', () => {
+    if (resizeSettle) clearTimeout(resizeSettle)
+    resizeSettle = null
+  })
 
   mainWindow.once('ready-to-show', () => {
     const window = mainWindow
@@ -492,6 +532,18 @@ function registerIpc(): void {
   registerMaintenanceIpc()
 }
 
+/*
+ * 探针与截图要能并开一份，不能去抢用户正在用的那一份。
+ *
+ * 单实例锁是按 userData 目录加锁的，所以把这份实例的 userData 挪到临时目录，
+ * 它就成了另一个「应用」，可以和用户窗口同时活着。只做验证时用，正常启动
+ * 不设这个变量，行为与从前一致。
+ */
+const scratchProfile = process.env.AURORA_PROFILE
+if (scratchProfile) {
+  app.setPath('userData', path.join(app.getPath('temp'), 'aurora-' + scratchProfile))
+}
+
 // Single instance: a second launch focuses the running player instead of
 // starting a rival media session.
 if (!app.requestSingleInstanceLock()) {
@@ -503,7 +555,7 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus()
   })
 
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     /*
      * Opened first, so everything after it can be recorded.
      *
@@ -520,8 +572,9 @@ if (!app.requestSingleInstanceLock()) {
     // 上次清理时被占用、没删掉的垃圾在这里补删。必须赶在窗口建起来之前：
     // 一旦渲染进程启动，Chromium 又会把那些缓存文件重新打开并锁住。
     void sweepPendingJunk()
-    // Window geometry is read here, off `createWindow`'s synchronous path.
-    void preloadWinState()
+    // 窗口尺寸必须在建窗之前拿到：读盘一旦晚于 createWindow，首帧就会退回默认
+    // 1360x860，等保存的尺寸到位再跳一次。这一行是同步等待，代价是几毫秒读盘。
+    await preloadWinState()
     // Scan progress is coalesced in its own module so the throttle is testable;
     // the actual delivery stays here, where the windows are known.
     configureProgressTransport({

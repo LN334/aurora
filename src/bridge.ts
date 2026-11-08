@@ -88,7 +88,8 @@ const webFallback: AuroraApi = {
       minimized: false,
       hidden: document.hidden
     }),
-    onVisibility: () => () => undefined
+    onVisibility: () => () => undefined,
+    onResizing: () => () => undefined
   },
   playlists: {
     /*
@@ -244,10 +245,16 @@ const webFallback: AuroraApi = {
     topAlbums: async () => [],
     playlistTracks: async () => [],
     dailySongs: async () => [],
+    personalFm: async () => [],
     cloudSongs: async () => [],
     likeList: async () => [],
     // 浏览器里没有主进程可写，写操作如实返回「没做成」。
     like: async () => false,
+    playlistCreate: async () => null,
+    playlistAddTracks: async () => false,
+    playlistRemoveTracks: async () => false,
+    playlistRename: async () => false,
+    playlistDelete: async () => false,
     getQuality: async () => 'exhigh',
     setQuality: async () => 'exhigh'
   },
@@ -279,6 +286,12 @@ const webFallback: AuroraApi = {
     newSongs: async () => [],
     daily: async () => [],
     liked: async () => [],
+    like: async () => false,
+    playlistOwned: async () => [],
+    playlistCreate: async () => null,
+    playlistDelete: async () => false,
+    playlistRename: async () => false,
+    playlistTracksEdit: async () => false,
     collectedAlbums: async () => [],
     album: async () => null
   },
@@ -303,7 +316,14 @@ const webFallback: AuroraApi = {
     myPlaylists: async () => [],
     recommendPlaylists: async () => [],
     newSongs: async () => [],
-    playlistTracks: async () => []
+    playlistTracks: async () => [],
+    likes: async () => [],
+    like: async () => false,
+    album: async () => null,
+    artist: async () => null,
+    artistSongs: async () => [],
+    artistAlbums: async () => [],
+    dailyRecommend: async () => []
   },
   qishui: {
     /*
@@ -320,6 +340,9 @@ const webFallback: AuroraApi = {
     loginStatus: async () => null,
     logout: async () => true,
     liked: async () => [],
+    feed: async () => [],
+    like: async () => false,
+    playlistTracksEdit: async () => false,
     searchPlaylists: async () => [],
     myPlaylists: async () => [],
     playlistTracks: async () => [],

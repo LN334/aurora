@@ -12,8 +12,18 @@ import {
   hashForTier,
   cookieHeader,
   readAccount,
+  readAlbumDetail,
+  readAlbumSongCount,
+  readAlbumSongs,
+  readArtistAlbums,
+  readArtistAudios,
+  readArtistDetail,
+  readDailySongs,
+  readFavoriteList,
   readNewSongs,
+  readPlaylistRawSongs,
   readPlaylistTracks,
+  readWriteOk,
   readQrCheck,
   readQrImage,
   readQrKey,
@@ -29,6 +39,9 @@ import {
 } from './transport'
 import type {
   KugouAccount,
+  KugouAlbumBundle,
+  KugouAlbumEntry,
+  KugouArtistDetail,
   KugouPlaylistSummary,
   KugouQuality,
   KugouQrResult,
@@ -40,7 +53,8 @@ import type {
 } from './types'
 
 /**
- * 酷狗客户端：一个本地 vendor 服务的生命周期 + 四类能力（搜索、歌单、取流、扫码）。
+ * 酷狗客户端：一个本地 vendor 服务的生命周期 + 五类能力（搜索、歌单、专辑与艺人、
+ * 每日推荐、取流扫码）。
  *
  * 为什么不是「像 QQ 那样懒加载 SDK」：酷狗的第三方接口是一个独立的 Node 服务
  * （`vendor/KuGouMusicApi`，`node app.js` 起在某个端口），不是一个能从主进程
@@ -423,6 +437,301 @@ export async function kugouPlaylistTracks(id: string | number): Promise<KugouSon
     return rememberAll(readPlaylistTracks(response.body))
   } catch (error) {
     write(`[kugou] playlist tracks failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+// --- 我喜欢 -------------------------------------------------------------
+
+const FAVORITE_TTL_MS = 5 * 60_000
+
+let favoriteCache: { profileId: string; listId: string; globalId: string; at: number } | null = null
+
+/**
+ * 认出「我喜欢」那张歌单（两个 id 都要，见 transport 里的注释）。
+ *
+ * 只认一次、缓存 5 分钟：`/user/playlist` 是账号级读，每次点红心都问一遍没必要，
+ * 但换账号（切换档案）必须重新认，所以缓存键带上 profileId。
+ */
+async function favoritePlaylist(): Promise<{ listId: string; globalId: string } | null> {
+  const state = readState(activeProfileId)
+  if (!state.token) return null
+  if (
+    favoriteCache &&
+    favoriteCache.profileId === activeProfileId &&
+    Date.now() - favoriteCache.at < FAVORITE_TTL_MS
+  ) {
+    return favoriteCache
+  }
+  if (!(await ensureServer())) return null
+
+  try {
+    const response = await request('/user/playlist', {
+      method: 'POST',
+      query: { pagesize: 100, page: 1 },
+      cookie: cookieHeader(state)
+    })
+    const found = readFavoriteList(response.body)
+    if (!found.listId) {
+      write(`[kugou] favorite playlist not found; raw keys=${describeKeys(response.body)}`)
+      return null
+    }
+    favoriteCache = { profileId: activeProfileId, ...found, at: Date.now() }
+    return found
+  } catch (error) {
+    write(`[kugou] favorite playlist failed: ${messageOf(error)}`)
+    return null
+  }
+}
+
+/** 「我喜欢」里的歌。和歌单页同一个形状，收藏页直接复用。 */
+export async function kugouLikes(limit = 200): Promise<KugouSong[]> {
+  const favorite = await favoritePlaylist()
+  if (!favorite) return []
+
+  try {
+    const response = await request('/playlist/track/all', {
+      query: { id: favorite.globalId, pagesize: Math.min(Math.max(limit, 1), 500), page: 1 }
+    })
+    return rememberAll(readPlaylistTracks(response.body))
+  } catch (error) {
+    write(`[kugou] likes failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+/**
+ * 点红心 / 取消红心。
+ *
+ * 三件事必须做对，否则上游会「回 200 但没改」：
+ * 1. 加歌用 `/playlist/tracks/add`，参数 `data` 是 `歌名|hash|album_id|mixsongid`
+ *    拼的一行（vendor 的服务按这个格式拆）；
+ * 2. 删歌要用 `fileid`，而 `fileid` 只在歌单曲目行里有，所以要先把歌单读一遍；
+ * 3. 写完再把歌单读回来核对——「已保存」只在上游真的变了之后才说。
+ */
+export async function kugouLike(songId: number, liked: boolean): Promise<boolean> {
+  const song = songOf(songId)
+  if (!song) {
+    write(`[kugou] like missing song ${songId}`)
+    return false
+  }
+  const favorite = await favoritePlaylist()
+  if (!favorite) return false
+  if (!(await ensureServer())) return false
+
+  const state = readState(activeProfileId)
+  if (!state.token) return false
+  const cookie = cookieHeader(state)
+
+  try {
+    if (liked) {
+      const data = [song.name, song.hash, song.albumId, song.albumAudioId].join('|')
+      const response = await request('/playlist/tracks/add', {
+        method: 'POST',
+        query: { listid: favorite.listId, data },
+        cookie
+      })
+      if (!readWriteOk(response.body)) {
+        write(`[kugou] like add rejected; raw keys=${describeKeys(response.body)}`)
+        return false
+      }
+    } else {
+      const listed = await request('/playlist/track/all', {
+        query: { id: favorite.globalId, pagesize: 500, page: 1 },
+        cookie
+      })
+      const row = readPlaylistRawSongs(listed.body).find(
+        (item) => String(item.hash ?? item.FileHash ?? '').toLowerCase() === song.hash.toLowerCase()
+      )
+      const fileId = String(row?.fileid ?? row?.fileId ?? '')
+      if (!fileId) {
+        // 不在「我喜欢」里，就是已经取消了——目标状态已成立。
+        write(`[kugou] like remove: ${songId} not in favorite list`)
+        return true
+      }
+      const response = await request('/playlist/tracks/del', {
+        method: 'POST',
+        query: { listid: favorite.listId, fileids: fileId },
+        cookie
+      })
+      if (!readWriteOk(response.body)) {
+        write(`[kugou] like remove rejected; raw keys=${describeKeys(response.body)}`)
+        return false
+      }
+    }
+
+    const after = await kugouLikes(500)
+    return after.some((item) => item.hash.toLowerCase() === song.hash.toLowerCase()) === liked
+  } catch (error) {
+    write(`[kugou] like failed: ${messageOf(error)}`)
+    return false
+  }
+}
+
+// --- 专辑与艺人 ---------------------------------------------------------
+
+/**
+ * 一张专辑：头部 + 曲目。
+ *
+ * 两个请求：详情给名字、封面、简介与发行日期，曲目接口给曲目与总数——详情
+ * 本身不报曲目数，只能用后者的 `total` 补上，否则页面会写「0 首」而下面是
+ * 一列歌。
+ *
+ * 未登录也能读（实测），所以不等登录；取流仍然要。
+ */
+/** 曲目每页 50：实测 pagesize>50 上游直接 502 invalid param，只能分页拿。 */
+const ALBUM_PAGE_SIZE = 50
+/** 安全上限 20 页 = 1000 首；正常专辑远到不了，防上游 total 报错时无限翻页。 */
+const ALBUM_PAGE_LIMIT = 20
+
+export async function kugouAlbum(id: string | number): Promise<KugouAlbumBundle | null> {
+  const numeric = typeof id === 'number' ? id : Number(id)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  if (!(await ensureServer())) return null
+
+  const state = readState(activeProfileId)
+  const cookie = state.token ? cookieHeader(state) : undefined
+
+  try {
+    const head = await request('/album/detail', { method: 'POST', query: { id: numeric }, cookie })
+    const detail = readAlbumDetail(head.body)
+    // 头部拿不到才是「没有这张专辑」；曲目挂了不该把头部一起扔掉——那样页面
+    // 连名字封面都不显示，用户看到的是「这张专辑没有取到内容」，看不出区别。
+    if (!detail) return null
+
+    const songs: KugouSong[] = []
+    let total = 0
+    for (let page = 1; page <= ALBUM_PAGE_LIMIT; page += 1) {
+      let body: unknown
+      try {
+        body = (
+          await request('/album/songs', {
+            method: 'POST',
+            query: { id: numeric, page, pagesize: ALBUM_PAGE_SIZE },
+            cookie
+          })
+        ).body
+      } catch (error) {
+        // 后页失败保住已拿到的页：几十首里挂一页，前面那些照样能播。
+        write(`[kugou] album songs page ${page} failed: ${messageOf(error)}`)
+        break
+      }
+      if (page === 1) total = readAlbumSongCount(body)
+      const batch = readAlbumSongs(body)
+      if (batch.length === 0) break
+      songs.push(...batch)
+      if (total > 0 && songs.length >= total) break
+    }
+    return { detail: { ...detail, songCount: total || songs.length }, songs: rememberAll(songs) }
+  } catch (error) {
+    write(`[kugou] album failed: ${messageOf(error)}`)
+    return null
+  }
+}
+
+/** 一个艺人的头部。曲目与专辑各自分页，不在这里顺手抓。 */
+export async function kugouArtist(id: string | number): Promise<KugouArtistDetail | null> {
+  const numeric = typeof id === 'number' ? id : Number(id)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  if (!(await ensureServer())) return null
+
+  const state = readState(activeProfileId)
+  const cookie = state.token ? cookieHeader(state) : undefined
+
+  try {
+    const response = await request('/artist/detail', {
+      method: 'POST',
+      query: { id: numeric },
+      cookie
+    })
+    return readArtistDetail(response.body)
+  } catch (error) {
+    write(`[kugou] artist failed: ${messageOf(error)}`)
+    return null
+  }
+}
+
+/**
+ * 一个艺人的歌。
+ *
+ * 上游按页给，而共享的 catalog 契约按 `limit + offset` 问，所以这里把 offset
+ * 折算成页码：`page = floor(offset / limit) + 1`。页码不连续时（offset 不是
+ * limit 的整数倍）会重复几首，界面按 id 去重不指望这里对齐。
+ */
+export async function kugouArtistSongs(
+  id: string | number,
+  limit = 100,
+  offset = 0
+): Promise<KugouSong[]> {
+  const numeric = typeof id === 'number' ? id : Number(id)
+  if (!Number.isFinite(numeric) || numeric <= 0) return []
+  if (!(await ensureServer())) return []
+
+  const pagesize = Math.min(Math.max(Math.trunc(limit) || 100, 1), 200)
+  const page = Math.floor(Math.max(offset, 0) / pagesize) + 1
+  const state = readState(activeProfileId)
+  const cookie = state.token ? cookieHeader(state) : undefined
+
+  try {
+    const response = await request('/artist/audios', {
+      method: 'POST',
+      query: { id: numeric, pagesize, page, sort: 'hot' },
+      cookie
+    })
+    return rememberAll(readArtistAudios(response.body))
+  } catch (error) {
+    write(`[kugou] artist audios failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+/** 一个艺人的专辑，分页同上。 */
+export async function kugouArtistAlbums(
+  id: string | number,
+  limit = 60,
+  offset = 0
+): Promise<KugouAlbumEntry[]> {
+  const numeric = typeof id === 'number' ? id : Number(id)
+  if (!Number.isFinite(numeric) || numeric <= 0) return []
+  if (!(await ensureServer())) return []
+
+  const pagesize = Math.min(Math.max(Math.trunc(limit) || 60, 1), 200)
+  const page = Math.floor(Math.max(offset, 0) / pagesize) + 1
+  const state = readState(activeProfileId)
+  const cookie = state.token ? cookieHeader(state) : undefined
+
+  try {
+    const response = await request('/artist/albums', {
+      method: 'POST',
+      query: { id: numeric, pagesize, page, sort: 'hot' },
+      cookie
+    })
+    return readArtistAlbums(response.body)
+  } catch (error) {
+    write(`[kugou] artist albums failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+// --- 每日推荐 ------------------------------------------------------------
+
+/**
+ * 每日推荐：`/recommend/songs`，30 首，**不用登录**。
+ *
+ * 这是酷狗唯一免登录就能拿到的推荐流，也是漫游池在酷狗那一侧的来源。登录后上游
+ * 会按账号口味给，但接口与形状不变，所以这里不区分登录态。
+ */
+export async function kugouDailyRecommend(): Promise<KugouSong[]> {
+  if (!(await ensureServer())) return []
+
+  const state = readState(activeProfileId)
+  const cookie = state.token ? cookieHeader(state) : undefined
+
+  try {
+    const response = await request('/recommend/songs', { method: 'POST', cookie })
+    return rememberAll(readDailySongs(response.body))
+  } catch (error) {
+    write(`[kugou] daily recommend failed: ${messageOf(error)}`)
     return []
   }
 }

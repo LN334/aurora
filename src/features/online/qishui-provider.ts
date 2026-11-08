@@ -39,7 +39,7 @@ function client(): QishuiApi | null {
  */
 const TIERS: QualityTier[] = ['standard']
 
-/** 登录后能读「我喜欢的」；每日推荐流按场景走，等账号体系稳定再接。 */
+/** 登录后能读「我喜欢的」；推荐流走 `feed`（游客也能读，见下面 recommendations）。 */
 const COLLECTIONS: OnlineCollection[] = [
   { kind: 'likes', label: '我喜欢的', requiresAccount: true }
 ]
@@ -52,7 +52,7 @@ const CAPABILITIES: ProviderCapabilities = {
   playlists: true,
   albums: false,
   artists: true,
-  recommendations: false,
+  recommendations: true,
   userCloud: false,
   likes: true
 }
@@ -240,6 +240,48 @@ const qishuiProvider: OnlineMusicProvider = {
   getQuality: qishuiBackend.getQuality,
   setQuality: qishuiBackend.setQuality,
   backend: qishuiBackend,
+
+  /*
+   * 只有流，没有「每日 30 首」那种列表接口——feed 就是这个平台的一天一批。
+   * 它未登录也发，所以漫游里汽水对匿名用户同样有内容。
+   */
+  recommendations: {
+    personalFm: async (limit) => {
+      const rows = (await client()?.feed(limit ?? 12)) ?? []
+      return rows.map((song) => asOnlineSong(song))
+    },
+    /* 每日推荐与漫游同一个 feed：这个平台的一天一批就是它，游客也读得到。 */
+    dailySongs: async () => {
+      const rows = (await client()?.feed(30)) ?? []
+      return rows.map((song) => asOnlineSong(song))
+    }
+  },
+
+  /*
+   * 喜欢：写回平台账号。
+   *
+   * 汽水的昵称就叫「收藏」——在 Aurora 点这一下，平台的客户端里也会亮。列表
+   * 用同一个 liked 通道，未登录时是空数组（不是错误）。
+   */
+  likes: {
+    list: async () => {
+      const rows = (await client()?.liked(1000)) ?? []
+      return rows.map((song) => asOnlineSong(song))
+    },
+    set: (songId, liked) => client()?.like(songId, liked) ?? Promise.resolve(false)
+  },
+
+  /*
+   * 歌单：只能往自己已有的歌单里加减歌。
+   *
+   * 上游没给建单/改名/删单三个动作，所以这三支就不挂——界面上自然不出现对应
+   * 按钮，而不是摆一个按下没反应的。
+   */
+  playlists: {
+    addTracks: (id, songIds) => client()?.playlistTracksEdit(id, songIds, true) ?? Promise.resolve(false),
+    removeTracks: (id, songIds) =>
+      client()?.playlistTracksEdit(id, songIds, false) ?? Promise.resolve(false)
+  },
 
   search: {
     search: (keywords, kind, limit) => qishuiBackend.search(keywords, kind, limit ?? 50)

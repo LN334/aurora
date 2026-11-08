@@ -17,16 +17,6 @@ export const STAGE_STYLES = [
     note: '居中大字，当前行用封面颜色发光'
   },
   {
-    id: 'karaoke',
-    name: '卡拉 OK',
-    note: '当前行按演唱进度从左填到右'
-  },
-  {
-    id: 'typewriter',
-    name: '逐字',
-    note: '当前行一个字一个字浮出来'
-  },
-  {
     id: 'verse',
     name: '诗行',
     note: '左对齐，当前行压一条底色和竖线'

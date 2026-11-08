@@ -222,6 +222,13 @@ const qqBackend: PlatformBackend = {
    */
   async myPlaylists() {
     const rows = (await client()?.myPlaylists()) ?? []
+    /*
+     * 「我的歌单」是混表：自建与收藏混在一起，且接口不标。自建清单另一条命令
+     * 读得到（`playlistOwned`，走 GetPlaylistByUin 且只认 dirId<200 的普通目录），
+     * 拿它当尺子量一下——量不出来就还是「分不出来」，不替上游猜。
+     */
+    const owned = (await client()?.playlistOwned()) ?? []
+    const mine = new Set(owned.map((row) => row.id))
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -237,7 +244,7 @@ const qqBackend: PlatformBackend = {
        * 现在如实答「分不出来」，界面才不会替用户编一个他没做过的动作。
        */
       subscribed: false,
-      ownership: 'unknown' as const
+      ownership: mine.size === 0 ? ('unknown' as const) : mine.has(row.id) ? ('mine' as const) : ('collected' as const)
     }))
   },
 
@@ -326,8 +333,58 @@ const qqBackend: PlatformBackend = {
     myPlaylists: () => qqBackend.myPlaylists!()
   },
 
+  /*
+   * 点红心写回账号。
+   *
+   * 写走 musicu 的两个 module（`SongFavRead` 读、`PlaylistDetailWrite` 写），
+   * 放在 `electron/qq/transport.ts` 里，这里是界面唯一的入口。返回 false 就是
+   * 没写成——没登录、mid 不明、上游拒了、写完读不回来，界面照实提示。
+   */
+  likes: {
+    list: () => qqBackend.collection!('likes', 200),
+    set: async (songId, liked) => (await client()?.like(songId, liked)) ?? false
+  },
+
+  /*
+   * 歌单写：新建 / 删 / 改名 / 加歌 / 删歌。
+   *
+   * 界面上歌单的 id 是 tid（dissid），与列表里那张卡一致；上游写要 dirId，由
+   * 主进程每次现读一次换出来（`electron/qq/client.ts` 的 `credential` +
+   * `transport` 的 `requestOwnedPlaylists`），所以这里不缓存任何映射。
+   * 每一条成功都意味着上游读回后确实变了；false 就是没成，界面照实提示。
+   */
+  playlists: {
+    create: async (name) => (await client()?.playlistCreate(name)) ?? null,
+    addTracks: async (id, songIds) => (await client()?.playlistTracksEdit(id, songIds, true)) ?? false,
+    removeTracks: async (id, songIds) => (await client()?.playlistTracksEdit(id, songIds, false)) ?? false,
+    rename: async (id, name) => (await client()?.playlistRename(id, name)) ?? false,
+    remove: async (id) => (await client()?.playlistDelete(id)) ?? false
+  },
+
   recommendations: {
-    dailySongs: () => qqBackend.collection!('daily', 200),
+    /*
+     * 每日推荐要 PC 端登录凭据：拿扫码登录的 cookie 去问 `get_recommend`，
+     * 上游一律答 recommend.code=500003（2026-11 实测，含真实 uin 与 login=1）。
+     * 这里先要每日推荐，拿不到就退到公开的新歌速递——同样是「平台今天给的」，
+     * 而且游客也读得到，不会在漫游里静默贡献 0。
+     */
+    personalFm: async (limit) => {
+      const size = limit ?? 40
+      const daily = await qqBackend.collection!('daily', size)
+      if (daily.length > 0) return daily
+      const rows = (await client()?.newSongs(size)) ?? []
+      return rows.map((song) => normalizeSong(song))
+    },
+    /*
+     * 每日推荐为空是常态（见上），每日推荐那一页同样退到公开新歌——
+     * 否则四家里只有 QQ 在「今天听什么」里一首都没有。
+     */
+    dailySongs: async () => {
+      const daily = await qqBackend.collection!('daily', 200)
+      if (daily.length > 0) return daily
+      const rows = (await client()?.newSongs(60)) ?? []
+      return rows.map((song) => normalizeSong(song))
+    },
     likeList: () => qqBackend.collection!('likes', 200)
   },
 
@@ -364,5 +421,3 @@ function trackIdFor(song: OnlineSong): string {
 export function registerQqProvider(): void {
   registerProvider(qqProvider)
 }
-
-

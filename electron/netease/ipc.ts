@@ -323,6 +323,12 @@ export function registerNeteaseIpc(): void {
     guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())
   )
 
+  ipcMain.handle('netease:personalFm', (_event, limit: unknown) =>
+    guard<NeteaseSong[]>('personalFm', [], () =>
+      client.neteasePersonalFm(typeof limit === 'number' && Number.isFinite(limit) ? limit : 3)
+    )
+  )
+
   ipcMain.handle('netease:discover', (_event, payload: unknown) => {
     const args = asRecord(payload)
     const kind = asDiscoverKind(args.kind)
@@ -355,6 +361,53 @@ export function registerNeteaseIpc(): void {
     if (!id) return false
     const liked = args.liked === true
     return guard<boolean>('like', false, () => client.neteaseLike(id, liked))
+  })
+
+  /*
+   * 自己建的歌单：建、加歌、删歌、改名、删单。
+   *
+   * 和喜欢同一条规矩：不 reject，失败回 false/null 让页面自己说。不同之处是
+   * 这些改动会改到平台账号，所以每一处都先过 asId/asName 的类型闸门——歌单 id
+   * 是用户点出来的，但代码路径上它仍然是 unknown。
+   */
+  ipcMain.handle('netease:playlistCreate', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const name = asText(args.name, 60)
+    if (!name) return null
+    return guard<{ id: number; name: string } | null>('playlistCreate', null, () =>
+      client.neteasePlaylistCreate(name)
+    )
+  })
+
+  ipcMain.handle('netease:playlistAddTracks', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    const ids = asIds(args.trackIds)
+    if (!id || ids.length === 0) return false
+    return guard<boolean>('playlistAddTracks', false, () => client.neteasePlaylistAddTracks(id, ids))
+  })
+
+  ipcMain.handle('netease:playlistRemoveTracks', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    const ids = asIds(args.trackIds)
+    if (!id || ids.length === 0) return false
+    return guard<boolean>('playlistRemoveTracks', false, () => client.neteasePlaylistRemoveTracks(id, ids))
+  })
+
+  ipcMain.handle('netease:playlistRename', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    const name = asText(args.name, 60)
+    if (!id || !name) return false
+    return guard<boolean>('playlistRename', false, () => client.neteasePlaylistRename(id, name))
+  })
+
+  ipcMain.handle('netease:playlistDelete', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const id = asId(args.id)
+    if (!id) return false
+    return guard<boolean>('playlistDelete', false, () => client.neteasePlaylistDelete(id))
   })
 
   ipcMain.handle('netease:getQuality', () => currentQuality())
