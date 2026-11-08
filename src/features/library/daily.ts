@@ -1,4 +1,5 @@
 import type { Track } from '../../types'
+import { tastefulDaily, type TasteProfile } from './taste.ts'
 
 /**
  * 每日推荐的那一批歌。
@@ -22,7 +23,14 @@ function hash(seed: string): number {
 
 export const DAILY_SIZE = 30
 
-export function dailyTracks(pool: Track[], day = new Date(), size = DAILY_SIZE): Track[] {
+export function dailyTracks(
+  pool: Track[],
+  day = new Date(),
+  size = DAILY_SIZE,
+  profile?: TasteProfile
+): Track[] {
+  /* 有画像就按口味排；没有（新用户、刚清空历史）保持纯日期哈希。 */
+  if (profile && profile.size > 0) return tastefulDaily(pool, profile, day, size)
   const seed = day.toDateString()
   return pool
     .map((track) => ({ track, rank: hash(seed + track.id) }))

@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
 import { dailyTracks } from '../features/library/daily'
+import { useTasteProfile } from '../features/library/taste-hooks'
 import { useFavorites } from '../features/favorites/store'
 import { artworkFor } from '../features/library/source'
 import { groupAlbums, useLibrary } from '../features/library/store'
@@ -161,6 +162,8 @@ export function HomeView({ onNavigate }: HomeViewProps) {
 
   const order = useSourceOrder()
   const platformDaily = usePlatformDaily()
+  // 口味画像只改排序：常听的人和他常去的平台排前面。
+  const taste = useTasteProfile()
 
   /**
    * 今天听什么。
@@ -174,8 +177,8 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
     const base = tracks.length > 0 ? tracks : recentAll
     // 合并会把同曲的两个平台版本并在同一行，播放时由音源优先级挑一个。
-    return dailyTracks(mergeVersions([...base, ...platformDaily], order))
-  }, [tracks, recentAll, platformDaily, order])
+    return dailyTracks(mergeVersions([...base, ...platformDaily], order), new Date(), undefined, taste)
+  }, [tracks, recentAll, platformDaily, order, taste])
 
   /**
    * 一批十二张，正好两行六列。
@@ -319,11 +322,13 @@ export function HomeView({ onNavigate }: HomeViewProps) {
             <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
             <h2>今天听什么</h2>
             <p>
-              {platformDaily.length > 0
-                ? '从曲库和平台推荐里挑'
-                : tracks.length > 0
-                  ? '从你的曲库里挑'
-                  : '从最近听过的歌里挑'}{' '}
+              {taste.size > 0
+                ? '按你最近在听的排'
+                : platformDaily.length > 0
+                  ? '从曲库和平台推荐里挑'
+                  : tracks.length > 0
+                    ? '从你的曲库里挑'
+                    : '从最近听过的歌里挑'}{' '}
               {daily.length} 首，明天换一批
             </p>
             <div className="rh-daily__acts">

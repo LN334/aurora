@@ -4,6 +4,7 @@ import { usePlatformDaily } from '../features/online/daily'
 import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import { dailyLabel, dailyTracks } from '../features/library/daily'
+import { useTasteProfile } from '../features/library/taste-hooks'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
 import { useRecentEntries } from '../features/player/history-store'
@@ -39,13 +40,15 @@ export function DailyView({
 
   const order = useSourceOrder()
   const platformDaily = usePlatformDaily()
+  // 口味画像只影响排序；没有历史时退化成按日期挑。
+  const taste = useTasteProfile()
 
   const daily = useMemo(() => {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
     const base = tracks.length > 0 ? tracks : recentAll
     // 和首页那块用同一份数据：平台每日推荐也在这池子里，页面与卡片不会对不上。
-    return dailyTracks(mergeVersions([...base, ...platformDaily], order))
-  }, [tracks, recentAll, platformDaily, order])
+    return dailyTracks(mergeVersions([...base, ...platformDaily], order), new Date(), undefined, taste)
+  }, [tracks, recentAll, platformDaily, order, taste])
 
   if (daily.length === 0) {
     return (
