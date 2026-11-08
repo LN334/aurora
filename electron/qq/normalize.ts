@@ -657,6 +657,20 @@ export function normalizePlaylistTracks(response: unknown): QqSong[] {
 }
 
 /**
+ * 「我喜欢」歌单的 disstid.
+ *
+ * `getUserLikedSongs` 并不返回曲目，只返回这个歌单的摘要：
+ * `body.response.data.songs[0]` 形如 `{ id: '3835977976', title: '我喜欢', num0: 67 }`。
+ * 曲目要再拿这个 id 去问 songListDetail。旧代码把摘要当歌单解析，所以永远 0 首。
+ */
+export function likedPlaylistId(response: unknown): string {
+  const body = record(record(response).body ?? response)
+  const data = record(record(body.response).data ?? body.data)
+  const first = record(list(data.songs)[0])
+  return text(pick(first, 'id', 'disstid', 'dissid')) || text(pick(record(data.info), 'id'))
+}
+
+/**
  * The daily recommendation, and the liked list.
  *
  * Both arrive from the musicu-style routes, which wrap the answer in

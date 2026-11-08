@@ -423,7 +423,24 @@ export async function requestDailyRecommend(params: { cookie: string }): Promise
   return await loadServices().getDailyRecommend({ cookie: params.cookie })
 }
 
+/**
+ * "我喜欢的音乐".
+ *
+ * 这个接口在 SDK 里读的是包内的全局登录态（`global.userInfo`），完全忽略传进去的
+ * cookie；只传 cookie 等于匿名请求，上游一律回 502「获取用户喜欢的歌曲失败」。
+ * 所以每次调用前把当前账号的 cookie 塞回那个全局位——覆盖成空也无妨，下一次调用
+ * 又会被写成新的那份。
+ */
 export async function requestLikedSongs(params: { uin: string; cookie: string }): Promise<unknown> {
+  const scope = globalThis as { userInfo?: Record<string, unknown> }
+  scope.userInfo = {
+    loginUin: params.uin,
+    uin: params.uin,
+    cookie: params.cookie,
+    cookieList: [],
+    cookieObject: {},
+    refreshData: () => ({})
+  }
   return await loadServices().getUserLikedSongs({ uin: params.uin, cookie: params.cookie })
 }
 

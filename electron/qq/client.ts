@@ -1,4 +1,5 @@
 import {
+  likedPlaylistId,
   mergeTranslation,
   normalizeAlbumInfo,
   normalizeAlbumSongs,
@@ -645,8 +646,15 @@ export async function qqLiked(): Promise<QqSong[]> {
   if (!uin) return []
 
   try {
-    const response = await requestLikedSongs({ uin, cookie: state.cookie })
-    return rememberAll(normalizeSongCollection(response))
+    /*
+     * 两步：这个接口只给「我喜欢」歌单的摘要（disstid + 67 首），曲目要再问一次
+     * songListDetail。直接拿摘要当歌单解析，结果永远是 0 首。
+     */
+    const head = await requestLikedSongs({ uin, cookie: state.cookie })
+    const disstid = likedPlaylistId(head)
+    if (!disstid) return []
+    const tracks = await requestPlaylistTracks({ disstid, cookie: state.cookie })
+    return rememberAll(normalizePlaylistTracks(tracks))
   } catch (error) {
     console.error('[aurora] qq liked list failed', messageOf(error))
     return []
