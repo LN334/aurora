@@ -41,20 +41,37 @@ export async function loadPlatformLiked(): Promise<Track[]> {
   return tracks
 }
 
-export function usePlatformLiked(): Track[] {
-  const [tracks, setTracks] = useState<Track[]>(() => cache?.tracks ?? [])
+/** 收藏页要区分「还没读完」和「读完了是空的」——两者都长得像空列表，但只有一个该显示空态。 */
+export interface PlatformLikedState {
+  tracks: Track[]
+  loading: boolean
+}
+
+export function usePlatformLiked(): PlatformLikedState {
+  const [state, setState] = useState<PlatformLikedState>(() =>
+    cache ? { tracks: cache.tracks, loading: false } : { tracks: [], loading: true }
+  )
 
   useEffect(() => {
+    /*
+     * 缓存还新鲜就直接用，不必再问一次上游；否则读一次，读完把 loading 落下来。
+     * 从前这里只返回数组，于是「正在读」的那几百毫秒与「一首都没有」完全同形，
+     * 收藏页先画一屏「还没有喜欢的歌」，数据到了再整页换掉——看着像先跳去了
+     * 一个让人登录的页面。
+     */
+    if (cache && Date.now() - cache.at < TTL) return
     let alive = true
     void loadPlatformLiked()
       .then((next) => {
-        if (alive) setTracks(next)
+        if (alive) setState({ tracks: next, loading: false })
       })
-      .catch(() => {})
+      .catch(() => {
+        if (alive) setState({ tracks: [], loading: false })
+      })
     return () => {
       alive = false
     }
   }, [])
 
-  return tracks
+  return state
 }

@@ -761,9 +761,19 @@ export async function qqLiked(): Promise<QqSong[]> {
   }
 }
 
-/** Record every row so a list fetched in one call can be played from another. */
+/**
+ * Record every row so a list fetched in one call can be played from another.
+ *
+ * Albums are remembered here too, not just in the shelf: a tracklist row carries
+ * both the numeric album id and its mid, and the album page is only addressable
+ * by mid. Learning the pair only when the shelf or the album page itself ran
+ * meant that opening an album from a song - the common way in - always missed.
+ */
 function rememberAll(songs: QqSong[]): QqSong[] {
-  for (const song of songs) remember(song.id, song.songmid, song.mediaMid, song.paid)
+  for (const song of songs) {
+    remember(song.id, song.songmid, song.mediaMid, song.paid)
+    if (song.album?.id && song.album?.mid) rememberAlbum(song.album.id, song.album.mid)
+  }
   return songs
 }
 

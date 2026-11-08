@@ -247,9 +247,14 @@ const kugouProvider: OnlineMusicProvider = {
   },
 
   catalog: {
-    // 上游没有专辑页与艺人页：答「没有」就是全部答案，capabilities 已挡住入口。
-    album: async () => null,
-    artistTopSongs: async () => [],
+    /*
+     * 目前只有歌单。
+     *
+     * 专辑页与艺人页要的接口上游其实有（vendor 里 album_detail / album_songs /
+     * artist_detail / artist_audios / artist_albums 都在），只是这一层还没接。
+     * 缺这个方法比答空更诚实：界面会说「还没有这一页」，而不是「没有取到内容」
+     * ——后者把「没做」说成了「上游没给」。
+     */
     playlistTracks: (id) => kugouBackend.playlistTracks!(id),
     myPlaylists: () => kugouBackend.myPlaylists!()
   },

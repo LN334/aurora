@@ -260,6 +260,23 @@ export const neteaseBackend: PlatformBackend = {
       }
     },
     artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
+    /*
+     * 艺人页那两个标签页从前由页面直接调 `bridge.netease`，别的平台就没有。
+     * 搬进 catalog 之后四家走同一条路，页面按「有没有这个方法」决定给不给入口。
+     */
+    artistSongs: (id, limit, offset) => netease.artistSongs(id, limit, offset),
+    async artistAlbums(id, limit, offset) {
+      const rows = await netease.artistAlbums(id, limit, offset)
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        // 上游的专辑卡片不带艺人名，页面用页头那一个；留空比编一个准。
+        artist: '',
+        picUrl: row.coverUrl,
+        year: row.year,
+        songCount: row.songCount
+      }))
+    },
     playlistTracks: (id) => netease.playlistTracks(id),
     myPlaylists: () => netease.myPlaylists() as Promise<OnlinePlaylistSummary[]>
   },

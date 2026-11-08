@@ -161,6 +161,12 @@ const qqBackend: PlatformBackend = {
        * 才能用同一套规则挑源。
        */
       onlineId: song.id,
+      /*
+       * 数字 id 也带上：列表里「点专辑名去专辑页」靠 refOfTrack 拿它，缺了
+       * 就只能当纯文字。mid 仍留给 QQ 自己的接口（取流、建封面）。
+       */
+      albumId: qq.album?.id || undefined,
+      artistId: qq.artists?.[0]?.id || undefined,
       albumMid: qq.album?.mid || undefined,
       artistMid: qq.artists?.[0]?.mid || undefined,
       artistRefs: (qq.artists ?? [])
@@ -314,8 +320,8 @@ const qqBackend: PlatformBackend = {
         artistName: bundle.detail.artistName
       }
     },
-    // 艺人页还没有取数通道：热门歌曲走 QQ 的歌手搜索，曲目列表上游不给。
-    artistTopSongs: async () => [],
+    // 艺人页还没有取数通道。不写空实现：那会让页面说「这位艺人没有取到歌曲」，
+    // 而事实是这一页没做。
     playlistTracks: (id) => qqBackend.playlistTracks!(id),
     myPlaylists: () => qqBackend.myPlaylists!()
   },

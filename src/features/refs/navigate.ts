@@ -1,5 +1,7 @@
 import type { ShellRoute } from '../../app/shell'
+import { getProvider } from '../online/registry'
 import { useOnlineStore, type PlaylistFace } from '../online/store'
+import type { ProviderId } from '../online/types'
 
 /**
  * 「去这个专辑 / 艺人 / 歌单的页面」——从歌曲行里那两个名字点出去。
@@ -27,13 +29,25 @@ export function openOnlineArtist(providerId: string, id: number): void {
   navigate?.({ view: 'onlineartist', id: idOf(providerId, id) })
 }
 
-/** 这一行能不能点进专辑 / 艺人页。没有 id 的平台一律不装作能点。 */
+/**
+ * 这一行能不能点进专辑 / 艺人页，以及点去哪个 id。
+ *
+ * 两个条件都成立才算能点：行上带着那家平台的 id，且那家平台确实实现了那一页。
+ *
+ * 从前这里写死 `source !== 'netease' → 一律不给`，于是除了网易云，四家的专辑名
+ * 全成了纯文字——汽水与 QQ 明明有 id、QQ 明明有专辑页，也点不动。反过来的错也
+ * 一样糟：只要 id 就给按钮，会把「这家还没做这一页」变成点进去的空页。所以判断
+ * 依据是这家平台的 catalog 里有没有那个方法，不是它叫什么名字。
+ */
 export function refOfTrack(track: { source?: string; albumId?: number; artistId?: number }): {
   album: number | null
   artist: number | null
 } {
-  if (track.source !== 'netease') return { album: null, artist: null }
-  return { album: track.albumId ?? null, artist: track.artistId ?? null }
+  const catalog = track.source ? getProvider(track.source as ProviderId)?.catalog : undefined
+  const album = catalog?.album && track.albumId ? track.albumId : null
+  const artist =
+    (catalog?.artistTopSongs || catalog?.artist) && track.artistId ? track.artistId : null
+  return { album, artist }
 }
 
 /**

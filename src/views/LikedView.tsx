@@ -40,7 +40,7 @@ export function LikedView({
    * 同一首在两家平台都有时由 mergeVersions 并成一行，两个平台徽章并排，
    * 播的时候按设置里的音源优先级挑一个——收藏页不该出现两行一样的歌名。
    */
-  const platformLiked = usePlatformLiked()
+  const { tracks: platformLiked, loading: platformLoading } = usePlatformLiked()
   const order = useMemo(() => sourceOrder(), [])
   const tracks = useMemo(
     () => mergeVersions([...likedTracks(liked), ...platformLiked], order),
@@ -54,6 +54,20 @@ export function LikedView({
     }
     return out
   }, [tracks])
+
+  /*
+   * 平台那半边还在读的时候不画空态。
+   *
+   * 本地心标立刻就有，平台的要走一趟网络；两者没到齐就说「还没有喜欢的歌」，
+   * 等于把「正在读」说成「你没有」，页面随后再自己换一张脸。
+   */
+  if (platformLoading && tracks.length === 0) {
+    return (
+      <div className="col">
+        <p className="pg-note">正在读取各平台的收藏…</p>
+      </div>
+    )
+  }
 
   if (tracks.length === 0) {
     return (

@@ -7,7 +7,6 @@ import { mergeVersions, sourcesOf } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { useOnlineStore, type PlatformBackend } from '../features/online/store'
 import type { ProviderId } from '../features/online/types'
-import { toTrack } from '../features/netease/track'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
@@ -16,7 +15,6 @@ import { formatTime } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList } from '../ui/TrackList'
 import { DetailHero } from './DetailHero'
-import type { NeteaseSong } from '../env'
 import type { Track } from '../types'
 
 /**
@@ -160,7 +158,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
       const source = getProvider(providerId as ProviderId)
       const backend = source?.backend as PlatformBackend | undefined
       if (!source?.catalog?.album || !backend) {
-        setError('暂不支持该平台')
+        setError('这个平台还没有专辑页')
         setMeta('')
         return
       }
@@ -273,10 +271,16 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
   const playing = usePlayer((s) => s.playing)
   const platform = getProvider(providerId as ProviderId)
   /*
-   * 「全部歌曲」与「专辑」两个 tab 目前只有网易云有分页与专辑墙接口；
-   * 别的平台只出热门，隐藏两个点进去必然空的 tab。
+   * 「全部歌曲」与「专辑」两个 tab 各自独立：有哪个接口就给哪个 tab。
+   *
+   * 从前这里写死 `providerId === 'netease'`，而取数又直接调 `bridge.netease`——
+   * 于是汽水或 QQ 的艺人页要么没有这两个 tab，要么（一旦放开）把网易云同名 id
+   * 的歌单当成本平台的曲目。判断依据换成这家平台自己的 catalog 能力。
    */
-  const fullPages = providerId === 'netease'
+  const catalog = platform?.catalog
+  const canAllSongs = Boolean(catalog?.artistSongs)
+  const canAlbums = Boolean(catalog?.artistAlbums)
+  const fullPages = canAllSongs || canAlbums
 
   useEffect(() => {
     let live = true
@@ -294,7 +298,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
       const platform = getProvider(providerId as ProviderId)
       const backend = platform?.backend as PlatformBackend | undefined
       if (!platform?.catalog?.artistTopSongs || !backend) {
-        setError('暂不支持该平台')
+        setError('这个平台还没有艺人页')
         return
       }
       try {
@@ -353,30 +357,46 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
 
   const loadAll = useCallback(
     async (offset: number) => {
+      const source = getProvider(providerId as ProviderId)
+      const cat = source?.catalog
+      const engine = source?.backend as PlatformBackend | undefined
+      if (!cat?.artistSongs || !engine) return
       setAllLoading(true)
       try {
-        const songs = await bridge.netease.artistSongs(id, 100, offset)
-        setAll((previous) => (offset === 0 ? songs.map((song: NeteaseSong) => toTrack(song)) : [...previous, ...songs.map((song: NeteaseSong) => toTrack(song))]))
+        const songs = await cat.artistSongs(id, 100, offset)
+        const toTrackFor = engine.toTrack as (song: never) => Track
+        const rows = songs.map((song) => toTrackFor(song as never))
+        setAll((previous) => (offset === 0 ? rows : [...previous, ...rows]))
       } catch {
         /* 取不到就停在已经有的那些，页面上不出现「正在加载」的僵局。 */
       } finally {
         setAllLoading(false)
       }
     },
-    [id]
+    [id, providerId]
   )
 
   const loadAlbums = useCallback(async () => {
+    const cat = getProvider(providerId as ProviderId)?.catalog
+    if (!cat?.artistAlbums) return
     setAlbumsLoading(true)
     try {
-      const rows = await bridge.netease.artistAlbums(id, 60, 0)
-      setAlbums(rows)
+      const rows = await cat.artistAlbums(id, 60, 0)
+      setAlbums(
+        rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          coverUrl: row.picUrl,
+          year: row.year,
+          songCount: row.songCount
+        }))
+      )
     } catch {
       /* 同上：没拿到就空着，不假装有。 */
     } finally {
       setAlbumsLoading(false)
     }
-  }, [id])
+  }, [id, providerId])
 
   useEffect(() => {
     if (tab === 'all' && all.length === 0 && !allLoading) void loadAll(0)
@@ -445,24 +465,28 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
           >
             热门 {hot.length} 首
           </button>
-          <button
-            className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === 'all'}
-            onClick={() => setTab('all')}
-          >
-            全部歌曲{counts ? ` ${counts.songs}` : ''}
-          </button>
-          <button
-            className={`ol-tab${tab === 'albums' ? ' is-on' : ''}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === 'albums'}
-            onClick={() => setTab('albums')}
-          >
-            专辑{counts ? ` ${counts.albums}` : ''}
-          </button>
+          {canAllSongs ? (
+            <button
+              className={`ol-tab${tab === 'all' ? ' is-on' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === 'all'}
+              onClick={() => setTab('all')}
+            >
+              全部歌曲{counts ? ` ${counts.songs}` : ''}
+            </button>
+          ) : null}
+          {canAlbums ? (
+            <button
+              className={`ol-tab${tab === 'albums' ? ' is-on' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === 'albums'}
+              onClick={() => setTab('albums')}
+            >
+              专辑{counts ? ` ${counts.albums}` : ''}
+            </button>
+          ) : null}
         </div>
       ) : (
         <p className="pg-note">
@@ -482,7 +506,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
                 key={album.id}
                 className="ol-alb"
                 type="button"
-                onClick={() => openOnlineAlbum('netease', album.id)}
+                onClick={() => openOnlineAlbum(providerId, album.id)}
                 title={`打开《${album.name}》`}
               >
                 <span className="ol-alb__art">

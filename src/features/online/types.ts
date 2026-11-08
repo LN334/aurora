@@ -273,7 +273,14 @@ export interface OnlineArtistProfile {
 }
 
  interface ProviderCatalogApi {
-  album(id: number): Promise<{
+  /**
+   * 可选。
+   *
+   * 从前是必填，没有专辑页的平台只好写 `async () => null`——那等于声称自己有
+   * 这个能力、只是恰好查不到，于是界面把一个「这家还没有专辑页」的事实说成
+   * 「这张专辑没有取到内容」。改可选之后，缺这个方法就如实表示没有。
+   */
+  album?(id: number): Promise<{
     id: number
     name: string
     coverUrl: string | null
@@ -285,7 +292,12 @@ export interface OnlineArtistProfile {
   } | null>
   /** 可选：没有这个接口的平台，艺人页只显示热门歌曲。 */
   artist?(id: number): Promise<OnlineArtistProfile | null>
-  artistTopSongs(id: number, limit?: number): Promise<OnlineSong[]>
+  /** 可选，理由同 `album`：空数组实现会让艺人页展示「没有取到歌曲」而不是「还没有这一页」。 */
+  artistTopSongs?(id: number, limit?: number): Promise<OnlineSong[]>
+  /** 可选：艺人页「全部歌曲」分页。缺了就不给这个标签页。 */
+  artistSongs?(id: number, limit: number, offset: number): Promise<OnlineSong[]>
+  /** 可选：艺人页「专辑」分页。缺了就不给这个标签页。 */
+  artistAlbums?(id: number, limit: number, offset: number): Promise<OnlineAlbumRef[]>
   playlistTracks(id: number): Promise<OnlineSong[]>
   myPlaylists?(): Promise<OnlinePlaylistSummary[]>
 }

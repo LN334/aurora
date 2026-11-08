@@ -255,8 +255,7 @@ const qishuiProvider: OnlineMusicProvider = {
   },
 
   catalog: {
-    // 上游没有专辑页；answer null 就是全部答案，capabilities 已挡住入口。
-    album: async () => null,
+    // 上游没有专辑页，所以不给 `album`——缺这个方法就是「这家还没有这一页」。
     /*
      * 艺人简介与头像是 artist_detail 给的；albumCount 恒 0（汽水没有「这位艺人的
      * 专辑列表」接口），页面会少显示这一段而不是编一个数字。
