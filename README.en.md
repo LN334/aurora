@@ -175,9 +175,9 @@ Rows have three shapes only: switch, segmented buttons, slider. Label on the lef
 
 Nothing is uploaded and there is no telemetry. Only the items below touch the network, and most of them need you to ask. The exception is the recommended playlists on the first page: opening it requests one round of public recommendations, no sign-in needed.
 
-- **Music files and the index**: all local, nothing uploaded
+- **Music files and the index**: all local, nothing uploaded. Each profile keeps its own folder list and index
 - **Login credentials**: encrypted with Windows DPAPI and stored locally per profile. No plaintext on disk, nothing in logs. Signing out removes them
-- **Online lyrics (off by default)**: a sibling `.lrc` is always preferred. Without one, Aurora can query [lrclib.net](https://lrclib.net), and it tells you before enabling that the track title and artist are sent. Results are cached locally
+- **Online lyrics**: a sibling `.lrc` is always preferred. Without one, and with Online lyrics switched on (it's off by default), Aurora queries [lrclib.net](https://lrclib.net) by title and artist and caches the result. Tracks played from a platform ask that platform for lyrics instead
 - **Update check**: reads GitHub's public API, no usage data, can be set to manual
 - **Online playback itself**: search terms, the tracks you play and the account cookie go to the platform. The notes above describe how Aurora stores things, not a claim that nothing leaves the machine
 
@@ -207,22 +207,19 @@ GPU and shader caches are held open while the player runs. They're queued and de
 It needs the Steam version of Wallpaper Engine and at least one downloaded workshop wallpaper.
 
 **I switched NetEase accounts but my playlists didn't change.**
-Open the account page from the avatar and switch profile. Each profile is bound to one account.
+Open the account page from the avatar and switch profile. Each profile is bound to one account, and playlists, likes, music folders and playback preferences all follow the profile.
 
 ## Known limitations
 
-- Both online platforms depend on unofficial reverse-engineered APIs and can break at any time
-- Profiles isolate playlists, liked songs and online accounts only. The library, playback preferences and equaliser are device-wide
-- Signed out, online content is thin; the public recommendations on Home are a stopgap
-- QR sign-in, membership-restricted tracks, the tray menu, the desktop lyric window and the auto-update install have no automated tests. They're verified by hand
-- The first scan of a large library is I/O bound, since every file's metadata is parsed. Rescans are fast
-- The equaliser is a fixed 10-band design, not parametric
-- Online lyrics have a single source: lrclib.net
-- The radial Canvas gradients on dark backgrounds band slightly; no dithering
-- Rows show a source label only in lists that mix sources
-- Dynamic background is Windows-only and requires Wallpaper Engine
+- All four online platforms depend on unofficial reverse-engineered APIs and can break at any time
 - The installer isn't code-signed
+- Lyrics for local files come from lrclib only. Tracks played from a platform ask that platform; KuGou and Qishui have no lyric API
+- The first scan of a large library parses every file's metadata, so it's slow. Rescans are much faster
+- The equaliser is a fixed 10-band design, not parametric
+- The radial Canvas gradients on dark backgrounds band slightly; no dithering
+- Dynamic background is Windows-only and requires Wallpaper Engine
 - The interface is Chinese only
+- Quality, appearance and shortcut settings are device-wide; they don't follow the profile
 
 ## Development
 
@@ -345,6 +342,12 @@ release/latest.yml
 ```
 
 `latest.yml` is not optional; auto-update reads only that. The in-app update check uses the GitHub Releases API instead.
+
+The installer isn't signed, so the Release body carries a SHA256 line you can check after downloading:
+
+```powershell
+Get-FileHash release/Aurora-X.Y.Z-Setup.exe -Algorithm SHA256
+```
 
 The repository the update check reads comes from `repository.url` in `package.json`. electron-builder strips the `build` field when packaging, so runtime code cannot read `build.publish`.
 
