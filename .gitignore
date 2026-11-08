@@ -74,3 +74,9 @@ vendor/
 # 设计过程中的预览页与截图，只在本机看，不进仓库。
 design/
 
+# 截图与探针写的临时用户数据目录，以及调试截图（曾被误提交过一次）。
+.driver/
+
+# electron-builder 的备用输出目录，与 release/ 同类。
+release-dir/
+
