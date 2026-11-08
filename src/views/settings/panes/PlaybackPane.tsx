@@ -152,8 +152,8 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
  * 音源优先级：同一首歌有几家都有时，先问谁。
  *
  * 这是「多平台统一」唯一的开关。列表把重复的合成一行，但一行里到底用谁的声音，
- * 得有一个用户能改的答案——默认本机在前（不联网、不要会员），然后是网易云、
- * QQ、酷狗。往上挪一位就到列表前面，播放与主版本一起跟着换。
+ * 得有一个用户能改的答案——默认平台在前、本机最后（这产品是各平台的客户端，
+ * 本机只是其中一个来源）。往上挪一位就到列表前面，播放与主版本一起跟着换。
  *
  * 只列这个构建真能用的平台：装了没登录也算可用（它仍能出流），没接入的不占位。
  */
@@ -175,7 +175,7 @@ function SourceOrderRows() {
       <div className="settings__text">
         <div className="settings__label">音源优先级</div>
         <p className="settings__hint">
-          同一首歌在几个平台都有时，按这个顺序挑第一个能放的。本机不需要联网，放在最前面通常最稳。
+          同一首歌在几个平台都有时，按这个顺序挑第一个能放的。默认先问平台，本机排在最后。
         </p>
       </div>
       <ol className="settings__order">

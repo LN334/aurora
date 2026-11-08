@@ -10,10 +10,18 @@ import type { ProviderId } from '../features/online/types'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
-import { openOnlineAlbum, openOnlineArtist, parseRefId } from '../features/refs/navigate'
+import { backToPlaylists, openOnlineAlbum, openOnlineArtist, parseRefId } from '../features/refs/navigate'
+import {
+  canWritePlaylist,
+  deleteOnlinePlaylist,
+  renameOnlinePlaylist,
+  reportWrite
+} from '../features/online/playlist-write'
+import { ConfirmModal } from './ConfirmModal'
+import { NameModal } from './NameModal'
 import { formatTime } from '../ui/format'
 import { Note, Play } from '../ui/icons'
-import { TrackList } from '../ui/TrackList'
+import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { DetailHero } from './DetailHero'
 import type { Track } from '../types'
 
@@ -27,7 +35,14 @@ import type { Track } from '../types'
  * 它们是真页面而不是弹层：从一首歌的名字点出去以后，回退键、地址栏、重新打开
  * 都该落在这一页上——弹层做不到这三件事。
  */
-export function OnlinePage({ route }: { route: ShellRoute }) {
+export function OnlinePage({
+  route,
+  onMenu
+}: {
+  route: ShellRoute
+  /** 曲目行的操作菜单。平台歌单页用它挂「从这张歌单移除」。 */
+  onMenu?: (request: TrackMenuRequest) => void
+}) {
   const ref = parseRefId(route.id)
 
   if (!ref) {
@@ -39,7 +54,7 @@ export function OnlinePage({ route }: { route: ShellRoute }) {
   }
 
   if (route.view === 'onlineplaylist') {
-    return <PlaylistPage providerId={ref.providerId} playlistId={ref.id} />
+    return <PlaylistPage providerId={ref.providerId} playlistId={ref.id} onMenu={onMenu} />
   }
 
   if (route.view === 'onlineartist') {
@@ -49,8 +64,22 @@ export function OnlinePage({ route }: { route: ShellRoute }) {
   return <AlbumPage providerId={ref.providerId} id={ref.id} />
 }
 
-/** 一张平台歌单。 */
-function PlaylistPage({ providerId, playlistId }: { providerId: string; playlistId: number }) {
+/**
+ * 一张平台歌单。
+ *
+ * 自己建的单子在这里就能改：改名、删掉、把某一行移出去。收藏来的单子是别人的
+ * 东西，上游只让读，所以那些按钮不出现——页面不替用户摆一个按下去没反应的
+ * 入口。
+ */
+function PlaylistPage({
+  providerId,
+  playlistId,
+  onMenu
+}: {
+  providerId: string
+  playlistId: number
+  onMenu?: (request: TrackMenuRequest) => void
+}) {
   const store = useOnlineStore(providerId)
   const state = store()
   const provider = getProvider(providerId)
@@ -72,6 +101,17 @@ function PlaylistPage({ providerId, playlistId }: { providerId: string; playlist
   // 推荐位上的单子不在「我的歌单」里，名字和封面靠点卡片时记下的那份脸。
   const summary = state.knownPlaylists[playlistId] ?? state.playlists.find((item) => item.id === playlistId)
 
+  const writer = provider?.playlists ?? null
+  const editable = canWritePlaylist(providerId, summary)
+  const [renaming, setRenaming] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  /*
+   * 改完名字就地显示：store 里那份歌单要再过一趟网络才更新，等它会把「改名成功」
+   * 画成「名字没变」。清空这一份就退回 store 的事实。
+   */
+  const [localName, setLocalName] = useState<string | null>(null)
+  const shownName = localName ?? summary?.name ?? '歌单'
+
   return (
     <div className="col ol-page">
       <DetailHero
@@ -83,22 +123,34 @@ function PlaylistPage({ providerId, playlistId }: { providerId: string; playlist
           )
         }
         kicker={(provider?.displayName ?? providerId) + ' · 歌单'}
-        title={summary?.name ?? '歌单'}
+        title={shownName}
         meta={
           <span>
             {rows.length} 首{rows.length > 0 ? ' · ' + formatTime(total) : ''}
           </span>
         }
         actions={
-          <button
-            className="rh-btn rh-btn--main"
-            type="button"
-            disabled={songs.length === 0}
-            onClick={() => void store.getState().playAt(songs, 0)}
-          >
-            <Play size={15} />
-            播放全部
-          </button>
+          <>
+            <button
+              className="rh-btn rh-btn--main"
+              type="button"
+              disabled={songs.length === 0}
+              onClick={() => void store.getState().playAt(songs, 0)}
+            >
+              <Play size={15} />
+              播放全部
+            </button>
+            {editable && writer?.rename ? (
+              <button className="rh-btn" type="button" onClick={() => setRenaming(true)}>
+                改名
+              </button>
+            ) : null}
+            {editable && writer?.remove ? (
+              <button className="rh-btn" type="button" onClick={() => setRemoving(true)}>
+                删除
+              </button>
+            ) : null}
+          </>
         }
         facts={[
           { label: '平台', value: provider?.displayName ?? providerId },
@@ -114,12 +166,64 @@ function PlaylistPage({ providerId, playlistId }: { providerId: string; playlist
           currentId={currentId}
           playing={playing}
           onPlayAt={(index) => void store.getState().playAt(songs, index)}
+          onMenu={
+            onMenu
+              ? (request) =>
+                  onMenu({
+                    ...request,
+                    onlinePlaylist: { providerId, id: playlistId, name: shownName }
+                  })
+              : undefined
+          }
         />
       ) : state.loadingTracks ? (
         <p className="pg-note">正在读取这一张…</p>
       ) : (
         <p className="pg-note">这一张里没有能播的歌。</p>
       )}
+
+      {renaming ? (
+        <NameModal
+          title="改名"
+          label="歌单名"
+          initial={shownName}
+          confirmText="保存"
+          onCancel={() => setRenaming(false)}
+          onConfirm={(next) => {
+            setRenaming(false)
+            void renameOnlinePlaylist(providerId, playlistId, next).then((result) => {
+              if (!result.ok) {
+                reportWrite(result, '')
+                return
+              }
+              setLocalName(next)
+              void store.getState().loadPlaylists()
+              reportWrite(result, '名字改好了')
+            })
+          }}
+        />
+      ) : null}
+
+      {removing ? (
+        <ConfirmModal
+          title="删掉这张歌单？"
+          body={'「' + shownName + '」会从' + (provider?.displayName ?? '平台') + '的账号里删掉，歌本身还在。'}
+          confirmText="删除"
+          danger
+          onCancel={() => setRemoving(false)}
+          onConfirm={() => {
+            setRemoving(false)
+            void deleteOnlinePlaylist(providerId, playlistId).then((result) => {
+              if (!result.ok) {
+                reportWrite(result, '')
+                return
+              }
+              void store.getState().loadPlaylists()
+              backToPlaylists()
+            })
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -134,7 +238,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   const [title, setTitle] = useState('')
   const [meta, setMeta] = useState('读取中…')
   const [cover, setCover] = useState<string | null>(null)
-  const [artist, setArtist] = useState<{ id: number; name: string } | null>(null)
+  const [artists, setArtists] = useState<{ id: number; name: string }[]>([])
   const [year, setYear] = useState<number | null>(null)
   const [brief, setBrief] = useState('')
   const [tracks, setTracks] = useState<Track[]>([])
@@ -174,8 +278,17 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         setTitle(album.name)
         setCover(album.coverUrl)
         setTracks(rows)
-        const first = rows[0]
-        setArtist(first?.artistId ? { id: first.artistId, name: first.artist } : null)
+        /*
+         * 专辑艺人不只是「第一首歌的第一个人」：合作专辑有一整排人。曲目行上
+         * 每一段名字都带着自己的 id，所以专辑页也能逐个点进去。
+         */
+        const lead = rows[0]
+        const credits = lead?.artistRefs?.length
+          ? lead.artistRefs.filter((person) => person.id > 0)
+          : lead?.artistId
+            ? [{ id: lead.artistId, name: lead.artist }]
+            : []
+        setArtists(credits)
         setYear(album.year ?? null)
         setBrief(album.description ?? '')
         setMeta([String(rows.length) + ' 首'].filter(Boolean).join(' · '))
@@ -197,15 +310,18 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         title={title || ' '}
         meta={
           <>
-            {artist ? (
-              <button
-                className="dh__link"
-                type="button"
-                onClick={() => openOnlineArtist(providerId as ProviderId, artist.id)}
-              >
-                {artist.name}
-              </button>
-            ) : null}
+            {artists.map((person, index) => (
+              <span key={person.id + ':' + index}>
+                {index > 0 ? <span className="dh__sep">/</span> : null}
+                <button
+                  className="dh__link"
+                  type="button"
+                  onClick={() => openOnlineArtist(providerId as ProviderId, person.id)}
+                >
+                  {person.name}
+                </button>
+              </span>
+            ))}
             <span>{meta}</span>
           </>
         }
@@ -224,7 +340,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
           { label: '平台', value: platform?.displayName ?? '在线' },
           { label: '发行', value: year ? String(year) : '—' },
           { label: '曲目', value: String(tracks.length) + ' 首' },
-          { label: '艺人', value: artist?.name ?? '—' }
+          { label: '艺人', value: artists.map((person) => person.name).join(' / ') || '—' }
         ]}
         brief={brief}
       />

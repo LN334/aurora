@@ -15,6 +15,11 @@
   border: 1px solid rgb(var(--accent-rgb) / 0.34);
   font-size: var(--fs-meta);
   color: var(--text-hi);
+  /* 导入/导出的结果条是插进来的，淡一下，别在页头突然多出一块。 */
+  animation: flashIn var(--dur-2) var(--ease-out) both;
+}
+@keyframes flashIn {
+  from { opacity: 0; }
 }
 .flash span {
   flex: 1;
@@ -66,10 +71,14 @@
   gap: var(--s2);
   height: 40px;
   border-radius: var(--r-control);
-  transition: background 90ms var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
 }
 .playlist-row:hover {
   background: var(--ink-850);
+}
+.playlist-row:active {
+  /* 按下去整行轻缩：行自身不是 fixed 容器、里面也没有 fixed 后代，transform 安全。 */
+  transform: scale(0.994);
 }
 
 .playlist-row__main {
@@ -253,4 +262,11 @@
 .pl-track:hover .pl-track__remove,
 .pl-track__remove:focus-visible {
   opacity: 1;
+}
+
+/* 令牌在 reduce 下已经降到 1ms，但 scale 仍会硬跳一下，这里直接关掉。 */
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+  .playlist-row { transition: none; }
+  .playlist-row:active { transform: none; }
 }

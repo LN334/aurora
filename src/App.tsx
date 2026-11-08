@@ -11,9 +11,12 @@ import { DailyView } from './views/DailyView'
 import { LikedView } from './views/LikedView'
 import { LocalView } from './views/LocalView'
 import { OnlinePage } from './views/OnlinePage'
-import { bindDetailNavigate } from './features/refs/navigate'
-import { MyPlaylistsView } from './views/MyPlaylistsView'
+import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
+import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
+import { getProvider } from './features/online/registry'
+import { useAccountPlaylists } from './features/online/playlist-cards'
 import { PlaylistsView } from './views/PlaylistsView'
+import { RoamView } from './views/RoamView'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/PlayerBar'
 import { PlaylistDetail } from './views/PlaylistDetail'
@@ -65,10 +68,6 @@ import { useTrackActions } from './app/useTrackActions'
 import { SearchView } from './app/search/SearchView'
 import { useSearch } from './app/search/store'
 import { useLibraryData } from './app/useLibraryData'
-import { loadPlatformLiked } from './features/online/platform-liked'
-import { mergeVersions } from './features/online/unify'
-import { useHistory } from './features/player/history-store'
-import { sourceOrder } from './features/settings/source-order'
 import {
   MENU_TEST_MODE,
   PERF_MODE,
@@ -156,7 +155,25 @@ export function App() {  if (!isNative) {
   /** The open per-track actions menu, if any. */
   const [trackMenu, setTrackMenu] = useState<TrackMenuRequest | null>(null)
 
-  const playlists = usePlaylists((s) => s.playlists)
+  /*
+   * 歌单只活在平台账号里：菜单里的「加入歌单」列的就是各账号能被写进去的单子。
+   * 本机不再存歌单，所以这里只看平台，且只收明确是自建的那些（收藏来的单子
+   * 上游不让改）。
+   */
+  const accountPlaylists = useAccountPlaylists()
+  const writablePlaylists = useMemo(
+    () =>
+      accountPlaylists.cards
+        .filter(
+          (card) =>
+            card.ownership === 'mine' && Boolean(getProvider(card.providerId)?.playlists?.addTracks)
+        )
+        .map((card) => ({ key: card.key, name: card.name, providerLabel: card.providerLabel })),
+    [accountPlaylists.cards]
+  )
+
+  /* 旧 `Route`（legacy 地址）还认本机歌单，新导航已经不给入口了。 */
+  const legacyPlaylists = usePlaylists((s) => s.playlists)
 
   const accounts = useAccounts((s) => s.accounts)
   const activeAccountId = useAccounts((s) => s.activeId)
@@ -260,35 +277,6 @@ export function App() {  if (!isNative) {
     bindDetailNavigate(goShell)
   }, [goShell])
 
-  /**
-   * 漫游：把手上所有能放的东西洗一遍，从头放。
-   *
-   * 不只是本机那几百个文件：各平台喜欢的歌、最近听过的在线曲都算「我的」。
-   * 同一首在几家都有时先合并成一行，播到它时按音源优先级挑一个——和列表页
-   * 里点它是一回事。不做「猜你喜欢」，那要听歌数据才准；随机恰好是曲库够大
-   * 时最好用的东西：你总有一批忘了的歌。
-   */
-  const roam = useCallback(async () => {
-    const local = useLibrary.getState().tracks
-    const recent = useHistory
-      .getState()
-      .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
-    const liked = await loadPlatformLiked().catch(() => [])
-    const pool = mergeVersions([...local, ...recent, ...liked], sourceOrder())
-    if (pool.length === 0) {
-      setFlash('曲库还是空的，先添加一个音乐文件夹，或者登录一个平台')
-      return
-    }
-    for (let i = pool.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1))
-      const swap = pool[i]
-      pool[i] = pool[j]
-      pool[j] = swap
-    }
-    player.playQueue(pool, 0)
-    setFlash('漫游：从 ' + pool.length + ' 首里随机开始')
-  }, [setFlash])
-
   /*
    * 地址栏跟着走。
    *
@@ -308,6 +296,65 @@ export function App() {  if (!isNative) {
      */
     document.querySelector('.main__body')?.scrollTo({ top: 0 })
   }, [shell])
+
+  /*
+   * 换页淡入只在「真的换了一页」时播，启动那次不播。
+   *
+   * 动画本身在 app.css 里，由 .is-enter 触发：首帧没有这个类，正文一上来就是
+   * 可见的。类用 DOM 直接加而不是走 state，是因为 key 已经把整块内容重挂过，
+   * 这里只需要让浏览器重算一次动画；再引一个 state 只会多一次渲染。
+   */
+  const lastRoute = useRef<string | null>(null)
+  useEffect(() => {
+    const key = shell.view + ':' + (shell.id ?? '')
+    const body = document.querySelector<HTMLElement>('.main__body')
+    if (body && lastRoute.current !== null && lastRoute.current !== key) {
+      body.classList.remove('is-enter')
+      // 读一次布局，让上面那次 remove 落地；否则同一帧里加回来不重启动画。
+      void body.offsetWidth
+      body.classList.add('is-enter')
+    }
+    lastRoute.current = key
+  }, [shell])
+
+  /*
+   * 点面板外面就收起，不必非得去够右上角那个 ✕。
+   *
+   * 队列和均衡器都是「拉开看一眼就走」的抽屉，桌面播放器的习惯是一点空白
+   * 处就收回。以前只认那个关闭键，鼠标已经跑到列表上了还要折返一趟。
+   *
+   * 两处例外：面板自己（不然拖滚动条也会关），以及播放条——那一排图标里
+   * 的队列/均衡器按钮自己会 toggle，在捕获阶段抢先关掉会让按钮看起来失灵。
+   */
+  useEffect(() => {
+    if (!eqOpen && !queueOpen) return
+    const onDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.panel') || target.closest('.player')) return
+      setEqOpen(false)
+      setQueueOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [eqOpen, queueOpen])
+
+  /*
+   * 窗口被拖着改大小的时候，把毛玻璃全关掉。
+   *
+   * 模糊要按新尺寸重新采样背景，拖动那几帧来不及，屏幕上就会先留着按旧宽度
+   * 排好的内容，再「啪」地跳到新布局——用户看见的就是容器大小错位、闪一下。
+   * 拖动期间不画模糊，重排就只是一次纯色重绘，肉眼看不到。
+   */
+  useEffect(() => {
+    const off = window.aurora?.app?.onResizing?.((busy) => {
+      document.documentElement.classList.toggle('is-resizing', busy)
+    })
+    return () => {
+      if (typeof off === 'function') off()
+      document.documentElement.classList.remove('is-resizing')
+    }
+  }, [])
 
   /* 舞台是外壳里的一页，但画法是浮层：外壳说在舞台，就把浮层打开。 */
   useEffect(() => {
@@ -541,7 +588,7 @@ export function App() {  if (!isNative) {
     albumDetail,
     currentArtistId,
     currentFolder
-  } = useLibraryData(route, tracks, playlists, track)
+  } = useLibraryData(route, tracks, legacyPlaylists, track)
 
   const { playAlbum, playArtist, playFolder, createPlaylist } = useTrackActions({
     tracks,
@@ -654,17 +701,17 @@ export function App() {  if (!isNative) {
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
     if (shell.view === 'onlinealbum' || shell.view === 'onlineartist' || shell.view === 'onlineplaylist') {
-      return <OnlinePage route={shell} />
+      return <OnlinePage route={shell} onMenu={setTrackMenu} />
     }
     if (shell.view === 'home') {
       return <HomeView onNavigate={goShell} />
     }
+    if (shell.view === 'roam') return <RoamView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={setTrackMenu} />
     if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
-    if (shell.view === 'myplaylists') return <MyPlaylistsView onNavigate={goShell} />
-    if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
+      if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
     if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'nowplaying') {
       return (
@@ -768,7 +815,7 @@ export function App() {  if (!isNative) {
       }
       return (
         <PlaylistList
-          playlists={playlists}
+          playlists={legacyPlaylists}
           onOpen={(id) => navigate({ view: 'playlists', playlistId: id })}
           onCreate={createPlaylist}
           onRemove={(id) => usePlaylists.getState().remove(id)}
@@ -906,7 +953,6 @@ export function App() {  if (!isNative) {
         <Rail
           route={shell}
           onNavigate={goShell}
-          onRoam={roam}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((value) => !value)}
           profileLabel={activeAccount?.label ?? null}
@@ -1103,7 +1149,7 @@ export function App() {  if (!isNative) {
           track={trackMenu.track}
           x={trackMenu.x}
           y={trackMenu.y}
-          playlists={playlists.map((playlist) => ({ id: playlist.id, name: playlist.name }))}
+          playlists={writablePlaylists}
           onClose={() => setTrackMenu(null)}
           onOpenDetail={() => {
             const target = trackMenu.track
@@ -1115,12 +1161,29 @@ export function App() {  if (!isNative) {
             setTrackMenu(null)
             setFlash(`已把《${trackMenu.track.title}》排到下一首`)
           }}
-          onAddToPlaylist={(playlistId) => {
-            usePlaylists.getState().addTracks(playlistId, [trackMenu.track.id])
-            const target = playlists.find((item) => item.id === playlistId)
+          onAddToPlaylist={(key) => {
+            const [providerId, rawId] = key.split(':')
+            const id = Number(rawId)
+            const target = trackMenu.track
             setTrackMenu(null)
-            setFlash(`已加入「${target?.name ?? '播放列表'}」`)
+            if (!providerId || !Number.isFinite(id)) return
+            void addTrackToOnlinePlaylist(providerId, id, target).then((result) => {
+              reportWrite(result, '已加入歌单')
+            })
           }}
+          onRemoveFromPlaylist={
+            trackMenu.onlinePlaylist
+              ? () => {
+                  const { providerId, id } = trackMenu.onlinePlaylist!
+                  const target = trackMenu.track
+                  setTrackMenu(null)
+                  void removeTrackFromOnlinePlaylist(providerId, id, target).then((result) => {
+                    reportWrite(result, '已移出这张歌单')
+                    if (result.ok) refreshOnlinePlaylist(providerId, id)
+                  })
+                }
+              : undefined
+          }
           onReveal={() => {
             void bridge.library.reveal(trackMenu.track.path)
             setTrackMenu(null)

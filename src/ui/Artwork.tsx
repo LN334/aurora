@@ -5,6 +5,11 @@ interface ArtworkProps {
   alt?: string
   /** Rendered when there is no artwork at all, or when loading it fails. */
   fallback: ReactNode
+  /**
+   * First screenful: fetch immediately instead of waiting for the layout to
+   * decide the picture is close enough to the viewport to be worth loading.
+   */
+  priority?: boolean
 }
 
 /**
@@ -26,7 +31,7 @@ interface ArtworkProps {
  * for every track whose cover is missing, so the failure path is the whole
  * point of this component rather than an edge case.
  */
-export function Artwork({ src, alt = '', fallback }: ArtworkProps) {
+export function Artwork({ src, alt = '', fallback, priority = false }: ArtworkProps) {
   const [failed, setFailed] = useState(false)
 
   if (!src || failed) return <>{fallback}</>
@@ -35,7 +40,8 @@ export function Artwork({ src, alt = '', fallback }: ArtworkProps) {
     <img
       src={src}
       alt={alt}
-      loading="lazy"
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
       decoding="async"
       draggable={false}
       className="artwork__img"

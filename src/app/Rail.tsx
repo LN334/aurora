@@ -2,10 +2,9 @@ import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
 import { useFavorites } from '../features/favorites/store'
 import { useLibrary } from '../features/library/store'
-import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Compass, Folder, Heart, Library, List, Note, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
+import { Compass, Heart, Library, List, Note, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
 import type { ShellRoute, ShellView } from './shell'
 
 /**
@@ -28,8 +27,6 @@ import type { ShellRoute, ShellView } from './shell'
 interface RailProps {
   route: ShellRoute
   onNavigate: (route: ShellRoute) => void
-  /** 漫游不是页面，是动作：从这里直接开一批随机。 */
-  onRoam: () => void
   collapsed: boolean
   onToggleCollapsed: () => void
   /** 当前档案名，显示在底部；档案是设置里的第一个分区，不是导航项。 */
@@ -44,20 +41,18 @@ interface MineItem {
 }
 
 /**
- * 「我的」那一段：喜欢 → 最近 → 我的歌单 → 收藏的歌单 → 收藏专辑 → 本地。
+ * 「我的」那一段：喜欢 → 最近 → 歌单 → 收藏专辑 → 本地。
  *
- * 歌单分成两格，是因为它本来就装两样不同的东西：自己建的、从别人那里收的。
- * 合成一页时「新建歌单」挤在收藏的网里，看着像把收藏页当成了编辑器。现在自建
- * 的在「我的歌单」（新建入口只在那里），收藏的在「收藏的歌单」，各自只说自己
- * 那件事。
+ * 歌单只占一格：自己建的和从别人那里收的都在里面，进页面按平台分开看。以前拆
+ * 成「我的歌单」和「收藏歌单」两格，等于把「谁建的」当成导航层级——用户脑子里
+ * 那件事是「哪家的歌单」，不是「我建的还是收的」。
  *
  * 每日推荐不在这栏里：入口就是主页那块「今天听什么」，一天只换一次。
  */
 const MINE: MineItem[] = [
   { view: 'liked', label: '我喜欢的音乐', icon: Heart },
   { view: 'recent', label: '最近播放', icon: Refresh },
-  { view: 'myplaylists', label: '我的歌单', icon: List },
-  { view: 'playlists', label: '收藏的歌单', icon: Folder },
+  { view: 'playlists', label: '歌单', icon: List },
   { view: 'collections', label: '收藏专辑', icon: Note },
   { view: 'local', label: '本机音乐', icon: Library }
 ]
@@ -75,7 +70,6 @@ const FOOT: MineItem[] = [{ view: 'settings', label: '设置', icon: Settings }]
 export function Rail({
   route,
   onNavigate,
-  onRoam,
   collapsed,
   onToggleCollapsed,
   profileLabel,
@@ -95,13 +89,11 @@ export function Rail({
   const fallbackAvatar = <User size={17} />
 
   const likedCount = useFavorites((state) => state.liked.length)
-  const playlists = usePlaylists((state) => state.playlists)
   const trackCount = useLibrary((state) => state.tracks.length)
 
   const countFor = (view: ShellView): number | null => {
     if (view === 'liked') return likedCount
-    // 侧栏只数本机这些——平台账号里的歌单要联网才知道，等页面自己报，不在这里预取。
-    if (view === 'myplaylists') return playlists.length
+    // 歌单要联网才知道有几张，等页面自己报，不在这里预取。
     if (view === 'local') return trackCount
     return null
   }
@@ -113,8 +105,7 @@ export function Rail({
    */
   const activeOwner = (view: ShellView): ShellView | null => {
     if (view === 'album' || view === 'artist') return 'local'
-    if (view === 'playlist') return 'myplaylists'
-    if (view === 'onlineplaylist') return 'playlists'
+    if (view === 'playlist' || view === 'onlineplaylist') return 'playlists'
     return view
   }
   const lit = activeOwner(route.view)
@@ -125,7 +116,7 @@ export function Rail({
       <button
         key={view}
         className={`nav-item${on ? ' is-active' : ''}`}
-        onClick={() => (view === 'roam' ? onRoam() : onNavigate({ view }))}
+        onClick={() => onNavigate({ view })}
         aria-current={on ? 'page' : undefined}
         title={collapsed ? label : undefined}
       >

@@ -7,6 +7,7 @@ import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
+import { AlbumName, ArtistName } from '../ui/NameRef'
 import type { Track } from '../types'
 import {
   ChevronLeft,
@@ -119,9 +120,13 @@ export function NowPlaying({
             </h1>
             <div className="np__sub">
               <span className="np__badge">{origin}</span>
-              {track.artist || '未知艺人'}
+              <ArtistName track={track} text={track.artist || '未知艺人'} />
               {track.album ? <span className="np__dot">·</span> : null}
-              {track.album ? <span className="np__album">{track.album}</span> : null}
+              {track.album ? (
+                <span className="np__album">
+                  <AlbumName track={track} />
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -209,7 +214,7 @@ export function NowPlaying({
               <span className="np__next-t" title={upcoming.title}>
                 {upcoming.title}
               </span>
-              <span className="np__next-a">{upcoming.artist}</span>
+              <span className="np__next-a"><ArtistName track={upcoming} /></span>
             </>
           ) : (
             <span className="np__next-k">队列里没有下一首了</span>

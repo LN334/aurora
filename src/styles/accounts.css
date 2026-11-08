@@ -147,7 +147,7 @@
 }
 .acct2-name svg {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--dur-1) var(--ease-out);
 }
 .acct2-name:hover svg {
   opacity: 0.55;
@@ -194,6 +194,11 @@
   color: var(--text-mid);
   font-size: var(--fs-meta);
   cursor: pointer;
+  /* 选中态要换边线、底色和字色，没有过渡时是一下跳成「已选」。 */
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 .acct2-chip.is-on {
   border-color: rgb(255 255 255 / 0.22);
@@ -269,6 +274,8 @@
   border: 1px solid rgb(255 255 255 / 0.08);
   border-radius: 14px;
   background: rgb(10 12 16 / 0.58);
+  /* 登录成功后卡片边线变亮，让它淡进来而不是闪一下。 */
+  transition: border-color var(--dur-2) var(--ease-out);
 }
 .acct2-pcard.is-on {
   border-color: rgb(255 255 255 / 0.15);
@@ -307,6 +314,10 @@
   border: 1px solid rgb(255 255 255 / 0.12);
   color: var(--text-low);
   font-size: 11px;
+  transition:
+    background-color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out);
 }
 .acct2-pill.is-on {
   color: #bfe3c8;

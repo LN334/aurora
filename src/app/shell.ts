@@ -22,9 +22,7 @@ export type ShellView =
   | 'liked'
   | 'recent'
   | 'collections'
-  /** 自己建的歌单。新建入口只在这里。 */
-  | 'myplaylists'
-  /** 平台账号里收藏来的歌单，只读。 */
+  /** 歌单：按平台分组，一页看完四个账号里的单子。 */
   | 'playlists'
   | 'local'
   | 'album'
@@ -64,8 +62,7 @@ export const SHELL_TITLES: Record<ShellView, string> = {
   liked: '我喜欢的音乐',
   recent: '最近播放',
   collections: '收藏专辑',
-  myplaylists: '我的歌单',
-  playlists: '收藏的歌单',
+  playlists: '歌单',
   local: '本机音乐',
   album: '专辑',
   artist: '艺人',
@@ -103,7 +100,8 @@ export function shellFromHash(raw: string): ShellRoute | null {
   if (!hash) return null
   const [head, ...rest] = hash.split('/')
   if (!head) return null
-  const view = head as ShellView
+  // 旧的「我的歌单」地址收进「歌单」：两页合成一页之后，旧书签不该白屏。
+  const view = (head === 'myplaylists' ? 'playlists' : head) as ShellView
   if (!(view in SHELL_TITLES)) return null
   if (rest.length === 0) return { view }
   const id = decodeURIComponent(rest.join('/'))
@@ -163,9 +161,6 @@ export function shellToRoute(route: ShellRoute): Route {
       return { view: 'collection', tab: 'liked' }
     case 'playlists':
       return route.id ? { view: 'playlists', playlistId: route.id } : { view: 'collection', tab: 'playlists' }
-    // 这一页是外壳新增的，旧 `Route` 里没有对应项：它自己取数，不走翻译器。
-    case 'myplaylists':
-      return { view: 'discover' }
     case 'local':
       return { view: 'library', source: 'local', tab: 'songs' }
     case 'album':

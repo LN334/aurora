@@ -68,8 +68,24 @@
   --fs-meta: 12px;
   --fs-micro: 11px;
 
-  /* --- motion: one orchestrated transition, everything else is instant ---- */
+  /* --- motion ------------------------------------------------------------
+   * 以前这里写着「一个编排好的过渡，其余一律瞬间」，那条规矩让整个应用摸起
+   * 来是硬的：悬停直接换色、弹窗直接出现、换页直接换掉。现在改成一套四档：
+   *
+   *   --dur-1  120ms  手指/鼠标碰到的回应（悬停、按下）
+   *   --dur-2  200ms  小东西出现或收起（菜单、提示、图标的开关）
+   *   --dur-3  320ms  一整块进来（弹窗、抽屉、换页）
+   *   --dur-4  460ms  慢的、只发生一次的东西（舞台换装）
+   *
+   * 时长只是下限，真正决定「顺不顺」的是缓动：--ease-out 起步快、收尾极慢，
+   * 适合「从 A 到 B」；--ease-spring 收尾带一点点过冲，适合「弹出来」。
+   */
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.18, 0.89, 0.24, 1.03);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 460ms;
   --tint-ms: 620ms;
 
   color-scheme: dark;
@@ -78,5 +94,9 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --tint-ms: 1ms;
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+    --dur-4: 1ms;
   }
 }

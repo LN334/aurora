@@ -20,8 +20,8 @@ const IDLE: OverlayState = { text: null, next: null, title: '', artist: '', play
  *    for the app underneath. While the pointer is over the lyrics the window
  *    takes the mouse back, which is what makes the buttons reachable without
  *    unlocking first;
- *  - **hovered** the pointer is on the strip - the plate and the control strip
- *    appear so it is obvious the thing can be operated;
+ *  - **hovered** the pointer is on the strip - the control rail fades in so it
+ *    is obvious the thing can be operated; the words keep only their own halo;
  *  - **unlocked** the window takes the mouse everywhere it covers, for dragging
  *    it around deliberately.
  */
@@ -115,9 +115,30 @@ export function Overlay() {
         className={`stage-lyric${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}`}
         style={{ ['--lyric-size' as string]: `${size}px` }}
       >
+        <div className="stage-lyric__body">
+          {state.text ? (
+            <>
+              <div className="stage-lyric__line">{state.text}</div>
+              {state.next ? <div className="stage-lyric__next">{state.next}</div> : null}
+            </>
+          ) : state.title ? (
+            // Lyrics are not the only useful thing to show: this keeps the strip
+            // meaningful for instrumentals and untagged files.
+            <div className="stage-lyric__idle">
+              {state.playing ? '♪ ' : '❙❙ '}
+              {state.title}
+              {state.artist ? ` — ${state.artist}` : ''}
+            </div>
+          ) : (
+            <div className="stage-lyric__idle">Aurora 桌面歌词</div>
+          )}
+        </div>
+
+        {/* 竖排右侧，不压歌词行；静止时整条隐去，悬停才浮出。 */}
         <div className="stage-lyric__controls">
           <button
             className="stage-lyric__button"
+            data-label="缩小"
             onClick={() => applySize(size - 2)}
             disabled={size <= MIN_SIZE}
             title="缩小字号"
@@ -127,6 +148,7 @@ export function Overlay() {
           </button>
           <button
             className="stage-lyric__button"
+            data-label="放大"
             onClick={() => applySize(size + 2)}
             disabled={size >= MAX_SIZE}
             title="放大字号"
@@ -135,7 +157,10 @@ export function Overlay() {
             <Plus size={14} />
           </button>
           <button
-            className="stage-lyric__button"
+            className="stage-lyric__button stage-lyric__button--lock"
+            data-label={locked ? '锁定中' : '已解锁'}
+            data-locked={locked}
+            aria-pressed={locked}
             onClick={() => void setLock(!locked)}
             title={locked ? '解锁：一直可以拖动和点按' : '锁定：鼠标穿透，不挡下面的窗口'}
             aria-label={locked ? '解锁桌面歌词' : '锁定桌面歌词'}
@@ -144,6 +169,7 @@ export function Overlay() {
           </button>
           <button
             className="stage-lyric__button"
+            data-label="关闭"
             onClick={() => void bridge.overlay.close()}
             title="关闭桌面歌词"
             aria-label="关闭桌面歌词"
@@ -151,23 +177,6 @@ export function Overlay() {
             <Close size={14} />
           </button>
         </div>
-
-        {state.text ? (
-          <>
-            <div className="stage-lyric__line">{state.text}</div>
-            {state.next ? <div className="stage-lyric__next">{state.next}</div> : null}
-          </>
-        ) : state.title ? (
-          // Lyrics are not the only useful thing to show: this keeps the strip
-          // meaningful for instrumentals and untagged files.
-          <div className="stage-lyric__idle">
-            {state.playing ? '♪ ' : '❙❙ '}
-            {state.title}
-            {state.artist ? ` — ${state.artist}` : ''}
-          </div>
-        ) : (
-          <div className="stage-lyric__idle">Aurora 桌面歌词</div>
-        )}
       </div>
     </div>
   )

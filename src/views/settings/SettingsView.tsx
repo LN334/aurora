@@ -4,6 +4,7 @@ import { Part } from './parts'
 import { AppearancePane } from './panes/AppearancePane'
 import { SystemPane } from './panes/SystemPane'
 import { PlaybackPane } from './panes/PlaybackPane'
+import { RecommendPane } from './panes/RecommendPane'
 import { HotkeysPane } from './panes/HotkeysPane'
 import { UpdatePane } from './panes/UpdatePane'
 import { MaintenancePane } from './panes/MaintenancePane'
@@ -22,6 +23,7 @@ import './settings.css'
  */
 const SECTIONS = [
   { id: 'playback', label: '播放与音质' },
+  { id: 'recommend', label: '推荐来源' },
   { id: 'appearance', label: '外观与桌面' },
   { id: 'system', label: '启动与系统' },
   { id: 'keys', label: '快捷键' },
@@ -89,6 +91,10 @@ export function SettingsView() {
 
         <Part zh="播放与音质" id="playback">
           <PlaybackPane page={page} />
+        </Part>
+
+        <Part zh="推荐来源" id="recommend">
+          <RecommendPane />
         </Part>
 
         <Part zh="外观与桌面" id="appearance">

@@ -387,7 +387,7 @@ input::placeholder {
   border-radius: var(--r-control);
   color: var(--text-mid);
   white-space: nowrap;
-  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .nav-item:hover {
   background: var(--ink-800);
@@ -624,10 +624,15 @@ input::placeholder {
   border: var(--line-soft);
   color: var(--text-hi);
   font-size: var(--fs-body);
-  transition: background 120ms var(--ease-out);
+  transition:
+    background var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 .btn:hover {
   background: var(--ink-600);
+}
+.btn:active {
+  transform: scale(0.975);
 }
 .btn--accent {
   background: var(--accent);
@@ -699,12 +704,15 @@ input::placeholder {
   text-overflow: ellipsis;
 }
 .now__artist {
+  display: block;
+  max-width: 100%;
   font-size: var(--fs-meta);
   color: var(--text-mid);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 可点与悬停反馈由 ArtistName 里的 .name-ref 提供，见下方同名规则。 */
 .now__idle {
   color: var(--text-low);
 }
@@ -1121,6 +1129,15 @@ input::placeholder {
   border: 1px solid rgb(255 255 255 / 0.09);
   box-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
   backdrop-filter: blur(18px) saturate(1.2);
+  /* 从左上角那一点弹出来，给人的印象才是「从这一行长出来的」，而不是凭空出现。 */
+  transform-origin: top left;
+  animation: menuIn var(--dur-2) var(--ease-out) both;
+}
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
 }
 
 .menu__item {
@@ -1134,7 +1151,7 @@ input::placeholder {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background 90ms var(--ease-out), color 90ms var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .menu__item:hover:not(:disabled) {
   background: rgb(var(--accent-rgb) / 0.16);
@@ -1143,6 +1160,24 @@ input::placeholder {
 .menu__item:disabled {
   color: var(--text-low);
   cursor: default;
+}
+
+/* 带一行来源说明的菜单项：名字左、平台右，长名字先省略。 */
+.menu__item--hint {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.menu__item--hint .menu__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu__hint {
+  flex: none;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
 }
 
 .menu__sep {
@@ -1306,7 +1341,7 @@ input::placeholder {
    * 高度已经给了眼睛落点，不需要再画边界。
    */
   background: transparent;
-  transition: background 110ms var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out);
 }
 
 /* The row-wide click target. Underneath the actions button, above nothing else. */
@@ -1444,6 +1479,41 @@ input::placeholder {
   color: var(--text-hi);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/*
+ * 页面上任何一处可点的艺人 / 专辑名（见 ui/NameRef.tsx）。
+ *
+ * 用 span 而不是 button：这些名字常常长在「整行本身就是一枚按钮」的位置里
+ * （歌单行、队列行、首页卡片），button 不能嵌套 button。平时不带下划线，
+ * 免得满屏都是链接；hover 才浮出来，和列表里 .trk__ref 的做法一致。
+ */
+.name-ref {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: color 140ms var(--ease-out), text-decoration-color 140ms var(--ease-out);
+}
+.name-ref:hover,
+.name-ref:focus-visible {
+  color: var(--text-hi);
+  text-decoration-color: currentColor;
+}
+.name-ref:focus-visible {
+  outline: none;
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.2);
+}
+.name-sep {
+  margin: 0 4px;
+  color: var(--text-low);
+  opacity: 0.6;
+}
+.dh__sep {
+  margin: 0 6px;
+  color: var(--text-low);
 }
 
 .trk__sep {
@@ -2131,10 +2201,44 @@ input::placeholder {
 @keyframes artIn { from { opacity: 0; } }
 
 /*
- * 换页：内容区整体淡入并轻轻上移。没有它的时候，点左栏是「旧内容一帧消失、
- * 新内容一帧出现」，中间那一下空白就是「不丝滑」的全部来源。
+ * 播放条换歌：标题与艺人从左下淡入，跟着封面一起换。
+ *
+ * 位移只有 4px —— 播放条是常驻的，动多了反而吵；只补「换了一口气」这件事。
+ * 由 PlayerBar 给 .now__text 换 key 触发重挂载，所以不需要额外状态。
  */
-.main__body {
+.now__text { animation: nowIn var(--dur-3) var(--ease-out) both; }
+@keyframes nowIn {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+/*
+ * 拖着窗口改大小的那几十毫秒：先把毛玻璃关掉。
+ *
+ * backdrop-filter 要按新尺寸重新采样它背后的整张壁纸，拖边框时这项开销足够大，
+ * 大到浏览器宁可先把按旧宽度排好的界面留在屏幕上；等松手、模糊算完，界面才
+ * 「啪」地跳到正确布局——用户看到的就是容器错位、闪一下。关掉模糊以后每帧只剩
+ * 纯色重绘，重排跟得上，眼睛看不到中间态。松手 120ms 后主进程把类摘掉。
+ *
+ * 用 !important 是故意的：这条规则要在所有页面、所有组件上生效，逐个去改选择器
+ * 既漏又不值。
+ */
+html.is-resizing * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/*
+ * 换页：内容区整体淡入。没有它的时候，点左栏是「旧内容一帧消失、新内容一帧
+ * 出现」，中间那一下空白就是「不丝滑」的全部来源。
+ *
+ * 只在类被显式挂上时才播（换页由 App 的 effect 挂）。以前这条动画常驻，
+ * 于是**启动的第一帧**也照播：正文从 opacity 0 开始，用户看到的是「左栏和
+ * 播放条先出来，正文那块黑着，200ms 后才亮」——就是他说的「打开时闪一下」。
+ */
+.main__body.is-enter {
   animation: pageIn 200ms var(--ease-out) both;
 }
 /*
@@ -2172,6 +2276,16 @@ input::placeholder {
 .card__art-open:active,
 .card__play:active {
   transform: scale(0.978);
+}
+/* 胶囊 chip 也是可点的，按下同样要有一点回应；它常成排出现，只缩不放。 */
+.chip {
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.chip:active {
+  transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {

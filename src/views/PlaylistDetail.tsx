@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Playlist } from '../features/playlists/store'
 import type { Track } from '../types'
 import { formatTime } from '../ui/format'
+import { AlbumName, ArtistName } from '../ui/NameRef'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
 import { Note, Play, Trash, Wave } from '../ui/icons'
@@ -189,8 +190,8 @@ export function PlaylistDetail({
                     ) : null}
                     <span className="pl-track__title-text">{track.title || '（无标题）'}</span>
                   </span>
-                  <span className="pl-track__muted">{track.artist}</span>
-                  <span className="pl-track__muted pl-track__album">{track.album}</span>
+                  <span className="pl-track__muted"><ArtistName track={track} /></span>
+                  <span className="pl-track__muted pl-track__album"><AlbumName track={track} /></span>
                   <span className="pl-track__time tnum">{formatTime(track.duration)}</span>
                 </button>
 

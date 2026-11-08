@@ -4,6 +4,7 @@ import { Bar, useProgressPosition } from '../features/player/Bar'
 import { wheelVolume } from '../features/player/volume'
 import { formatTime } from '../ui/format'
 import { Artwork } from '../ui/Artwork'
+import { ArtistName } from '../ui/NameRef'
 import {
   DesktopLyrics,
   Expand,
@@ -117,7 +118,6 @@ export function PlayerBar({
 }: PlayerBarProps) {
   const effectiveVolume = muted ? 0 : volume
   const art = artworkFor(track)
-
   return (
     <footer className="player">
       <div className="now">
@@ -139,21 +139,24 @@ export function PlayerBar({
           />
         </button>
 
-        <div className="now__text">
+        {/*
+         * 换歌时整块重挂一次（key 变化 = 卸载再挂载），CSS 那边就有一支淡入
+         * 可以播。以前这里直接换字，标题是一瞬间跳过去的，播放条看着很硬。
+         */}
+        <div className="now__text" key={track ? String(track.id) : 'idle'}>
           {track ? (
             <>
               <div className="now__title" title={track.title}>
                 {track.title}
               </div>
-              <div className="now__artist" title={track.artist}>
-                {track.artist}
-              </div>
+              {/*
+               * 逐段渲染：多艺人时每一位都是一个独立可点的名字，与队列、舞台同一套。
+               * 本机文件的艺人没有平台 id，那一段退化成纯文字。
+               */}
+              <ArtistName track={track} className="now__artist" />
             </>
           ) : (
-            <>
-              <div className="now__title now__idle">没有在播放</div>
-              <div className="now__artist now__idle">从曲库里挑一张专辑</div>
-            </>
+            <div className="now__title now__idle">没有在播放</div>
           )}
         </div>
       </div>
@@ -216,15 +219,6 @@ export function PlayerBar({
           aria-pressed={desktopLyricsOpen}
         >
           <DesktopLyrics size={17} />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={onOpenStage}
-          title="沉浸模式 (L)"
-          data-tip="舞台"
-          aria-label="打开舞台"
-        >
-          <Expand size={17} />
         </button>
         <button
           className="icon-btn"

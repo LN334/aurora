@@ -11,12 +11,15 @@ interface TrackMenuProps {
   /** Where the pointer asked for it, in viewport coordinates. */
   x: number
   y: number
-  playlists: { id: string; name: string }[]
+  /** 能加进去的平台歌单。本机不存歌单，所以这一列全是平台账号里的单子。 */
+  playlists: { key: string; name: string; providerLabel: string }[]
   onClose(): void
   /** 三页里的第一层：先看这首歌是什么，再决定听不听。 */
   onOpenDetail(): void
   onPlayNext(): void
-  onAddToPlaylist(playlistId: string): void
+  onAddToPlaylist(key: string): void
+  /** 这一行来自某张平台歌单时，才给「从这张歌单移除」。 */
+  onRemoveFromPlaylist?: () => void
   onReveal(): void
 }
 
@@ -38,6 +41,7 @@ export function TrackMenu({
   onOpenDetail,
   onPlayNext,
   onAddToPlaylist,
+  onRemoveFromPlaylist,
   onReveal
 }: TrackMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -143,23 +147,33 @@ export function TrackMenu({
 
       <div className="menu__sep" role="separator" />
 
-      <div className="menu__label">加入播放列表</div>
+      <div className="menu__label">加入歌单</div>
       <div className="menu__scroll">
         {playlists.length === 0 ? (
-          <div className="menu__empty">还没有播放列表</div>
+          <div className="menu__empty">还没有能写的歌单</div>
         ) : (
           playlists.map((playlist) => (
             <button
-              key={playlist.id}
-              className="menu__item"
+              key={playlist.key}
+              className="menu__item menu__item--hint"
               role="menuitem"
-              onClick={() => onAddToPlaylist(playlist.id)}
+              onClick={() => onAddToPlaylist(playlist.key)}
             >
-              {playlist.name}
+              <span className="menu__name">{playlist.name}</span>
+              <span className="menu__hint">{playlist.providerLabel}</span>
             </button>
           ))
         )}
       </div>
+
+      {onRemoveFromPlaylist ? (
+        <>
+          <div className="menu__sep" role="separator" />
+          <button className="menu__item" role="menuitem" onClick={onRemoveFromPlaylist}>
+            从这张歌单移除
+          </button>
+        </>
+      ) : null}
 
       <div className="menu__sep" role="separator" />
 

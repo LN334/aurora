@@ -1,9 +1,14 @@
+import { useMemo } from 'react'
 import type { Route } from '../app/routing'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLyrics } from '../features/library/hooks'
 import { artworkFor } from '../features/library/source'
+import { splitLyricLine } from '../features/lyrics/line-parts'
+import { findSeenTrack } from '../features/library/seen'
 import { useLibrary } from '../features/library/store'
+import { useRecentEntries } from '../features/player/history-store'
 import { player } from '../features/player/actions'
+import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { Heart, Note, Play, Queue } from '../ui/icons'
@@ -33,7 +38,18 @@ export function TrackView({
   /** 进「正在播放」；带秒数表示从这句歌词开始。 */
   onOpenNow(at?: number): void
 }) {
-  const track = useLibrary((state) => state.tracks.find((item) => item.id === id) ?? null)
+  /*
+   * 详情页从任何一页都进得来，所以不能只翻本机库：在线歌点「歌曲详情」以前会
+   * 落到「这首歌不在本机曲库」——那不是用户的错，是这里只查了一张表。现在的
+   * 顺序是本机库 → 刚才任意列表里渲染过的（见 features/library/seen）→ 最近
+   * 听过，三处都没有才算真没有。
+   */
+  const inLibrary = useLibrary((state) => state.tracks.find((item) => item.id === id) ?? null)
+  const recent = useRecentEntries()
+  const track = useMemo(
+    () => inLibrary ?? findSeenTrack(id) ?? recent.find((entry) => entry.track?.id === id)?.track ?? null,
+    [inLibrary, recent, id]
+  )
   const likedIds = useLikedIds()
   const { lyrics } = useLyrics(track)
   const liked = track ? likedIds.has(track.id) : false
@@ -41,7 +57,7 @@ export function TrackView({
   if (!track) {
     return (
       <div className="empty">
-        <h2>这首歌不在本机曲库</h2>
+        <h2>找不到这首歌</h2>
         <button className="btn btn--accent" onClick={() => onNavigate({ view: 'library', tab: 'songs' })}>
           回本机音乐
         </button>
@@ -51,6 +67,13 @@ export function TrackView({
 
   const art = artworkFor(track)
   const origin = track.source && track.source !== 'local' ? track.source : '本机'
+  /*
+   * 艺人 / 专辑在页头是能点的。判断「能不能点」交给 refOfTrack：只有当这一行带着
+   * 那一家的 id、且那一家真的做了那一页时才给按钮，否则留纯文字。别在这里按平台
+   * 名字写死——那样换一家就得回来改一次。
+   */
+  const refs = refOfTrack(track)
+  const source = track.source ?? ''
   const quality = [track.codec, track.sampleRate ? Math.round(track.sampleRate / 1000) + 'kHz' : null]
     .filter(Boolean)
     .join(' · ')
@@ -75,8 +98,34 @@ export function TrackView({
         title={track.title}
         meta={
           <>
-            {track.artist ? <span>{track.artist}</span> : null}
-            {track.album ? <span>{track.album}</span> : null}
+            {track.artist ? (
+              refs.artist ? (
+                <button
+                  className="dh__link"
+                  type="button"
+                  onClick={() => openOnlineArtist(source, refs.artist as number)}
+                  title={`去 ${track.artist} 的页面`}
+                >
+                  {track.artist}
+                </button>
+              ) : (
+                <span>{track.artist}</span>
+              )
+            ) : null}
+            {track.album ? (
+              refs.album ? (
+                <button
+                  className="dh__link"
+                  type="button"
+                  onClick={() => openOnlineAlbum(source, refs.album as number)}
+                  title={`去《${track.album}》`}
+                >
+                  {track.album}
+                </button>
+              ) : (
+                <span>{track.album}</span>
+              )
+            ) : null}
             {track.year ? <span>{track.year}</span> : null}
             {track.duration > 0 ? <span>{formatTime(track.duration)}</span> : null}
             {quality ? <span>{quality}</span> : null}
@@ -117,16 +166,20 @@ export function TrackView({
           </header>
           {lyrics.lines.length > 0 ? (
             <div className="tk__lyrics">
-              {lyrics.lines.map((line, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className="tk__line"
-                  onClick={() => onOpenNow(Math.max(0, line.time))}
-                >
-                  {line.text || '·'}
-                </button>
-              ))}
+              {lyrics.lines.map((line, index) => {
+                const parts = splitLyricLine(line.text)
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    className="tk__line"
+                    onClick={() => onOpenNow(Math.max(0, line.time))}
+                  >
+                    <span className="tk__main">{parts.main || '·'}</span>
+                    {parts.sub ? <span className="tk__sub">{parts.sub}</span> : null}
+                  </button>
+                )
+              })}
             </div>
           ) : (
             <p className="pg-note">这首歌没有歌词。</p>
@@ -141,9 +194,33 @@ export function TrackView({
             <dt>来源</dt>
             <dd>{origin}</dd>
             <dt>专辑</dt>
-            <dd>{track.album || '未知'}</dd>
+            <dd>
+              {refs.album && track.album ? (
+                <button
+                  className="dh__link"
+                  type="button"
+                  onClick={() => openOnlineAlbum(source, refs.album as number)}
+                >
+                  {track.album}
+                </button>
+              ) : (
+                track.album || '未知'
+              )}
+            </dd>
             <dt>艺人</dt>
-            <dd>{track.artist || '未知'}</dd>
+            <dd>
+              {refs.artist && track.artist ? (
+                <button
+                  className="dh__link"
+                  type="button"
+                  onClick={() => openOnlineArtist(source, refs.artist as number)}
+                >
+                  {track.artist}
+                </button>
+              ) : (
+                track.artist || '未知'
+              )}
+            </dd>
             {track.year ? (
               <>
                 <dt>年份</dt>

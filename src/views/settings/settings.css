@@ -37,7 +37,10 @@
   line-height: 1.45;
   text-align: left;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  /* 目录项悬停是「手指碰到」的回应，用最短那档，缓动走全局的 ease-out。 */
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
 .settings__nav-item:hover {
@@ -443,7 +446,10 @@
   border-radius: var(--r-panel);
   background: var(--ink-800);
   border: 1px solid var(--line-soft);
-  transition: border-color 120ms var(--ease-out);
+  /* 选中态还会加一圈 box-shadow 描边，一起淡进来，否则边框亮了描边是跳出来的。 */
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
 }
 
 .wp-card__art img {
@@ -832,6 +838,11 @@
   color: var(--text-mid);
   font-size: 12px;
   cursor: pointer;
+  /* 悬停换底色/字色，禁用时只是变淡：两件事都补过渡。 */
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
 }
 
 .settings__order-move:hover:not(:disabled) {
@@ -1019,6 +1030,8 @@
   border-bottom: 1px solid rgb(255 255 255 / 0.07);
   border-radius: 0;
   padding: 14px 2px;
+  /* 行卡悬停只提亮一点点底色，没有过渡时整片页面扫过去像在闪开关。 */
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 .settings__row:last-child,
 .set-rows > .settings__row:last-child {

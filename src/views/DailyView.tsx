@@ -3,7 +3,7 @@ import type { ShellRoute } from '../app/shell'
 import { usePlatformDaily } from '../features/online/daily'
 import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
-import { dailyLabel, dailyTracks } from '../features/library/daily'
+import { dailyLabel, dailyTracks, interleaveBySource } from '../features/library/daily'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
@@ -46,15 +46,15 @@ export function DailyView({
   const daily = useMemo(() => {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
     const base = tracks.length > 0 ? tracks : recentAll
-    // 和首页那块用同一份数据：平台每日推荐也在这池子里，页面与卡片不会对不上。
-    return dailyTracks(mergeVersions([...base, ...platformDaily], order), new Date(), undefined, taste)
+    // 和首页那块用同一份数据：平台推的整份留下，本机再补一批，页面与卡片不会对不上。
+    return mergeVersions([...interleaveBySource(platformDaily), ...dailyTracks(base, new Date(), undefined, taste)], order)
   }, [tracks, recentAll, platformDaily, order, taste])
 
   if (daily.length === 0) {
     return (
       <div className="pg-empty">
         <h2>今天还没有可推荐的</h2>
-        <p>等你往里放几张专辑，这里每天会换一批 30 首。</p>
+        <p>等你往里放几张专辑，这里每天会换一批。</p>
         <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
           去推荐页
         </button>

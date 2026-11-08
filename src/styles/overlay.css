@@ -35,23 +35,30 @@ body.overlay-body {
 
 .stage-lyric {
   position: relative;
-  isolation: isolate;
   display: flex;
   max-width: 100%;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  /*
-   * The top padding is the control strip's seat. Reserving it keeps the words
-   * from being covered when the controls fade in - the old layout parked the
-   * buttons over the first line.
-   */
-  padding: 28px 22px 10px;
+  gap: 12px;
+  /* 控制条改到右侧竖排，文字块不再为顶部按钮预留空档。 */
+  padding: 6px 4px 6px 20px;
   border-radius: 14px;
   pointer-events: auto;
   /* Draggable, except for the controls, which opt out below. */
   -webkit-app-region: drag;
+}
+
+/* 歌词本体单独成块：柔光只跟文字走，不把控制条一起裹进暗底。 */
+.stage-lyric__body {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 /*
@@ -63,10 +70,10 @@ body.overlay-body {
  * directly behind the line, fades to nothing, and lets the wallpaper show
  * through everywhere else.
  */
-.stage-lyric::before {
+.stage-lyric__body::before {
   content: '';
   position: absolute;
-  inset: -14% -8%;
+  inset: -30% -6%;
   z-index: -1;
   border-radius: 26px;
   background: radial-gradient(
@@ -81,28 +88,9 @@ body.overlay-body {
 }
 
 /*
- * The interactive plate. Invisible at rest, it fades in while the pointer is on
- * the strip so the controls have something to sit on and the whole thing reads
- * as "you can use this".
+ * 悬停时不再给整块铺半透明深底：那条压在壁纸上的暗矩形正是「抠图没扣干净」
+ * 的来源。现在只留文字背后的柔光，按钮各自带圆形 hover 底。
  */
-.stage-lyric::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: 14px;
-  background: rgb(8 10 12 / 0);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0);
-  transition:
-    background 160ms var(--ease-out),
-    box-shadow 160ms var(--ease-out);
-  pointer-events: none;
-}
-
-.stage-lyric.is-active::after {
-  background: rgb(8 10 12 / 0.34);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
-}
 
 .stage-lyric__line {
   max-width: 100%;
@@ -155,22 +143,16 @@ body.overlay-body {
 /* --- controls ------------------------------------------------------------ */
 
 .stage-lyric__controls {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: rgb(8 10 12 / 0.62);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  gap: 4px;
   opacity: 0;
-  visibility: hidden;
+  transform: translateX(6px);
   transition:
-    opacity 140ms var(--ease-out),
-    visibility 140ms var(--ease-out);
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
   /* Buttons must receive clicks, so they cannot be part of the drag region. */
   -webkit-app-region: no-drag;
 }
@@ -178,23 +160,31 @@ body.overlay-body {
 .stage-lyric.is-active .stage-lyric__controls,
 .stage-lyric__controls:focus-within {
   opacity: 1;
-  visibility: visible;
+  transform: none;
 }
 
 .stage-lyric__button {
+  position: relative;
   display: grid;
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 50%;
   color: rgb(255 255 255 / 0.72);
+  /* 透明窗没有底板，图标靠自身投影在亮壁纸上立住。 */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
   transition:
     background 120ms var(--ease-out),
     color 120ms var(--ease-out);
 }
-.stage-lyric__button:hover {
-  background: rgb(255 255 255 / 0.14);
+.stage-lyric__button:hover,
+.stage-lyric__button:focus-visible {
+  background: rgb(10 12 14 / 0.55);
   color: #fff;
+}
+.stage-lyric__button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.45);
 }
 .stage-lyric__button:disabled {
   color: rgb(255 255 255 / 0.3);
@@ -202,4 +192,32 @@ body.overlay-body {
 }
 .stage-lyric__button:disabled:hover {
   background: none;
+}
+
+/* 锁定时加一圈细环：状态由「锁住」本身表达，不再堆一个图标。 */
+.stage-lyric__button--lock[data-locked='true'] {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+}
+
+/* 悬停/聚焦才浮出名字；静止时只是一排几乎看不见的圆点。 */
+.stage-lyric__button::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(8 10 12 / 0.58);
+  color: rgb(255 255 255 / 0.9);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 120ms var(--ease-out);
+  pointer-events: none;
+}
+.stage-lyric__button:hover::after,
+.stage-lyric__button:focus-visible::after {
+  opacity: 1;
 }

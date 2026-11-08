@@ -3,13 +3,14 @@ import { useCollectedAlbums } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineAlbum } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
+import { ArtistById } from '../ui/NameRef'
 import { Note } from '../ui/icons'
 
 /**
  * 收藏专辑。
  *
- * 只放平台账号里收藏的专辑。收藏的歌单在隔壁「收藏歌单」，自己建的歌单也在那页，
- * 本机的专辑在「本机音乐」——四样东西各有各的去处，这一页不重复它们。
+ * 只放平台账号里收藏的专辑。收藏歌单在隔壁「收藏歌单」，自己建的歌单在「我的歌单」，
+ * 本机专辑在「本机音乐」——各有各的去处，这一页不重复它们。
  * 平台只是卡片上的一行来源标注，不按平台分段：收藏本来不多，分段只会让人多翻一次。
  */
 export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
@@ -55,7 +56,10 @@ export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute):
               <span className="rh-card__title">{album.name}</span>
               <span className="rh-card__sub">
                 {album.providerLabel}
-                {album.artistName ? ' · ' + album.artistName : ''}
+                {album.artistName ? ' · ' : null}
+                {album.artistName ? (
+                  <ArtistById providerId={album.providerId} id={album.artistId} name={album.artistName} />
+                ) : null}
               </span>
             </button>
           ))}

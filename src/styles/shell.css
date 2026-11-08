@@ -271,21 +271,22 @@
   border-color: rgb(var(--accent-rgb) / 0.4);
 }
 
-/* 四个快捷入口：图标 + 名称 + 计数，一行铺满。 */
+/* 四个快捷入口：封面（没有就用图标）+ 名称 + 计数，一行铺满；第四格是两个子入口。 */
 
 .rh-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--s3);
+  gap: 14px;
 }
 
 .rh-sc {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: 16px;
   min-width: 0;
-  padding: var(--s3) var(--s4);
-  border-radius: 10px;
+  min-height: 96px;
+  padding: 16px 20px;
+  border-radius: 12px;
   border: 1px solid rgb(255 255 255 / 0.075);
   background: rgb(255 255 255 / 0.065);
   backdrop-filter: blur(16px) saturate(1.2);
@@ -300,9 +301,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  width: 56px;
+  height: 56px;
+  border-radius: 13px;
   background: rgb(var(--accent-rgb) / 0.16);
   color: var(--accent-strong);
 }
@@ -310,7 +311,7 @@
 .rh-sc__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
   min-width: 0;
 }
 .rh-sc__text b {
@@ -328,6 +329,66 @@
 
 .rh-sc > svg {
   margin-left: auto;
+  flex: none;
+  color: var(--text-low);
+}
+
+/* 有封面时，图标位就是那张封面：铺满、不留底色。 */
+.rh-sc__icon--art {
+  background: var(--ink-700);
+  overflow: hidden;
+}
+.rh-sc__icon--art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/*
+ * 一张卡两个入口（我的收藏）。
+ *
+ * 上半是标题与总数，下半两枚子按钮各去一页——收藏歌单与收藏专辑不做聚合页，
+ * 但入口并在一张卡里。两个按钮等宽，右边各一个箭头，扫一眼就知道是两条路。
+ */
+.rh-sc--split {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+}
+
+.rh-sc__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.rh-sc__links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.rh-sc__links button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+  white-space: nowrap;
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.rh-sc__links button:hover {
+  background: rgb(255 255 255 / 0.13);
+  color: var(--text-hi);
+}
+.rh-sc__links button > svg {
   flex: none;
   color: var(--text-low);
 }
@@ -420,6 +481,72 @@
   text-overflow: ellipsis;
 }
 
+
+/* ---------------------------------------------------------------------------
+ * 载入占位
+ *
+ * 结构与真卡同构，所以尺寸也同构：数据到了只是把灰条换成文字，格子不挪位。
+ * 这是「打开页面容器大小错位」的正解 —— 不是让数据变快，而是让框先站住。
+ * ------------------------------------------------------------------------- */
+
+.rh-card.is-sk,
+.rh-mini.is-sk,
+.trk.is-sk,
+.rh-now.is-sk {
+  pointer-events: none;
+}
+.rh-card.is-sk .rh-card__art,
+.rh-mini.is-sk .rh-mini__art {
+  box-shadow: none;
+}
+.rh-card.is-sk .rh-card__title,
+.rh-card.is-sk .rh-card__sub,
+.rh-mini.is-sk .rh-mini__title,
+.rh-mini.is-sk .rh-mini__sub,
+.trk.is-sk .trk__title-text,
+.trk.is-sk .trk__sub,
+.rh-now.is-sk .rh-now__kicker,
+.rh-now.is-sk .rh-now__title,
+.rh-now.is-sk .rh-now__sub {
+  color: transparent;
+  background-image: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 70% 10px;
+}
+.rh-card.is-sk .rh-card__sub,
+.rh-mini.is-sk .rh-mini__sub,
+.trk.is-sk .trk__sub,
+.rh-now.is-sk .rh-now__sub {
+  background-size: 42% 9px;
+}
+.trk.is-sk .trk__title-text {
+  background-size: 180px 10px;
+}
+.trk.is-sk .trk__sub {
+  background-size: 110px 9px;
+}
+.rh-now.is-sk .rh-now__kicker {
+  background-size: 88px 9px;
+}
+.rh-now.is-sk .rh-now__title {
+  background-size: 150px 13px;
+}
+
+/* 新歌那一段还没有真数据时，用同样的行结构与行高占位。 */
+.sk-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  --trk-cols: 32px 44px minmax(0, 340px) minmax(0, 1fr) 52px 54px;
+  --trk-gap: 16px;
+  --row-h: 60px;
+}
+
+/* 今天听什么：正文还没算出来时也先占住那一块的高度。 */
+.rh-daily.is-sk {
+  min-height: 232px;
+}
 /* 窄窗口：一行放不下六张，退成四张并允许横向滚动。 */
 
 /* 详情页共用的头：大图在左，标题在右，底下才是内容。 */
@@ -550,17 +677,6 @@
   .dh__title {
     font-size: 26px;
   }
-}
-
-/* 精品歌单：一条可以横向翻的带子，比再排一屏网格省地方。 */
-
-.rh-scroller {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 152px;
-  gap: var(--s4);
-  overflow-x: auto;
-  padding-bottom: 6px;
 }
 
 .rh-mini {
@@ -1425,6 +1541,32 @@
 .tk__line {
   padding: 5px 0;
 }
+
+/*
+ * 歌词的原文与译文分成两行。
+ *
+ * 上游把译文直接拼在原文后面（「… / 中文」），挤成一行时英文占满宽度、中文
+ * 被压到第二行还要和英文共用行高，读起来像两段文字粘在一起。分开以后原文
+ * 一行、译文一行小字，跟网易云、Apple Music 的双语歌词一样。
+ */
+.tk__line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.tk__main {
+  font-size: 15px;
+  line-height: 1.5;
+}
+.tk__sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-low);
+}
+.tk__line:hover .tk__sub {
+  color: var(--text-mid);
+}
 @media (max-width: 1080px) {
   .tk__body {
     grid-template-columns: minmax(0, 1fr);
@@ -1463,6 +1605,44 @@
 .pl-head__count {
   font-size: 12px;
   color: var(--text-low);
+}
+
+/* 漫游页：一句说明、一排推流平台、一行统计与两个动作，下面是这一批的队列。 */
+.roam__srcs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+.roam__label {
+  font-size: 12px;
+  color: var(--text-low);
+  margin-right: 2px;
+}
+.roam__all {
+  background: none;
+  border: 0;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-mid);
+  cursor: pointer;
+}
+.roam__all:hover {
+  color: var(--text-hi);
+  text-decoration: underline;
+}
+.roam__head {
+  margin-top: 4px;
+}
+.roam__acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.roam__acts .rh-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .pl-grid {
   display: grid;
@@ -1567,6 +1747,25 @@
   padding: 0;
   list-style: none;
 }
+/*
+ * 这两组列表是数据回来才铺上的，赶不上整页那一次淡入（app.css 的 pageIn），
+ * 铺上来那一下就是「啪」。给它们自己补一层透明度。
+ *
+ * 只做 opacity、不做位移：动画的 transform 即使落到 none 也会以矩阵形式留在
+ * 计算样式里，让容器变成 fixed 子元素的定位祖先——长列表右下角那两颗按钮会
+ * 跟着滚出视口。这条坑 app.css 的 pageIn 注释里已经记过。
+ */
+.src-list,
+.lm-roots {
+  animation: shellBlockIn var(--dur-3) var(--ease-out) both;
+}
+@keyframes shellBlockIn {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .src-list,
+  .lm-roots { animation: none; }
+}
 .src-row {
   display: flex;
   align-items: center;
@@ -1629,6 +1828,8 @@
   z-index: 90;
   background: rgb(4 6 9 / 0.62);
   backdrop-filter: blur(6px);
+  /* 遮罩淡进来，不是一刀切黑：底下那页在 200ms 里退场，弹窗才不像砸上来的。 */
+  animation: nmScrimIn var(--dur-2) var(--ease-out) both;
 }
 .nm {
   position: fixed;
@@ -1636,12 +1837,15 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* scale 的缩放原点要落到 translate 之后的视觉中心，原因见下面「弹窗的两段动效」。 */
+  transform-origin: 0 0;
   width: min(420px, calc(100vw - 48px));
   padding: 22px 24px 18px;
   border-radius: 14px;
   border: 1px solid rgb(255 255 255 / 0.08);
   background: rgb(18 21 27 / 0.96);
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.55);
+  animation: nmPopIn var(--dur-3) var(--ease-spring) both;
 }
 .nm__title {
   margin: 0 0 16px;
@@ -1671,11 +1875,64 @@
   border-color: var(--accent);
   outline: none;
 }
+.nm__note {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-mid);
+}
 .nm__acts {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
+}
+
+/*
+ * 弹窗的两段动效。
+ *
+ * 缩放用独立的 scale 属性，不往 transform 里塞 scale()：同一个 transform 里
+ * 的百分比 translate 会先按自身尺寸算、再被缩放，窗口一宽弹窗就偏。
+ *
+ * 独立 scale 叠在 transform 之后，所以原点要自己钉：它默认绕盒中心缩放，而
+ * translate(-50%,-50%) 已经把盒中心搬到了窗口中心，两个中心差半个身位——实测
+ * 420px 宽的弹窗会从偏右 8px 的地方收进来再弹回中间。0 0 正好是「translate
+ * 之后的左上角」，也就是视觉中心，缩放期间四边等量外扩，位置一点不动。
+ *
+ * 另外 .nm 本来就是 fixed + transform，这里不会给它新增「成为 fixed 包含块」
+ * 的问题（那类问题看 app.css 的 pageIn）。
+ *
+ * 关键帧只写起点，终点取元素自身的计算值：动画结束不会把 opacity/scale 的
+ * 中间值留在样式里；fill-mode both 让第一帧就吃到起点，不会先闪一下完整状态。
+ */
+@keyframes nmScrimIn {
+  from { opacity: 0; }
+}
+@keyframes nmPopIn {
+  from { opacity: 0; scale: 0.96; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nm__scrim,
+  .nm { animation: none; }
+}
+
+/* 删掉一类不可撤销的东西：同一个按钮，红一次。 */
+.rh-btn--danger {
+  color: #ffb4a8;
+  border-color: rgb(217 82 78 / 0.5);
+  background: rgb(217 82 78 / 0.14);
+}
+.rh-btn--danger:hover {
+  background: rgb(217 82 78 / 0.22);
+  border-color: rgb(217 82 78 / 0.7);
+}
+
+/* 歌单抬头里的次级动作（改名 / 删除）：比播放键轻一档。 */
+.ol-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* 在线专辑 / 艺人 / 歌单：一页，顶上一个大封面说「打开了什么」，下面是曲目。 */
@@ -1861,16 +2118,18 @@
   padding: 1px 6px;
 }
 
-/* 「今天听什么」右上角的整页入口：跟其它区块的「更多」同一个位置。 */
-.rh-daily {
-  position: relative;
-}
-
-.rh-daily__all {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  z-index: 2;
+/*
+ * 「今天听什么」的按钮行。
+ *
+ * 整页入口原本贴在卡片右上角，正好压住第三张预览图的顶边——文字和封面互相
+ * 吃掉一块。挪到「开始播放」旁边，两个动作本来就同级，也不用再给绝对定位
+ * 找地方。
+ */
+.rh-daily__acts {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 /*
@@ -2038,6 +2297,16 @@
 }
 .dh__meta {
   margin-top: 4px;
+}
+
+/*
+ * 32px 的字形下行笔画比 1.12 行高更高，而 overflow 裁的是 padding box，
+ * 行盒装不下的那几个像素被硬切一刀——「Hong Kong」的下缘就没了。行高提到
+ * 1.24 再补 2px 下内边距，字形连同两行封顶一起装得下。
+ */
+.dh__title {
+  line-height: 1.24;
+  padding-bottom: 2px;
 }
 .dh__actions {
   margin-top: 16px;

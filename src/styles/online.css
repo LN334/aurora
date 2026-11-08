@@ -418,3 +418,17 @@
   color: rgb(206 213 222);
 }
 
+/* --- 现行在线页的悬停过渡 ------------------------------------------------
+ * 这一页的类名早已换成 ol-*（版式还在 shell.css 里），上面那批 online__* 目前
+ * 没有挂载点，所以过渡补在现行类上：切 tab 换底色/边框、悬停抬起封面卡阴影。
+ * 前者是「手指碰到」的回应用 --dur-1，后者是一整块在动，给 --dur-2。
+ */
+.ol-tab {
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.ol-alb__art {
+  transition: box-shadow var(--dur-2) var(--ease-out);
+}

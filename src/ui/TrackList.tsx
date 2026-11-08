@@ -11,26 +11,9 @@ import { showFlash } from './flash'
 import { ArrowUp, Heart, Locate, Note, Play } from './icons'
 import { coverFor } from '../features/library/cover'
 import { artworkFor } from '../features/library/source'
+import { rememberTracks } from '../features/library/seen'
+import { artistParts } from './NameRef'
 import type { Track } from '../types'
-
-/**
- * 一行里的艺术家拆成独立的几个名字。
- *
- * 名字串里有几个就排几个；artistRefs 里同名的那几个配上 id 能点，配不上的
- * 退化成纯文字——总好过整串只有一个按钮、点下去永远只有第一个人。
- */
-function artistParts(track: Track): { id: number; name: string }[] {
-  const refs = track.artistRefs ?? []
-  const names = track.artist
-    .split(/[/\u3001&]|\sfeat\.?/i)
-    .map((part) => part.trim())
-    .filter(Boolean)
-  if (names.length <= 1) return refs
-  return names.map((name) => {
-    const hit = refs.find((ref) => ref.name === name)
-    return { id: hit?.id ?? 0, name }
-  })
-}
 
 /**
  * 这一行亮不亮心。
@@ -47,6 +30,13 @@ export interface TrackMenuRequest {
   track: Track
   x: number
   y: number
+  /**
+   * 这一行是某张平台歌单里的。
+   *
+   * 菜单据此多一句「从这张歌单移除」——页面知道自己打开的是哪一张，行本身
+   * 不知道，所以上下文跟着请求一起上去。
+   */
+  onlinePlaylist?: { providerId: string; id: number; name: string }
 }
 
 interface TrackListProps {
@@ -65,6 +55,14 @@ interface TrackListProps {
  * title is quiet enough to skim past.
  */
 export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
+  /*
+   * 这张表渲染过的歌都记一笔，详情页才查得到——详情只带 id 进路由，能查的
+   * 只有本机库和最近听过，歌单、每日推荐里没播过的歌在那两张表里都没有。
+   */
+  useEffect(() => {
+    rememberTracks(tracks)
+  }, [tracks])
+
   const currentRow = useRef<HTMLDivElement | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   /*

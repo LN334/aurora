@@ -1,6 +1,7 @@
 import { useFavorites } from '../features/favorites/store'
 import { usePlayer } from '../features/player/store'
 import { formatTime } from '../ui/format'
+import { ArtistName } from '../ui/NameRef'
 import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
 
 interface QueuePanelProps {
@@ -42,7 +43,7 @@ function QueueRow({ trackIndex, label, isCurrent, playing, onJump, onRemove }: R
           ) : null}
           <span className="queue-row__title-text">{track.title || '（无标题）'}</span>
         </span>
-        <span className="queue-row__artist">{track.artist}</span>
+        <span className="queue-row__artist"><ArtistName track={track} /></span>
         <span className="queue-row__time tnum">{formatTime(track.duration)}</span>
       </button>
 

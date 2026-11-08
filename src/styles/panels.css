@@ -108,6 +108,8 @@
   padding-right: var(--s2);
   border-radius: var(--r-control);
   color: var(--text-mid);
+  /* 悬停只换底色，没有过渡时是一下刷上去，鼠标扫过整列像在闪。 */
+  transition: background var(--dur-1) var(--ease-out);
 }
 .fld:hover {
   background: var(--ink-850);
@@ -180,6 +182,18 @@
   -webkit-backdrop-filter: blur(28px) saturate(1.45);
   border-left: 1px solid rgb(255 255 255 / 0.07);
   box-shadow: -24px 0 60px rgb(0 0 0 / 0.5);
+  /* 抽屉从右侧滑进来：以前是「一帧出现在终点」，关掉再打开像被硬塞进来。
+     用独立的 translate 而不是 transform：app.css 那边记过这个坑——动画
+     fill-mode 为 both 时 transform 的矩阵会一直留在计算样式里，把容器变成
+     fixed 子元素的定位祖先，抽屉里的固定层就跟着错位。 */
+  animation: panelIn var(--dur-3) var(--ease-out) both;
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    translate: 24px 0;
+  }
 }
 
 .panel__head {
@@ -295,7 +309,8 @@
   align-items: center;
   gap: var(--s1);
   border-radius: var(--r-control);
-  transition: background 90ms var(--ease-out);
+  /* 90ms 快得像没过渡；用 --dur-1，长队列扫下来跟手又不糊。 */
+  transition: background var(--dur-1) var(--ease-out);
 }
 .queue-row:hover {
   background: rgb(255 255 255 / 0.055);
@@ -415,7 +430,8 @@
   height: 20px;
   border-radius: 999px;
   background: var(--ink-600);
-  transition: background 160ms var(--ease-out);
+  /* 开关是「小东西」那一档：200ms，收尾慢，拨过去像被吸住而不是跳过去。 */
+  transition: background var(--dur-2) var(--ease-out);
 }
 .switch.is-on {
   background: var(--accent);
@@ -428,7 +444,8 @@
   height: 16px;
   border-radius: 999px;
   background: var(--text-mid);
-  transition: translate 160ms var(--ease-out), background 160ms var(--ease-out);
+  /* 位移走独立的 translate，不动 transform。 */
+  transition: translate var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
 .switch.is-on .switch__dot {
   translate: 16px 0;
@@ -444,7 +461,8 @@
   background: var(--ink-700);
   color: var(--text-mid);
   font-size: var(--fs-meta);
-  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+  /* 选中态要换底色也要换字色，同属「手指碰到」的回应，120ms 够用。 */
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .chip:hover {
   color: var(--text-hi);

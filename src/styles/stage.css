@@ -134,7 +134,35 @@
 
 /* --- the lyric column ---------------------------------------------------- */
 
+/*
+ * 换行时整列往前推一格。
+ *
+ * 九格是固定槽位，换行时九个格子同时换成下一批内容，看上去就是「原地闪了
+ * 一下」。让整列从下方 18px 滑上来（回退时从上方滑下来）并顺带把透明度
+ * 抬起来，读起来才像在滚，而不是在跳。动画挂在列上而不是格子上：格子是
+ * 按行号重挂载的，挂在格子上九段动画会同时开跑，反而更像闪。
+ */
+.stage__lyrics.is-shift-next {
+  animation: lyrPushUp var(--dur-2) var(--ease-out);
+}
+.stage__lyrics.is-shift-prev {
+  animation: lyrPushDown var(--dur-2) var(--ease-out);
+}
+@keyframes lyrPushUp {
+  from {
+    transform: translateY(18px);
+    opacity: 0.55;
+  }
+}
+@keyframes lyrPushDown {
+  from {
+    transform: translateY(-18px);
+    opacity: 0.55;
+  }
+}
+
 .stage__lyrics {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -156,7 +184,8 @@
   display: grid;
   place-items: center;
   width: 100%;
-  transition: height 360ms var(--ease-out);
+  /* 槽高是写死的，内容一超出就会压到上下句上；裁在槽内是最后一道闸。 */
+  overflow: hidden;
 }
 
 .lyr__text {
@@ -171,8 +200,8 @@
   text-overflow: ellipsis;
   color: var(--text-hi);
   transform-origin: center;
-  transition: transform 360ms var(--ease-out), opacity 360ms var(--ease-out),
-    color 360ms var(--ease-out), text-shadow 360ms var(--ease-out);
+  transition: transform var(--dur-3) var(--ease-out), opacity var(--dur-3) var(--ease-out),
+    color var(--dur-3) var(--ease-out), text-shadow var(--dur-3) var(--ease-out);
 }
 .lyr__text:not(.lyr__text--empty):hover {
   opacity: 1 !important;
@@ -180,11 +209,23 @@
 }
 
 .lyr--d0 {
-  height: clamp(72px, 9.5vh, 108px);
+  animation: lyrStep var(--dur-3) var(--ease-out);
+}
+@keyframes lyrStep {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 .lyr--d0 .lyr__text {
   transform: scale(1);
   opacity: 1;
+  /*
+   * 当前行允许折行：整句 44px 大字在 82vw 里放不下，旧版直接截断（"…now rela"）。
+   * 最多两行，超出的交给槽高裁掉。
+   */
+  white-space: normal;
+  max-height: 2.4em;
   /* The playing line is lit by the album's own colour. */
   text-shadow: 0 0 42px rgb(var(--accent-rgb) / 0.5), 0 2px 20px rgb(0 0 0 / 0.55);
 }
@@ -197,13 +238,13 @@
   text-shadow: none;
 }
 .lyr--d1 {
-  height: clamp(44px, 6vh, 64px);
+  height: 60px;
 }.lyr--d1 .lyr__text {
   transform: scale(0.6);
   opacity: 0.34;
 }
 .lyr--d2 {
-  height: clamp(36px, 4.6vh, 48px);
+  height: 46px;
 }
 .lyr--d2 .lyr__text {
   transform: scale(0.5);
@@ -211,7 +252,7 @@
 }
 .lyr--d3,
 .lyr--d4 {
-  height: clamp(30px, 3.6vh, 38px);
+  height: 36px;
 }
 .lyr--d3 .lyr__text,
 .lyr--d4 .lyr__text {
@@ -382,6 +423,53 @@
   outline-offset: 4px;
 }
 
+/*
+ * 翻出去以后的回头路。
+ *
+ * 滚轮把画面翻到别处时浮出来，点一下立刻回到正在唱的那句；不点也行，停手
+ * 6 秒自己回去。挂在底栏上方居中：和播放键同一片视线，翻完歌词一抬眼就是它。
+ * 以前缩在歌词容器底部（bottom: 6px），正好被上下渐隐遮罩吃掉大半，又暗又小。
+ */
+.stage__back-live {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--s3));
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  height: 40px;
+  padding: 0 var(--s5);
+  border-radius: 999px;
+  /* 位移写进基础样式：动画不跑（被冻结/关掉）时按钮照样在正确位置、照样看得见。 */
+  transform: translateX(-50%);
+  background: var(--text-hi);
+  color: var(--ink-1000);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
+  /* 从底栏这个方向浮上来，出现本身就把视线带过去。 */
+  animation: back-live-in var(--dur-3) var(--ease-out);
+  transition: translate 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+}
+.stage__back-live:hover {
+  translate: 0 -2px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.55);
+}
+@keyframes back-live-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .stage__progress {
   display: flex;
   align-items: center;
@@ -500,9 +588,15 @@
   text-overflow: ellipsis;
 }
 
-/* 两行需要更高的槽位；高度仍是固定的，居中逻辑不变。 */
+/*
+ * 两行需要更高的槽位；高度仍是固定的，居中逻辑不变。
+ *
+ * 必须是 160px：两行 44px 主行约 106px，加译文 25px 和间距 13px 要 143px。
+ * 之前这条是 clamp(76px, 10vh, 132px)，1000 高窗口只给 100px——被 -webkit-line-clamp
+ * 裁掉的那半行还把译文压到上一句上，就是用户看到的「重叠」。
+ */
 .lyr--d0 {
-  height: clamp(76px, 10vh, 132px);
+  height: 160px;
 }
 
 /* --- 歌词演出模板 --------------------------------------------------------
@@ -578,51 +672,6 @@
   color: var(--text-low);
 }
 
-/* 卡拉 OK：一层渐变，硬切点跟着 --fill 走，左边已经唱过，右边还没到 */
-.stage--lyric-karaoke .lyr__text--karaoke {
-  /* 已经唱过的一段用纯白，还没到的压到 0.26 —— 只靠 accent 时遇到冷灰封面
-     两张颜色几乎分不开，填了跟没填一样。光晕仍然取封面色。 */
-  background: linear-gradient(
-    90deg,
-    #fff 0%,
-    #fff var(--fill, 0%),
-    rgb(255 255 255 / 0.26) var(--fill, 0%),
-    rgb(255 255 255 / 0.26) 100%
-  );
-  filter: drop-shadow(0 0 18px rgb(var(--accent-rgb) / 0.4));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: none;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 逐字：当前行拆成单字，逐个浮上来 */
-.stage--lyric-typewriter .lyr--d0 .lyr__text {
-  display: block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-}
-.stage--lyric-typewriter .lyr__text--chars {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.02em;
-}
-.stage--lyric-typewriter .lyr__ch {
-  display: inline-block;
-  opacity: 0;
-  transform: translateY(0.32em) scale(0.92);
-  animation: lyrChIn 420ms var(--ease-out) forwards;
-  animation-delay: calc(var(--i, 0) * var(--step, 55ms));
-}
-@keyframes lyrChIn {
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* 诗行：左对齐，当前行压一条底色和一根竖线，像诗稿上的批注 */
 .stage--lyric-verse .stage__lyrics {
   align-items: flex-start;
@@ -671,41 +720,13 @@
   font-weight: 500;
   letter-spacing: 0.01em;
   opacity: 0.6;
+  /* 译文只占一行：跨行的长注释会把当前行总高顶出槽外，压到下一句。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .lyr.is-active .lyr__sub { opacity: 0.82; }
-.lyr__text--chars { display: block; }
-.lyr__chars {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.02em;
-}
-
-/*
- * 卡拉 OK 的填充只推原文那一层：按钮本身不再裁字，译文保持统一的淡色，
- * 否则译文会跟着原文一起由灰变白，读起来分不清哪句是原文。
- */
-.stage--lyric-karaoke .lyr__text--karaoke {
-  background: none;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  color: inherit;
-  filter: none;
-}
-.stage--lyric-karaoke .lyr__text--karaoke .lyr__main {
-  background: linear-gradient(
-    90deg,
-    #fff 0%,
-    #fff var(--fill, 0%),
-    rgb(255 255 255 / 0.26) var(--fill, 0%),
-    rgb(255 255 255 / 0.26) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: none;
-  filter: drop-shadow(0 0 18px rgb(var(--accent-rgb) / 0.4));
-}
 .stage--lyric-verse .lyr__sub { text-align: left; }
 
 /*
