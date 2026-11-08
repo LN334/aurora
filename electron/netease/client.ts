@@ -85,6 +85,8 @@ interface Upstream {
   user_cloud: UpstreamCall
   user_playlist: UpstreamCall
   album_sublist: UpstreamCall
+  top_album: UpstreamCall
+  album_newest: UpstreamCall
   likelist: UpstreamCall
   /** 喜欢/取消喜欢一首歌：写操作，需要真登录。 */
   like: UpstreamCall
@@ -1283,6 +1285,39 @@ export async function neteaseLike(songId: number, liked: boolean): Promise<boole
 
   const res = await call('like', { id: songId, like: liked ? 'true' : 'false' })
   return asNumber(asRecord(res.body).code) === 200
+}
+
+/**
+ * 新碟上架（`album_newest`）。
+ *
+ * 不需要账号：首页「推荐专辑」要的是平台在推什么，不是我的收藏。
+ * 注意别用 `top_album`：那条回的是 { weekData, monthData }，没有 albums 数组。
+ */
+export async function neteaseTopAlbums(limit = 24, offset = 0): Promise<NeteaseCollectedAlbum[]> {
+  await bootstrapOnce()
+  const res = await call('album_newest', {
+    area: 'ALL',
+    limit: clamp(limit, 1, 60),
+    offset: Math.max(0, offset)
+  })
+  return asArray(asRecord(res.body).albums)
+    .map((entry) => {
+      const raw = asRecord(entry)
+      const albumId = asNumber(raw.id)
+      if (!albumId) return null
+      const artists = asArray(raw.artists)
+        .map((item) => asString(asRecord(item).name))
+        .filter(Boolean)
+      return {
+        id: albumId,
+        name: asString(raw.name),
+        coverUrl: asNullableString(raw.picUrl),
+        artistName: artists.join(' / ') || asString(asRecord(raw.artist).name),
+        year: yearOf(raw.publishTime),
+        songCount: asNumber(raw.size)
+      }
+    })
+    .filter((entry): entry is NeteaseCollectedAlbum => entry !== null)
 }
 
 /**

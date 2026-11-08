@@ -516,6 +516,9 @@ export interface NeteaseApi {
   albumSublist(): Promise<
     { id: number; name: string; coverUrl: string | null; artistName: string; year: number; songCount: number }[]
   >
+  topAlbums(limit?: number): Promise<
+    { id: number; name: string; coverUrl: string | null; artistName: string; year: number; songCount: number }[]
+  >
   playlistTracks(id: number): Promise<NeteaseSong[]>
   dailySongs(): Promise<NeteaseSong[]>
   cloudSongs(): Promise<NeteaseSong[]>
@@ -661,6 +664,8 @@ export interface QqApi {
 
   /** 当前档案自己的歌单（需要登录；未登录返回空数组）。 */
   myPlaylists(limit?: number): Promise<QqPlaylistSummary[]>
+  /** 公开推荐歌单（首页「歌单」横排用）；不需要账号。 */
+  recommendPlaylists(limit?: number): Promise<QqPlaylistSummary[]>
   /** 一个歌单里的歌。 */
   playlistTracks(id: string | number): Promise<QqSong[]>
   /** 每日推荐。 */
@@ -946,6 +951,8 @@ export interface KugouApi {
 
   /** 当前档案的歌单；未登录时是公开榜单，读不到就是空数组。 */
   myPlaylists(limit?: number): Promise<KugouPlaylistSummary[]>
+  /** 公开推荐歌单（首页「歌单」横排用）；不需要账号。 */
+  recommendPlaylists(limit?: number): Promise<KugouPlaylistSummary[]>
   /** 新歌速递；不需要登录。 */
   newSongs(limit?: number): Promise<KugouSong[]>
   /** 一张歌单里的歌。`id` 是列表里那个数字别名。 */
@@ -1063,6 +1070,8 @@ export interface QishuiApi {
 
   /** 「我喜欢的」。未登录时上游答 auth-required，这里给空数组。 */
   liked(limit?: number): Promise<QishuiSong[]>
+  /** 公开歌单搜索；首页推荐位用它拿「汽水推荐了什么」，不需要登录。 */
+  searchPlaylists(keywords: string, limit?: number): Promise<QishuiPlaylistSummary[]>
   myPlaylists(limit?: number): Promise<QishuiPlaylistSummary[]>
   playlistTracks(id: number): Promise<QishuiSong[]>
   artistProfile(id: number): Promise<QishuiArtistProfile | null>

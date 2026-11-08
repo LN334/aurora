@@ -298,6 +298,7 @@ const api = {
 
     myPlaylists: () => ipcRenderer.invoke('netease:myPlaylists'),
     albumSublist: () => ipcRenderer.invoke('netease:albumSublist'),
+    topAlbums: (limit?: number) => ipcRenderer.invoke('netease:topAlbums', limit),
     playlistTracks: (id: number) => ipcRenderer.invoke('netease:playlistTracks', id),
     dailySongs: () => ipcRenderer.invoke('netease:dailySongs'),
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),
@@ -349,6 +350,7 @@ const api = {
     // The account's own catalogue. Each answers an empty list rather than an
     // error when upstream cannot be read, so the interface can stay quiet.
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qq:myPlaylists', limit),
+    recommendPlaylists: (limit?: number) => ipcRenderer.invoke('qq:recommendPlaylists', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
     newSongs: (limit?: number) => ipcRenderer.invoke('qq:newSongs', limit),
     daily: () => ipcRenderer.invoke('qq:daily'),
@@ -414,6 +416,8 @@ const api = {
     logout: () => ipcRenderer.invoke('qishui:logout'),
 
     liked: (limit?: number) => ipcRenderer.invoke('qishui:liked', limit),
+    searchPlaylists: (keywords: string, limit?: number) =>
+      ipcRenderer.invoke('qishui:searchPlaylists', { keywords, limit }),
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qishui:myPlaylists', limit),
     playlistTracks: (id: number) => ipcRenderer.invoke('qishui:playlistTracks', id),
     artistProfile: (id: number) => ipcRenderer.invoke('qishui:artistProfile', id),

@@ -2090,3 +2090,15 @@
   position: relative;
   z-index: 2;
 }
+
+
+/* 推荐专辑卡：封面下一行歌名，再一行作者。 */
+.rh-mini__sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

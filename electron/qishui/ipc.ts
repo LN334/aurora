@@ -11,6 +11,7 @@ import {
   qishuiQrCheck,
   qishuiQrCreate,
   qishuiSearch,
+  qishuiSearchPlaylists,
   qishuiSong,
   qishuiStatus,
   qishuiStreamUrl,
@@ -96,6 +97,17 @@ export function registerQishuiIpc(): void {
     return await guard('search', { songs: [] }, async () => {
       if (!keywords) return { songs: [] }
       return await qishuiSearch(keywords, limit)
+    })
+  })
+
+  ipcMain.handle('qishui:searchPlaylists', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const keywords = asText(params.keywords, MAX_KEYWORDS)
+    const limit =
+      typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 40) : 12
+    return await guard('searchPlaylists', [], async () => {
+      if (!keywords) return []
+      return await qishuiSearchPlaylists(keywords, limit)
     })
   })
 

@@ -113,6 +113,15 @@ export interface OnlineAccount {
 }
 
 
+/**
+ * 一张歌单归谁。
+ *
+ * `'mine'` 是自己建的，`'collected'` 是从别人那里收的，`'unknown'` 是平台这条
+ * 接口分不出来。三种必须分开：把「分不出来」硬说成收藏，等于替用户编了一个
+ * 他没做过的动作。
+ */
+export type PlaylistOwnership = 'mine' | 'collected' | 'unknown'
+
 export interface OnlinePlaylistSummary {
   id: number
   name: string
@@ -120,7 +129,15 @@ export interface OnlinePlaylistSummary {
   trackCount: number
   playCount: number
   creator: string
+  /**
+   * 网易云的原生字段：`true` 表示订阅来的。
+   *
+   * 只有网易云这条接口给得出它，其余三家连「自己的歌单」都是从个人主页
+   * 一起抓的，所以它们改填下面的 `ownership`。
+   */
   subscribed: boolean
+  /** 平台明确表态时填它；缺省时由 `subscribed` 推出归属。 */
+  ownership?: PlaylistOwnership
 }
 
 /** A resolved, playable URL. The renderer proxies it; it never fetches upstream. */

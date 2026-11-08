@@ -223,6 +223,29 @@ const MAX_REDIRECTS = 4
  * dispatcher; the renderer is our own code and this guard is the second line,
  * not the first.
  */
+/**
+ * 上游请求头。
+ *
+ * 有的图床按 UA 与来源站防盗链：汽水的封面挂在 douyinpic 上，光带 range 过去
+ * 一律 403，页面里就是一张空卡。这里统一补一个浏览器 UA，抖音系再带上来源站。
+ */
+function upstreamHeaders(target: string, range: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
+    'user-agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
+  }
+  try {
+    const host = new URL(target).hostname
+    if (host.endsWith('douyinpic.com') || host.endsWith('douyincdn.com')) {
+      headers.referer = 'https://www.douyin.com/'
+    }
+  } catch {
+    /* 解析不了的地址交给后面的 fetch 去报错 */
+  }
+  if (range) headers.range = range
+  return headers
+}
+
 async function fetchUpstream(target: string, range: string | null): Promise<Response> {
   let current = target
 
@@ -231,7 +254,7 @@ async function fetchUpstream(target: string, range: string | null): Promise<Resp
       // Forwarding the range rather than the whole file is what makes seeking
       // work: a lossless track is tens of megabytes and the player wants 4KB of
       // it at a time.
-      headers: range ? { range } : undefined,
+      headers: upstreamHeaders(current, range),
       redirect: 'manual'
     })
 

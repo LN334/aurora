@@ -198,7 +198,9 @@ const qishuiBackend: PlatformBackend = {
       // 上游不在这个接口报播放量，留 0，不拿别的接口数字充数。
       playCount: 0,
       creator: row.creator,
-      subscribed: true
+      // `user_playlists` 不带 owner 判定信息，归属分不出来——如实标 unknown。
+      subscribed: false,
+      ownership: 'unknown' as const
     }))
   },
 

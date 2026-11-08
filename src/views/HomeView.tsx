@@ -12,10 +12,11 @@ import { useRecentEntries, useToday } from '../features/player/history-store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { usePlaylists } from '../features/playlists/store'
-import { openOnlinePlaylist } from '../features/refs/navigate'
+import { openOnlineAlbum, openOnlinePlaylist } from '../features/refs/navigate'
 import { usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { picksByProvider, useRecommendedPlaylists } from '../features/online/recommended'
+import { useRecommendedAlbums } from '../features/online/recommended-albums'
 import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
@@ -82,10 +83,6 @@ const ROW = 6
  * 酷狗的公开榜单不给曲目总数，接口里就是 0。直接写「0 首」比不写更糟——
  * 看起来像一张空单子。
  */
-function shelfSub(row: { trackCount: number; creator: string; providerLabel: string }): string {
-  const first = row.trackCount > 0 ? row.trackCount + ' 首' : row.providerLabel
-  return row.creator ? first + ' · ' + row.creator : first
-}
 
 interface HomeViewProps {
   onNavigate(route: ShellRoute): void
@@ -120,7 +117,8 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 之前是把两家的歌单倒在一起洗，池子大的那家占满整行 —— 用户看到的是「怎么
    * 全是酷狗」。数量按平台限定之后，「换一批」只在各家内部换。
    */
-  const { picks, rest } = useMemo(() => picksByProvider(recommended, batch, 3), [recommended, batch])
+  const { picks } = useMemo(() => picksByProvider(recommended, batch, 6), [recommended, batch])
+  const albumPicks = useRecommendedAlbums(18)
 
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。
@@ -185,7 +183,6 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 一屏只给六张太薄：四家轮一遍就没了，看起来像只接了一两家。两行铺满之后
    * 每一家在首屏都能出三张，「换一批」再往后挪一屏。
    */
-  const more = useMemo(() => rest, [rest])
   /**
    * 新歌不再只有网易云一家。
    *
@@ -296,9 +293,9 @@ export function HomeView({ onNavigate }: HomeViewProps) {
         />
         <Shortcut
           icon={<List size={16} />}
-          label="歌单"
+          label="我的歌单"
           count={playlists.length + ' 个'}
-          onClick={() => onNavigate({ view: 'playlists' })}
+          onClick={() => onNavigate({ view: 'myplaylists' })}
         />
         <Shortcut
           icon={<Folder size={16} />}
@@ -353,7 +350,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
       {hasRecommend ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>歌单</h3>
+            <h3>推荐歌单</h3>
             <button className="rh-more" type="button" onClick={() => setBatch((n) => n + 1)}>
               换一批
             </button>
@@ -375,25 +372,25 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                   <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
                 </span>
                 <span className="rh-card__title">{row.name}</span>
-                <span className="rh-card__sub">{shelfSub(row)}</span>
+                {row.creator ? <span className="rh-card__sub">{row.creator}</span> : null}
               </button>
             ))}
           </div>
         </section>
       ) : null}
 
-      {more.length > 0 ? (
+      {albumPicks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>更多歌单</h3>
+            <h3>推荐专辑</h3>
           </header>
           <div className="rh-scroller">
-            {more.map((row) => (
+            {albumPicks.map((row) => (
               <button
                 className="rh-mini"
                 type="button"
                 key={row.key}
-                onClick={() => openOnlinePlaylist(row.providerId, row.id)}
+                onClick={() => openOnlineAlbum(row.providerId, row.id)}
               >
                 <span className="rh-mini__art" style={tintOf(row.key)}>
                   <Artwork
@@ -404,6 +401,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                   <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
                 </span>
                 <span className="rh-mini__title">{row.name}</span>
+                <span className="rh-mini__sub">{row.artistName}</span>
               </button>
             ))}
           </div>
@@ -413,7 +411,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
       {freshTracks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>新歌</h3>
+            <h3>最近新歌</h3>
           </header>
           <TrackList
             tracks={freshTracks}

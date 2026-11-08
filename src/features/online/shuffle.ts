@@ -6,8 +6,8 @@
  * —— 页面重渲染不能把卡片换位置（鼠标还没点，图就跑了），只有「换一批」
  * 才换种子。
  *
- * 单独成文件是因为它要能被 node --test 直接导入：shelves.ts 依赖 React 与
- * 平台 store，测试环境解析不了。
+ * 单独成文件是因为它要能被 node --test 直接导入：调用它的那些模块依赖 React
+ * 与平台 store，测试环境解析不了。
  */
 export function shuffleWithSeed<T>(list: readonly T[], seed: number): T[] {
   const out = list.slice()

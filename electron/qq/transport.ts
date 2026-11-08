@@ -507,6 +507,135 @@ export async function requestAlbumSongs(params: {
   })
 }
 
+/**
+ * 平台推荐歌单的三种候选路由。
+ *
+ * 「按标签取歌单」要登录（500003），搜索位只回歌曲，榜单又不是歌单，所以这里
+ * 把 QQ 网页端历史上用过的三条歌单推荐路由都试一遍：谁先回来谁算。
+ */
+/**
+ * 歌单广场的公开老接口（fcg_get_diss_by_tag）。
+ *
+ * QQ 网页端与各家第三方客户端一直用它取「分类 / 热门歌单」，不需要账号；
+ * 新式 musicu 路由要登录（500003），先试公开这条。
+ */
+export async function requestPublicSonglists(limit = 12): Promise<unknown> {
+  const url =
+    'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg?categoryId=10000000&sortId=5' +
+    '&sin=0&ein=' +
+    String(Math.max(1, Math.min(40, limit))) +
+    '&format=json&platform=yqq.json'
+  const response = await fetch(url, {
+    headers: {
+      referer: 'https://y.qq.com/n/ryqq/playlist',
+      'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
+    }
+  })
+  // 这个老接口回的是 GBK 的 JSON：直接 .json() 会把中文读成乱码。
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  const text = new TextDecoder('gbk').decode(bytes)
+  return JSON.parse(text)
+}
+
+export async function requestRecommendPlaylists(variant: 'a' | 'b' | 'c'): Promise<unknown> {
+  const payload =
+    variant === 'a'
+      ? { playlist: { module: 'playlist.web_srf', method: 'get_recommend', param: { num: 12 } } }
+      : variant === 'b'
+        ? {
+            playlist: {
+              module: 'music.playlist.PlaylistInfoServer',
+              method: 'get_recommend_playlist',
+              param: { num: 12 }
+            }
+          }
+        : {
+            playlist: {
+              module: 'playlist.web_srf',
+              method: 'get_diss_recommend',
+              param: { num: 12 }
+            }
+          }
+  return await musicu(payload)
+}
+
+/**
+ * 公开排行榜列表。
+ *
+ * QQ 的「按标签推荐歌单」要登录（playlist.code=500003），搜索位只回歌曲，所以
+ * 首页那个推荐位改用排行榜：这是它唯一一条匿名也给完整数据的面板，每一榜都是
+ * 十几到上百首，拿来做「平台推荐了什么」够用。
+ */
+export async function requestTopLists(): Promise<unknown> {
+  return await musicu({
+    toplist: { module: 'musicToplist.ToplistInfoServer', method: 'GetAll', param: {} }
+  })
+}
+
+/** 一个榜的歌曲。 */
+export async function requestTopDetail(params: {
+  topId: number
+  limit?: number
+}): Promise<unknown> {
+  return await musicu({
+    toplist: {
+      module: 'musicToplist.ToplistInfoServer',
+      method: 'GetDetail',
+      param: { topId: params.topId, offset: 0, num: params.limit ?? 60 }
+    }
+  })
+}
+
+/** 发一次 musicu 请求，把外层信封摊平成 { status, body }，与其它请求一致。 */
+async function musicu(payload: Record<string, unknown>): Promise<unknown> {
+  const body = {
+    comm: {
+      ct: 24,
+      cv: 0,
+      format: 'json',
+      inCharset: 'utf-8',
+      outCharset: 'utf-8',
+      platform: 'yqq.json',
+      needNewCode: 0
+    },
+    ...payload
+  }
+  const response = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      referer: 'https://y.qq.com/n/ryqq/toplist/4'
+    },
+    body: JSON.stringify(body)
+  })
+  if (!response.ok) {
+    return { status: response.status, body: { error: 'musicu http ' + response.status } }
+  }
+  return { status: 200, body: await response.json() }
+}
+
+/**
+ * 公开歌单搜索。
+ *
+ * `remoteplace: 'playlist'` 走的是 `txt.yqq.playlist` 这个搜索位，返回的是歌单行
+ * （dissid / dissname / imgurl / song_cnt），不需要账号。QQ 的「按标签推荐歌单」
+ * 实测要登录（playlist.code=500003），所以首页推荐位用热词搜索来填——和汽水那
+ * 一侧的做法一致。
+ */
+export async function requestSearchPlaylists(params: {
+  keywords: string
+  limit: number
+}): Promise<unknown> {
+  return await loadSdk().search({
+    key: params.keywords,
+    limit: params.limit,
+    page: 1,
+    catZhida: 0,
+    remoteplace: 'playlist'
+  })
+}
+
 /** Albums this profile collected on the platform. */
 export async function requestCollectedAlbums(params: {
   uin: string

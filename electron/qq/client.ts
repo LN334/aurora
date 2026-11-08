@@ -11,6 +11,7 @@ import {
   normalizeQr,
   normalizeSearch,
   normalizeSongCollection,
+  normalizeTopDetail,
   readAccountProbe,
   readQrCheck,
   readVipProbe
@@ -37,7 +38,10 @@ import {
   requestNewSongs,
   requestPlay,
   requestPlaylistTracks,
+  requestPublicSonglists,
+  requestRecommendPlaylists,
   requestSearch,
+  requestTopDetail,
   requestVipInfo,
   tierLadder,
   uinDigits
@@ -527,11 +531,101 @@ export async function qqMyPlaylists(limit = 60): Promise<QqPlaylistSummary[]> {
   }
 }
 
+/**
+ * 平台推荐位上的 QQ 歌单。
+ *
+ * 用排行榜而不是「标签歌单」：后者实测要登录（playlist.code=500003），而搜索
+ * 位只回歌曲。排行榜是 QQ 唯一条匿名也给全的表面板，每一榜都能直接打开播放。
+ */
+export async function qqRecommendPlaylists(limit = 12): Promise<QqPlaylistSummary[]> {
+  // 公开歌单广场先来：这条不需要账号，能出就用它。
+  try {
+    const response = await requestPublicSonglists(limit)
+    const rows = collectPlaylists(response)
+    log('qq recmd pl public rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 500))
+    if (rows.length > 0) return rows.slice(0, limit)
+  } catch (error) {
+    log('qq recmd pl public failed ' + messageOf(error))
+  }
+  // 要账号的那几条只在他登录之后才试，未登录必是 500003。
+  if (!hasSession(activeProfileId)) return []
+  for (const variant of ['a', 'b', 'c'] as const) {
+    try {
+      const response = await requestRecommendPlaylists(variant)
+      const rows = collectPlaylists(response)
+      log('qq recmd pl ' + variant + ' rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 700))
+      if (rows.length > 0) return rows.slice(0, limit)
+    } catch (error) {
+      log('qq recmd pl ' + variant + ' failed ' + messageOf(error))
+    }
+  }
+  return []
+}
+
+/** 在响应里找第一组「带 id 也带名字」的行，兼容没见过的信封。 */
+function collectPlaylists(response: unknown, depth = 0): QqPlaylistSummary[] {
+  if (depth > 6) return []
+  const scope = response as Record<string, unknown> | null
+  if (Array.isArray(scope)) {
+    if (scope.length === 0) return []
+    const first = (scope[0] ?? {}) as Record<string, unknown>
+    const hasId = first.dissid ?? first.disstid ?? first.tid ?? first.id
+    const hasName = first.dissname ?? first.title ?? first.name
+    if (hasId && hasName) {
+      return scope
+        .map((row) => {
+          const entry = (row ?? {}) as Record<string, unknown>
+          const id = Number(entry.dissid ?? entry.disstid ?? entry.tid ?? entry.id)
+          const name = String(entry.dissname ?? entry.title ?? entry.name ?? '')
+          if (!Number.isFinite(id) || !name) return null
+          const cover = entry.imgurl ?? entry.picurl ?? entry.cover ?? entry.logo
+          return {
+            id,
+            name,
+            coverUrl: typeof cover === 'string' ? cover : null,
+            trackCount:
+              Number(entry.song_cnt ?? entry.song_count ?? entry.songnum ?? 0) || 0,
+            creator: String(
+              (entry.creator as Record<string, unknown>)?.nick ??
+                (entry.creator as Record<string, unknown>)?.name ??
+                entry.nick ??
+                ''
+            )
+          } satisfies QqPlaylistSummary
+        })
+        .filter((row): row is QqPlaylistSummary => row !== null)
+    }
+    return []
+  }
+  if (scope && typeof scope === 'object') {
+    for (const child of Object.values(scope)) {
+      const found = collectPlaylists(child, depth + 1)
+      if (found.length > 0) return found
+    }
+  }
+  return []
+}
+
 /** One playlist's songs. Rows are remembered like search results, so they play. */
 export async function qqPlaylistTracks(disstid: string | number): Promise<QqSong[]> {
   const id = String(disstid ?? '').trim()
   if (!id) return []
   const state = readState(activeProfileId)
+
+  /*
+   * 榜与歌单共用这一个入口，靠编号区分：榜的 topId 是三四位数（4、26、62），
+   * 歌单的 disstid 是十位数（9793639801）。所以小的走榜详情，大的走歌单详情。
+   */
+  const numeric = Number(id)
+  if (Number.isFinite(numeric) && numeric > 0 && numeric < 100000) {
+    try {
+      const response = await requestTopDetail({ topId: numeric, limit: 100 })
+      return rememberAll(normalizeTopDetail(response))
+    } catch (error) {
+      console.error('[aurora] qq top list detail failed', messageOf(error))
+      return []
+    }
+  }
 
   try {
     const response = await requestPlaylistTracks({ disstid: id, cookie: state.cookie })
@@ -634,7 +728,9 @@ export async function qqDaily(): Promise<QqSong[]> {
   if (!uin) return []
   try {
     const response = await requestDailyRecommend({ uin, cookie: state.cookie })
-    return rememberAll(normalizeSongCollection(response))
+    const rows = normalizeSongCollection(response)
+    if (rows.length === 0) log('qq daily empty ' + JSON.stringify(response).slice(0, 1000))
+    return rememberAll(rows)
   } catch (error) {
     log('qq daily failed ' + messageOf(error))
     return []

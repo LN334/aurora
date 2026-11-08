@@ -500,10 +500,67 @@ export async function qishuiMyPlaylists(limit: number): Promise<QishuiPlaylistSh
     const id = text(base.id)
     if (!id) continue
     const ownerId = text(base.owner_id)
+    write('qishui:plkeys ' + Object.keys(base).join(','))
     out.push({
       id: aliasFor({ kind: 'playlist', id, ownerId }),
       name: text(base.title) || text(base.name) || '未命名歌单',
-      coverUrl: imageUrl(base.cover_url),
+      coverUrl: imageUrl(base.cover_url ?? base.cover ?? base.pic_url ?? base.pic),
+      trackCount: typeof base.track_count === 'number' ? base.track_count : 0,
+      creator: text(record(base.owner).nickname) || text(base.owner_name)
+    })
+  }
+  return out
+}
+
+/**
+ * 公开歌单搜索。
+ *
+ * 首页推荐位要的是「平台推荐了什么」，汽水的推荐流（feed）要登录，但公开歌单
+ * 搜索不需要账号 —— 用热词捞一批，就是它这一侧能给的推荐。
+ */
+/**
+ * 歌单封面藏在 display_info.url_cover 里，形状与歌曲封面同源：
+ * 要么直接给一串地址，要么给 { urls:[cdn], uri:'后缀' } 这种两段式。
+ */
+function playlistCover(row: unknown): string | null {
+  const display = record(record(row).display_info)
+  const raw = display.url_cover ?? display.cover_url ?? display.cover
+  if (typeof raw === 'string' && raw) return raw
+  const holder = record(raw)
+  const first = text(list(holder.urls ?? holder.url_list)[0] ?? holder.url)
+  const uri = text(holder.uri)
+  if (first && uri) return first + uri
+  if (first) return first
+  const fallback = imageUrl(record(row).cover_url ?? record(row).cover ?? record(row).pic)
+  if (!fallback) write('qishui:plcover miss keys=' + Object.keys(record(row)).join(','))
+  return fallback
+}
+
+export async function qishuiSearchPlaylists(
+  query: string,
+  limit: number
+): Promise<QishuiPlaylistShape[]> {
+  const result = (await apiFor(activeProfileId).request('search_playlists', {
+    query,
+    limit,
+    offset: 0
+  })) as { ok?: boolean; data?: { items?: unknown[] }; error?: { code?: string } }
+  if (!result.ok) {
+    write('qishui:searchPlaylists 失败 ' + (result.error?.code ?? ''))
+    return []
+  }
+  const out: QishuiPlaylistShape[] = []
+  for (const row of list(result.data?.items)) {
+    // 搜索结果有的版本把歌单包在 playlist_entity 里，有的直接给 base_info。
+    const entity = record(record(row).playlist_entity)
+    const base = Object.keys(entity).length > 0 ? record(entity.base_info) : record(record(row).base_info)
+    const id = text(base.id)
+    if (!id) continue
+    const ownerId = text(base.owner_id)
+    out.push({
+      id: aliasFor({ kind: 'playlist', id, ownerId }),
+      name: text(base.title) || text(base.name) || '未命名歌单',
+      coverUrl: playlistCover(row),
       trackCount: typeof base.track_count === 'number' ? base.track_count : 0,
       creator: text(record(base.owner).nickname) || text(base.owner_name)
     })

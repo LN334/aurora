@@ -196,9 +196,12 @@ const kugouBackend: PlatformBackend = {
       // 上游不在这个接口里报播放量，所以留 0，不拿另一个接口的数字充数。
       playCount: 0,
       creator: row.creator,
-      // 登录后这些确实是账号自己的；未登录时是公开榜单，界面上按来源区分不了，
-      // 但两者都属于「这个平台给我的歌单」，订阅态按 true 处理。
-      subscribed: true
+      /*
+       * `/user/playlist` 只给一张表，自建与收藏不分开；未登录时给的还是公开榜单。
+       * 三种情况都没法判定归属，就答「分不出来」，别把公开榜单说成「我收藏的」。
+       */
+      subscribed: false,
+      ownership: 'unknown' as const
     }))
   },
 

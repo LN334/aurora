@@ -307,6 +307,12 @@ export function registerNeteaseIpc(): void {
     guard<NeteaseCollectedAlbum[]>('albumSublist', [], () => client.neteaseAlbumSublist())
   )
 
+  ipcMain.handle('netease:topAlbums', (_event, limit: unknown) =>
+    guard<NeteaseCollectedAlbum[]>('topAlbums', [], () =>
+      client.neteaseTopAlbums(typeof limit === 'number' && Number.isFinite(limit) ? limit : 24)
+    )
+  )
+
   ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => {
     const id = asId(value)
     if (id === null) return []

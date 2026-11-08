@@ -1,75 +1,42 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
-import { useLibrary } from '../features/library/store'
-import { useShelves } from '../features/online/shelves'
-import { usePlaylists } from '../features/playlists/store'
+import { collectedOnly, useAccountPlaylists } from '../features/online/playlist-cards'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlinePlaylist } from '../features/refs/navigate'
-import { formatTime } from '../ui/format'
-import { Note, Play, Plus } from '../ui/icons'
-import { NameModal } from './NameModal'
+import { Note } from '../ui/icons'
 
 /**
- * 平台歌单和自建歌单排在同一页、同一张网里。
+ * 收藏的歌单：从别人那里收来的那些。
  *
- * 平台是「歌从哪来」，不是「你去哪一页」。列表本身由 online/shelves 取，这个
- * 页面只负责把它们和自建歌单摆进同一张网。
- */
-/**
- * 歌单。
+ * 自己建的在隔壁「我的歌单」。这两样以前挤在同一张网里，新建入口也在那张网
+ * 中间，于是「收藏」这页既放别人的东西又放自己的东西——名字和内容对不上。现在
+ * 这页只读：没有任何新建入口，也没有本地歌单。
  *
- * 一屏就是所有自己建的、订阅的、各平台账号里带过来的列表。本地自建的排在最前
- * （那是唯一能改的），平台的跟在后面，卡片一样大——它们对「找一张来听」是同
- * 一件事，不该在视觉上分等级。
+ * 平台只是卡片上的一行来源标注，不按平台分段：收藏本来就不多，分段只会让人多
+ * 翻一次。
  */
 export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
-  const playlists = usePlaylists((state) => state.playlists)
-  const create = usePlaylists((state) => state.create)
-  const tracks = useLibrary((state) => state.tracks)
-  const index = useMemo(() => new Map(tracks.map((track) => [track.id, track])), [tracks])
-  const [naming, setNaming] = useState(false)
+  const cards = useAccountPlaylists()
+  const collected = useMemo(() => collectedOnly(cards), [cards])
+  // 分不出归属的那些单独说一句，免得用户以为这页把自己建的也算成收藏了。
+  const mixed = useMemo(() => collected.some((row) => row.ownership === 'unknown'), [collected])
 
-  const shelves = useShelves()
-
-  /** 建完直接进去，而不是把人留在原地——新建的动作总该有个去处。 */
-  const confirmName = (name: string) => {
-    const playlist = create(name)
-    setNaming(false)
-    onNavigate({ view: 'playlist', id: playlist.id })
+  if (collected.length === 0) {
+    return (
+      <div className="pg-empty">
+        <h2>还没有收藏的歌单</h2>
+        <p>在平台账号里收藏别人的歌单，它们会出现在这里。自己建的歌单在左边的「我的歌单」。</p>
+        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
+          去推荐页看看
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="col">
       <div className="pl-grid">
-        {playlists.map((playlist) => {
-          const own = playlist.trackIds.map((id) => index.get(id)).filter(Boolean)
-          const seconds = own.reduce((sum, track) => sum + (track?.duration ?? 0), 0)
-          const first = own[0]
-          return (
-            <button
-              className="rh-card pl-card"
-              type="button"
-              key={playlist.id}
-              onClick={() => onNavigate({ view: 'playlist', id: playlist.id })}
-            >
-              <span className="rh-card__art" style={{ background: tint(playlist.id) }}>
-                {first ? (
-                  <span className="rh-card__glyph">
-                    <Play size={18} />
-                  </span>
-                ) : (
-                  <Note size={20} />
-                )}
-              </span>
-              <span className="rh-card__title">{playlist.name}</span>
-              <span className="rh-card__sub">
-                {playlist.trackIds.length} 首 · {formatTime(seconds)}
-              </span>
-            </button>
-          )
-        })}
-
-        {shelves.map((row) => (
+        {collected.map((row) => (
           <button
             className="rh-card pl-card"
             type="button"
@@ -92,29 +59,12 @@ export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): v
             </span>
           </button>
         ))}
-
-        <button className="rh-card pl-card" type="button" onClick={() => setNaming(true)}>
-          <span className="rh-card__art rh-card__art--add">
-            <Plus size={22} />
-          </span>
-          <span className="rh-card__title">新建歌单</span>
-          <span className="rh-card__sub">从曲库里挑歌</span>
-        </button>
       </div>
 
-      {playlists.length === 0 && shelves.length === 0 ? (
-        <p className="pg-note">还没有歌单。新建一个，把喜欢的歌收进去。</p>
-      ) : null}
-
-      {naming ? (
-        <NameModal
-          title="新建歌单"
-          label="名字"
-          placeholder="例如 深夜循环"
-          confirmText="创建"
-          onCancel={() => setNaming(false)}
-          onConfirm={confirmName}
-        />
+      {mixed ? (
+        <p className="pg-note">
+          QQ 音乐、酷狗、汽水的账号歌单接口分不出「自己建的」和「收藏的」，这里一并列出；网易云能分，所以它的自建歌单在「我的歌单」里。
+        </p>
       ) : null}
     </div>
   )

@@ -12,6 +12,7 @@ import { LikedView } from './views/LikedView'
 import { LocalView } from './views/LocalView'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate } from './features/refs/navigate'
+import { MyPlaylistsView } from './views/MyPlaylistsView'
 import { PlaylistsView } from './views/PlaylistsView'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/PlayerBar'
@@ -662,6 +663,7 @@ export function App() {  if (!isNative) {
     if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={setTrackMenu} />
     if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
+    if (shell.view === 'myplaylists') return <MyPlaylistsView onNavigate={goShell} />
     if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
     if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={setTrackMenu} />
     if (shell.view === 'nowplaying') {

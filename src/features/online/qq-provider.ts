@@ -225,8 +225,13 @@ const qqBackend: PlatformBackend = {
       // being filled from a different endpoint that would mean something else.
       playCount: 0,
       creator: row.creator,
-      // Every row here belongs to the account - that is what the screen means.
-      subscribed: true
+      /*
+       * 个人主页只给「账号里的歌单」，自建的和收藏的混在一张表里，接口不标。
+       * 以前这里写死 `subscribed: true`，等于把所有自建歌单都谎称成收藏；
+       * 现在如实答「分不出来」，界面才不会替用户编一个他没做过的动作。
+       */
+      subscribed: false,
+      ownership: 'unknown' as const
     }))
   },
 
