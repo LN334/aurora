@@ -81,6 +81,14 @@ const api = {
   },
 
   library: {
+    /**
+     * Point the library at a profile.
+     *
+     * Each profile keeps its own folders and its own scan index, so this runs
+     * before any read of either. The reply is the new profile's folder list.
+     */
+    useProfile: (profileId: string | null) =>
+      ipcRenderer.invoke('library:useProfile', profileId) as Promise<string[]>,
     getRoots: () => ipcRenderer.invoke('library:getRoots') as Promise<string[]>,
     autoDiscover: () =>
       ipcRenderer.invoke('library:autoDiscover') as Promise<{ added: string[]; roots: string[] }>,

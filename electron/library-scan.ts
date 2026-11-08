@@ -1,8 +1,7 @@
-import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { IAudioMetadata } from 'music-metadata'
-import { loadSettings } from './settings'
+import { libraryIndexFile, libraryPaths } from './library-paths'
 import { AUDIO_EXTENSIONS } from './pure/library-discovery-rules'
 import type { ScanProgress } from './pure/scan-progress'
 
@@ -335,13 +334,9 @@ export async function readFolderArt(filePath: string): Promise<string | null> {
 
 // --- index -----------------------------------------------------------------
 
- function indexFile(): string {
-  return path.join(app.getPath('userData'), 'library.json')
-}
-
 export async function loadIndex(): Promise<LibraryIndex> {
   try {
-    const raw = JSON.parse(await fs.promises.readFile(indexFile(), 'utf8')) as LibraryIndex
+    const raw = JSON.parse(await fs.promises.readFile(libraryIndexFile(), 'utf8')) as LibraryIndex
     if (raw.version !== INDEX_VERSION || !Array.isArray(raw.tracks)) {
       return { version: INDEX_VERSION, scannedAt: 0, roots: [], tracks: [] }
     }
@@ -353,8 +348,8 @@ export async function loadIndex(): Promise<LibraryIndex> {
 
 async function saveIndex(index: LibraryIndex): Promise<void> {
   try {
-    await fs.promises.mkdir(path.dirname(indexFile()), { recursive: true })
-    await fs.promises.writeFile(indexFile(), JSON.stringify(index), 'utf8')
+    await fs.promises.mkdir(path.dirname(libraryIndexFile()), { recursive: true })
+    await fs.promises.writeFile(libraryIndexFile(), JSON.stringify(index), 'utf8')
   } catch (error) {
     console.error('[aurora] could not persist the library index', error)
   }
@@ -374,7 +369,7 @@ async function saveIndex(index: LibraryIndex): Promise<void> {
  * slower and the machine unusable.
  */
 export async function scanLibrary(options: ScanOptions = {}): Promise<LibraryIndex> {
-  const roots = loadSettings().roots
+  const roots = libraryPaths().roots
   const previous = await loadIndex()
   const cache = new Map(previous.tracks.map((track) => [track.path, track]))
   const { onProgress, cancelled } = options

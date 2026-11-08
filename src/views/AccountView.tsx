@@ -318,7 +318,8 @@ function capabilityTags(provider: OnlineMusicProvider): string[] {
    ========================================================================== */
 
 function FolderPart() {
-  const { roots, add, remove, busy } = useRoots()
+  const profileId = useAccounts((state) => state.activeId)
+  const { roots, add, remove, busy } = useRoots(profileId)
   const [error, setError] = useState<string | null>(null)
 
   const addFolders = useCallback(async () => {

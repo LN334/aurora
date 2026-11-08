@@ -3,7 +3,13 @@ import path from 'node:path'
 import { dialog, ipcMain, shell } from 'electron'
 import { discoverMusicFolders } from '../library-discovery'
 import { loadIndex, scanLibrary, type ScanProgress } from '../library-scan'
-import { isInsideRoots, loadSettings, saveSettings } from '../settings'
+import {
+  isLibraryProfileBound,
+  libraryPaths,
+  saveLibraryPaths,
+  setLibraryProfile
+} from '../library-paths'
+import { isInsideRoots } from '../settings'
 import { sendProgress } from '../pure/scan-progress'
 import type { ScanControl, ScanSlot, WindowSource } from './host'
 
@@ -30,7 +36,26 @@ function decodeText(buffer: Buffer): string {
 
 /** The local library: folders, the scan, sidecar lyrics, and m3u playlists. */
 export function registerLibraryIpc(deps: WindowSource & ScanSlot): void {
-  ipcMain.handle('library:getRoots', () => loadSettings().roots)
+  /**
+   * Point the library at a profile.
+   *
+   * The renderer calls this on every profile switch, before it asks for folders
+   * or the index, so that the replies below already belong to the new profile
+   * instead of to the previous one.
+   */
+  ipcMain.handle('library:useProfile', (_event, profileId: unknown) => {
+    /*
+     * A blank id is not a request to switch to the default profile; it is the
+     * renderer saying it does not know the profile yet. Switching anyway would
+     * hand the default profile's adopter the legacy folders, after which the
+     * real profile would find the adoption marker already written and start
+     * empty.
+     */
+    if (typeof profileId === 'string' && profileId) setLibraryProfile(profileId)
+    return libraryPaths().roots
+  })
+
+  ipcMain.handle('library:getRoots', () => libraryPaths().roots)
 
   /**
    * Folders already on this machine, added once.
@@ -42,16 +67,21 @@ export function registerLibraryIpc(deps: WindowSource & ScanSlot): void {
    * action rather than a recurring opinion.
    */
   ipcMain.handle('library:autoDiscover', () => {
-    const settings = loadSettings()
-    if (settings.roots.length > 0 || settings.rootsDiscovered) return { added: [] as string[], roots: settings.roots }
+    // Nothing is discovered before a profile is bound: the answer would be
+    // written to the default profile, where it outlives the launch.
+    if (!isLibraryProfileBound()) return { added: [] as string[], roots: [] as string[] }
+    const paths = libraryPaths()
+    if (paths.roots.length > 0 || paths.rootsDiscovered) {
+      return { added: [] as string[], roots: paths.roots }
+    }
 
     const found = discoverMusicFolders()
-    saveSettings({ roots: found, rootsDiscovered: true })
+    saveLibraryPaths({ roots: found, rootsDiscovered: true })
     return { added: found, roots: found }
   })
 
   ipcMain.handle('library:addRoots', async () => {
-    const current = loadSettings().roots
+    const current = libraryPaths().roots
     const window = deps.window()
     if (!window) return current
     const result = await dialog.showOpenDialog(window, {
@@ -61,13 +91,13 @@ export function registerLibraryIpc(deps: WindowSource & ScanSlot): void {
     })
     if (result.canceled || result.filePaths.length === 0) return current
     const merged = Array.from(new Set([...current, ...result.filePaths.map((p) => path.resolve(p))]))
-    saveSettings({ roots: merged })
+    saveLibraryPaths({ roots: merged })
     return merged
   })
 
   ipcMain.handle('library:removeRoot', (_event, root: string) => {
-    const next = loadSettings().roots.filter((candidate) => candidate !== root)
-    saveSettings({ roots: next })
+    const next = libraryPaths().roots.filter((candidate) => candidate !== root)
+    saveLibraryPaths({ roots: next })
     return next
   })
 

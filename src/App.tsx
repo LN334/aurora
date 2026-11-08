@@ -42,7 +42,7 @@ import { groupAlbums, useLibrary } from './features/library/store'
 import { artworkFor } from './features/library/source'
 import { player } from './features/player/actions'
 import { driver } from './features/player/driver'
-import { usePlayer } from './features/player/store'
+import { loadProfilePlayerPrefs, usePlayer } from './features/player/store'
 import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
 import { useAccounts } from './features/accounts/store'
 import { useNetease } from './features/netease/store'
@@ -201,7 +201,7 @@ export function App() {  if (!isNative) {
   const activeAccountId = useAccounts((s) => s.activeId)
   const activeAccount = accounts.find((account) => account.id === activeAccountId) ?? null
 
-  const { roots, add, remove, busy } = useRoots()
+  const { roots, add, remove, busy } = useRoots(activeAccountId)
   const tracks = useLibrary((s) => s.tracks)
   const setTracks = useLibrary((s) => s.setTracks)
   const ready = useLibrary((s) => s.ready)
@@ -420,7 +420,11 @@ export function App() {  if (!isNative) {
    */
   useEffect(() => {
     if (isNative) {
-      void loadInitialIndex()
+      /*
+       * The index is read by the profile effect below instead. The library is
+       * per profile, and reading it here would run before the main process has
+       * been told which profile is active - one frame of the wrong library.
+       */
       return
     }
     // A stress run replaces the demo library entirely; seeding both would measure
@@ -580,12 +584,28 @@ export function App() {  if (!isNative) {
   useEffect(() => {
     void loadProfilePlaylists(activeAccountId)
     /*
+     * Volume, EQ and crossfade are profile-owned too. Loaded here rather than
+     * persisted globally so that two profiles on one machine do not argue over
+     * the same volume slider.
+     */
+    void loadProfilePlayerPrefs(activeAccountId)
+    /*
      * The online account is part of the profile too, so it is rebound on the
      * same switch. `init` notices the profile changed, drops the previous
      * account's playlists and collection, and asks the main process to point the
      * session at this profile.
      */
     void useNetease.getState().init()
+    /*
+     * Folders and the scan index are per profile as well. The main process is
+     * told which profile before the index is read: doing both at once would
+     * read the index of the profile being left.
+     */
+    void (async () => {
+      if (!activeAccountId) return
+      await bridge.library.useProfile(activeAccountId)
+      await loadInitialIndex()
+    })()
   }, [activeAccountId])
 
   /** Preview only: pop the actions menu so it can be reviewed in a screenshot. */

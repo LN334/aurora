@@ -70,6 +70,8 @@ const webFallback: AuroraApi = {
     userData: '（浏览器预览模式，没有数据目录）'
   }),
   library: {
+    // One browser preview is one profile, so switching is a no-op there.
+    useProfile: async () => demoRoots,
     getRoots: async () => demoRoots,
     // A browser preview has no file system to search.
     autoDiscover: async () => ({ added: [], roots: [] }),

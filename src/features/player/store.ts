@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { createProfileScopedStorage, setActiveStorageProfile } from '../accounts/profile-storage.ts'
 import type { RepeatMode, Track } from '../../types'
 /*
  * Explicit `.ts` extension: tests import this module directly and run under Node,
@@ -11,6 +12,29 @@ import { volumeForUnmute } from './volume.ts'
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const
  const EQ_FLAT: number[] = EQ_BANDS.map(() => 0)
+
+/** Storage key, also the slot name inside the active profile's storage. */
+const PREFS_KEY = 'aurora.player.prefs'
+
+/**
+ * The playback preferences of a fresh profile.
+ *
+ * Switching to a profile with nothing saved has to restore these explicitly.
+ * zustand's persist merges what it finds into the current state, so a field the
+ * new profile never saved would otherwise keep the previous profile's value -
+ * volume and EQ would leak across profiles.
+ */
+function defaultPrefs() {
+  return {
+    volume: 0.85,
+    muted: false,
+    shuffle: false,
+    repeat: 'off' as RepeatMode,
+    eqEnabled: false,
+    eqGains: [...EQ_FLAT],
+    crossfadeSec: 0
+  }
+}
 
 /**
  * Pure state. Nothing here touches the audio engine - the engine subscribes to
@@ -78,13 +102,7 @@ export const usePlayer = create<PlayerState>()(
       position: 0,
       duration: 0,
       loading: false,
-      volume: 0.85,
-      muted: false,
-      shuffle: false,
-      repeat: 'off',
-      eqEnabled: false,
-      eqGains: [...EQ_FLAT],
-      crossfadeSec: 0,
+      ...defaultPrefs(),
 
       current() {
         const { queue, index } = get()
@@ -213,8 +231,11 @@ export const usePlayer = create<PlayerState>()(
       setCrossfade: (crossfadeSec) => set({ crossfadeSec })
     }),
     {
-      name: 'aurora.player.prefs',
+      name: PREFS_KEY,
       version: 1,
+      // Keyed by the active profile: volume and EQ belong to the person, not to
+      // the machine.
+      storage: createJSONStorage(createProfileScopedStorage),
       // Only user preferences survive a restart; the queue is session state.
       partialize: (state) => ({
         volume: state.volume,
@@ -228,3 +249,22 @@ export const usePlayer = create<PlayerState>()(
     }
   )
 )
+
+/**
+ * Point the playback preferences at a profile and load that profile's copy.
+ *
+ * Same ordering rule as the playlist store: read the slot first, and only reset
+ * when it is genuinely empty. Clearing first would let the persist middleware
+ * write the cleared state over the preferences of the profile being switched to.
+ */
+export async function loadProfilePlayerPrefs(profileId: string | null): Promise<void> {
+  setActiveStorageProfile(profileId)
+
+  const stored = createProfileScopedStorage().getItem(PREFS_KEY)
+  if (stored === null) {
+    usePlayer.setState(defaultPrefs())
+    return
+  }
+
+  await usePlayer.persist.rehydrate()
+}

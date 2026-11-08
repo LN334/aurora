@@ -2,6 +2,7 @@ import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { NeteaseQuality } from './netease/types'
+import { libraryPaths } from './library-paths'
 
 /**
  * The settings surface the renderer sees.
@@ -40,18 +41,6 @@ export const LYRIC_SIZE_MIN = 18
 export const LYRIC_SIZE_MAX = 64
 
 export interface Settings {
-  /** Folders the user has added to the library. */
-  roots: string[]
-  /**
-   * Whether the one-time "find the music already on this machine" pass has run.
-   *
-   * Persisted so that a user who removes every folder keeps them removed: an
-   * empty `roots` list on the next launch must mean "no folders", not "never
-   * looked".
-   */
-  rootsDiscovered: boolean
-  /** Explicitly excluded paths (a `.auroraignore`-style list, kept simple). */
-  excluded: string[]
   /** Check GitHub Releases for a newer version at most once a day. */
   autoCheckUpdates: boolean
   /** How often to check for updates. `manual` means only on request. */
@@ -114,9 +103,6 @@ export interface Settings {
 }
 
 const DEFAULTS: Settings = {
-  roots: [],
-  rootsDiscovered: false,
-  excluded: [],
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
@@ -139,16 +125,19 @@ const settingsFile = (): string => path.join(app.getPath('userData'), 'settings.
 export function loadSettings(): Settings {
   if (cache) return cache
   try {
-    const raw = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as Partial<Settings>
+    const parsed = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as Record<string, unknown>
+    // The folder list moved to `library-paths.ts` once profiles got one library
+    // each. Dropping the old keys here means a later save cannot write them back
+    // and re-open a migration that has already happened.
+    delete parsed.roots
+    delete parsed.excluded
+    delete parsed.rootsDiscovered
+    const raw = parsed as Partial<Settings>
     cache = {
       // Spread first so keys this version does not know about survive a
       // read-write cycle instead of being silently dropped.
       ...DEFAULTS,
       ...raw,
-      // Arrays are the only fields where a corrupt value would crash callers.
-      roots: Array.isArray(raw.roots) ? raw.roots : [],
-      rootsDiscovered: raw.rootsDiscovered === true,
-      excluded: Array.isArray(raw.excluded) ? raw.excluded : [],
       // Enums and numbers come from a hand-editable JSON file, so they are
       // validated rather than trusted: an unknown interval would silently stop
       // update checks, and a size outside the range would render a strip that
@@ -241,7 +230,7 @@ export function saveSettings(patch: Partial<Settings>): Settings {
  */
 export function isInsideRoots(candidate: string): boolean {
   const resolved = path.resolve(candidate)
-  return loadSettings().roots.some((root) => {
+  return libraryPaths().roots.some((root) => {
     const base = path.resolve(root)
     const withSeparator = base.endsWith(path.sep) ? base : base + path.sep
     return resolved === base || resolved.startsWith(withSeparator)

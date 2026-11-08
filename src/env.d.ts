@@ -25,6 +25,13 @@ export interface LibraryIndex {
 }
 
  interface LibraryApi {
+  /**
+   * Point the library at a profile.
+   *
+   * Folders and the scan index are per profile. Call this on every switch,
+   * before reading either, and use the reply as the new folder list.
+   */
+  useProfile(profileId: string | null): Promise<string[]>
   getRoots(): Promise<string[]>
   /**
    * One-time search for music already on this machine.

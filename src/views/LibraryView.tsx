@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useTrackActions } from '../app/useTrackActions'
 import type { Route } from '../app/routing'
+import { useAccounts } from '../features/accounts/store'
 import { useRoots } from '../features/library/roots'
 import { albumKey, groupAlbums, groupArtists, useLibrary } from '../features/library/store'
 import { buildFolderTree } from '../features/library/tree'
@@ -50,7 +51,8 @@ const TABS = [
 
 export function LibraryView({ tab, onNavigate, onMenu, onAddFolders }: LibraryViewProps) {
   const tracks = useLibrary((state) => state.tracks)
-  const { roots, busy } = useRoots()
+  const profileId = useAccounts((state) => state.activeId)
+  const { roots, busy } = useRoots(profileId)
   const scanning = useLibrary((state) => state.scanning)
 
   const currentTrack = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index] ?? null) : null))

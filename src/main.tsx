@@ -20,6 +20,7 @@ import './features/player/netease'
  */
 import './features/online/register'
 import { useNetease } from './features/netease/store'
+import { bridge } from './bridge'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
@@ -37,6 +38,15 @@ import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
 applyReduceMotion(readReduceMotion())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
+/*
+ * The same for the library, which lives in the main process.
+ *
+ * Not awaited: the first render must not wait for an IPC round trip. But it is
+ * sent before any component mounts, which is what keeps the opening frame from
+ * reading the index of whichever profile the main process fell back to.
+ */
+const openingProfile = useAccounts.getState().activeId
+if (openingProfile) void bridge.library.useProfile(openingProfile)
 
 /*
  * Ask the online source whether it is usable and who is signed in.
