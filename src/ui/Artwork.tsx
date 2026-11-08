@@ -15,9 +15,16 @@ interface ArtworkProps {
  * instead resolved lazily by the media protocol, which means `track.hasArt` is
  * an optimistic guess until the request comes back.
  *
- * Without an error handler that guess produces a broken-image icon for every
- * track whose cover is missing, so the failure path is the whole point of this
- * component rather than an edge case.
+ * The fade is done entirely in CSS (`animation: artIn ... both` in app.css), not
+ * by waiting for `onLoad`: when the picture is already in the HTTP cache the
+ * load event can fire before React attaches its handler, and anything gated on
+ * that state would stay invisible forever. CSS starts from the moment the
+ * element exists, so the worst case is "appeared without a fade".
+ * The caller's tint stays visible underneath while the bytes are on their way.
+ *
+ * Without an error handler the optimistic guess produces a broken-image icon
+ * for every track whose cover is missing, so the failure path is the whole
+ * point of this component rather than an edge case.
  */
 export function Artwork({ src, alt = '', fallback }: ArtworkProps) {
   const [failed, setFailed] = useState(false)
@@ -31,6 +38,7 @@ export function Artwork({ src, alt = '', fallback }: ArtworkProps) {
       loading="lazy"
       decoding="async"
       draggable={false}
+      className="artwork__img"
       onError={() => setFailed(true)}
     />
   )

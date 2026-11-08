@@ -44,12 +44,13 @@ export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute):
               key={album.key}
               onClick={() => openOnlineAlbum(album.providerId, album.id)}
             >
-              <span className="rh-card__art">
+              <span className="rh-card__art" style={{ background: tint(album.key) }}>
                 <Artwork
                   src={album.coverUrl ? remoteImageUrl(sizedImage(album.coverUrl, 300)) : null}
                   alt=""
                   fallback={<Note size={18} />}
                 />
+                <span className={'pl-card__src src-dot--' + album.providerId}>{album.providerLabel}</span>
               </span>
               <span className="rh-card__title">{album.name}</span>
               <span className="rh-card__sub">
@@ -62,4 +63,15 @@ export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute):
       </section>
     </div>
   )
+}
+
+/**
+ * 收藏页的封面底：和首页同一套按 id 取的低饱和渐变。有图时它是图片加载前的
+ * 底色，没图时它就是封面本身 —— 两种情况都不该露出壁纸。
+ */
+function tint(seed: string): string {
+  let h = 0
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  const hue = h % 360
+  return `linear-gradient(150deg, hsl(${hue} 32% 28% / 0.26), hsl(${(hue + 42) % 360} 28% 14% / 0.34))`
 }

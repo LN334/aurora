@@ -1023,7 +1023,8 @@ export function App() {  if (!isNative) {
             </div>
           ) : null}
 
-          <div className="main__body">{body()}</div>
+          {/* 换页时换 key：新内容整块重挂，入场动画才会播（.main__body 上那条 pageIn）。 */}
+          <div className="main__body" key={shell.view + ':' + (shell.id ?? '')}>{body()}</div>
         </main>
 
         <PlayerBar

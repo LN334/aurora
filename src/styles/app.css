@@ -1986,3 +1986,64 @@ input::placeholder {
 .main__body {
   scrollbar-gutter: stable;
 }
+
+/* --------------------------------------------------------------------------- */
+/* 封面淡入、换页入场、按下反馈                                                    */
+/* --------------------------------------------------------------------------- */
+
+/*
+ * 封面图从透明淡入。加载中时下面是调用方铺的渐变底（首页、歌单页、收藏页都给
+ * 每张卡铺了，不再只给「确定没有封面」的那些铺），所以等待期间是一块安静的
+ * 色块，而不是露着壁纸和白色音符图标。
+ */
+/* 淡入只交给 CSS 动画：不依赖 onLoad（HTTP 缓存命中时 load 会在挂监听之前发完），
+   最坏情况是「没淡入直接出现」，绝不是「永远不出现」。 */
+.artwork__img { animation: artIn 240ms var(--ease-out) both; }
+@keyframes artIn { from { opacity: 0; } }
+
+/*
+ * 换页：内容区整体淡入并轻轻上移。没有它的时候，点左栏是「旧内容一帧消失、
+ * 新内容一帧出现」，中间那一下空白就是「不丝滑」的全部来源。
+ */
+.main__body {
+  animation: pageIn 200ms var(--ease-out) both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+/*
+ * 按下反馈：可点的卡片、按钮在按下时轻微内缩。transform 不影响布局，所以整排
+ * 卡片不会跟着抖；只补「手指/鼠标按下去了」这一下回应。
+ */
+.rh-card,
+.rh-mini,
+.rh-sc,
+.pl-card,
+.rh-btn,
+.rh-daily__all,
+.rh-more,
+.card__art-open,
+.card__play {
+  transition: transform 140ms var(--ease-out), filter 140ms var(--ease-out);
+}
+.rh-card:active,
+.rh-mini:active,
+.rh-sc:active,
+.pl-card:active,
+.rh-btn:active,
+.rh-daily__all:active,
+.rh-more:active,
+.card__art-open:active,
+.card__play:active {
+  transform: scale(0.978);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main__body { animation: none; }
+  .artwork__img { animation: none; }
+  .rh-card:active, .rh-mini:active, .rh-sc:active, .pl-card:active,
+  .rh-btn:active, .rh-daily__all:active, .rh-more:active,
+  .card__art-open:active, .card__play:active { transform: none; }
+}
