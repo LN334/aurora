@@ -26,6 +26,10 @@ function likedRow(track: Track, likedIds: ReadonlySet<string>): boolean {
   return (track.versions ?? []).some((version) => likedIds.has(version.id))
 }
 
+/** 一次挂多少行。够填满一屏还有富余，滚动时不至于每滚一下就补一批。 */
+const PAGE = 120
+const STEP = 200
+
 export interface TrackMenuRequest {
   track: Track
   x: number
@@ -74,6 +78,34 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    */
   const [toolsShown, setToolsShown] = useState(false)
   /*
+   * 一屏之外的行走分批挂载。
+   *
+   * 收藏页现在六百多首，一次性把九千多个节点塞进 DOM 是一笔 290ms 的主线程
+   * 长任务——点开这一页会明显顿一下。先挂一屏多一点，哨兵滚到跟前再续。
+   */
+  const [limit, setLimit] = useState(PAGE)
+  const sentinel = useRef<HTMLDivElement | null>(null)
+  const visible = tracks.slice(0, limit)
+  const signature = `${tracks.length}|${tracks[0]?.id ?? ''}`
+
+  useEffect(() => {
+    setLimit(PAGE)
+  }, [signature])
+
+  useEffect(() => {
+    const node = sentinel.current
+    if (!node || limit >= tracks.length) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        setLimit((current) => Math.min(current + STEP, tracks.length))
+      },
+      { rootMargin: '600px 0px' }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [limit, tracks.length])
+  /*
    * 每一行右侧那颗心。收藏页、歌单、搜索结果、平台歌单都是同一份列表组件，
    * 所以「能不能喜欢」在这里做一次，所有列表就地都有了收藏键。
    */
@@ -115,8 +147,14 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    */
   useEffect(() => {
     if (!currentId) return
+    const index = tracks.findIndex((track) => track.id === currentId)
+    // 正在播的那行还没挂上就先把窗口撑到它，下一轮渲染完再滚。
+    if (index >= limit) {
+      setLimit(Math.min(tracks.length, index + 40))
+      return
+    }
     currentRow.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
-  }, [currentId])
+  }, [currentId, limit, tracks])
 
   useEffect(() => {
     if (tracks.length <= 8) {
@@ -142,17 +180,28 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   }
 
   const showCurrent = () => {
-    const row = rootRef.current?.querySelector<HTMLElement>('.trk.is-current')
-    if (!row) {
+    const index = tracks.findIndex((track) => track.id === currentId)
+    if (index < 0) {
       showFlash(currentId ? '这一页里没有正在播的那首' : '还没有在播的歌')
       return
     }
-    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    // 滚到中间之后再闪一下，否则滚得慢的时候看不出停在哪一行。
-    row.classList.remove('is-flash')
-    void row.offsetWidth
-    row.classList.add('is-flash')
-    window.setTimeout(() => row.classList.remove('is-flash'), 1500)
+    const reveal = () => {
+      const row = rootRef.current?.querySelector<HTMLElement>('.trk.is-current')
+      if (!row) return
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      // 滚到中间之后再闪一下，否则滚得慢的时候看不出停在哪一行。
+      row.classList.remove('is-flash')
+      void row.offsetWidth
+      row.classList.add('is-flash')
+      window.setTimeout(() => row.classList.remove('is-flash'), 1500)
+    }
+    // 还在分批范围外，先把那一行挂出来，等它进 DOM 再滚。
+    if (index >= limit) {
+      setLimit(Math.min(tracks.length, index + 40))
+      window.setTimeout(reveal, 80)
+      return
+    }
+    reveal()
   }
 
   const openMenu = (track: Track, x: number, y: number) => {
@@ -162,7 +211,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   return (
     <div className="tracks" role="list" aria-label="歌曲" ref={rootRef}>
 
-      {tracks.map((track, index) => {
+      {visible.map((track, index) => {
         const isCurrent = track.id === currentId
         /*
          * 这一行在哪些平台上能听。
@@ -412,6 +461,8 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
           </div>
         )
       })}
+
+      {limit < tracks.length ? <div className="tracks__more" ref={sentinel} aria-hidden /> : null}
 
       {tracks.length === 0 ? (
         <div className="tracks__empty">

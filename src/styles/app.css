@@ -2314,6 +2314,10 @@ html.is-resizing * {
 .tracks {
   position: relative;
 }
+/* 分批渲染的哨兵：只占一行像素，滚到附近就把下一批挂上来。 */
+.tracks__more {
+  height: 1px;
+}
 .tracks__tools {
   position: fixed;
   right: 26px;
