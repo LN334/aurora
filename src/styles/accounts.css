@@ -13,111 +13,34 @@
    半透明面板里浮成一块黑板。
    ========================================================================== */
 
-.account-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s6);
-  max-width: 1040px;
-  /* 主区比这一页宽得多，靠左会让右边空出一大片。 */
-  margin-inline: auto;
-  padding-bottom: var(--s7);
-}
-
 /* --- 分区抬头 ------------------------------------------------------------- */
-
-
 
 /* 一行：编号、英文小标、中文名、发丝线、右侧操作。窄窗口也只会压缩发丝线。 */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* --- 行 ------------------------------------------------------------------- */
-
-
 
 /*
  * 平台两行在宽窗口并排：只有两个平台时，一列长条会让整页看起来只有一条竖线。
  * 用 auto-fit 而不是固定两列，平台数量变化（以后加酷狗之类）也不用手改样式。
  */
 
-
-
-
 /* 当前档案用封面主色标出来，和「正在播放」同一套强调色。 */
-.acct-row.is-active {
-  background: rgb(var(--accent-rgb) / 0.1);
-  border-color: rgb(var(--accent-rgb) / 0.38);
-}
 
 /* --- 头像 ----------------------------------------------------------------- */
 
-
 /* 有图时不要再刷底色：首字那种纯色底会从圆角外溢出来一圈。 */
-.acct-avatar.has-image {
-  background: var(--ink-800);
-}
-
-
-.acct-row.is-active .acct-avatar:not(.has-image) {
-  background: var(--accent);
-  color: var(--ink-1000);
-}
 
 /* --- 名字与第二行 --------------------------------------------------------- */
 
-
-
-
-
-
-
-
-
 /* 状态徽标：小、方、只用现有色板。 */
 
-
 /* --- 新建档案 ------------------------------------------------------------- */
-
-
-
-
 
 /* --- 平台与文件夹 --------------------------------------------------------- */
 
 /* 平台首字 / 文件夹图标所在的方块：比头像方，与「圆 = 人」区分开。 */
 
-
-
-
-
-
-
-
-.acct-state.is-on {
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--accent-strong);
-}
-
-
-
-
-
-
-
 @media (max-width: 720px) {
-
-
 
 }
 
@@ -157,48 +80,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-
-/* =============================================================================
-   与新外壳对齐：分区头交给 .rh-sec，卡片换成玻璃面 + 大圆角
-   ========================================================================== */
-
-
-
-
-
-.account-page .acct-row {
-  border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.07);
-  background: rgb(255 255 255 / 0.045);
-  backdrop-filter: blur(14px) saturate(1.15);
-}
-.account-page .acct-row:hover {
-  background: rgb(255 255 255 / 0.07);
-}
-
-.account-page .acct-rows {
-  gap: 10px;
-}
-
-.account-page .acct-platforms {
-  gap: 10px;
-}
-
-.account-page .acct-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 17px;
-}
-
-.account-page .acct-name__label {
-  font-size: 15px;
-}
-
-.account-page .acct-platform__name {
-  font-size: 15px;
 }
 
 /* ===========================================================================

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Removes declarations that nothing uses - not other files, and not even their own.
  *
  * Found by accident: after `narrow-exports.mjs` dropped `export` from symbols the
@@ -38,7 +38,6 @@ const TARGETS = [
   ['src/features/online/hooks.ts', 78, 'useOnlineProviderState'],
   ['src/features/online/normalize.ts', 160, 'normalizeFailure'],
   ['src/features/online/normalize.ts', 183, 'noVerifiedTakenDown'],
-  ['src/features/online/PlatformView.tsx', 629, 'hasResults'],
   ['src/features/online/registry.ts', 131, 'canPlayTrack'],
   ['src/features/online/registry.ts', 144, 'providerCanAuthenticate'],
   ['src/features/online/registry.ts', 148, 'providerOffersAccountContent'],

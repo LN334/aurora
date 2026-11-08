@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Track } from '../../types'
+import { showFlash } from '../../ui/flash'
 import { useAccounts } from '../accounts/store'
 import { player } from '../player/actions'
 import { getProvider, providerSupports } from './registry'
@@ -304,6 +305,15 @@ function createOnlineStore(providerId: ProviderId) {
     const fail = (reason: string, message: string, songId: number | null = null): void =>
       set({ fail: { reason, message, songId, at: Date.now() } })
 
+    /*
+     * 取不到播放地址时界面不会有任何别的变化：队列进了、行也高亮了，就是没有声音。
+     * 沉默等于「点了没反应」，所以这条路径必须自己说一句话。页面加载失败不用喊，
+     * 那些地方本来就有空态。
+     */
+    const announce = (reason: string): void => {
+      showFlash(failTextFor(providerId, reason))
+    }
+
     /** Drop everything that belonged to the previous account or profile. */
     const reset = (): void => {
       clearStreams(providerId)
@@ -340,6 +350,7 @@ function createOnlineStore(providerId: ProviderId) {
           const message = '这个构建没有该平台的后端'
           rememberFailure(providerId, song.id, 'service-unavailable', message)
           fail('service-unavailable', message, song.id)
+          announce('service-unavailable')
           return
         }
 
@@ -364,6 +375,7 @@ function createOnlineStore(providerId: ProviderId) {
 
         rememberFailure(providerId, song.id, result.reason, result.message)
         fail(result.reason, result.message ?? '', song.id)
+        announce(result.reason)
       })
 
     /** Load a collection into the open slot, with one cache and one failure path. */
@@ -626,6 +638,12 @@ function createOnlineStore(providerId: ProviderId) {
          */
         set({ currentSongId: song.id })
         await get().ensureStream(song.id)
+        /*
+         * 明确取不到地址（记住的那条拒绝）就别把队列塞给播放器：否则播放条会亮起
+         * 一首歌、进度停在 0:00、没有声音——看起来像卡住，而不是被拒绝。
+         * 「还在路上」的那种要照装，`recover` 靠引擎已经加载了这首歌才找得回来。
+         */
+        if (!cachedStream(providerId, song.id) && cachedFailure(providerId, song.id)) return
         player.playQueue(list.map((item) => platform.toTrack(item)), index)
       },
 
@@ -637,6 +655,7 @@ function createOnlineStore(providerId: ProviderId) {
         const remembered = cachedFailure(providerId, songId)
         if (remembered) {
           fail(remembered.reason, remembered.message ?? '', songId)
+          announce(remembered.reason)
           return
         }
 

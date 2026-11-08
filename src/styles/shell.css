@@ -1464,9 +1464,6 @@
   font-size: 12px;
   color: var(--text-low);
 }
-.pl-head__sp {
-  flex: 1;
-}
 .pl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
@@ -1686,9 +1683,6 @@
 
 
 
-.ol-hero__art.is-round {
-  border-radius: 50%;
-}
 
 
 
@@ -1805,11 +1799,6 @@
 
 
 
-.pl-chip.is-on {
-  background: rgb(255 255 255 / 0.12);
-  border-color: rgb(255 255 255 / 0.18);
-  color: var(--text-hi);
-}
 
 .src-dot {
   width: 7px;
@@ -1946,9 +1935,6 @@
  * 简介下面的一排小字，正文独占右半边、列宽跟着简介走；标题放大，
  * 按钮与简介之间留出真正的间隙，封面也不再和正文抢高度。
  */
-.ol-page .pg-back {
-  margin-bottom: 20px;
-}
 .dh {
   align-items: center;
   gap: 36px;
@@ -2032,10 +2018,6 @@
  * 1360 宽的窗口里，题目还没看就先滚了一屏。这一版收封面、收标题、收行距，
  * 把页头压在 200px 上下：够看出「这是哪张专辑」，又不抢曲目的地盘。
  */
-.ol-page > .pg-back,
-.col > .pg-back {
-  margin-bottom: 12px;
-}
 .dh {
   gap: 30px;
   margin-bottom: 24px;
