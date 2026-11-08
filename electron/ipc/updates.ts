@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import {
   checkForUpdate,
+  downloadAvailable,
   installPendingUpdate,
   openReleasePage,
   updatePrefs
@@ -10,6 +11,9 @@ import { loadSettings, saveSettings } from '../settings'
 /** Release checks, the interval/auto-install preferences, and installing. */
 export function registerUpdatesIpc(): void {
   ipcMain.handle('updates:check', () => checkForUpdate())
+
+  // Reuses the release the last check found; asks again if that news is gone.
+  ipcMain.handle('updates:download', () => downloadAvailable())
 
   ipcMain.handle('updates:open', (_event, url: unknown) => {
     if (typeof url !== 'string') return false

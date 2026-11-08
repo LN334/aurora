@@ -120,6 +120,7 @@ const webFallback: AuroraApi = {
       current: '0.1.0-web',
       message: '浏览器预览模式没有主进程，因此没有更新检查'
     }),
+    download: async () => false,
     open: async () => false,
     getAutoCheck: async () => false,
     setAutoCheck: async () => false,

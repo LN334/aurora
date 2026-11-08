@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../../../bridge'
-import type { UpdateResult } from '../../../env'
 import {
-  formatBytes,
   formatCheckedAt,
   useSettingsPage
 } from '../../../features/settings/store'
@@ -19,7 +17,7 @@ import {
 /**
  * 04 更新与关于。
  *
- * 检查更新是主进程的事，这里只保留原来那三种入口：检查频率、自动下载安装、以及
+ * 检查与下载都是主进程的事，这里保留三个入口：检查频率、新版本自动下载、以及
  * UpdatePanel 自己的「检查更新」按钮与结果。版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
  * 数据与缓存搬到了 05 清理与维护，因为那里还有释放内存，两件事该放在一起。
  */
@@ -28,7 +26,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
   return (
     <>
-      <Sub title="更新" hint="安装包未签名，下载与安装都由你确认。">
+      <Sub title="更新" hint="安装包未签名。新版本可以在应用里下好，换版本前仍会问你一次。">
         <UpdatePanel />
         <Rows>
           <Row
@@ -59,24 +57,21 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             </div>
           </Row>
           <Row
-            label="自动下载并安装"
+            label="新版本自动下载"
             hint={
               page.prefs.autoInstallAvailable
-                ? '开启后自动下载并在退出时安装，会跳过浏览器的安全提示。'
-                : '开发模式用不了自动安装，装好的应用里会自动可用。'
+                ? '发现新版本就在后台下好，界面上会提示；换版本前仍要你点一次。'
+                : '装好的应用里才能用。开发模式只能手动下载。'
             }
           >
             <Toggle
               checked={page.prefs.autoInstall}
               disabled={page.busy || !page.prefs.autoInstallAvailable}
-              label="自动下载并安装更新"
+              label="新版本自动下载"
               onChange={(next) => void page.setAutoInstall(next)}
             />
           </Row>
         </Rows>
-        {page.update && page.update.state !== 'current' ? (
-          <UpdateStatus result={page.update} onInstall={() => void page.installUpdate()} />
-        ) : null}
       </Sub>
 
       <Sub title="关于">
@@ -84,35 +79,6 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
       </Sub>
     </>
   )
-}
-
-function UpdateStatus({
-  result,
-  onInstall
-}: {
-  result: UpdateResult
-  onInstall: () => void
-}) {
-  if (result.state === 'downloading') {
-    return (
-      <p className="settings__hint">
-        正在下载 {Math.round(result.percent)}%（{formatBytes(result.transferred)} /{' '}
-        {formatBytes(result.total)}）
-      </p>
-    )
-  }
-
-  if (result.state === 'ready') {
-    return (
-      <div className="settings__danger">
-        <button className="btn btn--accent" onClick={onInstall}>
-          重启并安装
-        </button>
-      </div>
-    )
-  }
-
-  return null
 }
 
 function About() {

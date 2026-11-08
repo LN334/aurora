@@ -108,8 +108,8 @@ export interface UpdatePrefs {
   /** Epoch ms of the last completed check, 0 when it has never run. */
   lastCheck: number
   /**
-   * Download and install without asking. Off by default: the installers are
-   * unsigned, so this replaces the SmartScreen step with nothing.
+   * Download new releases in the background. On by default; installing still
+   * waits for an explicit restart, since the installers are unsigned.
    */
   autoInstall: boolean
   /**
@@ -124,6 +124,8 @@ export interface UpdatePrefs {
 
  interface UpdatesApi {
   check(): Promise<UpdateResult>
+  /** Fetch the release the last check reported; progress arrives on `onStatus`. */
+  download(): Promise<boolean>
   open(url: string): Promise<boolean>
   getAutoCheck(): Promise<boolean>
   setAutoCheck(enabled: boolean): Promise<boolean>

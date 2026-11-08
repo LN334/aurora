@@ -12,6 +12,8 @@ import { LikedView } from './views/LikedView'
 import { LocalView } from './views/LocalView'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
+import { bindUpdateEvents } from './features/updates/store'
+import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
@@ -294,6 +296,11 @@ export function App() {  if (!isNative) {
   useEffect(() => {
     bindDetailNavigate(goShell)
   }, [goShell])
+
+  // 更新状态由主进程推来（启动那次静默检查、下载进度、下载完成），这里把通道接上。
+  useEffect(() => {
+    bindUpdateEvents()
+  }, [])
 
   /*
    * 地址栏跟着走。
@@ -1068,6 +1075,8 @@ export function App() {  if (!isNative) {
               ) : null}
             </div>
           </div>
+
+          <UpdateBar />
 
           {scanning ? (
             <div

@@ -13,18 +13,16 @@ export type { UpdateInterval }
 /**
  * Update checking against GitHub Releases.
  *
- * The default is check-and-notify, and it stays the default: the builds are
- * unsigned, so there is no signature to verify before replacing the running
- * executable. Aurora reports the new version and opens the release page in the
- * real browser, which is also where the SmartScreen warning belongs - in the
- * user's own download flow, not hidden inside the app.
+ * Two decisions are deliberately separate:
  *
- * Automatic download and install exists as an **opt-in** on top of that. When
- * the user turns it on they have been told, in the settings page, exactly what
- * they are giving up: the SmartScreen prompt, and any chance for Aurora to
- * verify the binary it is about to run. The two paths share one source of truth
- * for "is there a newer version" - the GitHub check above - so the news and the
- * binary can never disagree.
+ * - Fetching the file can be automatic (on by default). It costs bandwidth,
+ *   not trust: nothing about the running app changes.
+ * - Replacing the running app always asks. The builds are unsigned, so there is
+ *   no signature to verify before swapping the executable; the user presses
+ *   restart, and the release page stays the fallback when a download fails.
+ *
+ * Both halves share one source of truth for "is there a newer version" - the
+ * GitHub check below - so the news and the binary can never disagree.
  */
 
 /** Mirrors the `UpdatePrefs` block in `src/env.d.ts`. */
@@ -138,7 +136,18 @@ interface GithubRelease {
   prerelease?: boolean
 }
 
+/** The release the last check found, so a manual download can reuse it. */
+let pendingRelease: Extract<UpdateResult, { state: 'available' }> | null = null
+
 export async function checkForUpdate(): Promise<UpdateResult> {
+  // One wrapper, so every early return below maintains the same invariant:
+  // `pendingRelease` is exactly what the newest check said was available.
+  const result = await probeRelease()
+  pendingRelease = result.state === 'available' ? result : null
+  return result
+}
+
+async function probeRelease(): Promise<UpdateResult> {
   const current = app.getVersion()
   const target = publishTarget()
 
@@ -285,6 +294,7 @@ interface AutoUpdaterLike {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
   on(event: 'download-progress', listener: (progress: ProgressInfo) => void): unknown
+  on(event: 'update-downloaded', listener: () => void): unknown
   setFeedURL(options: FeedOptions): void
   checkForUpdates(): Promise<unknown>
   downloadUpdate(): Promise<unknown>
@@ -361,8 +371,28 @@ let installing = false
      * `checkForUpdatesAndNotify()` - downloads without asking, which would make
      * the setting's default a lie.
      */
+    /*
+     * Install only when the user asks. Quitting must not silently replace the
+     * running build: these installers are unsigned, and a bad release would
+     * arrive with no way back. The download itself is the part that can be
+     * automatic without taking that decision away.
+     */
     updater.autoDownload = false
-    updater.autoInstallOnAppQuit = true
+    updater.autoInstallOnAppQuit = false
+
+    // Tells the banner to switch to its progress form before the first chunk.
+    broadcast({
+      state: 'downloading',
+      current: pending.current,
+      info: pending.info,
+      percent: 0,
+      transferred: 0,
+      total: 0
+    })
+
+    updater.on('update-downloaded', () => {
+      broadcast({ state: 'ready', current: pending.current, info: pending.info })
+    })
 
     updater.on('download-progress', (progress) => {
       broadcast({
@@ -393,12 +423,38 @@ let installing = false
   }
 }
 
+/**
+ * Fetch the release the last check reported, at the user's request.
+ *
+ * The settings page used to hand this step to the browser. Doing it in-process
+ * is what makes the banner's progress and "restart to install" real: the file
+ * ends up where `quitAndInstall()` looks, not in the Downloads folder.
+ */
+export async function downloadAvailable(): Promise<boolean> {
+  if (!app.isPackaged) return false
+
+  if (!pendingRelease) {
+    const result = await checkForUpdate()
+    if (result.state !== 'available') return false
+  }
+  const pending = pendingRelease
+  if (!pending) return false
+
+  void downloadAndInstall(pending)
+  return true
+}
+
 /** Quit and run the downloaded installer. Only meaningful after `ready`. */
 export async function installPendingUpdate(): Promise<boolean> {
   if (!app.isPackaged) return false
+  // 点下去到进程退出之间有一两秒，界面上得先有个「在装了」，否则像是点了没反应。
+  const pending = pendingRelease
   try {
     const updater = await loadUpdater()
     if (!updater) return false
+    if (pending) {
+      broadcast({ state: 'installing', current: pending.current, info: pending.info })
+    }
     updater.quitAndInstall()
     return true
   } catch (error) {

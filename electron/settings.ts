@@ -59,12 +59,12 @@ export interface Settings {
   /** Epoch ms of the last completed update check. */
   lastUpdateCheck: number
   /**
-   * Download and install updates without asking.
+   * Download updates in the background instead of waiting to be asked.
    *
-   * Off by default, and the default is the product decision: the installers are
-   * unsigned, so turning this on replaces the SmartScreen prompt with nothing.
-   * A user who wants that trades a warning for convenience - but they have to
-   * say so, because the app cannot verify what it is replacing itself with.
+   * On by default: fetching the file is the slow part and it can happen while
+   * the app is being used. Installing is **not** part of this flag - the new
+   * build only replaces the running one when the user presses restart - because
+   * the installers are unsigned and the app cannot verify what it runs.
    */
   autoInstallUpdates: boolean
   /**
@@ -114,7 +114,7 @@ const DEFAULTS: Settings = {
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
-  autoInstallUpdates: false,
+  autoInstallUpdates: true,
   desktopLyricsSize: 34,
   onlineLyrics: false,
   closeToTray: true,

@@ -7,8 +7,7 @@ import type {
   MemoryRelease,
   StorageUsage,
   UpdateInterval,
-  UpdatePrefs,
-  UpdateResult
+  UpdatePrefs
 } from '../../env'
 
 /**
@@ -23,9 +22,9 @@ import type {
 /** Mirrors the defaults in `electron/settings.ts` so the preview has something sane. */
 const FALLBACK_SETTINGS: AppSettings = {
   onlineLyrics: false,
-  updateInterval: 'manual',
+  updateInterval: 'daily',
   updateLastCheck: 0,
-  autoInstallUpdates: false,
+  autoInstallUpdates: true,
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,
@@ -37,8 +36,6 @@ const FALLBACK_SETTINGS: AppSettings = {
   prefs: UpdatePrefs
   storage: StorageUsage | null
   /** Last update result, including download progress. */
-  update: UpdateResult | null
-  checking: boolean
   clearing: boolean
   /** 上次「释放内存」的结果；null 表示这次打开页面后还没点过。 */
   memory: MemoryRelease | null
@@ -60,8 +57,6 @@ const FALLBACK_SETTINGS: AppSettings = {
   setLaunchAtLogin(enabled: boolean): Promise<void>
   /** 播放时阻止系统挂起。 */
   setPreventSleep(enabled: boolean): Promise<void>
-  checkForUpdates(): Promise<void>
-  installUpdate(): Promise<void>
   clearCache(): Promise<void>
   refreshStorage(): Promise<void>
   releaseMemory(): Promise<void>
@@ -78,8 +73,6 @@ export function useSettingsPage(): SettingsPage {
     autoInstallAvailable: false
   })
   const [storage, setStorage] = useState<StorageUsage | null>(null)
-  const [update, setUpdate] = useState<UpdateResult | null>(null)
-  const [checking, setChecking] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [memory, setMemory] = useState<MemoryRelease | null>(null)
   const [memoryBusy, setMemoryBusy] = useState(false)
@@ -115,7 +108,6 @@ export function useSettingsPage(): SettingsPage {
    * background check, download progress and readiness. Subscribing once here
    * means the page never has to poll or guess.
    */
-  useEffect(() => bridge.updates.onStatus(setUpdate), [])
 
   /** One wrapper for writes, so every setter reports failure the same way. */
   const write = async <T,>(action: () => Promise<T>, apply: (value: T) => void) => {
@@ -134,8 +126,6 @@ export function useSettingsPage(): SettingsPage {
     settings,
     prefs,
     storage,
-    update,
-    checking,
     clearing,
     memory,
     memoryBusy,
@@ -189,24 +179,6 @@ export function useSettingsPage(): SettingsPage {
         () => bridge.settings.setPreventSleep(enabled),
         (next) => setSettings(next)
       ),
-
-    async checkForUpdates() {
-      setChecking(true)
-      setError(null)
-      try {
-        setUpdate(await bridge.updates.check())
-        // The check stamps `lastUpdateCheck`, so the displayed time is stale.
-        setPrefs(await bridge.updates.getPrefs())
-      } catch (problem) {
-        setError(describe(problem))
-      } finally {
-        setChecking(false)
-      }
-    },
-
-    async installUpdate() {
-      await bridge.updates.install()
-    },
 
     async clearCache() {
       setClearing(true)

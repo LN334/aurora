@@ -164,6 +164,8 @@ const api = {
 
   updates: {
     check: () => ipcRenderer.invoke('updates:check') as Promise<UpdateResult>,
+    /** Downloads the pending release into the updater's stash. */
+    download: () => ipcRenderer.invoke('updates:download') as Promise<boolean>,
     /** Opens the release page in the system browser. */
     open: (url: string) => ipcRenderer.invoke('updates:open', url) as Promise<boolean>,
     getAutoCheck: () => ipcRenderer.invoke('updates:getAutoCheck') as Promise<boolean>,

@@ -1,38 +1,31 @@
 import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../bridge'
-import type { UpdateResult } from '../env'
+import { useUpdate } from '../features/updates/store'
 import { Refresh } from './icons'
 
 /**
- * Update status for the settings screen.
+ * 设置页的更新面板。
  *
- * Aurora checks and notifies; it never downloads or installs. The builds are
- * unsigned, so there is nothing to verify before replacing the running
- * executable - the release page, and the SmartScreen prompt that comes with an
- * unsigned installer, both belong in the user's own browser.
+ * 状态从全应用共用的 store 读，而不是自己再查一遍：横幅与这里回答的是同一个
+ * 问题，两处各存一份就会出现「横幅说下载完了，设置页还在让我下载」。
+ *
+ * 下载放在应用内（安装包未签名，装之前一定会再问一次），替换运行中的程序仍然
+ * 只能由人按——这里给的是按钮，不是自动执行。
  */
 export function UpdatePanel() {
   const [version, setVersion] = useState('—')
-  const [checking, setChecking] = useState(false)
-  const [result, setResult] = useState<UpdateResult | null>(null)
   const [autoCheck, setAutoCheck] = useState(true)
+  const result = useUpdate((state) => state.result)
+  const busy = useUpdate((state) => state.busy)
+  const check = useUpdate((state) => state.check)
+  const download = useUpdate((state) => state.download)
+  const install = useUpdate((state) => state.install)
+  const open = useUpdate((state) => state.open)
 
   useEffect(() => {
     void bridge.info().then((info) => setVersion(info.version))
     if (isNative) void bridge.updates.getAutoCheck().then(setAutoCheck)
   }, [])
-
-  // The once-a-day background check can report at any moment.
-  useEffect(() => bridge.updates.onAvailable(setResult), [])
-
-  const run = async () => {
-    setChecking(true)
-    try {
-      setResult(await bridge.updates.check())
-    } finally {
-      setChecking(false)
-    }
-  }
 
   const toggleAuto = async (enabled: boolean) => {
     setAutoCheck(await bridge.updates.setAutoCheck(enabled))
@@ -47,9 +40,9 @@ export function UpdatePanel() {
         </div>
 
         {isNative ? (
-          <button className="btn" onClick={() => void run()} disabled={checking}>
+          <button className="btn" onClick={() => void check()} disabled={busy}>
             <Refresh size={15} />
-            {checking ? '正在检查' : '检查更新'}
+            {busy ? '正在检查' : '检查更新'}
           </button>
         ) : null}
       </div>
@@ -67,19 +60,30 @@ export function UpdatePanel() {
                   : ''}
               </p>
               {result.info.notes ? <pre className="update__notes">{result.info.notes}</pre> : null}
-              <button className="btn btn--accent" onClick={() => void bridge.updates.open(result.info.url)}>
-                打开下载页
-              </button>
+              <div className="update__actions">
+                <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
+                  下载 {result.info.version}
+                </button>
+                <button className="btn" onClick={() => void open()}>
+                  更新内容
+                </button>
+              </div>
             </>
           ) : result.state === 'downloading' ? (
             <p>正在下载 {Math.round(result.percent)}%</p>
           ) : result.state === 'ready' ? (
-            <p>新版本已下载，重启后安装</p>
+            <>
+              <p>新版本已下载好，重启后换成新版本</p>
+              <div className="update__actions">
+                <button className="btn btn--accent" onClick={() => void install()}>
+                  重启并安装
+                </button>
+              </div>
+            </>
           ) : result.state === 'installing' ? (
-            <p>正在安装，应用即将退出</p>
+            <p>正在安装，应用即将重启</p>
           ) : (
-            // `unconfigured` and `error` are the only members left, and both
-            // carry a message meant for the user.
+            // `unconfigured` 与 `error` 是剩下的两个，都带一句给人看的话。
             <p>{result.message}</p>
           )}
         </div>
@@ -89,7 +93,7 @@ export function UpdatePanel() {
         <div className="update__row update__row--quiet">
           <div>
             <div className="update__label">每天自动检查一次</div>
-            <p className="update__hint">只提示，不自动安装。安装包未签名</p>
+            <p className="update__hint">发现新版本时会自动下载，换版本前仍需你点一次。安装包未签名</p>
           </div>
           <button
             className={`switch${autoCheck ? ' is-on' : ''}`}
