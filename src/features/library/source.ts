@@ -180,7 +180,13 @@ export function setMissingStreamHandler(handler: ((songId: number) => void) | nu
 
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
-  lyrics: async () => null
+  lyrics: async (track) => {
+    // QQ answers finished LRC with the translation already merged in, so there
+    // is nothing to combine here. Signed out the main process returns null,
+    // which the lyric view shows as "no lyrics" rather than as an error.
+    if (track.onlineId === undefined) return null
+    return (await window.aurora?.qq?.lyrics(track.onlineId)) ?? null
+  }
 }
 
 /**
