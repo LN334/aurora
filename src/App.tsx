@@ -696,17 +696,19 @@ export function App() {  if (!isNative) {
   const searchQuery = useSearch((s) => s.query)
   const searchValue = searchQuery
   /*
-   * Generated from the registry rather than written out.
+   * The placeholder states the action; the hover title states the scope.
    *
-   * It used to read "搜索本机曲库与网易云", which became wrong the moment a second
-   * platform was registered - a placeholder that names the catalogues is only
-   * accurate while it is derived from them.
+   * Listing every catalogue in the field itself made it read like a spec sheet
+   * ("搜索本机曲库与网易云、QQ、酷狗、汽水") and left no room for a normal-length
+   * phrase. The registry still decides the scope, so adding a provider needs no
+   * edit here - it just moves to the tooltip.
    */
   const availableProviders = useAvailableProviders()
-  const searchPlaceholder = useMemo(() => {
+  const searchScope = useMemo(() => {
     const names = availableProviders.map((provider) => provider.shortName ?? provider.displayName)
-    return names.length > 0 ? `搜索本机曲库与${names.join('、')}` : '搜索本机曲库'
+    return names.length > 0 ? `本机曲库与${names.join('、')}` : '本机曲库'
   }, [availableProviders])
+  const searchPlaceholder = '搜索歌曲、歌手、专辑'
 
   const onSearchInput = useCallback((next: string) => {
     useSearch.getState().setQuery(next)
@@ -968,6 +970,7 @@ export function App() {  if (!isNative) {
           onQuery={onSearchInput}
           onSubmit={submitSearch}
           placeholder={searchPlaceholder}
+          hint={searchScope}
           shortcut={view === 'netease' ? undefined : 'Ctrl K'}
           onBack={goBack}
           onForward={goForward}

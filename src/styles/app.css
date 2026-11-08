@@ -202,6 +202,7 @@ input::placeholder {
 
 .titlebar {
   grid-area: titlebar;
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--s3);
@@ -301,37 +302,84 @@ input::placeholder {
 }
 
 /* Search lives in the title bar: in a library app, finding a track is a
-   primary action, not a sidebar afterthought. */
+   primary action, not a sidebar afterthought.
+
+   It is a floating surface rather than a painted bar: a translucent white film
+   over whatever the shell is showing, hairline edge, and an accent halo only
+   while it has focus. That keeps it legible against artwork without drawing a
+   second header line. */
 .search {
+  /* Centred on the bar, not parked after the history buttons: in a 1600px
+     window the old position left two thirds of the strip empty and made the
+     field read as a leftover of the logo row. Absolute keeps it out of the flex
+     flow so the spacer still owns the rest of the bar. */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: var(--s2);
-  width: min(420px, 36vw);
-  height: 28px;
-  padding: 0 var(--s2) 0 var(--s3);
-  border-radius: var(--r-control);
-  background: var(--ink-800);
-  border: 1px solid transparent;
+  width: min(460px, 38vw);
+  height: 32px;
+  padding: 0 var(--s2) 0 11px;
+  border-radius: var(--r-panel);
+  background: rgb(255 255 255 / 0.055);
+  border: 1px solid rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
   color: var(--text-mid);
   -webkit-app-region: no-drag;
-  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+  transition:
+    background 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+.search:hover {
+  background: rgb(255 255 255 / 0.075);
 }
 .search:focus-within {
-  background: var(--ink-700);
-  border-color: rgb(var(--accent-rgb) / 0.55);
+  background: rgb(255 255 255 / 0.09);
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  box-shadow:
+    0 0 0 3px rgb(var(--accent-rgb) / 0.16),
+    0 8px 24px rgb(0 0 0 / 0.28),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
+}
+.search svg {
+  flex: none;
+  color: var(--text-low);
+  transition: color 140ms var(--ease-out);
+}
+.search:focus-within svg {
+  color: var(--accent-strong);
 }
 .search input {
   flex: 1;
   min-width: 0;
+  font-size: 13px;
   outline: none;
 }
+.search input::placeholder {
+  color: var(--text-low);
+}
+/* WebKit draws its own clear glyph; the field is short and the kbd badge is
+   already at the right edge, so a second affordance there only crowds it. */
+.search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
 .search kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 38px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
   font-family: var(--font-ui);
   font-size: var(--fs-micro);
+  letter-spacing: 0.02em;
   color: var(--text-low);
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--ink-900);
 }
 
 .titlebar__spacer {

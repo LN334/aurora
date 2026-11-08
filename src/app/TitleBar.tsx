@@ -26,6 +26,8 @@ interface TitleBarProps {
   onFocus?: () => void
   /** What this field searches right now, as the placeholder. */
   placeholder: string
+  /** The full scope, shown on hover. The placeholder stays short; this does not. */
+  hint?: string
   /** Keyboard hint; omit for modes with no shortcut worth teaching. */
   shortcut?: string
   onBack: () => void
@@ -40,6 +42,7 @@ export function TitleBar({
   onSubmit,
   onFocus,
   placeholder,
+  hint,
   shortcut,
   onBack,
   onForward,
@@ -77,6 +80,7 @@ export function TitleBar({
       <form
         className="search"
         role="search"
+        title={hint ? `搜索范围：${hint}` : undefined}
         onSubmit={(event) => {
           event.preventDefault()
           onSubmit?.()
