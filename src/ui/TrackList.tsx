@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { sourceLabelById } from '../features/online/registry'
 import { sourcesOf } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
@@ -8,7 +8,7 @@ import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { formatTime } from './format'
 import { showFlash } from './flash'
-import { Heart, Note } from './icons'
+import { ArrowUp, Heart, Locate, Note } from './icons'
 import type { Track } from '../types'
 
 /**
@@ -64,6 +64,16 @@ interface TrackListProps {
  */
 export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: TrackListProps) {
   const currentRow = useRef<HTMLDivElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const headRef = useRef<HTMLDivElement | null>(null)
+  /*
+   * 长列表的两个去处：回到最上面，或者跳回正在播的那一行。
+   *
+   * 页面滚动容器是外层 .main__body，不是这张表，所以按钮浮在视口右下角、
+   * 用 IntersectionObserver 盯住表头——表头离开视口才出现，一屏能看全的
+   * 短列表上什么都不多。
+   */
+  const [toolsShown, setToolsShown] = useState(false)
   /*
    * 每一行右侧那颗心。收藏页、歌单、搜索结果、平台歌单都是同一份列表组件，
    * 所以「能不能喜欢」在这里做一次，所有列表就地都有了收藏键。
@@ -109,13 +119,50 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
     currentRow.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
   }, [currentId])
 
+  useEffect(() => {
+    if (tracks.length <= 8) {
+      setToolsShown(false)
+      return
+    }
+    /*
+     * 表头是 sticky 的，一直贴在滚动容器顶端，拿它做「滚走了没有」的判据
+     * 永远不会成立——只能直接看容器的 scrollTop。
+     */
+    const box = rootRef.current?.closest('.main__body') as HTMLElement | null
+    if (!box) return
+    const onScroll = () => setToolsShown(box.scrollTop > 320)
+    box.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => box.removeEventListener('scroll', onScroll)
+  }, [tracks.length])
+
+  const scrollToTop = () => {
+    const box = rootRef.current?.closest('.main__body') as HTMLElement | null
+    if (box) box.scrollTo({ top: 0, behavior: 'smooth' })
+    else headRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
+  const showCurrent = () => {
+    const row = rootRef.current?.querySelector<HTMLElement>('.trk.is-current')
+    if (!row) {
+      showFlash(currentId ? '这一页里没有正在播的那首' : '还没有在播的歌')
+      return
+    }
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // 滚到中间之后再闪一下，否则滚得慢的时候看不出停在哪一行。
+    row.classList.remove('is-flash')
+    void row.offsetWidth
+    row.classList.add('is-flash')
+    window.setTimeout(() => row.classList.remove('is-flash'), 1500)
+  }
+
   const openMenu = (track: Track, x: number, y: number) => {
     onMenu?.({ track, x, y })
   }
 
   return (
-    <div className="tracks" role="table" aria-label="歌曲">
-      <div className="tracks__head" role="row">
+    <div className="tracks" role="table" aria-label="歌曲" ref={rootRef}>
+      <div className="tracks__head" role="row" ref={headRef}>
         <span className="tracks__idx" role="columnheader">
           #
         </span>
@@ -325,6 +372,17 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
         <div className="tracks__empty">
           <Note size={18} />
           没有匹配的歌曲
+        </div>
+      ) : null}
+
+      {toolsShown ? (
+        <div className="tracks__tools">
+          <button className="tracks__tool" onClick={showCurrent} disabled={!currentId} title="定位到正在播放" aria-label="定位到正在播放">
+            <Locate size={16} />
+          </button>
+          <button className="tracks__tool" onClick={scrollToTop} title="回到顶部" aria-label="回到顶部">
+            <ArrowUp size={16} />
+          </button>
         </div>
       ) : null}
     </div>

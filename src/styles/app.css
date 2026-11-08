@@ -2008,9 +2008,14 @@ input::placeholder {
 .main__body {
   animation: pageIn 200ms var(--ease-out) both;
 }
+/*
+ * 只做透明度，不做位移：动画 fill-mode 为 both 时，transform 即使落到 none 也会
+ * 以矩阵形式留在计算样式里，把 .main__body 变成 fixed 子元素的定位祖先——
+ * 长列表右下角那两颗按钮会跟着内容滚出视口。淡入本身已经够「顺」。
+ */
 @keyframes pageIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /*
@@ -2046,4 +2051,50 @@ input::placeholder {
   .rh-card:active, .rh-mini:active, .rh-sc:active, .pl-card:active,
   .rh-btn:active, .rh-daily__all:active, .rh-more:active,
   .card__art-open:active, .card__play:active { transform: none; }
+}
+
+/* --- 长列表右下角的两颗去处：定位当前播放、回到顶部 ------------------- */
+.tracks {
+  position: relative;
+}
+.tracks__tools {
+  position: fixed;
+  right: 26px;
+  bottom: 116px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tracks__tool {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(14 17 22 / 0.8);
+  backdrop-filter: blur(14px);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: color 160ms var(--ease-out), background 160ms var(--ease-out);
+}
+.tracks__tool:hover {
+  color: var(--text-hi);
+  background: rgb(26 30 38 / 0.92);
+}
+.tracks__tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.trk.is-flash {
+  animation: trk-flash 1.5s var(--ease-out);
+}
+@keyframes trk-flash {
+  0% {
+    background: rgb(var(--accent-rgb) / 0.22);
+  }
+  100% {
+    background: transparent;
+  }
 }

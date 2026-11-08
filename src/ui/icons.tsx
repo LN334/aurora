@@ -319,3 +319,20 @@ export const Wave = (p: IconProps) => (
     <path d="M3 12h2M7 8.5v7M11 5v14M15 8v8M19 10.5v3" />
   </Svg>
 )
+
+/** 回到列表顶部。 */
+export const ArrowUp = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 19V5.5" />
+    <path d="M5.5 12 12 5.5 18.5 12" />
+  </Svg>
+)
+
+/** 在长列表里定位到正在播放的那一行。 */
+export const Locate = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="6.4" />
+    <circle cx="12" cy="12" r="1.4" />
+    <path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8" />
+  </Svg>
+)
