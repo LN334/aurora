@@ -249,19 +249,19 @@
 .rh-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .rh-sc {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
-  min-height: 96px;
-  padding: 16px 20px;
+  min-height: 88px;
+  padding: 11px 18px;
   border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.055);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: rgb(255 255 255 / 0.05);
   /*
    * 薄玻璃是液态玻璃唯一能读出来的地方：底色只有 5% 白，背后的壁纸清清楚楚，
    * 边缘那圈位移才看得见。所以模糊被压到 8px —— 播放条不敢这么压，它背后是
@@ -269,7 +269,7 @@
    */
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(8px) saturate(1.25);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
     inset 0 0 0 1px rgb(0 0 0 / 0.05);
   text-align: left;
   transition: background 140ms var(--ease-out);
@@ -282,9 +282,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: 13px;
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
   background: rgb(var(--accent-rgb) / 0.16);
   color: var(--accent-strong);
 }
@@ -292,7 +292,7 @@
 .rh-sc__text {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
 }
 .rh-sc__text b {
@@ -336,7 +336,7 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 10px;
+  gap: 7px;
 }
 
 .rh-sc__head {
@@ -357,8 +357,8 @@
   justify-content: space-between;
   gap: 4px;
   min-width: 0;
-  padding: 7px 10px;
-  border-radius: 8px;
+  padding: 5px 9px;
+  border-radius: 7px;
   background: rgb(255 255 255 / 0.06);
   font-size: var(--fs-micro);
   color: var(--text-mid);
