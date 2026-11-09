@@ -19,7 +19,7 @@ import {
 } from '../features/online/playlist-write'
 import { ConfirmModal } from './ConfirmModal'
 import { NameModal } from './NameModal'
-import { formatTime } from '../ui/format'
+import { formatSpan } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { DetailHero } from './DetailHero'
@@ -126,7 +126,7 @@ function PlaylistPage({
         title={shownName}
         meta={
           <span>
-            {rows.length} 首{rows.length > 0 ? ' · ' + formatTime(total) : ''}
+            {rows.length} 首{rows.length > 0 ? ' · ' + formatSpan(total) : ''}
           </span>
         }
         actions={
@@ -154,7 +154,7 @@ function PlaylistPage({
         }
         stats={[
           { value: rows.length, label: '曲目' },
-          { value: rows.length > 0 ? formatTime(total) : '—', label: '时长' },
+          { value: rows.length > 0 ? formatSpan(total) : '—', label: '时长' },
           { value: summary?.creator || '—', label: '创建者' },
           { value: provider?.displayName ?? providerId, label: '平台' }
         ]}

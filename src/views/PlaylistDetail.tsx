@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Playlist } from '../features/playlists/store'
 import type { Track } from '../types'
-import { formatTime } from '../ui/format'
+import { formatSpan, formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
@@ -76,7 +76,7 @@ export function PlaylistDetail({
         }
         meta={
           <span>
-            {tracks.length} 首{total > 0 ? ' · ' + formatTime(total) : ''}
+            {tracks.length} 首{total > 0 ? ' · ' + formatSpan(total) : ''}
           </span>
         }
         actions={
@@ -97,7 +97,7 @@ export function PlaylistDetail({
         }
         stats={[
           { value: tracks.length, label: '曲目' },
-          { value: total > 0 ? formatTime(total) : '—', label: '时长' }
+          { value: total > 0 ? formatSpan(total) : '—', label: '时长' }
         ]}
       />
 

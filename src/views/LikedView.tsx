@@ -6,7 +6,7 @@ import { mergeVersions, sourcesOf } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
-import { formatTime } from '../ui/format'
+import { formatSpan } from '../ui/format'
 import { Shuffle } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
@@ -85,7 +85,7 @@ export function LikedView({
     <div className="col">
       <header className="rh-sec__head lk-head">
         <span className="pl-head__count">
-          {tracks.length} 首 · {formatTime(seconds)}
+          {tracks.length} 首 · {formatSpan(seconds)}
           {Object.entries(spread).map(([key, count]) => (
             <span key={key}>
               {' · '}

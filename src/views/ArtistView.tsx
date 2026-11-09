@@ -1,7 +1,7 @@
 import { artworkFor } from '../features/library/source'
 import type { Album, Artist, Track } from '../types'
 import { Artwork } from '../ui/Artwork'
-import { formatTime } from '../ui/format'
+import { formatSpan } from '../ui/format'
 import { Note, Play, User } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { DetailHero } from './DetailHero'
@@ -60,7 +60,7 @@ export function ArtistView({
         stats={[
           { value: artist.trackCount, label: '曲目' },
           { value: artist.albumIds.length, label: '专辑' },
-          { value: total > 0 ? formatTime(total) : '—', label: '时长' }
+          { value: total > 0 ? formatSpan(total) : '—', label: '时长' }
         ]}
       />
 

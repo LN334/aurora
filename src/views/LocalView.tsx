@@ -6,7 +6,7 @@ import { buildFolderTree } from '../features/library/tree'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { Artwork } from '../ui/Artwork'
-import { formatTime } from '../ui/format'
+import { formatSpan } from '../ui/format'
 import { Folder, Note, User } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { FolderTree } from './FolderTree'
@@ -90,7 +90,7 @@ export function LocalView({
         </div>
         <span className="pl-head__count lm-count">
           {tracks.length} 首 · {albums.length} 张专辑 · {artists.length} 位艺人 ·{' '}
-          {formatTime(seconds)}
+          {formatSpan(seconds)}
         </span>
       </header>
 

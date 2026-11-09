@@ -27,7 +27,7 @@ import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { SkeletonCards, SkeletonMinis, SkeletonRows } from '../ui/Skeleton'
-import { formatTime } from '../ui/format'
+import { formatSpan } from '../ui/format'
 import { TrackList } from '../ui/TrackList'
 import { ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
@@ -336,7 +336,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
         <p className="rh__greet">{greeting(now)}</p>
         {today.tracks > 0 ? (
           <p className="rh__today">
-            今天 {today.tracks} 首 · {formatTime(today.seconds)}
+            今天 {today.tracks} 首 · {formatSpan(today.seconds)}
             {today.topArtist ? (
               <span className="rh__top">最常听 {today.topArtist}</span>
             ) : null}
