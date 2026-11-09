@@ -99,6 +99,12 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
    * 所以先剥掉那层壳，取回原始地址再按尺寸重包。
    */
   const upstream = art.startsWith(REMOTE_IMAGE) ? decodeURIComponent(art.slice(REMOTE_IMAGE.length)) : art
+  /*
+   * 本机曲目的封面本身就是 aurora-media://（扫描时从文件里抠出来的封面）。
+   * 主进程那个代理只转 http(s)，把自定义协议递进去只能换回 400，图也出不来，
+   * 所以本地地址原样交给页面——CSP 允许 aurora-media:。
+   */
+  if (!/^https?:/i.test(upstream)) return upstream
   return remoteImageUrl(sizedImage(upstream, px), px)
 }
 
