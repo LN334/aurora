@@ -3,6 +3,7 @@ import { useDiscover } from '../discover/store'
 import { useRoamPlatforms } from '../player/roam-sources'
 import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
+import { fillSlots, groupRows, SLOTS } from './slots'
 import { useOnlineStore } from './store'
 
 /**
@@ -149,49 +150,29 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
 }
 
 /**
- * 一批歌单：每个平台各出几张。
+ * 一批歌单：把槽位填满，而不是每家固定几张。
  *
- * 不是把两家的单子倒在一起洗 —— 池子大的那家会占满整行（酷狗 35 张、网易云
- * 24 张），看起来像只接了酷狗。按平台限定之后，每行都是「各家各几张」。
- * 平台内部仍然是随机的，「换一批」换的就是这一层。
+ * 原先按「每家 perProvider 张」取，总数 = 张数 × 勾选平台数——四家全开是 24 张，
+ * 勾掉一家就只剩 18 张，首页那一排会短一截。现在槽位是常量（SLOTS.playlist），
+ * 各家的桶轮转着往里填：一家一家出，先耗尽的先退出，剩下的位置由别家补上。
+ *
+ * 平台构成仍然要混着，「换一批」在各家内部换；槽位应是网格列数的整数倍，
+ * 否则最后一行会缺口。
  */
 export function picksByProvider(
   rows: readonly PlaylistCard[],
   batch: number,
-  perProvider: number
+  slots = SLOTS.playlist
 ): { picks: PlaylistCard[]; rest: PlaylistCard[] } {
-  const groups = new Map<string, PlaylistCard[]>()
-  for (const row of rows) {
-    const bucket = groups.get(row.providerId)
-    if (bucket) bucket.push(row)
-    else groups.set(row.providerId, [row])
-  }
-
-  const shuffled = Array.from(groups.values()).map((bucket) => shuffleWithSeed(bucket, batch))
-  const picks: PlaylistCard[] = []
-  const rest: PlaylistCard[] = []
-  // 交错取：第 1 张来自网易云、第 2 张来自酷狗…… 而不是前几张全同一家。
-  for (let index = 0; index < perProvider; index += 1) {
-    for (const bucket of shuffled) {
-      const row = bucket[index]
-      if (row) picks.push(row)
-    }
-  }
-  /*
-   * 网格是六列，最后一行不能缺口：多出来的那一两张留到「更多歌单」去。
-   * 平台的可用张数不齐（某一家只有 10 张），不裁就会在末尾留一排空格。
-   */
-  const COLUMNS = 6
-  const overflow = picks.length % COLUMNS
-  if (overflow > 0) rest.push(...picks.splice(picks.length - overflow, overflow))
-
-  for (const bucket of shuffled) {
-    rest.push(...bucket.slice(perProvider, perProvider * 2))
-  }
+  const groups = groupRows(rows, (row) => row.providerId)
+  const shuffled = [...groups.values()].map((bucket) => shuffleWithSeed(bucket, batch))
+  const picked = fillSlots(shuffled, slots)
   /*
    * 交错取保证了一行里各家都有，代价却是位置和平台绑死：第 1 格永远网易云、
    * 第 2 格永远 QQ、第 3 格永远酷狗——扫一眼就知道格子等于平台，而这正是合并
    * 要消掉的东西。整批再洗一次：平台构成不变，位置不再可预测。
    */
-  return { picks: shuffleWithSeed(picks, batch * 7919 + 13), rest }
+  const picks = shuffleWithSeed(picked, batch * 7919 + 13)
+  const used = new Set(picks.map((row) => row.key))
+  return { picks, rest: rows.filter((row) => !used.has(row.key)) }
 }

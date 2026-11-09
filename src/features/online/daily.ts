@@ -6,6 +6,9 @@ import type { ProviderId } from './types'
 import { mergeVersions } from './unify'
 import { sourceOrder } from '../settings/source-order'
 import { useRoamPlatforms } from '../player/roam-sources'
+import { DAILY_SIZE, dailyTracks, interleaveBySource } from '../library/daily'
+import type { TasteProfile } from '../library/taste'
+import { trackKey } from './unify'
 
 /**
  * 各平台的每日推荐。
@@ -87,4 +90,30 @@ export function usePlatformDaily(): Track[] {
   }, [chosen])
 
   return tracks
+}
+
+/**
+ * 今天这一批：平台推的先填，本机按口味补齐，条数固定。
+ *
+ * 「今天听什么」原先让平台那一份整份留下——四家各三十首，勾掉一家首页就少
+ * 三十首。次数是随开关走的，用户看到的「全部 N 首」也就不稳定。现在先按来源
+ * 轮转切片到槽位（同一天、同一份平台数据给出的顺序是稳定的），不够的位置再由
+ * 本机曲库按日期哈希补上。
+ *
+ * 只去重挑选、不再合并版本行：合并会把同一首歌的多个平台版本并成一条，挑出来
+ * 的条数会比槽位少一两条，「总数固定」就名不副实。列表里认平台靠来源徽章，
+ * 合并与否不影响点什么。
+ */
+export function dailyBatch(
+  platformTracks: Track[],
+  minePool: Track[],
+  day = new Date(),
+  size = DAILY_SIZE,
+  profile?: TasteProfile
+): Track[] {
+  const picked = interleaveBySource(platformTracks).slice(0, size)
+  if (picked.length >= size) return picked
+  const seen = new Set(picked.map((track) => trackKey(track)))
+  const rest = minePool.filter((track) => !seen.has(trackKey(track)))
+  return [...picked, ...dailyTracks(rest, day, size - picked.length, profile)]
 }

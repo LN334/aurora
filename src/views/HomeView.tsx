@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
-import { dailyTracks, interleaveBySource } from '../features/library/daily'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { likedTracks, useFavorites } from '../features/favorites/store'
 import { coverFor } from '../features/library/cover'
@@ -15,12 +14,13 @@ import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { openOnlineAlbum, openOnlinePlaylist } from '../features/refs/navigate'
 import { ArtistById, ArtistName } from '../ui/NameRef'
-import { usePlatformDaily } from '../features/online/daily'
+import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { usePlatformLiked } from '../features/online/platform-liked'
 import { useCollectedAlbums } from '../features/online/platform-collections'
 import { collectedOnly, useAccountPlaylists } from '../features/online/playlist-cards'
 import { picksByProvider, useRecommendedPlaylists } from '../features/online/recommended'
+import { SLOTS } from '../features/online/slots'
 import { useRecommendedAlbums } from '../features/online/recommended-albums'
 import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
@@ -170,7 +170,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 之前是把两家的歌单倒在一起洗，池子大的那家占满整行 —— 用户看到的是「怎么
    * 全是酷狗」。数量按平台限定之后，「换一批」只在各家内部换。
    */
-  const { picks } = useMemo(() => picksByProvider(recommended, batch, 6), [recommended, batch])
+  const { picks } = useMemo(() => picksByProvider(recommended, batch, SLOTS.playlist), [recommended, batch])
   const albumPicks = useRecommendedAlbums(18)
 
   useEffect(() => {
@@ -228,22 +228,14 @@ export function HomeView({ onNavigate }: HomeViewProps) {
    * 今天听什么。
    *
    * 别人的主页第一屏几乎都是这个东西：一个「今天不用想，点开就有」的入口。
-   * 池子是本机曲库 + 已登录平台的每日推荐，按日期做种子洗一遍，同一天打开是
-   * 同一批，明天换掉。平台推荐放在这里而不是另起一块，是因为它和曲库本来就是
-   * 同一种东西——「今天听哪些」，平台不该独占一个分区。
+   * 平台推的按来源轮转着填满槽位，剩下的位置由本机曲库按口味补——条数由
+   * SLOTS.daily 定死，关掉一家平台只换「谁填」，不会让这一块短一截。
    */
   const daily = useMemo(() => {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
     const base = tracks.length > 0 ? tracks : recentAll
-    /*
-     * 平台今天推的一首不少，本机再按口味补一批。
-     *
-     * 以前是把两边倒进一个池子里挑 30 首——四家各推 30 首，挑完还是 30，
-     * 等于三家的推荐被丢掉了。现在平台那部分整份留下，本机补的是「池子」。
-     */
-    const fromPlatform = interleaveBySource(platformDaily)
-    return mergeVersions([...fromPlatform, ...dailyTracks(base, new Date(), undefined, taste)], order)
-  }, [tracks, recentAll, platformDaily, order, taste])
+    return dailyBatch(platformDaily, base, new Date(), SLOTS.daily, taste)
+  }, [tracks, recentAll, platformDaily, taste])
 
   /**
    * 右角那三张预览图。
@@ -508,8 +500,8 @@ export function HomeView({ onNavigate }: HomeViewProps) {
              * 推荐位的张数是「几家有货就轮流出几张」，所以它是一格一格长出来的：
              * 6 → 12 → 18 → 24。按最终的两行来补齐，页面在这 0.9 秒里就不动。
              */}
-            {!settled && picks.length < ROW * 4 ? (
-              <SkeletonCards count={ROW * 4 - picks.length} />
+            {!settled && picks.length < SLOTS.playlist ? (
+              <SkeletonCards count={SLOTS.playlist - picks.length} />
             ) : null}
             {picks.map((row, at) => (
               <button

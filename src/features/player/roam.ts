@@ -8,6 +8,7 @@ import { sourceOrder } from '../settings/source-order'
 import { useLibrary } from '../library/store'
 import { useHistory } from './history-store'
 import type { Track } from '../../types'
+import { SLOTS } from '../online/slots'
 
 export interface RoamPool {
   /** 池子里所有的歌，同曲多版本已并成一行。 */
@@ -36,7 +37,7 @@ export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> 
   const [liked, daily, stream] = await Promise.all([
     loadPlatformLiked().catch(() => [] as Track[]),
     loadPlatformDaily(platforms).catch(() => [] as Track[]),
-    loadRoamStream(12, platforms).catch(() => [] as Track[])
+    loadRoamStream(SLOTS.roam, platforms).catch(() => [] as Track[])
   ])
 
   const mine = mergeVersions([...local, ...recent, ...liked], order)
@@ -53,7 +54,7 @@ export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> 
  * 没听过」的流，掺一半旧歌就还是那批歌换个顺序，听两次就腻了。池子里的旧歌只
  * 用来判断哪些是新的。
  */
-export function buildRoamQueue(pool: RoamPool, size = 80): Track[] {
+export function buildRoamQueue(pool: RoamPool, size: number = SLOTS.roam): Track[] {
   return shuffle(pool.freshTracks).slice(0, size)
 }
 
@@ -63,45 +64,73 @@ export function buildRoamQueue(pool: RoamPool, size = 80): Track[] {
  */
 
 /**
- * 一批「还没听过的」。
+ * 一批「还没听过的」，朝 SLOTS.roam 这个总量走。
  *
  * 原生客户端的漫游是一条流，不是一份列表：听到底就再要一批。这里把这件事做成
  * 一次请求——先问平台的私人漫游（网易云有 `personalFm`），没有这个接口的退回
- * 它的每日推荐。谁都没给就返回空数组，页面如实说「这一批和手上重复了」，不假装
- * 还有更多。
+ * 它的每日推荐。
+ *
+ * 早年每家固定取 12 首，于是「这一批有多少」跟着勾选平台数变：勾一家 12 首、
+ * 勾四家 48 首。现在把总量摊到各家，再对同一家问几轮（私人漫游一次只回几首，
+ * 每日推荐一次给几十首），关掉一家不会让这一批少一截。
  */
-export async function loadRoamStream(limit = 12, platforms?: ProviderId[]): Promise<Track[]> {
+export async function loadRoamStream(
+  total: number = SLOTS.roam,
+  platforms?: ProviderId[]
+): Promise<Track[]> {
   const wanted = platforms === undefined ? null : new Set(platforms)
   const providers = listAvailableProviders().filter(
     (provider) =>
       Boolean(provider.recommendations?.personalFm || provider.recommendations?.dailySongs) &&
       (wanted === null || wanted.has(provider.id))
   )
+  if (providers.length === 0) return []
 
+  /* 至少问 6 首：personalFm 一次给得少，摊到每家只剩一两首时问不出东西。 */
+  const per = Math.max(6, Math.ceil(total / providers.length))
+  const ROUNDS = 3
   const lists = await Promise.all(
     providers.map(async (provider) => {
-      try {
-        // 绑定档案在 init 里，跳过它上游会当游客。
-        await useOnlineStore(provider.id as never)
-          .getState()
-          .init()
-          .catch(() => {})
-        const backend =
-          (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
-        const api = provider.recommendations
-        if (!backend || !api) return [] as Track[]
-        const songs = api.personalFm
-          ? await api.personalFm(limit)
-          : await (api.dailySongs?.() ?? Promise.resolve([]))
-        // 每日推荐一次给几十首，这里只取前几首，剩下的留给下一次。
-        return songs.slice(0, limit).map((song) => backend.toTrack(song))
-      } catch {
-        return [] as Track[]
+      const out: Track[] = []
+      const seen = new Set<string>()
+      for (let round = 0; round < ROUNDS && out.length < per; round += 1) {
+        const chunk = await fetchStream(provider, per)
+        for (const track of chunk) {
+          const key = trackKey(track)
+          if (seen.has(key)) continue
+          seen.add(key)
+          out.push(track)
+        }
       }
+      return out.slice(0, per)
     })
   )
 
   return mergeVersions(lists.flat(), sourceOrder())
+}
+
+/** 一家的下一批：私人漫游优先，没有就退回每日推荐。失败当这家没给。 */
+async function fetchStream(
+  provider: ReturnType<typeof listAvailableProviders>[number],
+  limit: number
+): Promise<Track[]> {
+  try {
+    // 绑定档案在 init 里，跳过它上游会当游客。
+    await useOnlineStore(provider.id as never)
+      .getState()
+      .init()
+      .catch(() => {})
+    const backend =
+      (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
+    const api = provider.recommendations
+    if (!backend || !api) return []
+    const songs = api.personalFm
+      ? await api.personalFm(limit)
+      : await (api.dailySongs?.() ?? Promise.resolve([]))
+    return (songs ?? []).slice(0, limit).map((song) => backend.toTrack(song))
+  } catch {
+    return []
+  }
 }
 
 export function shuffle<T>(items: T[]): T[] {

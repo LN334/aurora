@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
-import { usePlatformDaily } from '../features/online/daily'
-import { mergeVersions } from '../features/online/unify'
-import { useSourceOrder } from '../features/settings/source-order'
-import { dailyLabel, dailyTracks, interleaveBySource } from '../features/library/daily'
+import { dailyBatch, usePlatformDaily } from '../features/online/daily'
+import { SLOTS } from '../features/online/slots'
+import { dailyLabel } from '../features/library/daily'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
@@ -38,7 +37,6 @@ export function DailyView({
     return out
   }, [recent])
 
-  const order = useSourceOrder()
   const platformDaily = usePlatformDaily()
   // 口味画像只影响排序；没有历史时退化成按日期挑。
   const taste = useTasteProfile()
@@ -46,9 +44,9 @@ export function DailyView({
   const daily = useMemo(() => {
     // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
     const base = tracks.length > 0 ? tracks : recentAll
-    // 和首页那块用同一份数据：平台推的整份留下，本机再补一批，页面与卡片不会对不上。
-    return mergeVersions([...interleaveBySource(platformDaily), ...dailyTracks(base, new Date(), undefined, taste)], order)
-  }, [tracks, recentAll, platformDaily, order, taste])
+    // 和首页那块同一个函数、同一个槽位：卡片写多少首，这一页就是多少首。
+    return dailyBatch(platformDaily, base, new Date(), SLOTS.daily, taste)
+  }, [tracks, recentAll, platformDaily, taste])
 
   if (daily.length === 0) {
     return (

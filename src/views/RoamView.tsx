@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { sourcesOf, trackKey } from '../features/online/unify'
 import { player } from '../features/player/actions'
@@ -52,18 +52,27 @@ export function RoamView({
   const playing = usePlayer((state) => state.playing)
   const order = useMemo(() => sourceOrder(), [])
 
+  /*
+   * 每次要批都发一个号。勾选连点两下、或者正在要的时候换了平台，会有两次请求
+   * 同时在飞；先发的后回来就会把新的那批盖掉。回来时对一下号，不是最新的就丢掉。
+   */
+  const seq = useRef(0)
+
   const roll = useCallback(async () => {
+    const mine = ++seq.current
     setBusy(true)
     try {
       const pool = await loadRoamPool(roamPlatforms())
+      if (mine !== seq.current) return
       setBatch({ tracks: buildRoamQueue(pool), poolSize: pool.tracks.length })
       setNote('')
     } catch (error) {
+      if (mine !== seq.current) return
       // 一家平台挂了不该让整页停在「正在要」：把原因说出来，别留一块空白。
       setNote('这一批没要到：' + (error instanceof Error ? error.message : String(error)))
       setBatch((prev) => prev ?? { tracks: [], poolSize: 0 })
     } finally {
-      setBusy(false)
+      if (mine === seq.current) setBusy(false)
     }
   }, [])
 
@@ -80,9 +89,12 @@ export function RoamView({
    * 到队尾，正在放的那首不中断。
    */
   const pull = useCallback(async () => {
+    const mine = seq.current
     setPulling(true)
     try {
       const more = await loadRoamStream(6, roamPlatforms())
+      // 要的途中换了平台或重洗了牌，这一批补到旧列表上就是错的。
+      if (mine !== seq.current) return
       const seen = new Set((batch?.tracks ?? []).map((track) => trackKey(track)))
       const rows = more.filter((track) => !seen.has(trackKey(track)))
       if (rows.length === 0) {
@@ -95,6 +107,7 @@ export function RoamView({
       )
       player.addToQueue(rows, 'end')
     } finally {
+      // 补的这批作废了也得把按钮放开，否则「再来一批」会一直转。
       setPulling(false)
     }
   }, [batch])
