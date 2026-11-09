@@ -494,7 +494,21 @@ function createWindow(): void {
             }
             if (process.argv.includes('--probe')) {
               const facts = await mainWindow?.webContents.executeJavaScript(
-                `(() => {
+                `(async () => {
+                  // 跟随高光的坐标只在指针动过之后才有；这里合成一次，好让回读有值。
+                  const glowHost = document.querySelector('.player')
+                  if (glowHost) {
+                    const box = glowHost.getBoundingClientRect()
+                    const at = {
+                      clientX: box.left + box.width * 0.32,
+                      clientY: box.top + box.height * 0.5,
+                      pointerType: 'mouse',
+                      bubbles: true
+                    }
+                    const target = glowHost.firstElementChild || glowHost
+                    target.dispatchEvent(new PointerEvent('pointermove', at))
+                    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+                  }
                   const b = document.querySelector('.main__body')
                   const rh = document.querySelector('.rh')
                   const nav = performance.getEntriesByType('navigation')[0] || {}
@@ -522,6 +536,7 @@ function createWindow(): void {
                         w: Math.round(box.width),
                         h: Math.round(box.height),
                         refract: el.style.getPropertyValue('--refract'),
+                        glue: (el.style.getPropertyValue('--mx') || '-') + ' ' + (el.style.getPropertyValue('--my') || '-'),
                         backdrop: getComputedStyle(el).backdropFilter
                       }
                     }),

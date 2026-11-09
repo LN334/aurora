@@ -49,7 +49,8 @@
   --titlebar-h: 44px;
   --rail-w: 224px;
   --rail-w-collapsed: 60px;
-  --player-h: 84px;
+  /* 播放条本体 84，外加悬浮留白（上 4 / 下 12），剩下的给底部那条缝 */
+  --player-h: 100px;
   --row-h: 34px;
 
   /* --- separators: hairlines, not borders --------------------------------- */

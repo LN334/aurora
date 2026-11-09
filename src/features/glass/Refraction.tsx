@@ -26,8 +26,9 @@ interface Target {
 const TARGETS: Target[] = [
   // 播放条横贯全宽，边缘只在上下一线，圈要宽一点才看得出厚度
   { selector: '.player', edge: 26, strength: 0.9 },
-  // 抽屉：四边都在视野里（左接内容、上下贴边），圈略窄，否则左右两侧像被压扁
-  { selector: '.panel', edge: 22, strength: 0.55 },
+  // 抽屉：背后就是内容列表（封面 + 文字，边界清楚），是折射最读得出来的地方，
+  // 所以这一块给得比别处狠；面板正文从 28px 内边距起，22px 的折射带压不到字
+  { selector: '.panel', edge: 22, strength: 0.85 },
   // 首页的薄玻璃卡片：底色只有 7% 白，背后壁纸全在，位移才看得见
   { selector: '.rh-sc', edge: 18, strength: 0.8 },
   { selector: '.rh-daily', edge: 22, strength: 0.7 },
@@ -41,6 +42,11 @@ const TARGETS: Target[] = [
 /*
  * 刻意没进表的：.nm（确认/命名弹窗）底色 0.96 近不透明，背后什么都看不见，折射
  * 白算一张贴图；首页几个 .rh-* 卡片是内容本身，弯折会让封面图边缘发虚。 */
+
+/*
+ * 会跟着指针亮一块的那几块玻璃。比折射的表窄：菜单上再叠一团光会跟菜单项自己的
+ * hover 底色打架，而菜单本来就小、一眼看得完，不需要再指路。 */
+const GLOW_SELECTOR = '.player, .panel, .rh-sc, .rh-daily, .tracks__tool'
 
 interface Applied {
   filterId: string
@@ -177,6 +183,42 @@ export function Refraction() {
     })
     mutations.observe(document.body, { childList: true, subtree: true })
 
+    /*
+     * 指针跟随高光。
+     *
+     * 折射在深色壁纸上读不出来，这一层读得出来：光从指针那儿照过来，玻璃表面跟
+     * 着亮一块，就像拿着一块真玻璃对光。坐标写成百分比，元素换尺寸时不用重算。
+     *
+     * 每帧最多处理一次，而且要先把 pointermove 记下来再在 rAF 里读 DOM：事件里
+     * 直接 getBoundingClientRect 会逼一次同步布局。
+     */
+    let pointerFrame = 0
+    let pointerEvent: PointerEvent | null = null
+
+    const paintGlow = () => {
+      pointerFrame = 0
+      const event = pointerEvent
+      pointerEvent = null
+      if (!event) return
+      const element = event.target as Element | null
+      const host = element?.closest<HTMLElement>(GLOW_SELECTOR) ?? null
+      if (!host) return
+      const box = host.getBoundingClientRect()
+      if (box.width < 1 || box.height < 1) return
+      host.style.setProperty('--mx', `${((event.clientX - box.left) / box.width) * 100}%`)
+      host.style.setProperty('--my', `${((event.clientY - box.top) / box.height) * 100}%`)
+    }
+
+    const onPointerMove = (event: PointerEvent) => {
+      // 触屏没有悬停态，跟着手指亮反而像误触
+      if (event.pointerType !== 'mouse') return
+      pointerEvent = event
+      if (pointerFrame) return
+      pointerFrame = window.requestAnimationFrame(paintGlow)
+    }
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
+
     const onResize = () => scan()
     window.addEventListener('resize', onResize)
 
@@ -185,6 +227,8 @@ export function Refraction() {
       mutations.disconnect()
       observer.disconnect()
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('pointermove', onPointerMove)
+      if (pointerFrame) window.cancelAnimationFrame(pointerFrame)
       pending.forEach((timer) => window.clearTimeout(timer))
       pending.clear()
       applied.forEach((_record, el) => {

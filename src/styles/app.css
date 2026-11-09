@@ -748,11 +748,21 @@ input::placeholder {
 
 .player {
   grid-area: player;
+  /*
+   * 悬浮而不是贴边。
+   *
+   * 液态玻璃得有一圈完整的边才成立：贴底的通栏只有上、左、右三条边，四角还是
+   * 直角，折射只在上缘一线露一点头。四周留出缝、四角收成圆的之后，这块东西才
+   * 从「一条被截断的横条」变成「一块浮在内容上的玻璃」——四角与四边都在弯折。
+   */
+  margin: 4px 16px 12px;
+  border-radius: 16px;
   display: grid;
   grid-template-columns: minmax(200px, 1fr) minmax(360px, 2fr) minmax(200px, 1fr);
   align-items: center;
   gap: var(--s4);
-  padding: 0 var(--s4);
+  /* 已经自己留了 16px 外边距，内边距就不必再留一份 */
+  padding: 0 var(--s3);
   /*
    * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
    * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
@@ -791,11 +801,17 @@ input::placeholder {
    * 的是这三层：顶缘一道实高光、紧贴其下一条柔和的亮晕（厚度）、再往里一圈
    * 极细的暗线把玻璃和背后的内容分开。
    */
+  /*
+   * 悬浮之后阴影的方向也要跟着翻：贴底时用朝上的投影把上面的内容压住，浮起来
+   * 之后得往下落，否则这块玻璃像被吊在半空。四条 inset 里最外一圈从暗线换成
+   * 极淡的白线——贴边时暗线是「和背景分开」，浮起来之后要的是「四边都有一道
+   * 玻璃的倒角」。
+   */
   box-shadow:
-    0 -12px 32px rgb(0 0 0 / 0.34),
-    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    0 10px 30px -6px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
     inset 0 3px 10px -4px rgb(255 255 255 / 0.14),
-    inset 0 0 0 1px rgb(0 0 0 / 0.18);
+    inset 0 0 0 1px rgb(255 255 255 / 0.09);
 }
 
 .now {
@@ -1939,7 +1955,9 @@ input::placeholder {
 }
 
 .shell.has-wallpaper > .player {
-  background: rgb(14 17 21 / calc(0.52 - 0.22 * var(--wp-level, 0.62)));
+  /* 只换颜色、不动 background-image：播放条自带的三层渐变（顶部提亮 / 底部压暗）
+     得留着，用 background 简写会把它们一起冲掉，整条退化成一块单色板。 */
+  background-color: rgb(14 17 21 / calc(0.52 - 0.22 * var(--wp-level, 0.62)));
 }
 
 /* The WebGL canvas has to fill the host box; the engine sizes in device pixels. */
@@ -2051,7 +2069,7 @@ input::placeholder {
  * 壁纸被 blur 糊成一片颜色，字照样清楚，面板本身仍然是块能看见壁纸的玻璃。
  */
 .shell.has-wallpaper > .player {
-  background: rgb(8 10 12 / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
+  background-color: rgb(8 10 12 / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
 }
 
@@ -2362,5 +2380,74 @@ html.is-resizing * {
   }
   100% {
     background: transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 指针跟随高光
+ *
+ * 液态玻璃里真正不依赖背景对比度的那部分：光从指针那儿照过来，玻璃表面跟着亮一
+ * 块。深色壁纸上位移折射读不出来，这一层读得出来。
+ *
+ * 坐标由 Refraction 写进 --mx / --my（百分比，相对元素自身），这里只管画。显隐
+ * 交给 :hover，省得在 JS 里记谁进谁出。::after 是最后一个子层，盖在文字之上——
+ * 这正是玻璃反光的样子，所以透明度压到 0.1，只提亮不发白。
+ * ------------------------------------------------------------------------- */
+.player,
+.rh-sc,
+.rh-daily,
+.tracks__tool {
+  /* ::after 要贴着元素自身定位；这几个原本都是 static，会跑到最近的定位祖先上 */
+  position: relative;
+}
+
+.player,
+.panel,
+.rh-daily {
+  --glow-r: 190px;
+}
+.rh-sc {
+  --glow-r: 150px;
+}
+.tracks__tool {
+  /* 40px 的圆，光斑再大会整颗发白 */
+  --glow-r: 64px;
+}
+
+.player::after,
+.panel::after,
+.rh-sc::after,
+.rh-daily::after,
+.tracks__tool::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* 半径按元素大小给：把同一团光摊到 1140px 的大卡上会变成整块提亮，就没了方向 */
+  background: radial-gradient(
+    circle var(--glow-r, 170px) at var(--mx, 50%) var(--my, 0%),
+    rgb(255 255 255 / 0.15),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 260ms var(--ease-out);
+}
+
+.player:hover::after,
+.panel:hover::after,
+.rh-sc:hover::after,
+.rh-daily:hover::after,
+.tracks__tool:hover::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player::after,
+  .panel::after,
+  .rh-sc::after,
+  .rh-daily::after,
+  .tracks__tool::after {
+    transition: none;
   }
 }
