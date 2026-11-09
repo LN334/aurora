@@ -23,18 +23,6 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file: aurora-media: aurora-remote: aurora-wallpaper:; media-src 'self' file: blob: aurora-media: aurora-remote: aurora-wallpaper:; font-src 'self' data: blob:; connect-src 'self' aurora-media: aurora-remote: aurora-wallpaper: ws://127.0.0.1:5173 http://127.0.0.1:5173"
     />
     <title>Aurora</title>
-    <script>
-      // 首帧体检：把超过 50ms 的长任务记下来。观察者本身几乎零开销，回调只在
-      // 真出现长任务时才跑；数据只有 --probe 截图时才会被读走。
-      window.__longtasks = []
-      try {
-        new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            window.__longtasks.push([Math.round(entry.startTime), Math.round(entry.duration)])
-          }
-        }).observe({ entryTypes: ['longtask'] })
-      } catch {}
-    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -43,28 +43,27 @@ const EXE = args.get('exe') ? path.resolve(ROOT, args.get('exe')) : null
 const LIBRARY = args.get('library') ? path.resolve(ROOT, args.get('library')) : null
 
 /**
- * The walk, in the order a person would take it: the four intents, then the two
- * rows of tabs inside the library, then search.
+ * The walk, in the order a person would take it: every top-level item in the
+ * rail, in the order the rail shows them.
  *
- * `kind` says which control carries the label. The rail and the library both
- * print short labels, and a walk that clicked the wrong row would still
- * screenshot a page that looks perfectly fine - it would just never have proved
- * the navigation it claims to prove.
+ * `title` is the text that page actually prints, not the name of the concept -
+ * the home page opens with a greeting and its first heading is 推荐, and 漫游
+ * lands on the now-playing screen, so a walk that expected the rail label to
+ * come back would wait six seconds and pass for the wrong reason.
+ *
+ * Not walked any more: the account screen and the platform screens. Both moved
+ * under the profile row at the bottom of the rail, and their contents depend on
+ * a signed-in account, so a throwaway profile cannot prove them.
  */
 const JOURNEY = [
-  { view: 'discover', kind: 'rail', label: '主页', title: '主页' },
-  { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' },
-  { view: 'library-albums', kind: 'rail', label: '专辑', title: '音乐库' },
-  { view: 'library-artists', kind: 'rail', label: '艺术家', title: '音乐库' },
-  { view: 'library-folders', kind: 'rail', label: '文件夹', title: '音乐库' },
-  // 收藏是独立的一级：歌单与喜欢在这里，不在音乐库（那一页只有磁盘上的文件）。
-  { view: 'collection-liked', kind: 'rail', label: '收藏', title: '收藏' },
-  { view: 'collection-playlists', kind: 'rail', label: '我的歌单', title: '收藏' },
-  { view: 'settings', kind: 'rail', label: '设置', title: '设置' },
-  // 账号页不在侧栏的一级项里：它是底部那张头像点进来的，所以单独一种 kind。
-  { view: 'account', kind: 'profile', label: '', title: '账号' },
-  // 平台页从账号页的「进入」按钮打开：平台内容挂在账号上，不占导航。
-  { view: 'platform-netease', kind: 'button', label: '进入', title: '未登录' }
+  { view: 'now', kind: 'rail', label: '现在', title: '推荐' },
+  { view: 'roam', kind: 'rail', label: '漫游', title: '漫游' },
+  { view: 'liked', kind: 'rail', label: '我喜欢的', title: '我喜欢的音乐' },
+  { view: 'recent', kind: 'rail', label: '最近播放', title: '最近播放' },
+  { view: 'playlists', kind: 'rail', label: '歌单', title: '歌单' },
+  { view: 'albums', kind: 'rail', label: '专辑', title: '专辑' },
+  { view: 'artists', kind: 'rail', label: '艺人', title: '艺人' },
+  { view: 'settings', kind: 'rail', label: '设置', title: '设置' }
 ]
 
 function fail(message) {
@@ -121,13 +120,7 @@ async function evaluate(cdp, expression) {
 
 /** Where each kind of step keeps its clickable rows. */
 const STEP_SELECTORS = {
-  rail: '.rail .nav-item',
-  // 栏目那排：音乐库与收藏都用 .tabs--head，发现页的栏目还带着自己的内层 tab。
-  tab: '.tabs--head .tab, .tabs--sub .tab',
-  // 账号页里「进入平台页」的按钮。
-  button: 'button.btn--small',
-  // 侧栏底部的档案入口：只此一个，不需要按名字匹配（档案名由用户改）。
-  profile: '.rail__profile'
+  rail: '.rail-item'
 }
 
 /** Click the control this step names, and say whether it existed. */
@@ -264,8 +257,8 @@ async function main() {
     // finishes would photograph the empty state and pass for the wrong reason.
     if (LIBRARY) {
       /*
-       * 首屏是主页，主页在没有播放记录时不长歌曲行，所以「等首页出现 .trk」永远等不到。
-       * 先等后台扫描结束（扫描中会在页面上写「正在扫描」），再切到音乐库确认索引真的
+       * 首屏是「现在」，它在没有播放记录时不长歌曲行，所以「等首页出现 .trk」永远等不到。
+       * 先等后台扫描结束（扫描中会在页面上写「正在扫描」），再切回首页确认索引真的
        * 长成了行 —— 这一步同时是「播种曲库确实被读到」的断言。
        */
       const scanDeadline = Date.now() + 180000
@@ -274,7 +267,7 @@ async function main() {
         if (!scanning) break
         await sleep(500)
       }
-      await clickStep(cdp, { view: 'library-songs', kind: 'rail', label: '音乐库', title: '音乐库' })
+      await clickStep(cdp, { view: 'now', kind: 'rail', label: '现在', title: '推荐' })
       await sleep(600)
       const rowsDeadline = Date.now() + 30000
       let rendered = 0
@@ -543,7 +536,13 @@ async function main() {
        * walk that silently searched the (empty) local library would pass while
        * proving nothing.
        */
-      let picked = 'not asked'
+      /*
+       * Search used to split its results behind a row of source tabs; it now
+       * searches every platform at once, so there is nothing to pick. Keep the
+       * click for screens that still offer the row, and carry on when they do
+       * not: what this step proves is rows arriving, which is checked below.
+       */
+      let picked = 'every platform'
       if (typed) {
         const screenDeadline = Date.now() + 8000
         while (Date.now() < screenDeadline) {
@@ -556,7 +555,7 @@ async function main() {
             '(() => {',
             '  const tabs = Array.from(document.querySelectorAll(".tabs--sources .tab[data-remote]"))',
             '  const remote = tabs[0]',
-            '  if (!remote) return "no remote tab"',
+            '  if (!remote) return "every platform"',
             '  remote.click()',
             '  return (remote.textContent || "").trim()',
             '})()'
@@ -608,7 +607,7 @@ async function main() {
       const problems = []
       if (!typed) problems.push('no search field in the title bar')
       if (!shotOk) problems.push('screenshot failed')
-      if (picked === 'not asked' || picked === 'no remote tab') problems.push('the online tab was not reachable: ' + picked)
+      if (picked === 'not asked') problems.push('the search box never accepted the query')
       if (heading !== '搜索') problems.push('left the search screen (heading: ' + heading + ')')
       if (hits === 0 && !NO_NETWORK) problems.push('the online search returned no rows')
       if (probe.brokenCount) problems.push(probe.brokenCount + ' broken cover(s)')
@@ -685,7 +684,10 @@ async function main() {
       const problems = []
       if (clicked !== 'clicked') problems.push('no online row to play')
       if (!moved) problems.push('playback never advanced past 0:00 (bar: ' + bar + ')')
-      if (!title || !bar.includes(title)) problems.push('the player bar does not show the track that was started')
+      // The row prints the title and the platform on separate lines; the bar prints
+      // the title alone. Compare the first line, not the whole cell.
+      const shown = String(title || '').split('\n')[0].trim()
+      if (!shown || !bar.includes(shown)) problems.push('the player bar does not show the track that was started')
       if (!shotOk) problems.push('screenshot failed')
       if (logged.length) problems.push(logged.length + ' console error(s)')
       if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
@@ -709,7 +711,7 @@ async function main() {
     {
       const mark = cdp.events.length
       const readVolume =
-        'document.querySelector(".volume") ? Number(document.querySelector(".volume").getAttribute("aria-valuenow")) : -1'
+        'document.querySelector(".pb-volume") ? Number(document.querySelector(".pb-volume").getAttribute("aria-valuenow")) : -1'
       const clickMute = [
         "(() => {",
         "  const b = Array.from(document.querySelectorAll('.player__right .icon-btn')).find((n) => (n.getAttribute('aria-label') || '').indexOf('静音') >= 0)",
@@ -721,7 +723,7 @@ async function main() {
       let slider = null
       const rectJson = await evaluate(
         cdp,
-        "(() => { const v = document.querySelector('.volume'); if (!v) return 'null'; const r = v.getBoundingClientRect(); return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height }) })()"
+        "(() => { const v = document.querySelector('.pb-volume'); if (!v) return 'null'; const r = v.getBoundingClientRect(); return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height }) })()"
       )
       if (rectJson && rectJson !== 'null') slider = JSON.parse(rectJson)
       if (slider) {
