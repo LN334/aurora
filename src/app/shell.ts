@@ -17,7 +17,6 @@ import type { Route } from './routing'
 export type ShellView =
   /* —— 左栏显示的 —— */
   | 'home'
-  | 'roam'
   | 'daily'
   | 'liked'
   | 'recent'
@@ -57,7 +56,6 @@ export interface ShellRoute {
  */
 export const SHELL_TITLES: Record<ShellView, string> = {
   home: '推荐',
-  roam: '漫游',
   daily: '每日推荐',
   liked: '我喜欢的音乐',
   recent: '最近播放',
@@ -100,6 +98,9 @@ export function shellFromHash(raw: string): ShellRoute | null {
   if (!hash) return null
   const [head, ...rest] = hash.split('/')
   if (!head) return null
+  // 「漫游」不再是一页：它现在是一次播放会话。旧地址与旧书签落到播放页，
+  // 那里如果正漫游着，底下就长着那条轨道。
+  if (head === 'roam') return { view: 'nowplaying' }
   // 旧的「我的歌单」地址收进「歌单」：两页合成一页之后，旧书签不该白屏。
   const view = (head === 'myplaylists' ? 'playlists' : head) as ShellView
   if (!(view in SHELL_TITLES)) return null
@@ -179,7 +180,6 @@ export function shellToRoute(route: ShellRoute): Route {
     case 'recent':
     case 'nowplaying':
     case 'track':
-    case 'roam':
     case 'stage':
       return { view: 'discover' }
     default:

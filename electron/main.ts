@@ -474,6 +474,10 @@ function createWindow(): void {
     const scrollArg = process.argv.find((arg) => arg.startsWith('--scroll='))
     // 截图验收要能停在任意交互态；面板/菜单都是 onClick 打开的，先点一下再截。
     const clickArg = process.argv.find((arg) => arg.startsWith('--click='))
+    // 点下去之后有些动作还要去网上要数据（漫游就是），800ms 只够截到「正在要」。
+    // 验收这类状态用 --settle=<ms> 把等待拉长，默认仍是原来的 800。
+    const settleArg = process.argv.find((arg) => arg.startsWith('--settle='))
+    const settleMs = Math.max(0, Number(settleArg?.slice('--settle='.length)) || 800)
     mainWindow.webContents.once('did-finish-load', () => {
       setTimeout(() => {
         void (async () => {
@@ -499,7 +503,7 @@ function createWindow(): void {
                 })()`
               )
               write(`click ${selector} -> ${JSON.stringify(receipt)}`)
-              await new Promise((resolve) => setTimeout(resolve, 800))
+              await new Promise((resolve) => setTimeout(resolve, settleMs))
             }
             if (scrollArg) {
               const y = Number(scrollArg.slice('--scroll='.length)) || 0
@@ -560,6 +564,15 @@ function createWindow(): void {
                     // 底栏按钮的类名就是它的状态：点在哪个键、开了哪几个，一眼看得出。
                     playerButtons: Array.from(document.querySelectorAll('.player button')).map(
                       (el) => (el.getAttribute('data-tip') || el.getAttribute('title') || '?') + '|' + String(el.className)
+                    ),
+                    // 左栏也一样：漫游不是一页，它的状态只写在按钮的类名和那颗点上。
+                    railItems: Array.from(document.querySelectorAll('.rail-item')).map(
+                      (el) =>
+                        (el.getAttribute('aria-label') || el.textContent || '?').trim().slice(0, 12) +
+                        '|' +
+                        String(el.className) +
+                        (el.querySelector('.rail-item__dot') ? '|dot' : '') +
+                        (el.querySelector('.rail-item__spin') ? '|spin' : '')
                     ),
                     timing: {
                       responseEnd: Math.round(nav.responseEnd || 0),

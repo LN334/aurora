@@ -1,5 +1,8 @@
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
+import { useRoam } from '../features/player/roam-session'
+import { trackKey } from '../features/online/unify'
+import { RoamRail } from './RoamRail'
 import type { Lyrics } from '../features/lyrics/lrc'
 import { activeLineAt } from '../features/lyrics/lrc'
 import { useProgressPosition } from '../features/player/Bar'
@@ -68,6 +71,14 @@ export function NowPlaying({
   const shuffle = usePlayer((state) => state.shuffle)
   const repeat = usePlayer((state) => state.repeat)
   const liked = track ? likedIds.has(track.id) : false
+  /*
+   * 这一首在不在当前这趟漫游里。用 trackKey 对而不是对象引用：队列里可能放的是
+   * 合并前的另一份同名曲，引用不同、其实是同一首。
+   */
+  const roamTracks = useRoam((state) => state.tracks)
+  const roam = Boolean(
+    track && roamTracks.some((item) => trackKey(item) === trackKey(track))
+  )
   // 队列里的下一首：底部那片空白里放一句「接下来」，比空着有用。
   const upcoming = usePlayer((state) => {
     if (state.queue.length === 0) return null
@@ -206,7 +217,10 @@ export function NowPlaying({
         </div>
       </div>
 
+      {roam ? <RoamRail /> : null}
+
       <footer className="np__foot">
+        {roam ? null : (
         <div className="np__next">
           {upcoming ? (
             <>
@@ -220,6 +234,7 @@ export function NowPlaying({
             <span className="np__next-k">队列里没有下一首了</span>
           )}
         </div>
+        )}
         <NpProgress duration={duration} onSeekRatio={onSeekRatio} />
       </footer>
     </div>

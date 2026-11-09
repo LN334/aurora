@@ -92,6 +92,23 @@ export const player = {
     loadCurrent(true)
   },
 
+  /**
+   * 从队列里摘掉一首。
+   *
+   * 只摘队列位置，不碰"这一趟"的列表——那是调用方的事。摘掉的是正在放的这首
+   * 时，队列索引会落到后一首上；索引没变，订阅就收不到，所以这里补一次加载，
+   * 否则歌已经不在队列里了，声音还在响。
+   */
+  removeFromQueue(queueIndex: number): void {
+    const state = usePlayer.getState()
+    if (queueIndex < 0 || queueIndex >= state.queue.length) return
+    const wasCurrent = queueIndex === state.index
+    const before = state.index
+    state.removeAt(queueIndex)
+    const after = usePlayer.getState()
+    if (wasCurrent && after.index === before) loadCurrent(true)
+  },
+
   jumpTo(orderPosition: number): void {
     const state = usePlayer.getState()
     if (orderPosition < 0 || orderPosition >= state.order.length) return

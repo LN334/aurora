@@ -2,6 +2,7 @@ import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
 import { useFavorites } from '../features/favorites/store'
 import { useRecentEntries } from '../features/player/history-store'
+import { useRoam } from '../features/player/roam-session'
 import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
@@ -37,6 +38,10 @@ interface RailProps {
   artistCount: number
   /** 随机放点什么。左栏之所以收它，见文件头的注释。 */
   onRoam: () => void
+  /** 正在要第一趟。按钮在这期间不能连点，否则会并行发两轮请求。 */
+  roamBusy?: boolean
+  /** 这一趟还活着：按钮右上角点一颗点，说明漫游没结束。 */
+  roaming?: boolean
 }
 
 interface RailItem {
@@ -63,8 +68,15 @@ export function Rail({
   onOpenProfile,
   albumCount,
   artistCount,
-  onRoam
+  onRoam,
+  roamBusy,
+  roaming
 }: RailProps) {
+  // 漫游状态直接订阅 store：接与不接由这一份状态决定，不该再从外面传两遍。
+  const roamLive = useRoam((state) => state.tracks.length > 0)
+  const roamPending = useRoam((state) => state.busy)
+  const live = roaming ?? roamLive
+  const pending = roamBusy ?? roamPending
   /*
    * 侧栏底部这一行的头像跟「我」页的档案卡必须是同一张：先看档案自己设的头像，
    * 没设过就用该档案绑定的在线账号头像（网易云那种彩色头像是账号最有辨识度的
@@ -129,16 +141,19 @@ export function Rail({
         {item('home', '现在', Compass, null)}
         {/*
           * 漫游是一个动词，所以它不跟「歌单 / 专辑 / 艺人」共用「库」那个标题。
-          * 用按钮而不是 item()：它不落在任何一页上，也没有计数。
+          * 它现在也不是一页：点下去换掉队列、进播放页，底下长出漫游轨。所以按钮
+          * 不点亮任何页面，只用右上角那颗点表示「这一趟还活着」。
           */}
         <button
-          className={`rail-item${lit === 'roam' ? ' is-active' : ''}`}
+          className={`rail-item rail-item--roam${live ? ' is-live' : ''}`}
           onClick={onRoam}
-          title="随机放点什么 (R)"
-          aria-current={lit === 'roam' ? 'page' : undefined}
+          disabled={pending}
+          title={pending ? '正在向平台要歌…' : live ? '漫游中 · 再点一次接着听 (R)' : '随机放点什么 (R)'}
+          aria-label="漫游"
         >
-          <Shuffle size={16} />
+          {pending ? <span className="rail-item__spin" aria-hidden="true" /> : <Shuffle size={16} />}
           <span className="rail-item__label">漫游</span>
+          {live ? <span className="rail-item__dot" aria-hidden="true" /> : null}
         </button>
         {item('liked', '我喜欢的', Heart, countFor('liked'))}
         {item('recent', '最近播放', Refresh, countFor('recent'))}

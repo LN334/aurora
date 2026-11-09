@@ -1632,43 +1632,6 @@
   color: var(--text-low);
 }
 
-/* 漫游页：一句说明、一排推流平台、一行统计与两个动作，下面是这一批的队列。 */
-.roam__srcs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 0 18px;
-}
-.roam__label {
-  font-size: 12px;
-  color: var(--text-low);
-  margin-right: 2px;
-}
-.roam__all {
-  background: none;
-  border: 0;
-  padding: 0 4px;
-  font-size: 12px;
-  color: var(--text-mid);
-  cursor: pointer;
-}
-.roam__all:hover {
-  color: var(--text-hi);
-  text-decoration: underline;
-}
-.roam__head {
-  margin-top: 4px;
-}
-.roam__acts {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.roam__acts .rh-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
 .pl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));

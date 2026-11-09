@@ -84,3 +84,5 @@ src/**/*.js.map
 # electron-builder 的备用输出目录，与 release/ 同类。
 release-dir/
 
+
+.commit-msg.txt

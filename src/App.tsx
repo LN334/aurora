@@ -18,7 +18,7 @@ import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } 
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
 import { PlaylistsView } from './views/PlaylistsView'
-import { RoamView } from './views/RoamView'
+import { startRoam } from './features/player/roam-session'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/player-bar/PlayerBar'
 import { PlaylistDetail } from './views/PlaylistDetail'
@@ -327,6 +327,19 @@ export function App() {  if (!isNative) {
     },
     [stack, cursor]
   )
+
+  /**
+   * 漫游：要一趟、立刻放、进播放页。
+   *
+   * 三件事必须一起发生才算「点了漫游」。只放歌不跳页，人还停在歌单上，会以为
+   * 没生效；只跳页不放歌，进去是一片空的播放页。所以收成一个动作，左栏与 R 键
+   * 共用这一个入口。
+   */
+  const roamNow = useCallback(() => {
+    void startRoam().then((ok) => {
+      if (ok) goShell({ view: 'nowplaying' })
+    })
+  }, [goShell])
 
   /** 页面组件仍按旧 `Route` 说话；这里翻译成外壳路由。 */
   const navigate = useCallback((next: Route) => goShell(routeToShell(next)), [goShell])
@@ -660,7 +673,8 @@ export function App() {  if (!isNative) {
     goBack,
     setStageOpen,
     setEqOpen,
-    setQueueOpen
+    setQueueOpen,
+    roam: roamNow
   })
 
 
@@ -790,7 +804,6 @@ export function App() {  if (!isNative) {
     if (shell.view === 'home') {
       return <HomeView onNavigate={goShell} />
     }
-    if (shell.view === 'roam') return <RoamView onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={openTrackMenu} />
     if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={openTrackMenu} />
@@ -953,7 +966,7 @@ export function App() {  if (!isNative) {
           onOpenProfile={() => goShell({ view: 'me' })}
           albumCount={albums.length}
           artistCount={artists.length}
-          onRoam={() => goShell({ view: 'roam' })}
+          onRoam={roamNow}
         />
 
         <main className="main">

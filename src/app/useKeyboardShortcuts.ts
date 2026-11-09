@@ -27,9 +27,21 @@ export function useKeyboardShortcuts(options: {
   setStageOpen(update: (open: boolean) => boolean): void
   setEqOpen(update: (open: boolean) => boolean): void
   setQueueOpen(update: (open: boolean) => boolean): void
+  /** 漫游：要一趟、立刻放、进播放页。与左栏那颗按钮同一个入口。 */
+  roam(): void
 }) {
-  const { stageOpen, eqOpen, queueOpen, volume, canGoBack, goBack, setStageOpen, setEqOpen, setQueueOpen } =
-    options
+  const {
+    stageOpen,
+    eqOpen,
+    queueOpen,
+    volume,
+    canGoBack,
+    goBack,
+    setStageOpen,
+    setEqOpen,
+    setQueueOpen,
+    roam
+  } = options
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -82,6 +94,15 @@ export function useKeyboardShortcuts(options: {
         setEqOpen((open) => !open)
         return
       }
+      /*
+       * R 是漫游。带修饰键的不接：Ctrl+R 是重载页面，用户真按它的时候要的是
+       * 重载，不是换一批歌。
+       */
+      if (!mod && event.key.toLowerCase() === 'r') {
+        event.preventDefault()
+        roam()
+        return
+      }
       if (event.code === 'Space') {
         event.preventDefault()
         player.toggle()
@@ -105,5 +126,5 @@ export function useKeyboardShortcuts(options: {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [stageOpen, eqOpen, queueOpen, volume, canGoBack, goBack, setStageOpen, setEqOpen, setQueueOpen])
+  }, [stageOpen, eqOpen, queueOpen, volume, canGoBack, goBack, setStageOpen, setEqOpen, setQueueOpen, roam])
 }
