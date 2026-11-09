@@ -3,14 +3,13 @@ import { player } from '../features/player/actions'
 import {
   endRoam,
   hideRoamTrack,
-  markRoamHeard,
   pullRoamMore,
+  ROAM_MORE,
   useRoam,
   useRoamProgress
 } from '../features/player/roam-session'
 import { roamCandidates, setRoamPlatform, useRoamPlatforms } from '../features/player/roam-sources'
 import { usePlayer } from '../features/player/store'
-import { SLOTS } from '../features/online/slots'
 import { sourceLabelFor } from '../features/online/registry'
 import { trackKey } from '../features/online/unify'
 import { artworkFor } from '../features/library/source'
@@ -50,10 +49,8 @@ export function RoamRail() {
   const nowKey = current ? trackKey(current) : ''
   const nowRef = useRef<HTMLLIElement | null>(null)
 
-  // 听到哪记哪：写成副作用而不是让每个播放入口都去通知，入口有多少个不受控。
-  useEffect(() => {
-    if (nowKey) markRoamHeard(current)
-  }, [nowKey])
+  // 「已听」与「放过」由 roam-session 在切歌时统一记，不挂在组件上——
+  // 这一页被别的页面顶掉时，这一趟照样要走下去。
 
   // 当前卡自动回到视线中间。换歌、划掉、接新一批都会走到这里。
   useEffect(() => {
@@ -65,7 +62,7 @@ export function RoamRail() {
 
   const candidates = roamCandidates()
   const chosenSet = new Set(chosen)
-  const wantMore = Math.ceil(SLOTS.roam / 2)
+  const wantMore = ROAM_MORE
 
   return (
     <section className="rr" aria-label="漫游轨">

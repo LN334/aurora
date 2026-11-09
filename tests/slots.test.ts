@@ -48,7 +48,7 @@ test('槽位表是产品规格，不随开关变化', () => {
   assert.equal(SLOTS.playlist, 24)
   assert.equal(SLOTS.album, 18)
   assert.equal(SLOTS.fresh, 6)
-  assert.equal(SLOTS.roam, 60)
+  assert.equal(SLOTS.roam, 20)
 })
 
 test('groupRows 按首次遇到的顺序分组', () => {

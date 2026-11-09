@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { appendFresh, roamProgress, withoutTrack } from '../src/features/player/roam-pure.ts'
+import { appendFresh, roamProgress, shouldPullMore, withoutTrack } from '../src/features/player/roam-pure.ts'
 import { trackKey } from '../src/features/online/unify.ts'
 import type { Track } from '../src/types.ts'
 
@@ -82,4 +82,14 @@ test('withoutTrack 摘掉的是同一首歌的所有版本', () => {
 
 test('withoutTrack 找不到时原样返回', () => {
   assert.deepEqual(withoutTrack([a, b], c), [a, b])
+})
+
+test('shouldPullMore 后面剩得不多就要补，负数也照补', () => {
+  // left 是当前之后还有几首：0 = 正在最后一首，-1 = 已经不在这一趟里。
+  for (const left of [6, 2, 0, -1]) assert.equal(shouldPullMore(left, 6), true)
+})
+
+test('shouldPullMore 后面的还够听一段就不补，免得白白要歌', () => {
+  assert.equal(shouldPullMore(7, 6), false)
+  assert.equal(shouldPullMore(58, 6), false)
 })

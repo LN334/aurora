@@ -21,8 +21,13 @@ export const SLOTS = {
   album: 18,
   /** 首页新歌：一屏一行六列。 */
   fresh: 6,
-  /** 漫游：一次推一批。 */
-  roam: 60
+  /**
+   * 漫游：一趟先要这么多，快放完再补一半。
+   *
+   * 60 首要一次太多——每家平台翻好几页，头一批出得慢，而漫游的本意是
+   * 「点了就有声」。20 首是一小时上下，补批提前量够用。
+   */
+  roam: 20
 } as const
 
 export type SlotName = keyof typeof SLOTS

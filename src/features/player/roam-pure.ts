@@ -61,3 +61,14 @@ export function withoutTrack(tracks: readonly Track[], target: Track): Track[] {
   const key = trackKey(target)
   return tracks.filter((track) => trackKey(track) !== key)
 }
+
+/**
+ * 快放到这一趟的尾巴了吗。
+ *
+ * 漫游不主动停止：剩下几首的时候就把下一批要过来，接在队列后面。留出这一段
+ * 提前量是因为要歌要过网络——等到最后一首才开始要，中间会断一口气。
+ * left 是「当前之后还有几首」；负数当作已经到了末尾。
+ */
+export function shouldPullMore(left: number, ahead: number): boolean {
+  return left <= ahead
+}
