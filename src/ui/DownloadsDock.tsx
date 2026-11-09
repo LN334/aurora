@@ -3,6 +3,7 @@ import { isNative } from '../bridge'
 import { useDownloads } from '../features/downloads/store'
 import type { DownloadFormat, DownloadView } from '../env'
 import { Check, Close, Folder, Locate, Trash } from './icons'
+import { useLeave } from './presence'
 
 const ACTIVE = new Set(['queued', 'downloading', 'transcoding'])
 
@@ -37,6 +38,8 @@ export function DownloadsDock() {
   const active = useMemo(() => views.filter((view) => ACTIVE.has(view.state)), [views])
   const done = useMemo(() => views.filter((view) => view.state === 'done'), [views])
   const failed = useMemo(() => views.filter((view) => view.state === 'failed'), [views])
+  // 收起面板也走退场：动作（setOpen）推迟 180ms，面板才有时间缩回去。
+  const { leaving, leave } = useLeave(180)
 
   if (!isNative || views.length === 0) return null
 
@@ -59,7 +62,7 @@ export function DownloadsDock() {
   }
 
   return (
-    <section className="dlpanel" aria-label="下载队列">
+    <section className={'dlpanel' + (leaving ? ' is-closing' : '')} aria-label="下载队列">
       <header className="dlpanel__head">
         <span className="dlpanel__title">下载</span>
         <span className="dlpanel__count">
@@ -68,7 +71,7 @@ export function DownloadsDock() {
         <button
           className="icon-btn dlpanel__close"
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => leave(() => setOpen(false))}
           title="收起"
           aria-label="收起下载队列"
         >

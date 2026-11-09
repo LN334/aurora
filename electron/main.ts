@@ -295,7 +295,14 @@ function createWindow(): void {
     y: area ? area.y : state.y,
     minWidth: 940,
     minHeight: 620,
-    show: false,
+    /*
+     * 直接显示，不等 ready-to-show。
+     *
+     * 隐藏窗口里的 Chromium 会把首次绘制压到最低优先级：实测同一份构建，
+     * show:false 时首个像素要 2.4 秒才上屏，而窗口一旦可见就立刻画。窗口
+     * 自带深色底，先出来的是这一层底色，不会闪白；内容随后接上。
+     */
+    show: true,
     backgroundColor: '#0d1013',
     // Custom chrome: we draw the title bar ourselves, while Windows keeps the
     // real caption buttons overlaid so snap layouts and aero snap still work.
@@ -341,9 +348,12 @@ function createWindow(): void {
     resizeSettle = null
   })
 
+  const bootAt = Date.now()
   mainWindow.once('ready-to-show', () => {
     const window = mainWindow
     if (!window) return
+    // 「打开多久才看见东西」就是这一段：ready-to-show 之后才 show。
+    write(`ready-to-show +${Date.now() - bootAt}ms`)
     window.show()
     installThumbar(window, lastPlaying, sendMediaCommand)
   })
@@ -470,7 +480,29 @@ function createWindow(): void {
             }
             if (process.argv.includes('--probe')) {
               const facts = await mainWindow?.webContents.executeJavaScript(
-                `(() => { const b = document.querySelector('.main__body'); const rh = document.querySelector('.rh'); return { scrollTop: b && b.scrollTop, bodyH: b && b.clientHeight, rhFirst: rh && rh.firstElementChild && rh.firstElementChild.className, rhTop: rh && Math.round(rh.getBoundingClientRect().top), bodyTop: b && Math.round(b.getBoundingClientRect().top) } })()`
+                `(() => {
+                  const b = document.querySelector('.main__body')
+                  const rh = document.querySelector('.rh')
+                  const nav = performance.getEntriesByType('navigation')[0] || {}
+                  // 首屏到底花在哪：导航各阶段 + 两张 paint 标记。截图等 2.6 秒，
+                  // 这时 first-contentful-paint 一定已经落了，读出来的就是真值。
+                  const paint = {}
+                  for (const entry of performance.getEntriesByType('paint')) paint[entry.name] = Math.round(entry.startTime)
+                  return {
+                    scrollTop: b && b.scrollTop,
+                    bodyH: b && b.clientHeight,
+                    rhFirst: rh && rh.firstElementChild && rh.firstElementChild.className,
+                    rhTop: rh && Math.round(rh.getBoundingClientRect().top),
+                    bodyTop: b && Math.round(b.getBoundingClientRect().top),
+                    longtasks: window.__longtasks || [],
+                    timing: {
+                      responseEnd: Math.round(nav.responseEnd || 0),
+                      domContentLoaded: Math.round(nav.domContentLoadedEventEnd || 0),
+                      load: Math.round(nav.loadEventEnd || 0),
+                      paint
+                    }
+                  }
+                })()`
               )
               fs.writeFileSync(out + '.json', JSON.stringify(facts, null, 2))
             }

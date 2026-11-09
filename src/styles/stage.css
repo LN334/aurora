@@ -83,6 +83,28 @@
   z-index: 1;
 }
 
+/*
+ * 退场：整层压暗退回去，而不是一帧消失。
+ *
+ * 入场不做整层淡入（上面那段解释过原因），退场可以：usePresence 会保证 320ms
+ * 后一定卸载，所以即使这条动画被冻住，舞台也不会永久糊在应用上面。
+ */
+.stage.is-closing {
+  animation: stageOut var(--dur-3) var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes stageOut {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage.is-closing {
+    animation: none;
+  }
+}
+
 /* --- top bar ------------------------------------------------------------- */
 
 .stage__top {

@@ -3,6 +3,7 @@ import { usePlayer } from '../features/player/store'
 import { formatTime } from '../ui/format'
 import { ArtistName } from '../ui/NameRef'
 import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
+import { usePresence } from '../ui/presence'
 
 interface QueuePanelProps {
   open: boolean
@@ -106,8 +107,10 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   const shuffle = usePlayer((s) => s.shuffle)
   const repeat = usePlayer((s) => s.repeat)
   const playing = usePlayer((s) => s.playing)
+  // 关闭时先留着，让抽屉滑出去再卸载。
+  const { mounted, closing } = usePresence(open, 320)
 
-  if (!open) return null
+  if (!mounted) return null
 
   const at = order.indexOf(index)
   const upcoming = at === -1 ? [] : order.slice(at + 1)
@@ -128,7 +131,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   }
 
   return (
-    <aside className="panel" aria-label="播放队列">
+    <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="播放队列">
       <header className="panel__head">
         <h2 className="panel__title">播放队列</h2>
         <span className="panel__count tnum">

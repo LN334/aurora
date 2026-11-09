@@ -193,6 +193,8 @@ interface LyricsStageProps {
   onSeek(seconds: number): void
   onSeekRatio(ratio: number): void
   onToggle(): void
+  /** 退场中：.stage 挂 is-closing 播淡出，320ms 后由父级卸载。 */
+  closing?: boolean
   onClose(): void
 }
 
@@ -208,6 +210,7 @@ export function LyricsStage({
   onSeek,
   onSeekRatio,
   onToggle,
+  closing = false,
   onClose
 }: LyricsStageProps) {
   const style = useStageStyle()
@@ -264,7 +267,14 @@ export function LyricsStage({
 
   return (
     <div
-      className={['stage', wallpaper ? 'stage--wallpaper' : '', 'stage--lyric-' + style].filter(Boolean).join(' ')}
+      className={[
+        'stage',
+        wallpaper ? 'stage--wallpaper' : '',
+        'stage--lyric-' + style,
+        closing ? 'is-closing' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
       // --wp-level 同时喂给壁纸的遮罩和舞台自己的渐变，和外壳用的是同一个值。
       style={
         wallpaper

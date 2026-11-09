@@ -23,6 +23,15 @@
   color: var(--text-mid);
   font-size: 12px;
   transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+  /* 任务来了才冒出来：从下沿长出来，而不是凭空出现在那个角上。 */
+  animation: dlIn var(--dur-2) var(--ease-out) both;
+}
+
+@keyframes dlIn {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
 }
 
 .dlbar:hover {
@@ -68,6 +77,27 @@
   backdrop-filter: blur(22px) saturate(1.4);
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.46), inset 0 1px 0 rgb(255 255 255 / 0.05);
   overflow: hidden;
+  /* 从胶囊展开成面板：同一角、同一条边，看起来是胶囊「长开」的。 */
+  transform-origin: bottom right;
+  animation: dlPanelIn var(--dur-2) var(--ease-out) both;
+}
+.dlpanel.is-closing {
+  animation: dlPanelOut 180ms var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes dlPanelIn {
+  from {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 8px;
+  }
+}
+@keyframes dlPanelOut {
+  to {
+    opacity: 0;
+    scale: 0.99;
+    translate: 0 6px;
+  }
 }
 
 .dlpanel__head {

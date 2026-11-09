@@ -1923,9 +1923,32 @@
   from { opacity: 0; scale: 0.96; }
 }
 
+/*
+ * 退场：遮罩先淡、卡片后缩，顺序和进场相反。
+ *
+ * 由组件内部的 useLeave 挂 is-closing，180ms 后才真正调用 onCancel；点遮罩、
+ * 按 Esc、点取消都走这条路。确认按钮不延迟——破坏性动作一旦确认就该立刻发生，
+ * 让它在动画里多等一帧只是为了好看。
+ */
+.nm__scrim.is-closing {
+  animation: nmScrimOut 180ms var(--ease-out) both;
+}
+.nm.is-closing {
+  animation: nmPopOut 180ms var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes nmScrimOut {
+  to { opacity: 0; }
+}
+@keyframes nmPopOut {
+  to { opacity: 0; scale: 0.97; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nm__scrim,
-  .nm { animation: none; }
+  .nm,
+  .nm__scrim.is-closing,
+  .nm.is-closing { animation: none; }
 }
 
 /* 删掉一类不可撤销的东西：同一个按钮，红一次。 */

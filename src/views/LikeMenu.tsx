@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { likeTargets } from '../features/favorites/like-targets'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { showFlash } from '../ui/flash'
 import { Heart } from '../ui/icons'
+import { useLeave } from '../ui/presence'
 import './LikeMenu.css'
 
 const MARGIN = 8
@@ -18,6 +19,12 @@ const MARGIN = 8
 export function LikeMenu() {
   const request = useLikeMenu((state) => state.open)
   const close = useLikeMenu((state) => state.close)
+  /*
+   * 关闭也走退场：store 里的 request 一旦置空组件立刻被摘掉，动画来不及跑。
+   * 所以先挂 150ms 的 leaving，再真的 close。
+   */
+  const { leaving, leave } = useLeave(150)
+  const closeMenu = useCallback(() => leave(close), [leave, close])
   const likedIds = useLikedIds()
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: 0, top: 0 })
@@ -37,12 +44,12 @@ export function LikeMenu() {
   useEffect(() => {
     if (!request) return
     const onPointerDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) close()
+      if (!ref.current?.contains(event.target as Node)) closeMenu()
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation()
-        close()
+        closeMenu()
       }
     }
     window.addEventListener('pointerdown', onPointerDown)
@@ -51,13 +58,13 @@ export function LikeMenu() {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKey, true)
     }
-  }, [request, close])
+  }, [request, closeMenu])
 
   if (!request) return null
 
   return (
     <div
-      className="lk-menu"
+      className={'lk-menu' + (leaving ? ' is-closing' : '')}
       ref={ref}
       style={{ left: pos.left, top: pos.top }}
       role="menu"
@@ -82,7 +89,7 @@ export function LikeMenu() {
                   showFlash(liked ? '已从' + target.label + '取消喜欢' : '已收藏到' + target.label)
                 }
               })
-              close()
+              closeMenu()
             }}
           >
             <Heart size={13} />

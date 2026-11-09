@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLeave } from '../ui/presence'
 
 /**
  * 起个名字。
@@ -27,6 +28,12 @@ export function NameModal({
   const [value, setValue] = useState(initial)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const clean = value.trim()
+  /*
+   * 取消也走退场：弹窗由父级条件渲染，这里若直接调 onCancel，父级下一帧就把它
+   * 摘掉，缩放淡出根本没机会播。确认按钮不延迟——动作已定，就不该再等。
+   */
+  const { leaving, leave } = useLeave(180)
+  const cancel = () => leave(onCancel)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -37,12 +44,12 @@ export function NameModal({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation()
-        onCancel()
+        leave(onCancel)
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [onCancel])
+  }, [onCancel, leave])
 
   const submit = () => {
     if (!clean) return
@@ -51,8 +58,17 @@ export function NameModal({
 
   return (
     <>
-      <div className="nm__scrim" onPointerDown={onCancel} role="presentation" />
-      <div className="nm" role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={'nm__scrim' + (leaving ? ' is-closing' : '')}
+        onPointerDown={cancel}
+        role="presentation"
+      />
+      <div
+        className={'nm' + (leaving ? ' is-closing' : '')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <h2 className="nm__title">{title}</h2>
         <label className="nm__label">
           <span>{label}</span>
@@ -71,7 +87,7 @@ export function NameModal({
           />
         </label>
         <div className="nm__acts">
-          <button className="rh-btn" type="button" onClick={onCancel}>
+          <button className="rh-btn" type="button" onClick={cancel}>
             取消
           </button>
           <button

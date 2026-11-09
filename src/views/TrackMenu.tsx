@@ -26,6 +26,11 @@ interface TrackMenuProps {
   /** 这一行来自某张平台歌单时，才给「从这张歌单移除」。 */
   onRemoveFromPlaylist?: () => void
   onReveal(): void
+  /**
+   * 正在退场。由 App 在关闭后先挂 200ms 再卸载，菜单据此放一段缩小淡出；
+   * 动作本身（切歌、加入队列）早已执行，这一层只是让它消失得不像被掐掉。
+   */
+  closing?: boolean
 }
 
 const MARGIN = 8
@@ -48,7 +53,8 @@ export function TrackMenu({
   onDownload,
   onAddToPlaylist,
   onRemoveFromPlaylist,
-  onReveal
+  onReveal,
+  closing = false
 }: TrackMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
   // 整行判定：合并行里喜欢的是另一家的版本时，这一项也得说「取消喜欢」。
@@ -107,7 +113,7 @@ export function TrackMenu({
 
   return (
     <div
-      className="menu"
+      className={'menu' + (closing ? ' is-closing' : '')}
       role="menu"
       ref={ref}
       style={{ left: `${pos.left}px`, top: `${pos.top}px` }}

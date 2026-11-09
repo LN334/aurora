@@ -227,6 +227,8 @@ interface CatalogEntry {
 type OnlineStoreApi = ReturnType<typeof createOnlineStore>
 
 const stores = new Map<ProviderId, OnlineStoreApi>()
+/** 每个平台正在跑的那一次 init，用来把并发调用收成一次。 */
+const initInflight = new Map<ProviderId, Promise<void>>()
 const catalogs = new Map<string, CatalogEntry>()
 
 /** The store for a platform, created on first use. One per platform, never shared. */
@@ -451,46 +453,64 @@ function createOnlineStore(providerId: ProviderId) {
        * retry, is what keeps a temporary fault from looking permanent.
        */
       async init() {
-        const platform = backend()
-        if (!platform) {
-          set({ ready: false, backendBlocked: true, statusDetail: '这个构建没有该平台的后端' })
-          return
-        }
-
-        const profileId = useAccounts.getState().activeId
-        if (profileId && profileId !== boundProfile) {
-          boundProfile = profileId
-          reset()
-        }
-        await platform.bindProfile?.(profileId ?? '')
-
-        const status = await platform.loginStatus().then(
-          (account) => ({ ok: true as const, account }),
-          (problem: unknown) => ({ ok: false as const, problem })
-        )
-
-        if (!status.ok) {
-          set({ ready: false, backendBlocked: true, statusDetail: describe(status.problem) })
-          return
-        }
-
         /*
-         * Reachability and identity are separate questions. A signed-out but
-         * healthy backend is ready - search and playback need no account - while a
-         * backend that cannot reach its upstream is blocked even though it answered.
-         * Collapsing the two would either hide search behind a login or report a
-         * network fault as "not signed in".
+         * 单飞。
+         *
+         * 启动阶段有五六处都会 init：每个取数钩子各一次、首页一次、播放器接线
+         * 一次。它们互相不知道对方，于是一次冷启动能把 loginStatus + bindProfile
+         * 打到十几次，日志里就是 albumSublist 十余次、setProfile 四次那种场面。
+         * 进来时若已经有一次在跑，就复用它；跑完才放行下一次（重试仍然有效）。
          */
-        const health = await platform.status?.().catch(() => undefined)
+        const running = initInflight.get(providerId)
+        if (running) return running
+        const task = (async () => {
+          const platform = backend()
+          if (!platform) {
+            set({ ready: false, backendBlocked: true, statusDetail: '这个构建没有该平台的后端' })
+            return
+          }
 
-        set({
-          ready: health?.ready ?? true,
-          backendBlocked: health ? !health.ready : false,
-          statusDetail: health?.detail ?? null,
-          account: status.account,
-          quality: await platform.getQuality().catch(() => get().quality)
-        })
-        if (status.account || platform.anonymousPlaylists) void get().loadPlaylists()
+          const profileId = useAccounts.getState().activeId
+          if (profileId && profileId !== boundProfile) {
+            boundProfile = profileId
+            reset()
+          }
+          await platform.bindProfile?.(profileId ?? '')
+
+          const status = await platform.loginStatus().then(
+            (account) => ({ ok: true as const, account }),
+            (problem: unknown) => ({ ok: false as const, problem })
+          )
+
+          if (!status.ok) {
+            set({ ready: false, backendBlocked: true, statusDetail: describe(status.problem) })
+            return
+          }
+
+          /*
+           * Reachability and identity are separate questions. A signed-out but
+           * healthy backend is ready - search and playback need no account - while a
+           * backend that cannot reach its upstream is blocked even though it answered.
+           * Collapsing the two would either hide search behind a login or report a
+           * network fault as "not signed in".
+           */
+          const health = await platform.status?.().catch(() => undefined)
+
+          set({
+            ready: health?.ready ?? true,
+            backendBlocked: health ? !health.ready : false,
+            statusDetail: health?.detail ?? null,
+            account: status.account,
+            quality: await platform.getQuality().catch(() => get().quality)
+          })
+          if (status.account || platform.anonymousPlaylists) void get().loadPlaylists()
+        })()
+        initInflight.set(providerId, task)
+        try {
+          await task
+        } finally {
+          initInflight.delete(providerId)
+        }
       },
 
       async setQuality(quality) {

@@ -462,6 +462,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                 className={'trk__like' + (isLiked ? ' is-liked' : '')}
                 onClick={(event) => {
                   event.stopPropagation()
+                  popLike(event.currentTarget)
                   /*
                    * 一行里有两个以上落点时先问收藏到哪儿；只有一个时直接切换。
                    * 菜单从按钮左上弹出，靠近哪边由 LikeMenu 自己夹进视口。
@@ -530,4 +531,19 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
       ) : null}
     </div>
   )
+}
+
+/**
+ * 心形被按下的那一下。
+ *
+ * 「已喜欢」原来只是颜色与填充的变化，跨过 120ms 才看得见，按快了就跟没反应
+ * 一样。这里重放一次 CSS 动画：先缩到 0.76 再弹回 1，手上的动作立刻有了回话。
+ * 直接操作 class 而不进 state —— 一次点击不该让整张列表重渲染。
+ */
+function popLike(el: HTMLElement): void {
+  el.classList.remove('is-pop')
+  // 读一次布局属性强制回流，否则同一个 class 连加两次不会重启动画。
+  void el.offsetWidth
+  el.classList.add('is-pop')
+  window.setTimeout(() => el.classList.remove('is-pop'), 420)
 }

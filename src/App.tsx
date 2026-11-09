@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AccountView } from './views/AccountView'
 import { CollectionsView } from './views/CollectionsView'
 import { AlbumDetail } from './views/AlbumDetail'
@@ -12,6 +12,7 @@ import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navig
 import { bindUpdateEvents } from './features/updates/store'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
+import { usePresence } from './ui/presence'
 import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
@@ -123,6 +124,11 @@ export function App() {  if (!isNative) {
     ;(window as Window & { __auroraRenders?: number }).__auroraRenders = appRenders
   }
 
+  // 首帧归因：commit 完成时刻。和 main.tsx 的派发时刻相减就是 React 的净耗时。
+  useLayoutEffect(() => {
+    console.log('[boot] react committed', Math.round(performance.now()))
+  }, [])
+
   const [stack, setStack] = useState<ShellRoute[]>(() => [initialShell()])
   const [cursor, setCursor] = useState(0)
   /** 外壳路由：人在哪一页。左栏高亮、页头标题、地址栏都由它决定。 */
@@ -151,6 +157,11 @@ export function App() {  if (!isNative) {
     })
   }, [])
   const [stageOpen, setStageOpen] = useState(false)
+  /*
+   * 舞台要留 320ms 的退场：它是 fixed 全屏且底色不透明，一帧摘掉就是硬切。
+   * 打开时不需要延迟——stageOpen 立刻为真，mounted 同帧就真。
+   */
+  const stage = usePresence(stageOpen, 320)
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   // 顶栏那个框自己的结果浮层。搜索不再是「跳去一个页面」。
@@ -169,6 +180,38 @@ export function App() {  if (!isNative) {
   const setFlash = useFlash((state) => state.show)
   /** The open per-track actions menu, if any. */
   const [trackMenu, setTrackMenu] = useState<TrackMenuRequest | null>(null)
+  /*
+   * 菜单的退场。
+   *
+   * 菜单项的动作用户一按就该发生（切歌、加入队列不能等），所以这里只推迟
+   * 「卸载」这一件事：先挂 170ms 的 is-closing 让菜单缩回去，再真的把状态置空。
+   * 否则点开菜单再点外面，菜单是一帧被摘掉的，看起来像被掐断。
+   */
+  const [menuClosing, setMenuClosing] = useState(false)
+  const menuTimer = useRef<number | null>(null)
+  const openTrackMenu = useCallback((request: TrackMenuRequest) => {
+    if (menuTimer.current !== null) {
+      window.clearTimeout(menuTimer.current)
+      menuTimer.current = null
+    }
+    setMenuClosing(false)
+    setTrackMenu(request)
+  }, [])
+  const closeTrackMenu = useCallback(() => {
+    if (menuTimer.current !== null) return
+    setMenuClosing(true)
+    menuTimer.current = window.setTimeout(() => {
+      menuTimer.current = null
+      setMenuClosing(false)
+      setTrackMenu(null)
+    }, 170)
+  }, [])
+  useEffect(
+    () => () => {
+      if (menuTimer.current !== null) window.clearTimeout(menuTimer.current)
+    },
+    []
+  )
 
   /*
    * 歌单只活在平台账号里：菜单里的「加入歌单」列的就是各账号能被写进去的单子。
@@ -604,7 +647,7 @@ export function App() {  if (!isNative) {
   /** Preview only: pop the actions menu so it can be reviewed in a screenshot. */
   useEffect(() => {
     if (!MENU_TEST_MODE || tracks.length < 3) return
-    setTrackMenu({ track: tracks[2], x: 400, y: 290 })
+    openTrackMenu({ track: tracks[2], x: 400, y: 290 })
   }, [tracks])
 
   useKeyboardShortcuts({
@@ -741,18 +784,18 @@ export function App() {  if (!isNative) {
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
     if (shell.view === 'onlinealbum' || shell.view === 'onlineartist' || shell.view === 'onlineplaylist') {
-      return <OnlinePage route={shell} onMenu={setTrackMenu} />
+      return <OnlinePage route={shell} onMenu={openTrackMenu} />
     }
     if (shell.view === 'home') {
       return <HomeView onNavigate={goShell} />
     }
-    if (shell.view === 'roam') return <RoamView onNavigate={goShell} onMenu={setTrackMenu} />
-    if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={setTrackMenu} />
-    if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={setTrackMenu} />
-    if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={setTrackMenu} />
+    if (shell.view === 'roam') return <RoamView onNavigate={goShell} onMenu={openTrackMenu} />
+    if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={openTrackMenu} />
+    if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={openTrackMenu} />
+    if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
       if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
-    if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={setTrackMenu} />
+    if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'nowplaying') {
       return (
         <NowPlaying
@@ -793,7 +836,7 @@ export function App() {  if (!isNative) {
             playing={playing}
             onPlayAt={(index) => player.playQueue(own, index)}
             onOpenAlbum={(id) => goShell({ view: 'album', id })}
-            onMenu={setTrackMenu}
+            onMenu={openTrackMenu}
           />
         )
       }
@@ -802,7 +845,7 @@ export function App() {  if (!isNative) {
     if (view === 'settings') return <SettingsView />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
-    if (view === 'search') return <SearchView onMenu={setTrackMenu} />
+    if (view === 'search') return <SearchView onMenu={openTrackMenu} />
     // 平台不是目的地。网易云、QQ、酷狗都只是来源，内容分别落进推荐、我喜欢的、
     // 歌单与搜索里；这两个旧地址统一落到歌单页，旧书签点了不至于白屏。
     if (view === 'netease' || view === 'qq') return <PlaylistsView onNavigate={goShell} />
@@ -850,15 +893,15 @@ export function App() {  if (!isNative) {
               player.playQueue(ordered, index)
             }}
             onOpenArtist={(artistId) => navigate({ view: 'artists', artistId })}
-            onMenu={setTrackMenu}
+            onMenu={openTrackMenu}
           />
         )
       }
 
-      return <LocalView onNavigate={goShell} onMenu={setTrackMenu} initialTab="albums" />
+      return <LocalView onNavigate={goShell} onMenu={openTrackMenu} initialTab="albums" />
     }
     if (view === 'artists') {
-      return <LocalView onNavigate={goShell} onMenu={setTrackMenu} initialTab="artists" />
+      return <LocalView onNavigate={goShell} onMenu={openTrackMenu} initialTab="artists" />
     }
     return null
   }
@@ -1108,23 +1151,24 @@ export function App() {  if (!isNative) {
           track={trackMenu.track}
           x={trackMenu.x}
           y={trackMenu.y}
+          closing={menuClosing}
           playlists={writablePlaylists}
-          onClose={() => setTrackMenu(null)}
+          onClose={() => closeTrackMenu()}
           onOpenDetail={() => {
             const target = trackMenu.track
-            setTrackMenu(null)
+            closeTrackMenu()
             goShell({ view: 'track', id: target.id })
           }}
           onPlayNext={() => {
             player.addToQueue([trackMenu.track], 'next')
-            setTrackMenu(null)
+            closeTrackMenu()
             setFlash(`已把《${trackMenu.track.title}》排到下一首`)
           }}
           onDownload={
             trackMenu.track.source
               ? () => {
                   const request = downloadRequestOf(trackMenu.track)
-                  setTrackMenu(null)
+                  closeTrackMenu()
                   if (!request) {
                     setFlash('这首歌取不到音源，没法下载')
                     return
@@ -1141,7 +1185,7 @@ export function App() {  if (!isNative) {
             const [providerId, rawId] = key.split(':')
             const id = Number(rawId)
             const target = trackMenu.track
-            setTrackMenu(null)
+            closeTrackMenu()
             if (!providerId || !Number.isFinite(id)) return
             void addTrackToOnlinePlaylist(providerId, id, target).then((result) => {
               reportWrite(result, '已加入歌单')
@@ -1152,7 +1196,7 @@ export function App() {  if (!isNative) {
               ? () => {
                   const { providerId, id } = trackMenu.onlinePlaylist!
                   const target = trackMenu.track
-                  setTrackMenu(null)
+                  closeTrackMenu()
                   void removeTrackFromOnlinePlaylist(providerId, id, target).then((result) => {
                     reportWrite(result, '已移出这张歌单')
                     if (result.ok) refreshOnlinePlaylist(providerId, id)
@@ -1162,7 +1206,7 @@ export function App() {  if (!isNative) {
           }
           onReveal={() => {
             void bridge.library.reveal(trackMenu.track.path)
-            setTrackMenu(null)
+            closeTrackMenu()
           }}
         />
       ) : null}
@@ -1180,8 +1224,9 @@ export function App() {  if (!isNative) {
         document-level overlay, and keeping it outside the grid makes that
         structural rather than a CSS ordering accident.
       */}
-      {stageOpen ? (
+      {stage.mounted ? (
         <LyricsStage
+          closing={stage.closing}
           track={track}
           lyrics={lyrics}
           duration={duration}

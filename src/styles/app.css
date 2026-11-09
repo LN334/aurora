@@ -1217,6 +1217,16 @@ input::placeholder {
     scale: 0.97;
   }
 }
+/* 退场比进场快一档：菜单是「用过就走」的东西，慢吞吞地缩回去会挡下一次点击。 */
+.menu.is-closing {
+  animation: menuOut 150ms var(--ease-out) both;
+}
+@keyframes menuOut {
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
 
 .menu__item {
   display: block;
@@ -1433,6 +1443,10 @@ input::placeholder {
 
 .trk:hover {
   background: rgb(9 12 16 / 0.42);
+}
+/* 按下比悬停再深一档：点整行切歌是最常做的动作，得有一声回话。 */
+.trk:active {
+  background: rgb(9 12 16 / 0.58);
 }
 
 /* 正在播的那一行：左侧一根 accent 竖条 + 一层几乎看不出的底，标题与封面跟着亮。 */
@@ -1654,6 +1668,21 @@ input::placeholder {
 /* fill 覆盖 SVG 上 fill="none" 这个展示属性：喜欢了就把心填实。 */
 .trk__like.is-liked svg {
   fill: currentColor;
+}
+/*
+ * 按下的那一下：缩到 0.76 再弹到 1.16 回位。
+ *
+ * is-pop 由 TrackList 的 popLike() 临时挂上来（不挂在 is-liked 上），这样列表
+ * 初次渲染时已经喜欢的行不会集体弹一次。
+ */
+.trk__like.is-pop svg {
+  animation: heartPop 420ms var(--ease-spring);
+}
+@keyframes heartPop {
+  0% { scale: 1; }
+  30% { scale: 0.76; }
+  62% { scale: 1.16; }
+  100% { scale: 1; }
 }
 .trk__more {
   position: relative;
@@ -2247,6 +2276,7 @@ html.is-resizing * {
 @media (prefers-reduced-motion: reduce) {
   .main__body { animation: none; }
   .artwork__img { animation: none; }
+  .trk__like.is-pop svg { animation: none; }
   .rh-card:active, .rh-mini:active, .rh-sc:active, .pl-card:active,
   .rh-btn:active, .rh-daily__all:active, .rh-more:active,
   .card__art-open:active, .card__play:active { transform: none; }

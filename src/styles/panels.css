@@ -108,6 +108,28 @@
   }
 }
 
+/*
+ * 退场：沿进来的方向退回去。
+ *
+ * 只在 usePresence 把 closing 挂上来时才跑；跑完那一瞬间组件才被卸载，所以
+ * 这条动画不会和「元素已经被摘掉」抢时间。起点由元素当前值给出，不写 from。
+ */
+.panel.is-closing {
+  animation: panelOut var(--dur-3) var(--ease-out) both;
+}
+@keyframes panelOut {
+  to {
+    opacity: 0;
+    translate: 24px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel.is-closing {
+    animation: none;
+  }
+}
+
 .panel__head {
   display: flex;
   align-items: center;

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { EQ_BANDS } from '../features/player/store'
 import { Close, Wave } from '../ui/icons'
+import { usePresence } from '../ui/presence'
 
 const MIN_DB = -12
 const MAX_DB = 12
@@ -122,12 +123,14 @@ interface EqPanelProps {
 }
 
 export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onClose }: EqPanelProps) {
-  if (!open) return null
+  // 关闭时先留着，让面板把退场动画走完再真正卸载。
+  const { mounted, closing } = usePresence(open, 320)
+  if (!mounted) return null
 
   const isFlat = gains.every((gain) => gain === 0)
 
   return (
-    <aside className="panel" aria-label="均衡器">
+    <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="均衡器">
       <header className="panel__head">
         <h2 className="panel__title">均衡器</h2>
         <button

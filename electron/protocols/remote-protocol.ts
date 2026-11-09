@@ -335,7 +335,15 @@ async function proxy(target: string, request: Request, image: boolean): Promise<
  * 6 个以内：同时开几十条 TCP 去抢同一家 CDN，单张反而更慢。
  * ------------------------------------------------------------------------- */
 
-const IMAGE_PARALLEL = 6
+/*
+ * 12 而不是 6。
+ *
+ * 首屏一屏二十几张封面，6 并发时后面那批要等前一批整个往返结束；这张网的
+ * 单张往返在 150–400ms，6 个名额意味着首屏最后一行要等将近两秒。这些请求
+ * 打在完全不同的 CDN 主机上，彼此不抢连接，翻倍后首屏基本是一批出完。
+ * 上限不再往上抬是因为上游图床对同源并发有阈值，再多就开始 403。
+ */
+const IMAGE_PARALLEL = 12
 let imageActive = 0
 const imageWaiters: (() => void)[] = []
 

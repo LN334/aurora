@@ -63,4 +63,17 @@ if (!container) throw new Error('Root container #root is missing from index.html
 // Deliberately not wrapped in StrictMode: its double-invoked effects would
 // build and tear down the Web Audio graph twice, which produces audible
 // glitches and duplicate Media Session registrations.
+/*
+ * 启动打点。
+ *
+ * 用户嘴里的「打开慢」是窗口出现到看见内容这一段，只有把 render 派发、首帧、
+ * 窗口 show 三个时刻放在同一条时间轴上，才知道慢在哪一段。console.log 会被
+ * 主进程的 console-message 转发进 startup.log，所以这几行别删。
+ */
+console.log('[boot] module evaluated', Math.round(performance.now()))
 createRoot(container).render(<App />)
+console.log('[boot] render dispatched', Math.round(performance.now()))
+// 双 rAF：第一个回调在下一帧绘制前，第二个在那一帧已经上屏之后。
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => console.log('[boot] first frame painted', Math.round(performance.now())))
+})

@@ -7,6 +7,30 @@
   border: 1px solid rgb(255 255 255 / 0.1);
   background: rgb(14 17 21 / 0.96);
   box-shadow: 0 18px 40px rgb(0 0 0 / 0.48);
+  transform-origin: top left;
+  animation: lkIn var(--dur-2) var(--ease-out) both;
+}
+.lk-menu.is-closing {
+  animation: lkOut 150ms var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes lkIn {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+@keyframes lkOut {
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lk-menu,
+  .lk-menu.is-closing {
+    animation: none;
+  }
 }
 
 .lk-menu__head {

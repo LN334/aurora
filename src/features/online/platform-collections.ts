@@ -34,8 +34,15 @@ export interface CollectedAlbum {
  * 空位——那会让「本来就没有」看起来像「没加载出来」。
  */
 export function useCollectedAlbums(): CollectedAlbum[] {
-  const neteaseAccount = useOnlineStore('netease')((state) => state.account)
-  const qqAccount = useOnlineStore('qq')((state) => state.account)
+  /*
+   * 只认账号 id，不认账号对象。
+   *
+   * 以前依赖的是 account 这个对象本身：启动阶段 loginStatus 会写好几次状态，
+   * 每次都换一个新对象，于是 effect 每次都重跑，一次冷启动能把 albumSublist
+   * 打十几遍。id 变了才代表「换了一个人」，那才是真的需要重取。
+   */
+  const neteaseId = useOnlineStore('netease')((state) => state.account?.id ?? 0)
+  const qqId = useOnlineStore('qq')((state) => state.account?.id ?? 0)
   const [rows, setRows] = useState<CollectedAlbum[]>([])
 
   useEffect(() => {
@@ -43,7 +50,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
     const loads: Promise<CollectedAlbum[]>[] = []
 
     const netease = window.aurora?.netease
-    if (netease?.albumSublist) {
+    if (neteaseId && netease?.albumSublist) {
       loads.push(
         netease
           .albumSublist()
@@ -66,7 +73,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
     }
 
     const qq = window.aurora?.qq
-    if (qq?.collectedAlbums) {
+    if (qqId && qq?.collectedAlbums) {
       loads.push(
         qq
           .collectedAlbums()
@@ -99,7 +106,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
     return () => {
       alive = false
     }
-  }, [neteaseAccount, qqAccount])
+  }, [neteaseId, qqId])
 
   return rows
 }
