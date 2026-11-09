@@ -1,26 +1,19 @@
 import { useCallback } from 'react'
 import { player } from '../features/player/actions'
-import { tracksUnder } from '../features/library/tree'
-import { usePlaylists } from '../features/playlists/store'
-import type { Route } from './routing'
-import type { Album, Track } from '../types'
+import type { Track } from '../types'
 
 /**
- * The three "play all of this collection" actions, plus creating a playlist.
+ * 「把这一整份东西从头放一遍」。
  *
- * Each is the same shape - collect the tracks that belong to something, hand them
- * to the transport - and the interesting part is what "belong" means: an album is
- * its own running order, an artist is everything credited to them, a folder is
- * everything beneath it. Grouping them here makes that comparison readable, and
- * keeps `App` about wiring rather than about collection membership.
+ * 剩下一条：专辑按它自己的曲序放，不按曲库顺序。艺人、文件夹、歌单的「播全部」
+ * 现在分别由各自的页面自己做——它们本来就知道自己那一份是哪几首，绕一圈回到
+ * 这里反而多一层参数。
  */
 export function useTrackActions(options: {
-  tracks: Track[]
-  albums: Album[]
+  albums: { id: string; trackIds: string[] }[]
   trackById: Map<string, Track>
-  navigate(route: Route): void
 }) {
-  const { tracks, albums, trackById, navigate } = options
+  const { albums, trackById } = options
 
   /** An album plays in its own order, not in library order. */
   const playAlbum = useCallback(
@@ -35,29 +28,5 @@ export function useTrackActions(options: {
     [albums, trackById]
   )
 
-  const playArtist = useCallback(
-    (artistId: string) => {
-      const owned = tracks.filter((item) => item.albumArtist === artistId)
-      if (owned.length > 0) player.playQueue(owned, 0)
-    },
-    [tracks]
-  )
-
-  const playFolder = useCallback(
-    (folderPath: string) => {
-      const owned = tracksUnder(tracks, folderPath)
-      if (owned.length > 0) player.playQueue(owned, 0)
-    },
-    [tracks]
-  )
-
-  const createPlaylist = useCallback(
-    (name: string) => {
-      const created = usePlaylists.getState().create(name)
-      navigate({ view: 'playlists', playlistId: created.id })
-    },
-    [navigate]
-  )
-
-  return { playAlbum, playArtist, playFolder, createPlaylist }
+  return { playAlbum }
 }

@@ -59,7 +59,7 @@ export function PlaylistDetail({
         kicker="歌单"
         title={
           <input
-            className="dh__input"
+            className="dp__input"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onBlur={commitName}
@@ -82,7 +82,7 @@ export function PlaylistDetail({
         actions={
           <>
             <button
-              className="rh-btn rh-btn--main"
+              className="dbtn dbtn--main"
               type="button"
               onClick={() => onPlayAt(0)}
               disabled={tracks.length === 0}
@@ -90,16 +90,14 @@ export function PlaylistDetail({
               <Play size={15} />
               播放全部
             </button>
-            <button className="rh-btn" type="button" onClick={onExport} disabled={tracks.length === 0}>
+            <button className="dbtn" type="button" onClick={onExport} disabled={tracks.length === 0}>
               导出 m3u
             </button>
           </>
         }
-        facts={[
-          { label: '来源', value: '本机' },
-          { label: '曲目', value: tracks.length + ' 首' },
-          { label: '时长', value: total > 0 ? formatTime(total) : '—' },
-          { label: '排序', value: '可拖动' }
+        stats={[
+          { value: tracks.length, label: '曲目' },
+          { value: total > 0 ? formatTime(total) : '—', label: '时长' }
         ]}
       />
 

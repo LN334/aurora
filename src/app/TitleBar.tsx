@@ -1,22 +1,20 @@
 import { useRef } from 'react'
-import { ChevronLeft, ChevronRight, Close, Search } from '../ui/icons'
-import { BrandMark } from './BrandMark'
+import { ChevronLeft, ChevronRight, Close, Queue, Search, Shuffle } from '../ui/icons'
 
 /**
- * The one search field in the app.
+ * 窗口顶部那一条：去哪儿、找什么、顺手能做什么。
  *
- * It used to be two fields that looked identical and did different things: this
- * one filtered the local library, and the online screen had its own box that sent
- * a request to Netease. On the online screen this one silently did nothing - it
- * filtered a list that screen does not show - which reads as a broken input.
+ * 左边只剩前进后退。品牌名搬到了左栏顶上——它原来在这里，跟左栏那个大标题
+ * 抢同一块地方，而且顶栏最左边放品牌会让「后退」按钮离窗口边缘很远。
  *
- * So the field is now explicit about what it searches, and the caller decides what
- * that means: filter the tracks already here, or query the catalogue. One control,
- * one thing to learn, and the mode is stated in the placeholder rather than left to
- * be discovered by typing into something that does not respond.
+ * 中间是搜索，全应用唯一的一个框。它曾经是两个长得一样、做的事不同的输入框：
+ * 这一个过滤曲库，在线页那个发请求。现在范围写在占位符里，回车才发起请求。
  *
- * It is a form rather than a bare input so that Enter works for the request-based
- * mode; live filtering simply ignores the submit.
+ * 右边是两枚动作，不是两个页面：
+ *
+ * - 队列：听什么、接下来听什么，是一个随时要看一眼的面板，不是一页。
+ * - 漫游：它不整理任何东西，只是随机放点什么。以前它在左栏，跟「推荐」「我
+ *   喜欢的」并列，读起来像第四个库；它其实是一个动词。
  */
 interface TitleBarProps {
   query: string
@@ -25,16 +23,17 @@ interface TitleBarProps {
   onSubmit?: () => void
   /** Focus. The results panel opens on the field being used, not on a page change. */
   onFocus?: () => void
-  /** What this field searches right now, as the placeholder. */
   placeholder: string
-  /** The full scope, shown on hover. The placeholder stays short; this does not. */
   hint?: string
-  /** Keyboard hint; omit for modes with no shortcut worth teaching. */
   shortcut?: string
   onBack: () => void
   onForward: () => void
   canBack: boolean
   canForward: boolean
+  /** 队列里有几首；0 时不显示数字，只留动作。 */
+  queueCount: number
+  onOpenQueue: () => void
+  onRoam: () => void
 }
 
 export function TitleBar({
@@ -48,18 +47,16 @@ export function TitleBar({
   onBack,
   onForward,
   canBack,
-  canForward
+  canForward,
+  queueCount,
+  onOpenQueue,
+  onRoam
 }: TitleBarProps) {
   const field = useRef<HTMLInputElement>(null)
   const typed = query.length > 0
 
   return (
     <header className="titlebar">
-      <div className="titlebar__mark">
-        <BrandMark size={21} />
-        <span className="titlebar__wordmark">Aurora</span>
-      </div>
-
       <div className="titlebar__history">
         <button
           className="icon-btn"
@@ -130,6 +127,18 @@ export function TitleBar({
       </form>
 
       <div className="titlebar__spacer" />
+
+      <div className="titlebar__acts">
+        <button className="tbar-btn" onClick={onOpenQueue} title="播放队列 (Ctrl P)">
+          <Queue size={15} />
+          <span>队列</span>
+          {queueCount > 0 ? <b className="tbar-btn__num">{queueCount}</b> : null}
+        </button>
+        <button className="tbar-btn" onClick={onRoam} title="随机放点什么 (R)">
+          <Shuffle size={15} />
+          <span>漫游</span>
+        </button>
+      </div>
     </header>
   )
 }

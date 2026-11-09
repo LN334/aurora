@@ -135,8 +135,6 @@ export function initialShell(): ShellRoute {
 }
 
 function legacyRoute(): Route {
-  const hash = window.location.hash.replace(/^#/, '')
-  if (hash === 'empty') return { view: 'songs' }
   return { view: 'discover' }
 }
 
@@ -153,16 +151,8 @@ export function shellToRoute(route: ShellRoute): Route {
     case 'daily':
       // 这一页自己取数，旧视图表里没有对应项，落一个安全的地方。
       return { view: 'discover' }
-    case 'liked':
-      return { view: 'collection', tab: 'liked' }
-    case 'collections':
-      // 收藏第一版只有一个落点：我喜欢的 + 我的歌单。真按专辑/艺人收藏要等后端
-      // 给出「收藏了什么」的数据，在那之前不造一个空壳页面。
-      return { view: 'collection', tab: 'liked' }
     case 'playlists':
-      return route.id ? { view: 'playlists', playlistId: route.id } : { view: 'collection', tab: 'playlists' }
-    case 'local':
-      return { view: 'library', source: 'local', tab: 'songs' }
+      return route.id ? { view: 'playlists', playlistId: route.id } : { view: 'discover' }
     case 'album':
       return { view: 'albums', albumId: route.id }
     case 'artist':
@@ -207,10 +197,6 @@ export function routeToShell(route: Route): ShellRoute {
   switch (route.view) {
     case 'discover':
       return { view: 'home' }
-    case 'collection':
-      return route.tab === 'playlists' ? { view: 'playlists' } : { view: 'liked' }
-    case 'library':
-      return { view: 'local' }
     case 'albums':
       return route.albumId ? { view: 'album', id: route.albumId } : { view: 'home' }
     case 'artists':

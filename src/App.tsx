@@ -2,11 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccountView } from './views/AccountView'
 import { CollectionsView } from './views/CollectionsView'
 import { AlbumDetail } from './views/AlbumDetail'
-import { AlbumGrid } from './views/AlbumGrid'
-import { ArtistList } from './views/ArtistList'
 import { ArtistView } from './views/ArtistView'
 import { EqPanel } from './views/EqPanel'
-import { FolderTree } from './views/FolderTree'
 import { DailyView } from './views/DailyView'
 import { LikedView } from './views/LikedView'
 import { LocalView } from './views/LocalView'
@@ -24,11 +21,10 @@ import { RoamView } from './views/RoamView'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/PlayerBar'
 import { PlaylistDetail } from './views/PlaylistDetail'
-import { PlaylistList } from './views/PlaylistList'
 import { QueuePanel } from './views/QueuePanel'
 import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
-import { TrackList, type TrackMenuRequest } from './ui/TrackList'
+import type { TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
@@ -55,7 +51,7 @@ import { useWallpaper } from './features/wallpaper/store'
 import { LyricsStage } from './stage/LyricsStage'
 import type { OverlayStatus } from './env'
 import type { Track } from './types'
-import { LIBRARY_VIEWS, type Route } from './app/routing'
+import type { Route } from './app/routing'
 import {
   SHELL_TITLES,
   initialShell,
@@ -82,9 +78,6 @@ import {
   STRESS_TRACKS
 } from './app/preview'
 import { usePlaylistFiles } from './features/playlists/io'
-import { EmptyLibrary } from './views/EmptyLibrary'
-import { CollectionView } from './views/CollectionView'
-import { LibraryView } from './views/LibraryView'
 import { HomeView } from './views/HomeView'
 import { Sources } from './views/Sources'
 import { RecentView } from './views/RecentView'
@@ -627,29 +620,15 @@ export function App() {  if (!isNative) {
   })
 
 
-  const {
-    albums,
-    artists,
-    folderTree,
-    trackById,
-    activePlaylist,
-    playlistTracks,
-    representative,
-    band,
-    currentAlbumId,
-    albumDetail,
-    currentArtistId,
-    currentFolder
-  } = useLibraryData(route, tracks, legacyPlaylists, track)
-
-  const { playAlbum, playArtist, playFolder, createPlaylist } = useTrackActions({
+  const { albums, artists, trackById, activePlaylist, playlistTracks, albumDetail } = useLibraryData(
+    route,
     tracks,
-    albums,
-    trackById,
-    navigate
-  })
+    legacyPlaylists
+  )
 
-  const { importPlaylist, exportPlaylist } = usePlaylistFiles({
+  const { playAlbum } = useTrackActions({ albums, trackById })
+
+  const { exportPlaylist } = usePlaylistFiles({
     tracks,
     activePlaylist,
     playlistTracks: playlistTracks.tracks,
@@ -696,7 +675,14 @@ export function App() {  if (!isNative) {
    * of itself ("按唱片整理"), which is the kind of text you read once and then
    * scroll past forever.
    */
-  const headTitle = shell.view === 'artist' ? (band?.artist?.name ?? '艺术家') : SHELL_TITLES[shell.view]
+  /**
+   * 只有本机文件那几页才该出现「重新扫描 / 添加文件夹」。
+   *
+   * 它们扫的是磁盘上的目录，在线平台与账号页没有文件可扫——以前那两个按钮
+   * 跟着「音乐库」这一层到处出现，在别人的目录和头像列表下面显得莫名其妙。
+   */
+  const fileTools = shell.view === 'local' || shell.view === 'album'
+  const headTitle = SHELL_TITLES[shell.view]
   /*
    * Only scan state belongs here now. The header used to also report "N tracks"
    * while the shell's field was filtering the library in place; filtering moved to
@@ -785,7 +771,7 @@ export function App() {  if (!isNative) {
       return (
         <TrackView
           id={shell.id}
-          onNavigate={navigate}
+          onOpenLocal={() => goShell({ view: 'local' })}
           onOpenNow={(at) => {
             goShell({ view: 'nowplaying' })
             if (typeof at === 'number') player.seekTo(at)
@@ -817,29 +803,6 @@ export function App() {  if (!isNative) {
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={setTrackMenu} />
-    // 一级入口：音乐库（磁盘上的文件：歌曲 / 专辑 / 艺术家 / 文件夹）。
-    if (view === 'library') {
-      return (
-        <LibraryView
-          tab={route.tab ?? 'songs'}
-          onNavigate={navigate}
-          onMenu={setTrackMenu}
-          onAddFolders={addFolders}
-        />
-      )
-    }
-    // 一级入口：收藏（我喜欢的歌曲、我建的歌单）。歌单从音乐库移到这里：
-    // 音乐库的栏目由文件系统决定，歌单由人决定，两者不是同一种组织方式。
-    if (view === 'collection') {
-      return (
-        <CollectionView
-          tab={route.tab ?? 'liked'}
-          onNavigate={navigate}
-          onMenu={setTrackMenu}
-          onImport={() => void importPlaylist()}
-        />
-      )
-    }
     // 平台不是目的地。网易云、QQ、酷狗都只是来源，内容分别落进推荐、我喜欢的、
     // 歌单与搜索里；这两个旧地址统一落到歌单页，旧书签点了不至于白屏。
     if (view === 'netease' || view === 'qq') return <PlaylistsView onNavigate={goShell} />
@@ -867,58 +830,9 @@ export function App() {  if (!isNative) {
           />
         )
       }
-      return (
-        <PlaylistList
-          playlists={legacyPlaylists}
-          onOpen={(id) => navigate({ view: 'playlists', playlistId: id })}
-          onCreate={createPlaylist}
-          onRemove={(id) => usePlaylists.getState().remove(id)}
-          onImport={() => void importPlaylist()}
-        />
-      )
+      return <PlaylistsView onNavigate={goShell} />
     }
 
-    if (tracks.length === 0) {
-      return (
-        <EmptyLibrary
-          onAdd={addFolders}
-          busy={busy}
-          scanning={scanning}
-          roots={roots}
-        />
-      )
-    }
-    if (band) {
-      return (
-        <div className="detail">
-          <AlbumGrid
-            albums={band.albums}
-            representative={representative}
-            currentAlbumId={currentAlbumId}
-            onOpen={(album) => navigate({ view: 'albums', albumId: album.id })}
-            onPlay={(album) => playAlbum(album.id)}
-          />
-          <TrackList
-            tracks={band.tracks}
-            currentId={track?.id ?? null}
-            playing={playing}
-            onPlayAt={(index) => player.playQueue(band.tracks, index)}
-            onMenu={setTrackMenu}
-          />
-        </div>
-      )
-    }
-    if (view === 'songs') {
-      return (
-        <TrackList
-          tracks={tracks}
-          currentId={track?.id ?? null}
-          playing={playing}
-          onPlayAt={(index) => player.playQueue(tracks, index)}
-          onMenu={setTrackMenu}
-        />
-      )
-    }
     if (view === 'albums') {
       if (albumDetail) {
         return (
@@ -941,30 +855,10 @@ export function App() {  if (!isNative) {
         )
       }
 
-      return (
-        <AlbumGrid
-          albums={albums}
-          representative={representative}
-          currentAlbumId={currentAlbumId}
-          onOpen={(album) => navigate({ view: 'albums', albumId: album.id })}
-          onPlay={(album) => playAlbum(album.id)}
-        />
-      )
+      return <LocalView onNavigate={goShell} onMenu={setTrackMenu} initialTab="albums" />
     }
     if (view === 'artists') {
-      return (
-        <ArtistList
-          artists={artists}
-          albums={albums}
-          representative={representative}
-          currentArtistId={currentArtistId}
-          onOpen={(artistId) => navigate({ view: 'artists', artistId })}
-          onPlay={playArtist}
-        />
-      )
-    }
-    if (view === 'folders') {
-      return <FolderTree nodes={folderTree} currentFolder={currentFolder} onPlay={playFolder} />
+      return <LocalView onNavigate={goShell} onMenu={setTrackMenu} initialTab="artists" />
     }
     return null
   }
@@ -1003,6 +897,9 @@ export function App() {  if (!isNative) {
           onForward={goForward}
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
+          queueCount={queueLength}
+          onOpenQueue={() => setQueueOpen((open) => !open)}
+          onRoam={() => goShell({ view: 'roam' })}
         />
 
         <Rail
@@ -1012,6 +909,8 @@ export function App() {  if (!isNative) {
           onToggleCollapsed={toggleCollapsed}
           profileLabel={activeAccount?.label ?? null}
           onOpenProfile={() => goShell({ view: 'me' })}
+          albumCount={albums.length}
+          artistCount={artists.length}
         />
 
         <main className="main">
@@ -1086,7 +985,7 @@ export function App() {  if (!isNative) {
                 catalogue; on the profiles screen they were a stray button about
                 folders next to a list of people.
               */}
-              {isNative && LIBRARY_VIEWS.has(view) ? (
+              {isNative && fileTools ? (
                 <button
                   className="btn"
                   onClick={() => void runScan()}
@@ -1097,7 +996,7 @@ export function App() {  if (!isNative) {
                   {scanning ? `${Math.round(progress * 100)}%` : '重新扫描'}
                 </button>
               ) : null}
-              {LIBRARY_VIEWS.has(view) ? (
+              {fileTools ? (
                 <button className="btn" onClick={() => void addFolders()} disabled={busy}>
                   <Plus size={15} />
                   添加文件夹
@@ -1186,7 +1085,7 @@ export function App() {  if (!isNative) {
           onClose={() => setQueueOpen(false)}
           onOpenLibrary={() => {
             setQueueOpen(false)
-            navigate({ view: 'library', tab: 'songs' })
+            goShell({ view: 'local' })
           }}
         />
       </div>

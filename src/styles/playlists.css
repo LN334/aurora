@@ -26,83 +26,6 @@
   min-width: 0;
 }
 
-.playlists {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  max-width: 860px;
-}
-
-.playlists__new {
-  display: flex;
-  gap: var(--s2);
-}
-.playlists__new input {
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 var(--s3);
-  border-radius: var(--r-control);
-  background: var(--ink-800);
-  border: 1px solid transparent;
-  color: var(--text-hi);
-  transition: border-color 140ms var(--ease-out);
-}
-.playlists__new input:focus {
-  outline: none;
-  border-color: rgb(var(--accent-rgb) / 0.55);
-}
-.playlists__new input::placeholder {
-  color: var(--text-low);
-}
-
-.playlist-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.playlist-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px 30px;
-  align-items: center;
-  gap: var(--s2);
-  height: 40px;
-  border-radius: var(--r-control);
-  transition: background var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
-}
-.playlist-row:hover {
-  background: var(--ink-850);
-}
-.playlist-row:active {
-  /* 按下去整行轻缩：行自身不是 fixed 容器、里面也没有 fixed 后代，transform 安全。 */
-  transform: scale(0.994);
-}
-
-.playlist-row__main {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  min-width: 0;
-  padding-left: var(--s2);
-  text-align: left;
-  color: var(--text-mid);
-}
-.playlist-row__name {
-  min-width: 0;
-  font-size: var(--fs-body);
-  color: var(--text-hi);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.playlist-row__count {
-  text-align: right;
-  font-size: var(--fs-meta);
-  color: var(--text-low);
-}
 
 /* --- detail -------------------------------------------------------------- */
 
@@ -267,6 +190,4 @@
 /* 令牌在 reduce 下已经降到 1ms，但 scale 仍会硬跳一下，这里直接关掉。 */
 @media (prefers-reduced-motion: reduce) {
   .flash { animation: none; }
-  .playlist-row { transition: none; }
-  .playlist-row:active { transform: none; }
 }

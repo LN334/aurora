@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 
 /**
- * 详情页的共用页头：一张大图、一个标题、一行事实、一排动作。
+ * 详情页的共用页头：一张大图、一个标题、一行事实、一排动作，底下一条统计。
  *
- * 专辑、艺人、歌单三页的差别只在数据，不在版式——所以头只写一次。三页各自
- * 造一套头，是上一版「每页都像另一个 App」的来源之一。
+ * 专辑、艺人、歌单、歌曲四页的差别只在数据，不在版式——所以头只写一次。四页
+ * 各造一套头，是上一版「每页都像另一个 App」的来源之一。
  *
- * 图可以是方形（专辑、歌单）也可以是圆的（艺人），由内部包一层裁剪决定。
+ * 统计条单独占一行而不是挂在右侧一列：一列薄薄的事实表会把正文挤成中间一条
+ * 通道，两边空着中间挤；横过来之后数字变大，读的是「这里有多少东西」。
  */
 export function DetailHero({
   art,
@@ -15,43 +16,44 @@ export function DetailHero({
   title,
   meta,
   actions,
-  facts,
-  brief,
-  children
+  stats,
+  brief
 }: {
   art: ReactNode
   round?: boolean
   kicker?: ReactNode
   title: ReactNode
+  /** 标题下面那一行：作者 / 年份 / 曲目数，用分隔点隔开。 */
   meta?: ReactNode
   actions?: ReactNode
-  /** 右侧那列事实（平台、发行年、曲目数…）。宽窗口才出现，窄窗直接收起。 */
-  facts?: { label: string; value: ReactNode }[]
+  /** 这一页的规模。数值大、说明小，一行横着读完。 */
+  stats?: { value: ReactNode; label: string; highlight?: boolean }[]
   /** 一段简介。有就写两行，没有就不占位置。 */
   brief?: string
-  children?: ReactNode
 }) {
   return (
-    <header className="dh">
-      <div className={'dh__art' + (round ? ' dh__art--round' : '')}>{art}</div>
-      <div className="dh__body">
-        {kicker ? <span className="dh__kicker">{kicker}</span> : null}
-        <h1 className="dh__title">{title}</h1>
-        {meta ? <div className="dh__meta">{meta}</div> : null}
-        {actions ? <div className="dh__actions">{actions}</div> : null}
-        {brief ? <p className="dh__brief">{brief}</p> : null}
-        {children}
-        {facts && facts.length > 0 ? (
-          <dl className="dh__facts">
-            {facts.map((fact) => (
-              <div className="dh__fact" key={fact.label}>
-                <dt>{fact.label}</dt>
-                <dd>{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-      </div>
-    </header>
+    <>
+      <header className="dp">
+        <div className={'dp__art' + (round ? ' dp__art--round' : '')}>{art}</div>
+        <div className="dp__body">
+          {kicker ? <span className="dp__k">{kicker}</span> : null}
+          <h1 className="dp__t">{title}</h1>
+          {meta ? <div className="dp__m">{meta}</div> : null}
+          {actions ? <div className="dp__acts">{actions}</div> : null}
+          {brief ? <p className="dp__brief">{brief}</p> : null}
+        </div>
+      </header>
+
+      {stats && stats.length > 0 ? (
+        <div className="dp__stats">
+          {stats.map((stat) => (
+            <div className={'st' + (stat.highlight ? ' st--hi' : '')} key={stat.label}>
+              <b>{stat.value}</b>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </>
   )
 }

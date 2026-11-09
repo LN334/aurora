@@ -354,9 +354,8 @@ function releaseImage(): void {
   else imageActive -= 1
 }
 
-
 /*
- * 下面这段封面缓存原本是 electron/protocols/cover-cache.ts。并进本文件是因为
+ * 下面这段封面缓存原本是 protocols 目录里单独一个模块。并进本文件是因为
  * `node --test` 直接跑 .ts 时会按 ESM 解析无扩展名的相对 import，报
  * ERR_MODULE_NOT_FOUND；改成带 .ts 的路径又过不了 nodenext 的编译。
  */
@@ -524,7 +523,6 @@ function createCoverCache(directory: string): CoverCache {
     }
   }
 }
-
 
 const caches = new Map<string, CoverCache>()
 

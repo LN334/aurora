@@ -48,7 +48,7 @@ export function ArtistView({
         }
         actions={
           <button
-            className="rh-btn rh-btn--main"
+            className="dbtn dbtn--main"
             type="button"
             disabled={tracks.length === 0}
             onClick={() => onPlayAt(0)}
@@ -57,11 +57,10 @@ export function ArtistView({
             播放全部
           </button>
         }
-        facts={[
-          { label: '来源', value: '本机' },
-          { label: '专辑', value: artist.albumIds.length + ' 张' },
-          { label: '单曲', value: artist.trackCount + ' 首' },
-          { label: '时长', value: total > 0 ? formatTime(total) : '—' }
+        stats={[
+          { value: artist.trackCount, label: '曲目' },
+          { value: artist.albumIds.length, label: '专辑' },
+          { value: total > 0 ? formatTime(total) : '—', label: '时长' }
         ]}
       />
 

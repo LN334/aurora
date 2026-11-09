@@ -7,31 +7,15 @@ export type ViewId =
   /**
    * 发现：平台推荐内容。
    *
-   * 一级入口之一。它回答的是「有什么可听的」，所以不属于任何一个平台，
+   * 首页那一屏的内容来源。它回答「有什么可听的」，所以不属于任何一个平台，
    * 也不属于本机曲库——平台与本地在它里面都是内容的来源。
    */
   | 'discover'
-  /**
-   * 音乐库：来源（本机 / 各在线平台）+ 栏目。
-   *
-   * 一级入口之一。本地文件与在线平台在这里是平级的来源标签页，而不是
-   * 侧栏里两组并列的入口——那正是「本地音乐分类太怪」的由来。
-   * 专辑/艺术家/歌单的详情页仍是独立视图，因为它们有自己的返回与历史。
-   */
-  | 'library'
-  /**
-   * 收藏：用户自己的东西（我喜欢的歌曲、我建的歌单）。
-   *
-   * 一级入口之一。它和音乐库的区别是：音乐库描述磁盘上有什么（文件决定栏目），
-   * 收藏描述「我挑过什么」——同一首歌可能来自任何来源，也可能一条文件都没有。
-   * 歌单也归这里：一首歌进歌单靠的是人，不是它存在哪个文件夹。
-   */
-  | 'collection'
+  /** 专辑、艺人、歌单的详情页：各有自己的返回与历史，所以是独立视图。 */
   | 'albums'
   | 'artists'
-  | 'songs'
-  | 'folders'
   | 'playlists'
+  /** 账号页与音源页仍从侧栏底部进入，不是一级目的地。 */
   | 'accounts'
   | 'sources'
   | 'settings'
@@ -51,10 +35,9 @@ export type ViewId =
    *
    * It answers from whichever catalogue its tabs name, which is why it is its own
    * view: the field in the shell now means one thing everywhere, and "which
-   * source" is chosen visibly instead of being implied by the page.
+   * source" is chosen visibly instead
    */
   | 'search'
-
 
 export interface Track {
   /** Stable hash of the file path; survives re-scans and library moves. */

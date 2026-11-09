@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import type { Route } from '../app/routing'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLyrics } from '../features/library/hooks'
 import { artworkFor } from '../features/library/source'
@@ -30,11 +29,12 @@ function sizeLabel(value: number): string | null {
  */
 export function TrackView({
   id,
-  onNavigate,
+  onOpenLocal,
   onOpenNow
 }: {
   id: string
-  onNavigate(route: Route): void
+  /** 回「本机音乐」——空态里那句「去音乐库」原来的落点。 */
+  onOpenLocal(): void
   /** 进「正在播放」；带秒数表示从这句歌词开始。 */
   onOpenNow(at?: number): void
 }) {
@@ -58,7 +58,7 @@ export function TrackView({
     return (
       <div className="empty">
         <h2>找不到这首歌</h2>
-        <button className="btn btn--accent" onClick={() => onNavigate({ view: 'library', tab: 'songs' })}>
+        <button className="btn btn--accent" onClick={onOpenLocal}>
           回本机音乐
         </button>
       </div>
@@ -101,7 +101,7 @@ export function TrackView({
             {track.artist ? (
               refs.artist ? (
                 <button
-                  className="dh__link"
+                  className="dp__link"
                   type="button"
                   onClick={() => openOnlineArtist(source, refs.artist as number)}
                   title={`去 ${track.artist} 的页面`}
@@ -115,7 +115,7 @@ export function TrackView({
             {track.album ? (
               refs.album ? (
                 <button
-                  className="dh__link"
+                  className="dp__link"
                   type="button"
                   onClick={() => openOnlineAlbum(source, refs.album as number)}
                   title={`去《${track.album}》`}
@@ -135,7 +135,7 @@ export function TrackView({
         actions={
           <>
             <button
-              className="rh-btn rh-btn--main"
+              className="dbtn dbtn--main"
               type="button"
               onClick={() => player.playTrack(track)}
             >
@@ -143,7 +143,7 @@ export function TrackView({
               播放
             </button>
             <button
-              className={`rh-btn${liked ? ' is-on' : ''}`}
+              className={`dbtn${liked ? ' is-on' : ''}`}
               type="button"
               onClick={() => void toggleLiked(track)}
               aria-pressed={liked}
@@ -151,7 +151,7 @@ export function TrackView({
               <Heart size={15} />
               {liked ? '已喜欢' : '喜欢'}
             </button>
-            <button className="rh-btn" type="button" onClick={() => player.addToQueue([track], 'next')}>
+            <button className="dbtn" type="button" onClick={() => player.addToQueue([track], 'next')}>
               <Queue size={14} />
               下一首播放
             </button>
@@ -197,7 +197,7 @@ export function TrackView({
             <dd>
               {refs.album && track.album ? (
                 <button
-                  className="dh__link"
+                  className="dp__link"
                   type="button"
                   onClick={() => openOnlineAlbum(source, refs.album as number)}
                 >
@@ -211,7 +211,7 @@ export function TrackView({
             <dd>
               {refs.artist && track.artist ? (
                 <button
-                  className="dh__link"
+                  className="dp__link"
                   type="button"
                   onClick={() => openOnlineArtist(source, refs.artist as number)}
                 >

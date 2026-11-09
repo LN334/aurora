@@ -41,27 +41,32 @@ export function AlbumDetail({
   return (
     <div className="col">
       <DetailHero
-        art={
-          <Artwork src={artworkFor(first)} alt="" fallback={<Note size={34} />} />
-        }
+        art={<Artwork src={artworkFor(first)} alt="" fallback={<Note size={34} />} />}
         kicker="专辑"
         title={album.name}
         meta={
           <>
-            <button className="dh__link" type="button" onClick={() => onOpenArtist(album.albumArtist)}>
+            <button className="dp__link" type="button" onClick={() => onOpenArtist(album.albumArtist)}>
               {album.albumArtist}
             </button>
-            {album.year ? <span>{album.year}</span> : null}
+            {album.year ? (
+              <>
+                <span className="sep2">·</span>
+                <span>{album.year}</span>
+              </>
+            ) : null}
+            <span className="sep2">·</span>
+            <span>{tracks.length} 首</span>
           </>
         }
         actions={
           <>
-            <button className="rh-btn rh-btn--main" type="button" onClick={onPlayAll} disabled={tracks.length === 0}>
+            <button className="dbtn dbtn--main" type="button" onClick={onPlayAll} disabled={tracks.length === 0}>
               <Play size={15} />
-              播放
+              播放全部
             </button>
             <button
-              className="rh-btn"
+              className="dbtn"
               type="button"
               disabled={tracks.length === 0}
               onClick={() => onPlayAt(Math.floor(Math.random() * tracks.length))}
@@ -71,11 +76,10 @@ export function AlbumDetail({
             </button>
           </>
         }
-        facts={[
-          { label: '来源', value: '本机' },
-          { label: '曲目', value: tracks.length + ' 首' },
-          { label: '时长', value: total > 0 ? formatTime(total) : '—' },
-          { label: '格式', value: formats.length > 0 ? formats.join(' / ') : '—' }
+        stats={[
+          { value: tracks.length, label: '曲目' },
+          { value: total > 0 ? formatTime(total) : '—', label: '时长' },
+          { value: formats.length > 0 ? formats.join(' / ') : '—', label: '格式' }
         ]}
       />
 

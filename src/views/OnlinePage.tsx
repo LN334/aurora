@@ -132,7 +132,7 @@ function PlaylistPage({
         actions={
           <>
             <button
-              className="rh-btn rh-btn--main"
+              className="dbtn dbtn--main"
               type="button"
               disabled={songs.length === 0}
               onClick={() => void store.getState().playAt(songs, 0)}
@@ -141,22 +141,22 @@ function PlaylistPage({
               播放全部
             </button>
             {editable && writer?.rename ? (
-              <button className="rh-btn" type="button" onClick={() => setRenaming(true)}>
+              <button className="dbtn" type="button" onClick={() => setRenaming(true)}>
                 改名
               </button>
             ) : null}
             {editable && writer?.remove ? (
-              <button className="rh-btn" type="button" onClick={() => setRemoving(true)}>
+              <button className="dbtn" type="button" onClick={() => setRemoving(true)}>
                 删除
               </button>
             ) : null}
           </>
         }
-        facts={[
-          { label: '平台', value: provider?.displayName ?? providerId },
-          { label: '曲目', value: rows.length + ' 首' },
-          { label: '时长', value: rows.length > 0 ? formatTime(total) : '—' },
-          { label: '创建者', value: summary?.creator || '—' }
+        stats={[
+          { value: rows.length, label: '曲目' },
+          { value: rows.length > 0 ? formatTime(total) : '—', label: '时长' },
+          { value: summary?.creator || '—', label: '创建者' },
+          { value: provider?.displayName ?? providerId, label: '平台' }
         ]}
       />
 
@@ -312,9 +312,9 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
           <>
             {artists.map((person, index) => (
               <span key={person.id + ':' + index}>
-                {index > 0 ? <span className="dh__sep">/</span> : null}
+                {index > 0 ? <span className="sep2">/</span> : null}
                 <button
-                  className="dh__link"
+                  className="dp__link"
                   type="button"
                   onClick={() => openOnlineArtist(providerId as ProviderId, person.id)}
                 >
@@ -327,7 +327,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         }
         actions={
           <button
-            className="rh-btn rh-btn--main"
+            className="dbtn dbtn--main"
             type="button"
             disabled={tracks.length === 0}
             onClick={() => player.playQueue(tracks, 0)}
@@ -336,11 +336,10 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
             播放全部
           </button>
         }
-        facts={[
-          { label: '平台', value: platform?.displayName ?? '在线' },
-          { label: '发行', value: year ? String(year) : '—' },
-          { label: '曲目', value: String(tracks.length) + ' 首' },
-          { label: '艺人', value: artists.map((person) => person.name).join(' / ') || '—' }
+        stats={[
+          { value: tracks.length, label: '曲目' },
+          { value: year ? String(year) : '—', label: '发行' },
+          { value: platform?.displayName ?? '在线', label: '平台' }
         ]}
         brief={brief}
       />
@@ -552,7 +551,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
         }
         actions={
           <button
-            className="rh-btn rh-btn--main"
+            className="dbtn dbtn--main"
             type="button"
             disabled={hot.length === 0}
             onClick={() => player.playQueue(hot, 0)}
@@ -561,11 +560,10 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
             播放热门
           </button>
         }
-        facts={[
-          { label: '平台', value: sourceText },
-          { label: '单曲', value: counts ? String(counts.songs) : String(hot.length) },
-          { label: '专辑', value: counts && counts.albums > 0 ? String(counts.albums) : '—' },
-          { label: '热门', value: hot.length + ' 首' }
+        stats={[
+          { value: counts ? counts.songs : hot.length, label: '曲目' },
+          { value: counts && counts.albums > 0 ? counts.albums : '—', label: '专辑' },
+          { value: sourceText, label: '来源', highlight: usedSources.length > 1 }
         ]}
         brief={brief}
       />

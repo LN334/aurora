@@ -44,44 +44,6 @@
 
 }
 
-/* =============================================================================
-   侧栏底部的档案入口
-
-   账号页本身已经不带侧栏了，但这套文件仍归这里：档案入口就是账号页的入口，
-   两处样式放一起才不会出现「头像 20px / 38px」两种尺寸。
-   ========================================================================== */
-
-/* 侧栏底部常驻「现在是谁」。档案系统必须有这个指示，否则切换是不可见的。 */
-.rail__profile .rail__avatar {
-  margin-right: 1px;
-}
-.rail__profile .nav-item__label {
-  color: var(--text-hi);
-  font-weight: 600;
-}
-
-/* 头像圆必须自己定尺寸：img 一旦没有约束就会按原图撑满整个侧栏宽度。 */
-.rail__avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--ink-700);
-  color: var(--text-mid);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-.rail__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 /* ===========================================================================
    账号页 v2：hero + 平台四卡 + 文件夹行
    ========================================================================= */
