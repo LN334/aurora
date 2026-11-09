@@ -1,4 +1,5 @@
 import type { RepeatMode, Track } from '../../types'
+import { useRoam } from '../../features/player/roam-session'
 import { DesktopLyrics, Expand, Queue, Sliders } from '../../ui/icons'
 import { ControlButton } from './ControlButton'
 import { Progress } from './Progress'
@@ -74,6 +75,9 @@ export function PlayerBar({
   onOpenQueue,
   onToggleDesktopLyrics
 }: PlayerBarProps) {
+  // 漫游里随机与循环没有可改的东西，底栏跟播放页一起把这两颗收起来。
+  const roaming = useRoam((state) => state.tracks.length > 0)
+
   return (
     <footer className="player">
       <TrackInfo track={track} onOpenNow={onOpenNow} />
@@ -90,6 +94,7 @@ export function PlayerBar({
           onPrev={onPrev}
           onToggleShuffle={onToggleShuffle}
           onCycleRepeat={onCycleRepeat}
+          hideModes={roaming}
         />
         <Progress duration={duration} disabled={!track} onSeekRatio={onSeekRatio} />
       </div>

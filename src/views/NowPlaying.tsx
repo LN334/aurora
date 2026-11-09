@@ -151,15 +151,23 @@ export function NowPlaying({
             >
               <Heart size={18} />
             </button>
-            <button
-              type="button"
-              className={`np__shuf${shuffle ? ' is-on' : ''}`}
-              onClick={() => player.toggleShuffle()}
-              title="随机播放"
-              aria-pressed={shuffle}
-            >
-              <Shuffle size={17} />
-            </button>
+            {/*
+             * 漫游里这两颗没有事可做：整趟本来就从池子里随机挑，再挂一次
+             * 「随机播放」是把同一句话再说一遍；「列表循环 / 单曲循环」对一条
+             * 会自己续长的队列也说不清——漫游的循环就是一直往下走。普通队列
+             * 里它们照旧，那里才有「顺序重排」与「到底停不停」可谈。
+             */}
+            {roam ? null : (
+              <button
+                type="button"
+                className={`np__shuf${shuffle ? ' is-on' : ''}`}
+                onClick={() => player.toggleShuffle()}
+                title="随机播放"
+                aria-pressed={shuffle}
+              >
+                <Shuffle size={17} />
+              </button>
+            )}
             <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
               <Prev size={20} />
             </button>
@@ -174,14 +182,16 @@ export function NowPlaying({
             <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
               <Next size={20} />
             </button>
-            <button
-              type="button"
-              className={`np__rep${repeat !== 'off' ? ' is-on' : ''}`}
-              onClick={() => player.cycleRepeat()}
-              title={repeat === 'one' ? '单曲循环' : repeat === 'all' ? '列表循环' : '不循环'}
-            >
-              {repeat === 'one' ? <RepeatOne size={17} /> : <Repeat size={17} />}
-            </button>
+            {roam ? null : (
+              <button
+                type="button"
+                className={`np__rep${repeat !== 'off' ? ' is-on' : ''}`}
+                onClick={() => player.cycleRepeat()}
+                title={repeat === 'one' ? '单曲循环' : repeat === 'all' ? '列表循环' : '不循环'}
+              >
+                {repeat === 'one' ? <RepeatOne size={17} /> : <Repeat size={17} />}
+              </button>
+            )}
             <button type="button" className="np__vol" onClick={() => player.toggleMute()} title={muted ? '取消静音' : '静音'}>
               {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
             </button>

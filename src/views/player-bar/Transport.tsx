@@ -21,6 +21,14 @@ interface TransportProps {
   onPrev(): void
   onToggleShuffle(): void
   onCycleRepeat(): void
+  /**
+   * 漫游时不显示随机与循环。
+   *
+   * 这两颗改的是「这一队列怎么放」，而漫游的一趟本来就从池子里随机挑、
+   * 走到头还会自己续，再挂两个开关只是把同一件事说第二遍。普通队列里
+   * 它们照旧——那里才有「顺序重排」与「到底停不停」可谈。
+   */
+  hideModes?: boolean
 }
 
 /**
@@ -40,22 +48,25 @@ export function Transport({
   onNext,
   onPrev,
   onToggleShuffle,
-  onCycleRepeat
+  onCycleRepeat,
+  hideModes
 }: TransportProps) {
   const repeatText = REPEAT_TEXT[repeat]
 
   return (
     <div className="pb-transport" role="group" aria-label="播放控制">
-      <ControlButton
-        variant="mode"
-        label="随机播放"
-        tip="随机播放"
-        active={shuffle}
-        pressed={shuffle}
-        onClick={onToggleShuffle}
-      >
-        <Shuffle size={17} />
-      </ControlButton>
+      {hideModes ? null : (
+        <ControlButton
+          variant="mode"
+          label="随机播放"
+          tip="随机播放"
+          active={shuffle}
+          pressed={shuffle}
+          onClick={onToggleShuffle}
+        >
+          <Shuffle size={17} />
+        </ControlButton>
+      )}
 
       <div className="pb-transport__main">
         <ControlButton label="上一首" onClick={onPrev} className="pb-btn--skip">
@@ -84,16 +95,18 @@ export function Transport({
         </ControlButton>
       </div>
 
-      <ControlButton
-        variant="mode"
-        label={repeatText.label}
-        tip={repeatText.tip}
-        active={repeat !== 'off'}
-        pressed={repeat !== 'off'}
-        onClick={onCycleRepeat}
-      >
-        {repeat === 'one' ? <RepeatOne size={17} /> : <Repeat size={17} />}
-      </ControlButton>
+      {hideModes ? null : (
+        <ControlButton
+          variant="mode"
+          label={repeatText.label}
+          tip={repeatText.tip}
+          active={repeat !== 'off'}
+          pressed={repeat !== 'off'}
+          onClick={onCycleRepeat}
+        >
+          {repeat === 'one' ? <RepeatOne size={17} /> : <Repeat size={17} />}
+        </ControlButton>
+      )}
     </div>
   )
 }
