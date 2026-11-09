@@ -299,7 +299,12 @@ async function main() {
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
         .filter((event) => !isQuietMiss(event))
-        .map((event) => event.params.entry.text)
+        // The text alone says "400 (Bad Request)" without naming the request, which
+        // is useless when chasing it. Carry the URL next to it.
+        .map((event) => {
+          const url = String(event.params.entry.url || '')
+          return url ? event.params.entry.text + ' <- ' + url : event.params.entry.text
+        })
       quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
@@ -594,7 +599,12 @@ async function main() {
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
         .filter((event) => !isQuietMiss(event))
-        .map((event) => event.params.entry.text)
+        // The text alone says "400 (Bad Request)" without naming the request, which
+        // is useless when chasing it. Carry the URL next to it.
+        .map((event) => {
+          const url = String(event.params.entry.url || '')
+          return url ? event.params.entry.text + ' <- ' + url : event.params.entry.text
+        })
       quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
@@ -641,10 +651,42 @@ async function main() {
         cdp,
         'document.querySelector(".trk .trk__title") ? document.querySelector(".trk .trk__title").innerText.trim() : ""'
       )
-      const clicked = await evaluate(
+      /*
+       * 真的鼠标点一下，而不是 element.click()。
+       *
+       * Chromium 只把手势当用户意图，脚本点击拿不到播放许可：歌能加载出总时长
+       * （4:32），进度却一直停在 0:00，看上去像播放坏了。
+       */
+      const spotJson = await evaluate(
         cdp,
-        '(() => { const row = document.querySelector(".trk .trk__hit"); if (!row) return "no row"; row.click(); return "clicked" })()'
+        [
+          '(() => {',
+          '  const row = document.querySelector(".trk .trk__hit")',
+          '  if (!row) return "null"',
+          '  const r = row.getBoundingClientRect()',
+          '  return JSON.stringify({ x: r.left + Math.min(160, r.width / 2), y: r.top + r.height / 2 })',
+          '})()'
+        ].join('\n')
       )
+      let clicked = 'no row'
+      if (spotJson && spotJson !== 'null') {
+        const spot = JSON.parse(spotJson)
+        await cdp.send('Input.dispatchMouseEvent', {
+          type: 'mousePressed',
+          x: spot.x,
+          y: spot.y,
+          button: 'left',
+          clickCount: 1
+        })
+        await cdp.send('Input.dispatchMouseEvent', {
+          type: 'mouseReleased',
+          x: spot.x,
+          y: spot.y,
+          button: 'left',
+          clickCount: 1
+        })
+        clicked = 'clicked'
+      }
       let bar = ''
       let moved = false
       if (clicked === 'clicked') {
@@ -671,7 +713,12 @@ async function main() {
       const logged = fresh
         .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
         .filter((event) => !isQuietMiss(event))
-        .map((event) => event.params.entry.text)
+        // The text alone says "400 (Bad Request)" without naming the request, which
+        // is useless when chasing it. Carry the URL next to it.
+        .map((event) => {
+          const url = String(event.params.entry.url || '')
+          return url ? event.params.entry.text + ' <- ' + url : event.params.entry.text
+        })
       quietMisses += fresh.filter(isQuietMiss).length
       const thrown = fresh
         .filter((event) => event.method === 'Runtime.exceptionThrown')
@@ -714,7 +761,7 @@ async function main() {
         'document.querySelector(".pb-volume") ? Number(document.querySelector(".pb-volume").getAttribute("aria-valuenow")) : -1'
       const clickMute = [
         "(() => {",
-        "  const b = Array.from(document.querySelectorAll('.player__right .icon-btn')).find((n) => (n.getAttribute('aria-label') || '').indexOf('静音') >= 0)",
+        "  const b = Array.from(document.querySelectorAll('.pb-vol .pb-btn')).find((n) => (n.getAttribute('aria-label') || '').indexOf('静音') >= 0)",
         "  if (!b) return 'no mute button'",
         "  b.click()",
         "  return b.getAttribute('aria-label')",
@@ -760,7 +807,9 @@ async function main() {
       const problems = []
       if (!slider) problems.push('no volume slider in the player bar')
       if (mutedAt !== 0) problems.push('muting did not take the volume to 0 (aria-valuenow=' + mutedAt + ')')
-      if (!(restoredAt >= 10)) problems.push('unmuting left the volume at ' + restoredAt + '%')
+      // 静音前刚把滑条拖到最左，原始音量本来就只有 1%。取消静音要回到那个值，
+      // 而不是某个「听起来合理」的数字——旧实现的 bug 是回到 0，按了等于没按。
+      if (!(restoredAt >= 1)) problems.push('unmuting left the volume at ' + restoredAt + '%')
       if (!shotOk) problems.push('screenshot failed')
       if (logged.length) problems.push(logged.length + ' console error(s)')
       if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
