@@ -1,7 +1,7 @@
 # 代码结构与约定
 
-这份文档说明代码放在哪里、为什么这样分、以及哪些方向不允许反向依赖。界面设计的决定
-另见 [`ui-design.md`](./ui-design.md)。
+这份文档说明代码放在哪里、为什么这样分、以及哪些方向不允许反向依赖。界面结构的决定
+见 `design/redesign/ia5.html`（设计稿）与 `src/app/shell.ts`（导航与标题的唯一真源）。
 
 ## 分层
 
@@ -19,7 +19,7 @@ src/
     player/       播放内核：engine、driver、queue、urls、进度条；history.ts 是播放历史的
                   纯函数（按本地日历日累计、最近 60 条），history-store.ts 负责攒批与落盘
     playlists/    歌单：m3u 读写、存储、导入导出的流程
-    home/         主页（侧栏第一项，路由仍是 discover）：问候、上次听到、四张快捷卡、
+    home/         现在（侧栏第一项，路由仍是 discover）：问候、上次听到、四张快捷卡、
                   今日聆听、最近播放；平台推荐直接嵌 discover/
     discover/     平台公开内容（推荐歌单/新歌速递/分类歌单）+ 它的纯函数与 store
     settings/     设置状态的读写；motion.ts 是「动态效果」开关（只有渲染层，存 localStorage）
@@ -28,7 +28,7 @@ src/
                 四个编号分区（parts.tsx 是排版零件，panes/ 每段一个文件）；
                 AccountView.tsx 是账号页（档案 + 在线平台 + 本地文件夹），
                 settings/panes/AccountPane.tsx 是它的内容，两者共用同一份零件
-  ui/           共享基元：ArtCard、Artwork、icons、TrackList、format、UpdatePanel
+  ui/           共享基元：Artwork、icons、TrackList、format、UpdatePanel
   stage/        歌词舞台与可视化
   overlay/      桌面歌词窗口（独立入口 overlay.html）
   styles/       全局样式；功能专属样式跟随其目录
@@ -49,7 +49,7 @@ tests/          单元测试，主要覆盖纯逻辑
 
 ### 主页与播放历史（`src/features/home/`）
 
-侧栏第一项叫主页，回答的是「接着听什么」，不是「有哪些新内容」。它在打开应用的第一屏就
+侧栏第一项叫「现在」，回答的是「接着听什么」，不是「有哪些新内容」。它在打开应用的第一屏就
 给出四件事：上次听到的那首（能直接继续）、我的音乐（各平台账号状态）、为你挑选（平台公开推荐）、
 今日听了多久与最常听谁。最近播放排在最后。
 参考项目 Mineradio-paused 的主页也是这个顺序：先给「你刚才在干什么」，再给「世界有什么」。
@@ -92,9 +92,8 @@ tests/          单元测试，主要覆盖纯逻辑
 
 ### 平台层（`src/features/online/`）
 
-在线音乐曾经是硬编码的网易云。结构照参考软件 Folia 的 provider 模式做（分析见
-[`reference-players.md`](./reference-players.md)），因为它是被验证过的形状，而自己发明一个
-只会得到同一套东西的另一版命名。
+在线音乐曾经是硬编码的网易云。结构照 Folia 的 provider 模式做，因为它是被验证过的
+形状，而自己发明一个只会得到同一套东西的另一版命名。
 
 - **注册表**：`Map<ProviderId, Provider>`，UI 只调 `listProviders()`，不 import 任何具体平台。
   `providerForTrack(track)` 按歌曲反查平台。
@@ -127,8 +126,8 @@ electron/pure  →  只有 node: 内置模块与类型
 
 ## 一页一个标题、界面规则
 
-见 [`ui-design.md`](./ui-design.md)。要点：标题由外壳打印、页内不重复；本地与在线共用
-`ArtCard`；页内不再造侧栏；曲库操作只在 `LIBRARY_VIEWS` 里出现。
+标题由外壳打印、页内不重复；本地与在线共用同一套卡片（`.rh-card`）；页内不再造侧栏；
+「重新扫描 / 添加文件夹」这类操作只在壳层的本机音乐页出现。
 
 ## 审计
 
@@ -272,8 +271,8 @@ node scripts/move-files.mjs --plan scripts/moves/features.json --apply  # 执行
 
 按「值不值得」排序，附当前行数（2026-10，平台抽象之后）：
 
-- **`src/App.tsx`（964 行）**仍是最大的渲染层文件：键盘快捷键、播放/导航动作、
-  六段视图分发的 JSX 都在其中。`useKeyboardShortcuts` 与 `usePlaybackActions` 已经抽出
+- **`src/App.tsx`（1205 行）**仍是最大的渲染层文件：键盘快捷键、播放/导航动作、
+  十几个页面的分发都在其中。`useKeyboardShortcuts` 与 `usePlaybackActions` 已经抽出
   （曾经约 1180 行），剩下的主要是视图分发与头部接线，可以再拆，但收益已经不如从前。
 - **`electron/netease/client.ts`（840 行）**按 bootstrap / 会话 / 搜索 / 播放 / 登录拆分。
   它是全项目最大的文件，且 `bootstrap` 那段逻辑（含重试策略）已经证明值得独立。
