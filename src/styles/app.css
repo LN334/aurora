@@ -387,46 +387,32 @@ input::placeholder {
   flex: 1;
 }
 
-/* --- 顶栏右侧动作 --------------------------------------------------------- */
-
-.titlebar__acts {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  -webkit-app-region: no-drag;
-}
+/* --- 品牌 ---------------------------------------------------------------- */
 
 /*
- * 队列和漫游是两枚动作胶囊，不是两个页面入口。
+ * 品牌是一枚按钮，不是一块文字：点它回「现在」，跟大多数播放器一样。
  *
- * 它们和搜索框同一层：都在说「现在能做什么」。做成胶囊而不是图标，是因为这
- * 两个词本身就该被读出来——一个喇叭加一个波浪线的图标，没人猜得出那是队列。
+ * 顶栏整条是拖拽区（-webkit-app-region: drag），这一块必须标 no-drag ——
+ * 否则按下去就变成拖窗口，点了没反应。
  */
-.tbar-btn {
+.titlebar__brand {
   display: flex;
+  flex: none;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   height: 30px;
-  padding: 0 11px;
+  padding: 0 10px 0 2px;
   border-radius: var(--r-control);
-  background: rgb(255 255 255 / 0.055);
-  border: 1px solid rgb(255 255 255 / 0.07);
-  color: var(--text-mid);
-  font-size: 12.5px;
-  white-space: nowrap;
-  transition: background 130ms var(--ease-out), color 130ms var(--ease-out),
-    border-color 130ms var(--ease-out);
-}
-.tbar-btn:hover {
-  background: rgb(255 255 255 / 0.11);
-  border-color: rgb(255 255 255 / 0.14);
-  color: var(--text-hi);
-}
-.tbar-btn__num {
+  font-family: var(--font-display);
+  font-size: 15.5px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-strong);
-  transition: color var(--tint-ms) var(--ease-out);
+  letter-spacing: -0.01em;
+  color: var(--text-hi);
+  -webkit-app-region: no-drag;
+  transition: background 130ms var(--ease-out);
+}
+.titlebar__brand:hover {
+  background: rgb(255 255 255 / 0.06);
 }
 
 /* --- left rail ----------------------------------------------------------- */
@@ -443,24 +429,9 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 10px 12px 12px;
+  /* 品牌搬去顶栏之后顶上不能空得没道理，也不能让第一行贴着窗框：16px 刚好 */
+  padding: 16px 12px 12px;
   border-right: var(--line-soft);
-  overflow: hidden;
-}
-
-.rail__brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 8px;
-  margin-bottom: 8px;
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-hi);
-  white-space: nowrap;
   overflow: hidden;
 }
 

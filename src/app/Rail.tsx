@@ -5,8 +5,7 @@ import { useRecentEntries } from '../features/player/history-store'
 import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Album, Compass, Heart, List, Refresh, Settings, Sidebar, User } from '../ui/icons'
-import { BrandMark } from './BrandMark'
+import { Album, Compass, Heart, List, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
 import type { ShellRoute, ShellView } from './shell'
 
 /**
@@ -14,8 +13,9 @@ import type { ShellRoute, ShellView } from './shell'
  *
  * 分三段，每段只有一个意思：
  *
- * 1. 顶上一颗：现在。它是默认落点，也是唯一一页会自己变（问候、正在播放、
- *    今天听什么），所以放在所有列表上面。
+ * 1. 顶上两颗都是「不用挑、直接听」：现在（默认落点，唯一一页会自己变）与
+ *    漫游（随机放点什么）。漫游曾经在顶栏当动作、又在左栏当过第四格，最后落在
+ *    这里：它确实不是一个库，但「现在」也不是——这两件事是同一类。
  * 2. 两格人的判断与行为：我喜欢的、最近播放。这两个不是曲库的栏目，是「我
  *    做过什么」，跟库存放什么无关，所以单列一段。
  * 3. 「库」：歌单 / 专辑 / 艺人。这三条是同一件事的三个切面——把已有的东西
@@ -24,8 +24,6 @@ import type { ShellRoute, ShellView } from './shell'
  *
  * 平台不在这栏里。网易云、QQ、酷狗、汽水是来源，不是目的地；给平台一个平级
  * 入口就会长出四个几乎一样的页面。账号在底部那一格里。
- *
- * 漫游也不在这栏里：它不是一个「库」，是「随便放点什么」的动作，所以挪到顶栏。
  */
 interface RailProps {
   route: ShellRoute
@@ -37,6 +35,8 @@ interface RailProps {
   onOpenProfile: () => void
   albumCount: number
   artistCount: number
+  /** 随机放点什么。左栏之所以收它，见文件头的注释。 */
+  onRoam: () => void
 }
 
 interface RailItem {
@@ -62,7 +62,8 @@ export function Rail({
   profileLabel,
   onOpenProfile,
   albumCount,
-  artistCount
+  artistCount,
+  onRoam
 }: RailProps) {
   /*
    * 侧栏底部这一行的头像跟「我」页的档案卡必须是同一张：先看档案自己设的头像，
@@ -124,13 +125,21 @@ export function Rail({
 
   return (
     <nav className="rail" aria-label="主导航">
-      <div className="rail__brand" title="Aurora">
-        <BrandMark size={20} />
-        <span>Aurora</span>
-      </div>
-
       <div className="rail__scroll">
         {item('home', '现在', Compass, null)}
+        {/*
+          * 漫游是一个动词，所以它不跟「歌单 / 专辑 / 艺人」共用「库」那个标题。
+          * 用按钮而不是 item()：它不落在任何一页上，也没有计数。
+          */}
+        <button
+          className={`rail-item${lit === 'roam' ? ' is-active' : ''}`}
+          onClick={onRoam}
+          title="随机放点什么 (R)"
+          aria-current={lit === 'roam' ? 'page' : undefined}
+        >
+          <Shuffle size={16} />
+          <span className="rail-item__label">漫游</span>
+        </button>
         {item('liked', '我喜欢的', Heart, countFor('liked'))}
         {item('recent', '最近播放', Refresh, countFor('recent'))}
 

@@ -941,9 +941,7 @@ export function App() {  if (!isNative) {
           onForward={goForward}
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
-          queueCount={queueLength}
-          onOpenQueue={() => setQueueOpen((open) => !open)}
-          onRoam={() => goShell({ view: 'roam' })}
+          onHome={() => goShell({ view: 'home' })}
         />
 
         <Rail
@@ -955,6 +953,7 @@ export function App() {  if (!isNative) {
           onOpenProfile={() => goShell({ view: 'me' })}
           albumCount={albums.length}
           artistCount={artists.length}
+          onRoam={() => goShell({ view: 'roam' })}
         />
 
         <main className="main">
