@@ -1043,7 +1043,7 @@ input::placeholder {
   background: var(--ink-800);
   border: 1px solid rgb(255 255 255 / 0.09);
   box-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
-  backdrop-filter: var(--refract, ) blur(10px) saturate(1.2);
+  backdrop-filter: var(--glass-refract, var(--refract, )) blur(10px) saturate(1.2);
   /* 从左上角那一点弹出来，给人的印象才是「从这一行长出来的」，而不是凭空出现。 */
   transform-origin: top left;
   animation: menuIn var(--dur-2) var(--ease-out) both;
@@ -2039,19 +2039,22 @@ input::placeholder {
 }
 
 /*
- * 拖着窗口改大小的那几十毫秒：先把毛玻璃关掉。
+ * 拖着窗口改大小的那几十毫秒：只摘掉折射，保留模糊。
  *
- * backdrop-filter 要按新尺寸重新采样它背后的整张壁纸，拖边框时这项开销足够大，
- * 大到浏览器宁可先把按旧宽度排好的界面留在屏幕上；等松手、模糊算完，界面才
- * 「啪」地跳到正确布局——用户看到的就是容器错位、闪一下。关掉模糊以后每帧只剩
- * 纯色重绘，重排跟得上，眼睛看不到中间态。松手 120ms 后主进程把类摘掉。
+ * backdrop-filter 里最贵的是折射那一环——它要读背后的整张壁纸去生成位移图，
+ * 拖边框时每帧重算，大到浏览器宁可先把按旧宽度排好的界面留在屏幕上。纯模糊
+ * （blur + saturate）本身不用这笔钱，留着它就不必牺牲观感。
  *
- * 用 !important 是故意的：这条规则要在所有页面、所有组件上生效，逐个去改选择器
- * 既漏又不值。
+ * 以前这里是 backdrop-filter: none，于是拖动的那一下整页背景突然变清晰：玻璃
+ * 全没了，壁纸细节直接跳出来，松手又糊回去。用户看到的就是「一动就清楚」。
+ * 现在改成把 --glass-refract 置空：所有带折射的玻璃退回纯模糊，背景照旧糊着，
+ * 只是边缘那圈液态弯折暂时消失。松手 120ms 后主进程把类摘掉。
+ *
+ * 注意别写成 html.is-resizing * { backdrop-filter: blur(3px) }：那会给页面上每
+ * 一个元素都叠一层毛玻璃，比原来更贵更糊。
  */
-html.is-resizing * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+html.is-resizing {
+  --glass-refract: ;
 }
 
 /*
@@ -2147,7 +2150,7 @@ html.is-resizing * {
   border: 1px solid rgb(255 255 255 / 0.1);
   background: rgb(14 17 22 / 0.8);
   /* 圆钮直径只有 40，模糊再大就把边缘那点弯折吃干净了，6px 是能共存的上限。 */
-  backdrop-filter: var(--refract, ) blur(6px);
+  backdrop-filter: var(--glass-refract, var(--refract, )) blur(6px);
   color: var(--text-mid);
   cursor: pointer;
   transition: color 160ms var(--ease-out), background 160ms var(--ease-out);

@@ -91,8 +91,8 @@
   /* 和播放条同一块玻璃：抽屉浮在内容之上，底下的封面要隐约透出来。 */
   background: rgb(14 17 21 / 0.7);
   /* 和播放条同一块玻璃，同样为了折射把模糊压到 10px（理由见 app.css 的 .player）。 */
-  backdrop-filter: var(--refract, ) blur(12px) saturate(1.45);
-  -webkit-backdrop-filter: var(--refract, ) blur(12px) saturate(1.45);
+  backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
+  -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
   border-left: 1px solid rgb(255 255 255 / 0.09);
   box-shadow:
     -24px 0 60px rgb(0 0 0 / 0.5),

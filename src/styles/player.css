@@ -52,8 +52,8 @@
    * 清晰度由更深的 tint 和更高的 saturate 补回去，背后滚过去的文字仍然是色块，
    * 不是能读的字。
    */
-  backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
-  -webkit-backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
+  backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
   border-top: 1px solid rgb(255 255 255 / 0.1);
   /* One shadow in the whole app: the bar floats above the library. */
   /*
