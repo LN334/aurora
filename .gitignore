@@ -8,6 +8,8 @@ dist-preview/
 dist-preview-overlay/
 preview-dist/
 release/
+# 备用输出目录：release 里的 app.asar 被系统句柄占住、builder 删不掉时改道到这里。
+release2/
 
 # logs and local crash reports
 *.log
