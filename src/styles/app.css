@@ -716,6 +716,54 @@ input::placeholder {
   font-size: var(--fs-meta);
 }
 
+/* 页头右上那两颗（队列 / 舞台）单独一套：胶囊、玻璃、图标比文字淡一档。
+   通用 .btn 是 32px 的实底砖，并排两块钱在壁纸上像两块补丁；页头工具不该抢视线，
+   但也不能糊到看不出能点——所以留一圈很淡的描边和内高光，悬停时一起抬亮。 */
+.np-act {
+  height: 30px;
+  padding: 0 13px 0 11px;
+  gap: 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.055);
+  color: color-mix(in oklab, var(--text-hi) 88%, transparent);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(10px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.np-act svg {
+  color: var(--text-mid);
+  transition: color var(--dur-1) var(--ease-out);
+}
+.np-act:hover {
+  background: rgb(255 255 255 / 0.1);
+  border-color: rgb(255 255 255 / 0.16);
+  color: var(--text-hi);
+}
+.np-act:hover svg {
+  color: var(--text-hi);
+}
+.np-act:active {
+  transform: scale(0.97);
+}
+.np-act:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* 舞台是这页的主出口：悬停时用当前封面的主色点一下，但不做成实心主按钮。 */
+.np-act--stage:hover {
+  border-color: rgb(var(--accent-rgb) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 0 0 3px rgb(var(--accent-rgb) / 0.08);
+}
+
 /* --- player bar ---------------------------------------------------------- */
 /*
  * 底栏的样式都在 styles/player.css。

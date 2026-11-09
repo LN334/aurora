@@ -1022,13 +1022,13 @@ export function App() {  if (!isNative) {
 
             <div className="main__tools">
               {shell.view === 'nowplaying' ? (
-                <button className="btn" onClick={() => setQueueOpen((open) => !open)} title="播放队列">
+                <button className="btn np-act" onClick={() => setQueueOpen((open) => !open)} title="播放队列">
                   <Queue size={15} />
                   队列
                 </button>
               ) : null}
               {shell.view === 'nowplaying' ? (
-                <button className="btn" onClick={() => setStageOpen(true)} title="舞台 (L)">
+                <button className="btn np-act np-act--stage" onClick={() => setStageOpen(true)} title="舞台 (L)">
                   <Expand size={15} />
                   舞台
                 </button>
