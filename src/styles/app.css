@@ -248,7 +248,8 @@ input::placeholder {
 
 /* Five icons in a row and no words anywhere: hovering has to say what each
    one is, without covering the controls underneath. */
-.icon-btn[data-tip]:hover::after {
+.icon-btn[data-tip]:hover::after,
+.pb-btn[data-tip]:hover::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 6px);
@@ -716,244 +717,13 @@ input::placeholder {
 }
 
 /* --- player bar ---------------------------------------------------------- */
-
-.player {
-  grid-area: player;
-  /*
-   * 悬浮而不是贴边。
-   *
-   * 液态玻璃得有一圈完整的边才成立：贴底的通栏只有上、左、右三条边，四角还是
-   * 直角，折射只在上缘一线露一点头。四周留出缝、四角收成圆的之后，这块东西才
-   * 从「一条被截断的横条」变成「一块浮在内容上的玻璃」——四角与四边都在弯折。
-   */
-  margin: 4px 16px 12px;
-  border-radius: 16px;
-  display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(360px, 2fr) minmax(200px, 1fr);
-  align-items: center;
-  gap: var(--s4);
-  /* 已经自己留了 16px 外边距，内边距就不必再留一份 */
-  padding: 0 var(--s3);
-  /*
-   * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
-   * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
-   * 只把颜色漏进来。
-   */
-  /*
-   * 三层背景，叠出一块「有厚度的玻璃」：
-   *   - 底色 0.78 压住下面那排封面，不然高饱和的封面色会直接把播放条染花；
-   *   - 顶部一条极淡的提亮，和下面的 inset 高光接上；
-   *   - 底部一条压暗，让玻璃下缘「沉」下去，不再是一条被截断的横条。
-   */
-  background-color: rgb(10 13 17 / 0.78);
-  background-image: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.05),
-    transparent 34%,
-    transparent 68%,
-    rgb(0 0 0 / 0.2)
-  );
-  /*
-   * --refract 是 Refraction 挂上来的位移滤镜（液态玻璃的折射圈）。没有它时
-   * var() 回退成空，这一行就退化成纯模糊，视觉不掉档。
-   *
-   * 模糊半径从 24px 压到 9px：折射和模糊是此消彼长的——位移只有十几个像素，
-   * 24px 的模糊会把边缘那圈弯折整片糊平，玻璃就又变回一块磨砂塑料。压下来的
-   * 清晰度由更深的 tint 和更高的 saturate 补回去，背后滚过去的文字仍然是色块，
-   * 不是能读的字。
-   */
-  backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
-  -webkit-backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
-  border-top: 1px solid rgb(255 255 255 / 0.1);
-  /* One shadow in the whole app: the bar floats above the library. */
-  /*
-   * 三条 inset 是「玻璃厚度」的来源，折射位移在深色氛围背景上其实很难看出来
-   * （位移十几个像素，背景本身就是一团模糊色块），真正让人读出「这是一块玻璃」
-   * 的是这三层：顶缘一道实高光、紧贴其下一条柔和的亮晕（厚度）、再往里一圈
-   * 极细的暗线把玻璃和背后的内容分开。
-   */
-  /*
-   * 悬浮之后阴影的方向也要跟着翻：贴底时用朝上的投影把上面的内容压住，浮起来
-   * 之后得往下落，否则这块玻璃像被吊在半空。四条 inset 里最外一圈从暗线换成
-   * 极淡的白线——贴边时暗线是「和背景分开」，浮起来之后要的是「四边都有一道
-   * 玻璃的倒角」。
-   */
-  box-shadow:
-    0 10px 30px -6px rgb(0 0 0 / 0.45),
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 3px 10px -4px rgb(255 255 255 / 0.14),
-    inset 0 0 0 1px rgb(255 255 255 / 0.09);
-}
-
-.now {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  min-width: 0;
-}
-.now__art {
-  flex: none;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--r-panel);
-  background: var(--ink-700);
-  overflow: hidden;
-}
-.now__art img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.now__text {
-  min-width: 0;
-}
-.now__title {
-  font-size: var(--fs-body);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.now__artist {
-  display: block;
-  max-width: 100%;
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* 可点与悬停反馈由 ArtistName 里的 .name-ref 提供，见下方同名规则。 */
-.now__idle {
-  color: var(--text-low);
-}
-
-.transport {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s2);
-}
-
-.transport__row {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
-
-.play-btn {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: var(--text-hi);
-  color: var(--ink-1000);
-  transition: scale 120ms var(--ease-out);
-}
-.play-btn:hover {
-  scale: 1.06;
-}
-.play-btn:active {
-  scale: 0.97;
-}
-.play-btn:disabled {
-  background: var(--ink-600);
-  color: var(--text-low);
-  cursor: default;
-  scale: 1;
-}
-/* Repeat / shuffle / mode toggles read as accent when engaged, since accent is
-   the app's single "this is on" signal. */
-.icon-btn.is-on {
-  color: var(--accent);
-}
-
-.seek {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  width: 100%;
-}
-.seek__time {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  font-variant-numeric: tabular-nums;
-  width: 40px;
-  flex: none;
-}
-.seek__time--end {
-  text-align: right;
-}
-
-.bar {
-  position: relative;
-  flex: 1;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-.bar__track {
-  position: relative;
-  width: 100%;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--ink-600);
-  overflow: visible;
-}
-.bar__fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 999px;
-  background: var(--accent);
-  transition: background var(--tint-ms) var(--ease-out);
-}
-.bar__knob {
-  position: absolute;
-  top: 50%;
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: var(--text-hi);
-  translate: -50% -50%;
-  opacity: 0;
-  transition: opacity 120ms var(--ease-out);
-}
-.bar:hover .bar__knob,
-.bar:focus-within .bar__knob {
-  opacity: 1;
-}
-
-.player__right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--s1);
-}
-.volume {
-  /* 比普通滑块宽一点：音量要能微调，也要有地方接滚轮。 */
-  width: 108px;
-  height: 20px;
-  flex: none;
-  margin-left: var(--s1);
-}
-.volume .bar__knob {
-  opacity: 1;
-  width: 10px;
-  height: 10px;
-}
-
-/* --- artwork placeholder ------------------------------------------------- */
-
-.now__art-empty {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  color: var(--text-low);
-}
+/*
+ * 底栏的样式都在 styles/player.css。
+ *
+ * 搬出去是因为它已经不是一个「横条」那么简单：三列分区、十来个图标键的四种
+ * 状态、三档宽度各自的排法，混在 app.css 里既找不着也改不动。玻璃材质跟着走，
+ * 这里只留一行指路。
+ */
 
 /* --- buffering ----------------------------------------------------------- */
 
@@ -2212,7 +1982,7 @@ input::placeholder {
  * 位移只有 4px —— 播放条是常驻的，动多了反而吵；只补「换了一口气」这件事。
  * 由 PlayerBar 给 .now__text 换 key 触发重挂载，所以不需要额外状态。
  */
-.now__text { animation: nowIn var(--dur-3) var(--ease-out) both; }
+.pb-meta { animation: nowIn var(--dur-3) var(--ease-out) both; }
 @keyframes nowIn {
   from {
     opacity: 0;

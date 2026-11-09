@@ -1,0 +1,496 @@
+/* =============================================================================
+   播放底栏
+   =============================================================================
+
+   整块只有三件事：左边「在放什么」，中间「怎么放」，右边「界面怎么显示」。
+   宽度变化时也照这三块收：先收音量滑条，再把进度条挪到第二行横贯整条，
+   不靠缩小图标硬挤——挤到最后会出现一排既点不准也读不清的小点。 */
+
+.player {
+  grid-area: player;
+  /*
+   * 悬浮而不是贴边。
+   *
+   * 液态玻璃得有一圈完整的边才成立：贴底的通栏只有上、左、右三条边，四角还是
+   * 直角，折射只在上缘一线露一点头。四周留出缝、四角收成圆的之后，这块东西才
+   * 从「一条被截断的横条」变成「一块浮在内容上的玻璃」——四角与四边都在弯折。
+   */
+  margin: 4px 16px 12px;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 2.4fr) minmax(0, 1fr);
+  grid-template-areas: 'info core side';
+  align-items: center;
+  gap: var(--s4);
+  /* 已经自己留了 16px 外边距，内边距就不必再留一份 */
+  padding: 0 var(--s3);
+  /*
+   * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
+   * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
+   * 只把颜色漏进来。
+   */
+  /*
+   * 三层背景，叠出一块「有厚度的玻璃」：
+   *   - 底色 0.78 压住下面那排封面，不然高饱和的封面色会直接把播放条染花；
+   *   - 顶部一条极淡的提亮，和下面的 inset 高光接上；
+   *   - 底部一条压暗，让玻璃下缘「沉」下去，不再是一条被截断的横条。
+   */
+  background-color: rgb(10 13 17 / 0.78);
+  background-image: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.05),
+    transparent 34%,
+    transparent 68%,
+    rgb(0 0 0 / 0.2)
+  );
+  /*
+   * --refract 是 Refraction 挂上来的位移滤镜（液态玻璃的折射圈）。没有它时
+   * var() 回退成空，这一行就退化成纯模糊，视觉不掉档。
+   *
+   * 模糊半径从 24px 压到 9px：折射和模糊是此消彼长的——位移只有十几个像素，
+   * 24px 的模糊会把边缘那圈弯折整片糊平，玻璃就又变回一块磨砂塑料。压下来的
+   * 清晰度由更深的 tint 和更高的 saturate 补回去，背后滚过去的文字仍然是色块，
+   * 不是能读的字。
+   */
+  backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: var(--refract, ) blur(12px) saturate(1.3);
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  /* One shadow in the whole app: the bar floats above the library. */
+  /*
+   * 三条 inset 是「玻璃厚度」的来源，折射位移在深色氛围背景上其实很难看出来
+   * （位移十几个像素，背景本身就是一团模糊色块），真正让人读出「这是一块玻璃」
+   * 的是这三层：顶缘一道实高光、紧贴其下一条柔和的亮晕（厚度）、再往里一圈
+   * 极细的暗线把玻璃和背后的内容分开。
+   */
+  /*
+   * 悬浮之后阴影的方向也要跟着翻：贴底时用朝上的投影把上面的内容压住，浮起来
+   * 之后得往下落，否则这块玻璃像被吊在半空。四条 inset 里最外一圈从暗线换成
+   * 极淡的白线——贴边时暗线是「和背景分开」，浮起来之后要的是「四边都有一道
+   * 玻璃的倒角」。
+   */
+  box-shadow:
+    0 10px 30px -6px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    inset 0 3px 10px -4px rgb(255 255 255 / 0.14),
+    inset 0 0 0 1px rgb(255 255 255 / 0.09);
+}
+
+/* --- 左：在放什么 --------------------------------------------------------- */
+
+.pb-info {
+  grid-area: info;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.pb-art {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-panel);
+  background: var(--ink-700);
+  overflow: hidden;
+}
+.pb-art:disabled {
+  cursor: default;
+}
+.pb-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pb-art__empty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-low);
+}
+
+/* 换歌时靠 TrackInfo 给这块换 key 重挂载，淡入由 app.css 的 nowIn 播。 */
+.pb-meta {
+  min-width: 0;
+}
+
+.pb-title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-artist {
+  display: block;
+  max-width: 100%;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-idle {
+  color: var(--text-low);
+}
+
+/* --- 滑块：进度与音量共用 --------------------------------------------------
+
+   这一族是通用件，之前混在 app.css 的播放条段里，搬文件时被一起删掉了——
+   结果进度条只剩两个时间戳，因为 .bar 没有宽度、轨道也没有背景。 */
+
+.bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.bar__track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ink-600);
+  overflow: visible;
+}
+.bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: background var(--tint-ms) var(--ease-out);
+}
+.bar__knob {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--text-hi);
+  translate: -50% -50%;
+  opacity: 0;
+  transition: opacity 120ms var(--ease-out);
+}
+.bar:hover .bar__knob,
+.bar:focus-within .bar__knob {
+  opacity: 1;
+}
+.bar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* --- 中：怎么放 ----------------------------------------------------------- */
+
+.pb-core {
+  grid-area: core;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+ * 分三组：中间三颗动播放位置，两侧两颗改播放方式。
+ * 组与组之间 10px、组内 2px——层级靠间距说，不靠颜色说。
+ */
+.pb-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pb-transport__main {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+ * 图标键的四种状态只在这里定义一次。
+ *
+ * 之前的底栏只有 .is-on 改颜色，没有背景：模式开着与鼠标悬停看起来差不多，
+ * 鼠标划过去时反而更像「打开了」。现在悬停给一层极淡的白、打开给一层主色底，
+ * 两种状态在色相上就分得开。
+ */
+.pb-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-mid);
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+.pb-btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--text-hi);
+}
+.pb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/*
+ * 打开态：主色底 + 白图标 + 一颗主色小点。
+ *
+ * 图标不用主色，是因为没有封面时主色本身是一层灰蓝（tokens 里那张灰阶），
+ * 与「未激活」的灰只差一点点；白图标配主色底，有没有封面都分得开。
+ */
+.pb-btn.is-on {
+  background: rgb(var(--accent-rgb) / 0.2);
+  color: var(--text-hi);
+}
+.pb-btn.is-on:hover:not(:disabled) {
+  background: rgb(var(--accent-rgb) / 0.28);
+}
+.pb-btn:disabled {
+  background: transparent;
+  color: var(--ink-500);
+  cursor: default;
+}
+
+/* 模式键比传输键再轻半档：图标小一号，视觉上退到第二层。 */
+.pb-btn--mode {
+  width: 28px;
+  height: 28px;
+}
+
+/*
+ * 打开时图标底下多一颗小点。
+ *
+ * 没有封面时整个界面是灰的，主色只比旁白亮一点点——一层淡底在壁纸上几乎看不
+ * 出来。加一个形状，才不至于要盯着看才知道随机开着。
+ */
+.pb-btn.is-on::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  translate: -50% 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.pb-btn--skip {
+  width: 34px;
+  height: 34px;
+}
+
+.pb-btn__badge {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink-1000);
+  font-size: 9px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* 主键：整条底栏唯一一颗实心圆，它就是要被一眼找到的那颗。 */
+.pb-play {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin: 0 4px;
+  border-radius: 999px;
+  background: var(--text-hi);
+  color: var(--ink-1000);
+  transition: scale 120ms var(--ease-out), background 120ms var(--ease-out);
+}
+.pb-play:hover:not(:disabled) {
+  scale: 1.06;
+}
+.pb-play:active:not(:disabled) {
+  scale: 0.97;
+}
+.pb-play:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pb-play:disabled {
+  background: var(--ink-600);
+  color: var(--text-low);
+  cursor: default;
+}
+
+/* 缓冲圈画在实心键上，所以描边取深色，跟打开深色主题时一致。 */
+.pb-play__spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgb(0 0 0 / 0.2);
+  border-top-color: var(--ink-1000);
+  animation: spin 720ms linear infinite;
+}
+
+/* 进度行：时间、可拖的条、总时长。 */
+.pb-rail {
+  grid-area: rail;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.pb-time {
+  flex: none;
+  width: 38px;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.pb-time--end {
+  text-align: right;
+}
+
+/* 命中区加高到 20px：3px 的细线在 40 岁的手上也点得中。 */
+.pb-rail .bar {
+  height: 20px;
+}
+.pb-rail .bar__track {
+  height: 3px;
+  transition: height 120ms var(--ease-out);
+}
+.pb-rail .bar:hover .bar__track,
+.pb-rail .bar:focus-within .bar__track {
+  height: 5px;
+}
+
+/* --- 右：界面怎么显示 ----------------------------------------------------- */
+
+.pb-side {
+  grid-area: side;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+/* 视图键与音量不是一个层级，用一根发丝线分开。 */
+.pb-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.pb-vol {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pb-volume {
+  flex: none;
+  width: 96px;
+  height: 20px;
+}
+.pb-volume .bar__knob {
+  width: 10px;
+  height: 10px;
+  opacity: 1;
+}
+
+/* --- 宽度：先收滑条，再换排 ----------------------------------------------- */
+
+/* 1301–1240 之间窗口还是「三块一排」最舒服，只把音量条收短一点。 */
+@media (max-width: 1280px) {
+  .pb-volume {
+    width: 78px;
+  }
+}
+
+/*
+ * 再窄下去，音量滑条先让位：静音键留下，键盘的 ↑↓ 也还在，调音量并没有丢，
+ * 只是不再常驻一条 96px 的长条去挤进度条。
+ */
+@media (max-width: 1080px) {
+  .pb-volume,
+  .pb-sep {
+    display: none;
+  }
+  .player {
+    column-gap: var(--s3);
+  }
+}
+
+/*
+ * 900 以下进度条换到第二行、横贯整条：中列被两侧挤到 300px 以下时，时间加
+ * 进度条会短得几乎拖不动，不如让它独占一行。
+ *
+ * .pb-core 用 display: contents 让自己消失，传输行与进度行直接参与外层 grid——
+ * 否则没法把「播放键在上排、进度条在下排」排出来。
+ */
+@media (max-width: 900px) {
+  .player {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      'info transport side'
+      'rail rail rail';
+    align-content: center;
+    row-gap: 1px;
+    column-gap: var(--s3);
+  }
+  .pb-core {
+    display: contents;
+  }
+  .pb-transport {
+    grid-area: transport;
+  }
+  .pb-side {
+    grid-area: side;
+  }
+  .pb-rail {
+    gap: 8px;
+  }
+}
+
+/* 再窄：封面先让位，标题还有半行可以省略。模式键不动——随机与循环没有快捷键，
+   藏起来就真的开不了了。 */
+@media (max-width: 720px) {
+  .pb-art {
+    display: none;
+  }
+  .pb-time {
+    width: 34px;
+  }
+  .pb-transport {
+    gap: 4px;
+  }
+  .pb-play {
+    margin: 0 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-btn,
+  .pb-play,
+  .pb-play__spinner,
+  .pb-rail .bar__track {
+    transition: none;
+    animation-duration: 2s;
+  }
+}

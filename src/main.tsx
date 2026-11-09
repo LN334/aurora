@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import './styles/app.css'
+import './styles/player.css'
 import { App } from './App'
 import './features/player/actions'
 /*

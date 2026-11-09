@@ -218,6 +218,8 @@ function loadWinState(): WinState {
 
 function saveWinState(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
+  // 截图用的临时尺寸不是用户的选择，别写回 window-state.json。
+  if (process.argv.some((arg) => arg.startsWith('--capture='))) return
   const bounds = mainWindow.getNormalBounds()
   const next: WinState = {
     width: bounds.width,
@@ -270,6 +272,16 @@ function createWindow(): void {
   const state = loadWinState()
 
   /*
+   * 截图验收要能停在任意窗口宽度。
+   *
+   * 正常启动的最小宽度是 940，而底栏在 900 以下会换排法——那一档如果被窗口
+   * 自身的最小尺寸挡住，就永远只能靠读 CSS 相信它是对的。所以只在这一条
+   * 截图通道上放行更小的尺寸，正常使用不受影响。
+   */
+  const sizeArg = process.argv.find((arg) => arg.startsWith('--size='))
+  const sized = sizeArg?.slice('--size='.length).match(/^(\d+)x(\d+)$/) ?? null
+
+  /*
    * 上次是以最大化退出的，就直接按「最大化后的可用区域」建窗口，再补一次
    * maximize()。
    *
@@ -289,12 +301,12 @@ function createWindow(): void {
     : null
 
   mainWindow = new BrowserWindow({
-    width: area ? area.width : state.width,
-    height: area ? area.height : state.height,
+    width: sized ? Number(sized[1]) : area ? area.width : state.width,
+    height: sized ? Number(sized[2]) : area ? area.height : state.height,
     x: area ? area.x : state.x,
     y: area ? area.y : state.y,
-    minWidth: 940,
-    minHeight: 620,
+    minWidth: sized ? 520 : 940,
+    minHeight: sized ? 420 : 620,
     /*
      * 直接显示，不等 ready-to-show。
      *
@@ -475,14 +487,18 @@ function createWindow(): void {
             }
             if (clickArg) {
               const selector = clickArg.slice('--click='.length)
-              await mainWindow?.webContents.executeJavaScript(
+              // 点不到时最想知道的是「选择器错在哪」：命中几个、命中的是谁、点完它有没有变。
+              // 静默失败一次就要重跑一轮截图，所以这里把回执写进日志。
+              const receipt = await mainWindow?.webContents.executeJavaScript(
                 `(() => {
-                  const el = document.querySelector(${JSON.stringify(selector)})
-                  if (!el) return false
+                  const found = document.querySelectorAll(${JSON.stringify(selector)})
+                  const el = found[0]
+                  if (!el) return { hits: 0, cls: null, clicked: false, after: null }
                   el.click()
-                  return true
+                  return { hits: found.length, cls: String(el.className), clicked: true }
                 })()`
               )
+              write(`click ${selector} -> ${JSON.stringify(receipt)}`)
               await new Promise((resolve) => setTimeout(resolve, 800))
             }
             if (scrollArg) {
@@ -541,6 +557,10 @@ function createWindow(): void {
                       }
                     }),
                     refractFilters: document.querySelectorAll('svg filter[id^="refract-"]').length,
+                    // 底栏按钮的类名就是它的状态：点在哪个键、开了哪几个，一眼看得出。
+                    playerButtons: Array.from(document.querySelectorAll('.player button')).map(
+                      (el) => (el.getAttribute('data-tip') || el.getAttribute('title') || '?') + '|' + String(el.className)
+                    ),
                     timing: {
                       responseEnd: Math.round(nav.responseEnd || 0),
                       domContentLoaded: Math.round(nav.domContentLoadedEventEnd || 0),
