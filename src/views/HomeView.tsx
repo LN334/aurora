@@ -333,14 +333,15 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   return (
     <div className="rh">
       <header className="rh__head">
-        <div>
-          <p className="rh__greet">{greeting(now)}</p>
-          {today.tracks > 0 ? (
-            <p className="rh__today">
-              今天 {today.tracks} 首 · {formatTime(today.seconds)}
-            </p>
-          ) : null}
-        </div>
+        <p className="rh__greet">{greeting(now)}</p>
+        {today.tracks > 0 ? (
+          <p className="rh__today">
+            今天 {today.tracks} 首 · {formatTime(today.seconds)}
+            {today.topArtist ? (
+              <span className="rh__top">最常听 {today.topArtist}</span>
+            ) : null}
+          </p>
+        ) : null}
       </header>
 
       {focus ? (

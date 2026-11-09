@@ -191,8 +191,9 @@
 
 .rh__head {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
+  gap: var(--s5);
   padding-top: var(--s2);
 }
 
@@ -205,10 +206,27 @@
   line-height: 1.15;
 }
 
+/*
+ * 问候语在左，今日小结在右。
+ *
+ * 这一行原来只有左边 85px 有字，右边一千多像素全是壁纸，整页第一眼就「左重
+ * 右轻」。把今日数字挪到右端以后，标题与数字各自压住一头，中间的空就成了留白
+ * 而不是缺口；顺带把「最常听」也摆出来——这条数据一直在，只是没地方用。
+ */
 .rh__today {
-  margin: 5px 0 0;
+  margin: 0;
+  max-width: 52ch;
   font-size: var(--fs-meta);
   color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rh__top {
+  padding-left: 10px;
+  margin-left: 10px;
+  border-left: 1px solid rgb(255 255 255 / 0.13);
+  color: var(--text-low);
 }
 
 /* 正在听的那一首：封面左、字右。整张卡是一个点击区（封面单独可点播）。 */
