@@ -118,6 +118,19 @@ export function useRoamProgress(current: Track | null): RoamProgress {
 export const ROAM_MORE = Math.ceil(SLOTS.roam / 2)
 
 /**
+ * 把循环换成「关」，原模式记着等退出时还原。
+ *
+ * 两处要调：开新趟，以及回到一趟没结束的旧漫游。后者容易被漏掉——用户退出漫游后
+ * 又手动开了列表循环，再点漫游，队列会从头绕回来，和「不重复」冲突。
+ */
+function parkRepeat(): void {
+  const before = usePlayer.getState().repeat
+  if (before === 'off') return
+  if (!useRoam.getState().parkedRepeat) useRoam.setState({ parkedRepeat: before })
+  usePlayer.getState().setRepeat('off')
+}
+
+/**
  * 点「漫游」。
  *
  * 有这一趟就接着听：先找第一首没听过的。没有就现要一趟。返回 true 表示队列已经
@@ -130,9 +143,13 @@ export async function startRoam(): Promise<boolean> {
   const current = usePlayer.getState().current()
   if (state.tracks.length > 0) {
     // 这一趟还在：从第一首没听过的接着放。全都听过就从头，反正下面会补新的。
-    if (current && isRoamTrack(current)) return true
+    if (current && isRoamTrack(current)) {
+      parkRepeat()
+      return true
+    }
     const heard = state.heard
     const at = state.tracks.findIndex((track) => !heard[trackKey(track)])
+    parkRepeat()
     player.playQueue(state.tracks, at >= 0 ? at : 0)
     return true
   }
@@ -154,10 +171,8 @@ export async function startRoam(): Promise<boolean> {
       return false
     }
     // 漫游不重复：循环会让放过的再来一遍，先关掉，退出时还原。
-    const before = usePlayer.getState().repeat
-    const parked = before === 'off' ? null : before
-    if (parked) usePlayer.getState().setRepeat('off')
-    useRoam.setState({ tracks, heard: {}, busy: false, pulling: false, error: '', parkedRepeat: parked })
+    useRoam.setState({ tracks, heard: {}, busy: false, pulling: false, error: '' })
+    parkRepeat()
     player.playQueue(tracks, 0)
     return true
   } catch (error) {
