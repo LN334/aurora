@@ -548,7 +548,13 @@ export function HomeView({ onNavigate }: HomeViewProps) {
                     fallback={<Note size={18} />}
                     priority={at < 5}
                   />
-                  <span className={'pl-card__src src-dot--' + row.providerId}>{row.providerLabel}</span>
+                  <span className="rh-card__srcs">
+                    {row.platforms.map((on) => (
+                      <span key={on.providerId} className={'pl-card__src src-dot--' + on.providerId}>
+                        {on.providerLabel}
+                      </span>
+                    ))}
+                  </span>
                 </span>
                 <span className="rh-mini__title">{row.name}</span>
                 <span className="rh-mini__sub">

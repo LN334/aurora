@@ -9,19 +9,7 @@ import { useRoamPlatforms } from '../player/roam-sources'
  * 就把新歌所属的专辑抽出来当卡片。汽水没有专辑页（catalog.album 缺失），卡片
  * 点进去只会报「这个平台还没有专辑页」，所以这排不带它，免得出现死链。
  */
-export interface AlbumCard {
-  key: string
-  providerId: 'netease' | 'qq' | 'kugou'
-  providerLabel: string
-  id: number
-  name: string
-  coverUrl: string | null
-  artistName: string
-  /** 艺人 id：卡片上那行名字据此点进艺人页；缺了就只是文字。 */
-  artistId?: number
-  /** 发行年；0 表示这家没报（QQ/酷狗的新歌接口不带年份）。 */
-  year: number
-}
+import { mergeAlbumCards, type AlbumCard } from './album-merge'
 
 /** 一家能贡献什么：各自去重、各自失败当空，最后统一交错。 */
 type AlbumSource = (limit: number) => Promise<AlbumCard[]>
@@ -41,7 +29,15 @@ const neteaseAlbums: AlbumSource = async (limit) => {
       coverUrl: row.coverUrl,
       artistName: row.artistName,
       artistId: row.artistId,
-      year: row.year
+      year: row.year,
+      platforms: [
+        {
+          providerId: 'netease' as const,
+          providerLabel: '网易云音乐',
+          id: row.id,
+          artistId: row.artistId
+        }
+      ]
     }))
 }
 
@@ -78,7 +74,15 @@ function albumsFromSongs(
       coverUrl: song.album?.picUrl ?? null,
       artistName: artist?.name ?? '',
       artistId: artist?.id && artist.id > 0 ? artist.id : undefined,
-      year: 0
+      year: 0,
+      platforms: [
+        {
+          providerId,
+          providerLabel,
+          id: albumId,
+          artistId: artist?.id && artist.id > 0 ? artist.id : undefined
+        }
+      ]
     })
     if (rows.length >= limit) break
   }
@@ -130,13 +134,18 @@ export function useRecommendedAlbums(limit = 18): AlbumCard[] {
   useEffect(() => {
     let alive = true
     void (async () => {
+      /*
+       * 每家多要一倍：合并会把同一张专辑的两三条并成一条，按 18 要就凑不满
+       * 三行六列。多要的这一倍正好填合并掉的坑。
+       */
+      const want = limit * 2
       // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
       const groups = await Promise.all([
-        chosen.includes('netease') ? neteaseAlbums(limit).catch(() => []) : Promise.resolve([]),
-        chosen.includes('qq') ? qqAlbums(limit).catch(() => []) : Promise.resolve([]),
-        chosen.includes('kugou') ? kugouAlbums(limit).catch(() => []) : Promise.resolve([])
+        chosen.includes('netease') ? neteaseAlbums(want).catch(() => []) : Promise.resolve([]),
+        chosen.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
+        chosen.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
       ])
-      if (alive) setRows(interleave(groups, limit))
+      if (alive) setRows(mergeAlbumCards(interleave(groups, want)).slice(0, limit))
     })()
     return () => {
       alive = false

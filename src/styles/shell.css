@@ -2097,6 +2097,27 @@
 }
 
 /*
+ * 一张卡挂好几家时的平台标。原先每枚 .pl-card__src 都自己绝对定位到左下角，
+ * 两家同时出现会叠在一起；改成容器定位、里面的标横着排，放不下就换行。
+ */
+.rh-card__srcs {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 18px);
+  pointer-events: none;
+}
+
+.rh-card__srcs .pl-card__src {
+  position: static;
+  left: auto;
+  bottom: auto;
+}
+
+/*
  * 「今天听什么」的按钮行。
  *
  * 整页入口原本贴在卡片右上角，正好压住第三张预览图的顶边——文字和封面互相
