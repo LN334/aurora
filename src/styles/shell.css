@@ -260,9 +260,17 @@
   min-height: 96px;
   padding: 16px 20px;
   border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.075);
-  background: rgb(255 255 255 / 0.065);
-  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.055);
+  /*
+   * 薄玻璃是液态玻璃唯一能读出来的地方：底色只有 5% 白，背后的壁纸清清楚楚，
+   * 边缘那圈位移才看得见。所以模糊被压到 8px —— 播放条不敢这么压，它背后是
+   * 滚动的高饱和封面。压到 6px 时卡片上缘会亮到把标题吃掉，8px 是分界。
+   */
+  backdrop-filter: var(--refract, ) blur(8px) saturate(1.25);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 0 0 1px rgb(0 0 0 / 0.05);
   text-align: left;
   transition: background 140ms var(--ease-out);
 }
@@ -795,7 +803,10 @@
   background:
     radial-gradient(120% 140% at 88% 12%, rgb(255 255 255 / 0.1), transparent 58%),
     rgb(255 255 255 / 0.05);
-  backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: var(--refract, ) blur(8px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.13),
+    inset 0 0 0 1px rgb(0 0 0 / 0.05);
   overflow: hidden;
 }
 

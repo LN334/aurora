@@ -84,6 +84,7 @@ import { Sources } from './views/Sources'
 import { RecentView } from './views/RecentView'
 import { TrackView } from './views/TrackView'
 import { NowPlaying } from './views/NowPlaying'
+import { Refraction } from './features/glass/Refraction'
 
 /**
  * One entry in the navigation stack. Keeping the artist drill-down in the route
@@ -1244,6 +1245,12 @@ export function App() {  if (!isNative) {
         }}
         />
       ) : null}
+
+      {/*
+        液态玻璃的折射定义。它只产出一个 0×0 的 <svg><defs>，具体挂到哪些元素由
+        组件内的选择器表决定，所以放在最外层、不占布局，也不必进 App 的网格。
+      */}
+      <Refraction />
     </>
   )
 }

@@ -460,6 +460,8 @@ function createWindow(): void {
     const hashArg = process.argv.find((arg) => arg.startsWith('--hash='))
     // 长页面验收要能停在半屏；内容滚在 .main__body 里，不是 window。
     const scrollArg = process.argv.find((arg) => arg.startsWith('--scroll='))
+    // 截图验收要能停在任意交互态；面板/菜单都是 onClick 打开的，先点一下再截。
+    const clickArg = process.argv.find((arg) => arg.startsWith('--click='))
     mainWindow.webContents.once('did-finish-load', () => {
       setTimeout(() => {
         void (async () => {
@@ -470,6 +472,18 @@ function createWindow(): void {
                 `window.location.hash = ${JSON.stringify(hash)}`
               )
               await new Promise((resolve) => setTimeout(resolve, 1200))
+            }
+            if (clickArg) {
+              const selector = clickArg.slice('--click='.length)
+              await mainWindow?.webContents.executeJavaScript(
+                `(() => {
+                  const el = document.querySelector(${JSON.stringify(selector)})
+                  if (!el) return false
+                  el.click()
+                  return true
+                })()`
+              )
+              await new Promise((resolve) => setTimeout(resolve, 800))
             }
             if (scrollArg) {
               const y = Number(scrollArg.slice('--scroll='.length)) || 0
@@ -495,6 +509,23 @@ function createWindow(): void {
                     rhTop: rh && Math.round(rh.getBoundingClientRect().top),
                     bodyTop: b && Math.round(b.getBoundingClientRect().top),
                     longtasks: window.__longtasks || [],
+                    // 液态玻璃：每块玻璃挂上了哪条折射滤镜、算出来的 --refract 长什么样。
+                    // 折射看不见时先看这里——多半是选择器没匹上，或者贴图建了却没挂到元素。
+                    glass: Array.from(
+                      document.querySelectorAll(
+                        '.player, .panel, .menu, .lk-menu, .tracks__tool, .rh-sc, .rh-daily'
+                      )
+                    ).map((el) => {
+                      const box = el.getBoundingClientRect()
+                      return {
+                        cls: String(el.className).slice(0, 32),
+                        w: Math.round(box.width),
+                        h: Math.round(box.height),
+                        refract: el.style.getPropertyValue('--refract'),
+                        backdrop: getComputedStyle(el).backdropFilter
+                      }
+                    }),
+                    refractFilters: document.querySelectorAll('svg filter[id^="refract-"]').length,
                     timing: {
                       responseEnd: Math.round(nav.responseEnd || 0),
                       domContentLoaded: Math.round(nav.domContentLoadedEventEnd || 0),

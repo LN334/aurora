@@ -5,8 +5,9 @@
   padding: 6px;
   border-radius: 12px;
   border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(14 17 21 / 0.96);
+  background: rgb(14 17 21 / 0.9);
   box-shadow: 0 18px 40px rgb(0 0 0 / 0.48);
+  backdrop-filter: var(--refract, ) blur(10px) saturate(1.2);
   transform-origin: top left;
   animation: lkIn var(--dur-2) var(--ease-out) both;
 }
