@@ -1,9 +1,11 @@
+import { songsAcrossPlatforms } from '../online/artist-merge'
 import { loadPlatformDaily } from '../online/daily'
 import { loadPlatformLiked } from '../online/platform-liked'
 import { getProvider, listAvailableProviders } from '../online/registry'
 import { useOnlineStore, type PlatformBackend } from '../online/store'
 import type { ProviderId } from '../online/types'
 import { mergeVersions, trackKey } from '../online/unify'
+import { rankBySeed } from './roam-pure'
 import { sourceOrder } from '../settings/source-order'
 import { useLibrary } from '../library/store'
 import { useHistory } from './history-store'
@@ -48,14 +50,41 @@ export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> 
 }
 
 /**
+ * 种子那首的同艺人专辑歌，去所有能搜的平台要一遍。
+ *
+ * 「从这首出发」如果只拿平台今天推的那几十首重排，多半一首同艺人都没有——推荐
+ * 是泛的，不会因为你想听这个人就变成他的专场。所以要主动搜一次：艺人名精确匹配，
+ * 拿这个人的歌来当这一趟的骨架，平台推的那些退到后面当补充。
+ */
+export async function loadSeedTracks(seed: Track, platforms?: ProviderId[]): Promise<Track[]> {
+  const artist = seed.artist.trim()
+  if (!artist) return []
+  const only = platforms === undefined ? undefined : new Set<string>(platforms)
+  return songsAcrossPlatforms(artist, sourceOrder(), undefined, only).catch(() => [])
+}
+
+/**
  * 从池子里挑这一趟要放的几十首。
  *
  * 只放平台推过来的：收藏过的、听过的、本机有的都不进来。漫游是一份「今天可能
  * 没听过」的流，掺一半旧歌就还是那批歌换个顺序，听两次就腻了。池子里的旧歌只
  * 用来判断哪些是新的。
  */
-export function buildRoamQueue(pool: RoamPool, size: number = SLOTS.roam): Track[] {
-  return shuffle(pool.freshTracks).slice(0, size)
+export function buildRoamQueue(
+  pool: RoamPool,
+  size: number = SLOTS.roam,
+  seed?: Track
+): Track[] {
+  const fresh = shuffle(pool.freshTracks)
+  if (!seed) return fresh.slice(0, size)
+  /*
+   * 种子那首往往不在 freshTracks 里——它是用户手上的歌，而这一份只装「没收藏
+   * 过的」。所以把它单独塞回去并排第一，再按关系往外扩散；池子里万一也有它
+   * （平台今天正好推了这首），按 trackKey 去掉，免得这一趟放两遍。
+   */
+  const key = trackKey(seed)
+  const rest = fresh.filter((track) => trackKey(track) !== key)
+  return rankBySeed([seed, ...rest], seed).slice(0, size)
 }
 
 /**

@@ -11,7 +11,7 @@ import {
   type RoamProgress,
   withoutTrack
 } from './roam-pure'
-import { buildRoamQueue, loadRoamPool, loadRoamStream } from './roam'
+import { buildRoamQueue, loadRoamPool, loadRoamStream, loadSeedTracks } from './roam'
 import { roamPlatforms } from './roam-sources'
 import { usePlayer } from './store'
 
@@ -111,6 +111,13 @@ export interface RoamState {
    * 轨道上留一条能撤回的提示。同一次会话里只记最后一首。
    */
   dropped: DroppedTrack | null
+  /**
+   * 这一趟从哪首出发；null 就是没有种子。
+   *
+   * 种子只是「怎么排」的依据，不是「只能放像的」：排完照样取满几十首，种子自己
+   * 排第一。收起那行字、退出漫游都回到 null。
+   */
+  seed: Track | null
 }
 
 /** 撤掉一首的两种意思：跳过这一次，还是以后都别再推。 */
@@ -128,7 +135,8 @@ export const useRoam = create<RoamState>()(() => ({
   pulling: false,
   error: '',
   parkedRepeat: null,
-  dropped: null
+  dropped: null,
+  seed: null
 }))
 
 /** 当前这首在不在这趟里。不在就不该显示漫游那套东西。 */
@@ -166,13 +174,23 @@ function parkRepeat(): void {
  *
  * 有这一趟就接着听：先找第一首没听过的。没有就现要一趟。返回 true 表示队列已经
  * 换好，调用方可以进播放页；false 表示这次没成，原因写在 error 里。
+ *
+ * 带一个种子进来是另一条路：「从这首出发」明确要换一趟，所以不接上一趟的账，
+ * 而是把池子按与那首的亲疏重排，种子排第一。
  */
-export async function startRoam(): Promise<boolean> {
+export async function startRoam(seed?: Track): Promise<boolean> {
+  /*
+   * 导航栏那颗「漫游」是 onClick={onRoam}，React 会把点击事件当第一个参数塞进来。
+   * 加种子之前 startRoam 不收参数，所以没人发现；加了种子之后事件对象就成了
+   * 「种子」，下面读 seed.artist.trim() 直接抛 TypeError。这里按「像不像一首歌」
+   * 判一下，不像就当作没带种子。
+   */
+  const chosen = seed && typeof seed.artist === 'string' && typeof seed.title === 'string' ? seed : undefined
   const state = useRoam.getState()
   if (state.busy) return false
 
   const current = usePlayer.getState().current()
-  if (state.tracks.length > 0) {
+  if (!chosen && state.tracks.length > 0) {
     // 这一趟还在：从第一首没听过的接着放。全都听过就从头，反正下面会补新的。
     if (current && isRoamTrack(current)) {
       parkRepeat()
@@ -187,28 +205,55 @@ export async function startRoam(): Promise<boolean> {
 
   useRoam.setState({ busy: true, error: '' })
   try {
-    const pool = await loadRoamPool(roamPlatforms())
+    const wanted = roamPlatforms()
+    // 种子模式要两路一起要：平台今天推的，和这个人的歌。
+    const [pool, near] = await Promise.all([
+      loadRoamPool(wanted),
+      chosen ? loadSeedTracks(chosen, wanted) : Promise.resolve([] as Track[])
+    ])
     const hidden = readKeys(HIDE_KEY)
-    const queue = buildRoamQueue(pool)
-    let tracks = queue.filter((track) => !browsedOut().has(trackKey(track)))
+    /*
+     * 同艺人的歌多半是用户手上已有的，严格说不算「新的」；但这一趟要的就是从这一
+     * 首走进这个人的作品里，所以并进来一起排序。种子自己也在 near 里，建队列时去重。
+     */
+    const queue = buildRoamQueue(
+      chosen ? { ...pool, freshTracks: [...near, ...pool.freshTracks] } : pool,
+      SLOTS.roam,
+      chosen
+    )
+    // 名单只读一次；以前放在 filter 回调里，每首歌都要读一遍 localStorage。
+    const skip = browsedOut()
+    // 种子是用户亲手挑的：哪怕它在「不想再听」名单里，这一趟也得放它。
+    const keep = chosen ? trackKey(chosen) : ''
+    let tracks = queue.filter((track) => {
+      const key = trackKey(track)
+      return key === keep || !skip.has(key)
+    })
     if (tracks.length === 0) {
       // 排除名单把池子吃空了。这是名单自己的问题：清掉滚动的部分再试一次，
       // 划掉的仍然排除。不清就会变成「漫游永远要不到歌」。
       writeKeys(PLAYED_KEY, new Set(), PLAYED_LIMIT)
-      tracks = queue.filter((track) => !hidden.has(trackKey(track)))
+      tracks = queue.filter((track) => trackKey(track) === keep || !hidden.has(trackKey(track)))
     }
     if (tracks.length === 0) {
       useRoam.setState({ busy: false, error: '这几家今天还没推过来，换几家或过会儿再试' })
       return false
     }
     // 漫游不重复：循环会让放过的再来一遍，先关掉，退出时还原。
-    useRoam.setState({ tracks, heard: {}, busy: false, pulling: false, error: '' })
+    useRoam.setState({
+      tracks,
+      heard: {},
+      seed: chosen ?? null,
+      busy: false,
+      pulling: false,
+      error: ''
+    })
     parkRepeat()
     player.playQueue(tracks, 0)
     return true
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    useRoam.setState({ busy: false, error: '这一趟没要到：' + reason })
+    useRoam.setState({ busy: false, error: '这一趟没要到：' + (reason || '不知道哪儿出了岔子') })
     return false
   }
 }
@@ -323,12 +368,30 @@ export function markRoamHeard(track: Track | null): void {
   writeKeys(PLAYED_KEY, played, PLAYED_LIMIT)
 }
 
+/**
+ * 收起「从〈某首〉出发」那行字。
+ *
+ * 只摘标记，不动已经排好的队列：点 × 的多半是嫌那行字占地方，不是要把这一趟
+ * 重排一遍。下一趟从漫游按钮进来就是纯随机。
+ */
+export function dropSeed(): void {
+  if (!useRoam.getState().seed) return
+  useRoam.setState({ seed: null })
+}
+
 /** 退出漫游：轨道收起来。队列不换，正在放的继续放；被换掉的循环模式放回去。 */
 export function endRoam(): void {
   clearUndoClock()
   const { parkedRepeat } = useRoam.getState()
   if (parkedRepeat) usePlayer.getState().setRepeat(parkedRepeat)
-  useRoam.setState({ tracks: [], heard: {}, error: '', parkedRepeat: null, dropped: null })
+  useRoam.setState({
+    tracks: [],
+    heard: {},
+    error: '',
+    parkedRepeat: null,
+    dropped: null,
+    seed: null
+  })
 }
 
 let retry: ReturnType<typeof setTimeout> | null = null

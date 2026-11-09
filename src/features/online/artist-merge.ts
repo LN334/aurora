@@ -14,12 +14,18 @@ import { mergeVersions, normalizeName } from './unify'
 export async function songsAcrossPlatforms(
   name: string,
   order: readonly string[],
-  exclude?: string
+  exclude?: string,
+  /** 只问这几家。不传就是全部能搜的——艺人页要的是「这个人在所有平台上的歌」。 */
+  only?: ReadonlySet<string>
 ): Promise<Track[]> {
   const target = normalizeName(name)
   if (!target) return []
   const providers = listAvailableProviders().filter(
-    (provider) => provider.id !== exclude && provider.capabilities.search && Boolean(provider.search)
+    (provider) =>
+      provider.id !== exclude &&
+      provider.capabilities.search &&
+      Boolean(provider.search) &&
+      (!only || only.has(provider.id))
   )
   const rounds = await Promise.all(
     providers.map(async (provider) => {

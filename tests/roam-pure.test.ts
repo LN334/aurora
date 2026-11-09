@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   appendFresh,
+  rankBySeed,
   remainingSeconds,
   roamProgress,
   shouldPullMore,
@@ -11,14 +12,14 @@ import { trackKey } from '../src/features/online/unify.ts'
 import type { Track } from '../src/types.ts'
 
 /** 拼一首够用的曲子：这几条算术只认标题、主艺人与时长。 */
-function track(id: string, title: string, duration = 200, artist = '某人'): Track {
+function track(id: string, title: string, duration = 200, artist = '某人', album = ''): Track {
   return {
     id,
     path: id,
     title,
     artist,
     albumArtist: artist,
-    album: '',
+    album,
     genre: '',
     year: null,
     trackNo: null,
@@ -106,6 +107,42 @@ test('remainingSeconds 只算当前之后，时长不认就按 0', () => {
   assert.equal(remainingSeconds([a, b, long], 0), 200 + 480)
   assert.equal(remainingSeconds([a, b, long], 2), 0)
   assert.equal(remainingSeconds([a, noMeta], 0), 0)
+})
+
+test('rankBySeed 排成 同专辑 > 同艺人 > 同名 > 其他，种子排第一', () => {
+  const seed = track('s', '孤山春', 200, '白景屹', '孤山')
+  const sameAlbum = track('al', '山风', 200, '白景屹', '孤山')
+  const sameArtist = track('ar', '别的歌', 200, '白景屹', '另一张')
+  const sameTitle = track('ti', '孤山春', 200, '翻唱的人', '合辑')
+  const other = track('ot', '无关', 200, '别人', '别的')
+  const ranked = rankBySeed([other, sameArtist, seed, sameTitle, sameAlbum], seed)
+  assert.deepEqual(
+    ranked.map((item) => item.id),
+    ['s', 'al', 'ar', 'ti', 'ot']
+  )
+})
+
+test('rankBySeed 同一档里保持传进来的先后，不偷偷重排', () => {
+  const seed = track('s', '甲', 200, '某人', '专辑')
+  const first = track('f', '乙', 200, '某人', '专辑')
+  const second = track('g', '丙', 200, '某人', '专辑')
+  // 种子不在传进来的列表里时，这几个纯排序也不该把它塞回去——插种子是取数层的活。
+  const ranked = rankBySeed([second, first], seed)
+  assert.deepEqual(
+    ranked.map((item) => item.id),
+    ['g', 'f']
+  )
+})
+
+test('rankBySeed 同曲的另一个平台版本也算种子', () => {
+  // trackKey 只看标题、主艺人与时长，所以 QQ 那一份与网易云那份是同一首。
+  const seed = track('s', '孤山春', 200, '白景屹', '孤山')
+  const twin = track('s-qq', '孤山春', 200, '白景屹', '孤山')
+  const other = track('o', '无关', 200, '别人', '别的')
+  assert.deepEqual(
+    rankBySeed([other, twin], seed).map((item) => item.id),
+    ['s-qq', 'o']
+  )
 })
 
 test('remainingSeconds 位次不在列表里返回 0', () => {

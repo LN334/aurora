@@ -89,3 +89,50 @@ export function remainingSeconds(tracks: readonly Track[], index: number): numbe
   }
   return total
 }
+
+/** 艺人字段可能是「甲 / 乙」，拆开比：整串相等会漏掉合作曲。 */
+function artistNames(track: Track): Set<string> {
+  const out = new Set<string>()
+  for (const part of track.artist.split(/[/、,，&]/)) {
+    const name = part.trim().toLowerCase()
+    if (name) out.add(name)
+  }
+  return out
+}
+
+function sharesArtist(track: Track, seed: Track): boolean {
+  if (typeof seed.artistId === 'number' && track.artistId === seed.artistId) return true
+  const mine = artistNames(track)
+  if (mine.size === 0) return false
+  for (const name of artistNames(seed)) {
+    if (mine.has(name)) return true
+  }
+  return false
+}
+
+/**
+ * 从种子那首往外排：同专辑 > 同艺人 > 同名 > 其他。
+ *
+ * 「从这首出发」没法算音频相似度——漫游池就是平台推过来的几十首，手上只有元数据。
+ * 能用的关系只有三层：同一张专辑里的别的歌、同一个艺人别的歌、恰好同名（翻唱、
+ * Live、别的平台的同曲）。排完取前几十首，这一趟就从头到尾都离那首歌不远。
+ *
+ * 档内保持传进来的先后，所以调用方先 shuffle 再调这里：档与档之间有关系，档内
+ * 是随机的。种子自己永远排第一，同曲的另一个平台版本也算种子（trackKey 不认 id）。
+ */
+export function rankBySeed(tracks: readonly Track[], seed: Track): Track[] {
+  const seedKey = trackKey(seed)
+  const album = seed.album.trim()
+  const artist = seed.artist.trim()
+  const scored = tracks.map((track, index) => {
+    let rank = 4
+    if (trackKey(track) === seedKey) rank = 0
+    else if (album && track.album === album && track.albumArtist === seed.albumArtist) rank = 1
+    else if (artist && sharesArtist(track, seed)) rank = 2
+    else if (seed.title && track.title === seed.title) rank = 3
+    return { track, index, rank }
+  })
+  // 显式比 index，不指望 sort 的稳定性：同档里的顺序就是调用方 shuffle 的结果。
+  scored.sort((left, right) => left.rank - right.rank || left.index - right.index)
+  return scored.map((row) => row.track)
+}

@@ -1,103 +1,112 @@
-import { useEffect, useRef } from 'react'
-import { player } from '../features/player/actions'
-import {
-  endRoam,
-  hideRoamTrack,
-  pullRoamMore,
-  ROAM_MORE,
-  undoDrop,
-  useRoam,
-  useRoamProgress
-} from '../features/player/roam-session'
+import { dropSeed, endRoam, hideRoamTrack, pullRoamMore, ROAM_MORE, undoDrop, useRoam, useRoamProgress } from '../features/player/roam-session'
 import { roamCandidates, setRoamPlatform, useRoamPlatforms } from '../features/player/roam-sources'
 import { usePlayer } from '../features/player/store'
-import { sourceLabelFor } from '../features/online/registry'
-import { trackKey } from '../features/online/unify'
-import { artworkFor } from '../features/library/source'
-import { Artwork } from '../ui/Artwork'
-import { Close, Next, Note, Plus } from '../ui/icons'
+import { Close, Next, Plus } from '../ui/icons'
 
-/** 平台全名太长（「网易云音乐」），轨道头上只留能分辨的那几个字。 */
+/** 平台全名太长（「网易云音乐」），这里只留能分辨的那几个字。 */
 function shortPlatform(name: string): string {
   return name.replace(/音乐$/, '')
 }
 
 /**
- * 漫游轨：一趟漫游的全部曲目，横排一条。
+ * 漫游状态条。
  *
- * 它是这一页的一部分，不是另一个页面——漫游开始时人已经在播放页了，列表如果
- * 还得再跳一次，那和以前的漫游页没有区别。所以轨道只占底部一条，封面、歌词、
- * 进度都还在原位。
+ * 这里原本排着这一趟的全部曲目，后来发现是重复的：漫游换的就是播放队列，右边
+ * 那个队列面板里已经是同一批歌，两处并排摆着只是同一份列表画了两遍。所以这一条
+ * 只留队列上没有的东西——走到第几首、从哪首出发、向哪几家要、再要一批、退出，
+ * 以及「跳过这首 / 不再推」这两颗只能对当前歌生效的动作。
  *
- * 轨道上做四件在别处做不了的事：
- *
- * 1. 跳到这一趟里的任意一首。点卡片就播，不重开一趟。
- * 2. 划掉。点卡片右上角的 ×：从这一趟里拿掉，同时记住，下次要歌不再推它。
- * 3. 再要一批。尾部那张卡向平台再要半批接在末尾，不打断正在放的这首。
- * 4. 就地换平台。头部四颗开关就是「从哪几家要」，改完下一批立刻照新的要。
- *
- * 「已听」不做成历史记录：它只服务两个地方——头部那行字，以及万一这一趟被
- * 别的页面顶掉之后再点漫游，知道该从哪一首接着放。
+ * 为什么不做成页面：漫游开始时人就在播放页，列表已经交给队列面板，再跳一次页面
+ * 就回到以前的漫游页了。
  */
 export function RoamRail() {
   const tracks = useRoam((state) => state.tracks)
-  const heard = useRoam((state) => state.heard)
   const pulling = useRoam((state) => state.pulling)
   const error = useRoam((state) => state.error)
   const dropped = useRoam((state) => state.dropped)
+  const seed = useRoam((state) => state.seed)
   const chosen = useRoamPlatforms()
   const current = usePlayer((state) => state.current())
   const progress = useRoamProgress(current)
-  const nowKey = current ? trackKey(current) : ''
-  const nowRef = useRef<HTMLLIElement | null>(null)
-
-  // 「已听」与「放过」由 roam-session 在切歌时统一记，不挂在组件上——
-  // 这一页被别的页面顶掉时，这一趟照样要走下去。
-
-  // 当前卡自动回到视线中间。换歌、划掉、接新一批都会走到这里。
-  useEffect(() => {
-    if (!nowKey) return
-    nowRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-  }, [nowKey])
 
   if (tracks.length === 0) return null
 
   const candidates = roamCandidates()
   const chosenSet = new Set(chosen)
+  const inRoam = progress.index >= 0 && current !== null
   const wantMore = ROAM_MORE
 
   return (
-    <section className="rr" aria-label="漫游轨">
-      <header className="rr__head">
-        <span className="rr__live">
-          <i className="rr__live-dot" aria-hidden="true" />
-          漫游中
+    <section className="rr" aria-label="漫游状态">
+      <span className="rr__live">
+        <i className="rr__live-dot" aria-hidden="true" />
+        漫游中
+      </span>
+      {/*
+        从哪首出发。收起 × 只摘这行字，不重排这一趟——用户嫌的是占地方，
+        不是要把已排好的队列换掉。
+      */}
+      {seed ? (
+        <span className="rr__seed" title={`这一趟从〈${seed.title}〉出发，按同专辑、同艺人往外扩`}>
+          <span className="rr__seed-name">从〈{seed.title}〉出发</span>
+          <button type="button" className="rr__seed-x" onClick={dropSeed} aria-label="收起「从这首出发」">
+            <Close size={10} />
+          </button>
         </span>
-        <span className="rr__count">
-          {progress.index >= 0 ? `第 ${progress.index + 1} 首` : '不在这一趟里'}
-          <span className="rr__sep">·</span>
-          已听 {progress.heard} / 共 {progress.total}
-        </span>
+      ) : null}
 
-        <div className="rr__plats" role="group" aria-label="这一趟从哪几家要">
-          <span className="rr__plats-k">推流</span>
-          {candidates.map((item) => {
-            const on = chosenSet.has(item.id)
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={`rr__plat${on ? ' is-on' : ''}`}
-                aria-pressed={on}
-                title={on ? `不再向${item.name}要` : `下一批也向${item.name}要`}
-                onClick={() => setRoamPlatform(item.id, !on)}
-              >
-                {shortPlatform(item.name)}
-              </button>
-            )
-          })}
-        </div>
+      <span className="rr__count">
+        {inRoam ? `第 ${progress.index + 1} 首` : '不在这一趟里'}
+        <span className="rr__sep">·</span>
+        已听 {progress.heard} / 共 {progress.total}
+      </span>
 
+      <div className="rr__plats" role="group" aria-label="这一趟从哪几家要">
+        <span className="rr__plats-k">推流</span>
+        {candidates.map((item) => {
+          const on = chosenSet.has(item.id)
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`rr__plat${on ? ' is-on' : ''}`}
+              aria-pressed={on}
+              title={on ? `不再向${item.name}要` : `下一批也向${item.name}要`}
+              onClick={() => setRoamPlatform(item.id, !on)}
+            >
+              {shortPlatform(item.name)}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="rr__acts">
+        {/*
+          两颗只对当前这首生效。跳过不留痕，不再推会进名单——两者分开，混成一个
+          动作名单会越攒越大，最后推什么都不对。
+        */}
+        {inRoam && current ? (
+          <>
+            <button
+              type="button"
+              className="rr__act"
+              onClick={() => hideRoamTrack(current, 'skip')}
+              title="跳过这首，只跳过这一次"
+            >
+              <Next size={12} />
+              跳过这首
+            </button>
+            <button
+              type="button"
+              className="rr__act rr__act--no"
+              onClick={() => hideRoamTrack(current, 'dislike')}
+              title="不想再听这首，以后不再推"
+            >
+              <Close size={12} />
+              不再推
+            </button>
+          </>
+        ) : null}
         <button
           type="button"
           className="rr__more"
@@ -108,82 +117,12 @@ export function RoamRail() {
           <Plus size={13} />
           {pulling ? '正在要…' : `再要 ${wantMore} 首`}
         </button>
-        <button type="button" className="rr__exit" onClick={endRoam} title="收起轨道，继续放当前的">
+        <button type="button" className="rr__exit" onClick={endRoam} title="收起这一趟，继续放当前的">
           退出漫游
         </button>
-      </header>
+      </div>
 
-      <ol className="rr__rail">
-        {tracks.map((track, index) => {
-          const key = trackKey(track)
-          const isNow = key === nowKey
-          const isHeard = Boolean(heard[key])
-          const source = sourceLabelFor(track) ?? '本机'
-          return (
-            <li
-              key={key}
-              ref={isNow ? nowRef : undefined}
-              className={`rr__card${isNow ? ' is-now' : ''}${isHeard && !isNow ? ' is-heard' : ''}`}
-            >
-              <button
-                type="button"
-                className="rr__pick"
-                onClick={() => player.playQueue(tracks, index)}
-                title={`${track.title} · ${track.artist || '未知艺人'}`}
-              >
-                <span className="rr__art">
-                  <Artwork src={artworkFor(track)} fallback={<Note size={16} />} />
-                </span>
-                <span className="rr__body">
-                  <span className="rr__title">{track.title}</span>
-                  <span className="rr__sub">
-                    <span className="rr__src">{source}</span>
-                    {track.artist || '未知艺人'}
-                  </span>
-                </span>
-              </button>
-              {/*
-                两颗，不是一个 ×：跳过和讨厌是两件事。混成一个动作，名单会
-                越攒越大，最后推什么都不对。
-              */}
-              <span className="rr__drops">
-                <button
-                  type="button"
-                  className="rr__drop rr__drop--skip"
-                  onClick={() => hideRoamTrack(track, 'skip')}
-                  title="跳过这首，只跳过这一次"
-                  aria-label={`跳过 ${track.title}`}
-                >
-                  <Next size={11} />
-                </button>
-                <button
-                  type="button"
-                  className="rr__drop"
-                  onClick={() => hideRoamTrack(track, 'dislike')}
-                  title="不想再听这首，以后不再推"
-                  aria-label={`不再推 ${track.title}`}
-                >
-                  <Close size={11} />
-                </button>
-              </span>
-            </li>
-          )
-        })}
-
-        <li className="rr__tail">
-          <button
-            type="button"
-            className="rr__again"
-            onClick={() => void pullRoamMore()}
-            disabled={pulling}
-          >
-            <Plus size={15} />
-            <span>{pulling ? '正在要…' : '再来一批'}</span>
-          </button>
-        </li>
-      </ol>
-
-      {/* 划错了没有第二次机会（尤其「不想再听」是写进名单的），所以留三秒撤回。 */}
+      {/* 划错了没有第二次机会（尤其「不再推」是写进名单的），所以留三秒撤回。 */}
       {dropped ? (
         <p className="rr__undo">
           已{dropped.reason === 'skip' ? '跳过' : '不再推'}〈{dropped.track.title}〉

@@ -146,7 +146,7 @@ export function Rail({
           */}
         <button
           className={`rail-item rail-item--roam${live ? ' is-live' : ''}`}
-          onClick={onRoam}
+          onClick={() => onRoam()}
           disabled={pending}
           title={pending ? '正在向平台要歌…' : live ? '漫游中 · 再点一次接着听 (R)' : '随机放点什么 (R)'}
           aria-label="漫游"

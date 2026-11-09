@@ -18,7 +18,7 @@ import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } 
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
 import { PlaylistsView } from './views/PlaylistsView'
-import { startRoam } from './features/player/roam-session'
+import { startRoam, useRoam } from './features/player/roam-session'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/player-bar/PlayerBar'
 import { PlaylistDetail } from './views/PlaylistDetail'
@@ -335,9 +335,11 @@ export function App() {  if (!isNative) {
    * 没生效；只跳页不放歌，进去是一片空的播放页。所以收成一个动作，左栏与 R 键
    * 共用这一个入口。
    */
-  const roamNow = useCallback(() => {
-    void startRoam().then((ok) => {
+  const roamNow = useCallback((seed?: Track) => {
+    void startRoam(seed).then((ok) => {
       if (ok) goShell({ view: 'nowplaying' })
+      // 点了没反应比报错更糟：要不到时把原因说出来。
+      else setFlash(useRoam.getState().error || '这一趟没要到歌')
     })
   }, [goShell])
 
@@ -1176,6 +1178,11 @@ export function App() {  if (!isNative) {
             player.addToQueue([trackMenu.track], 'next')
             closeTrackMenu()
             setFlash(`已把《${trackMenu.track.title}》排到下一首`)
+          }}
+          onRoam={() => {
+            const seed = trackMenu.track
+            closeTrackMenu()
+            roamNow(seed)
           }}
           onDownload={
             trackMenu.track.source

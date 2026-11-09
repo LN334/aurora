@@ -10,20 +10,17 @@
 
 .rr {
   flex: 0 0 auto;
-  min-width: 0;
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgb(255 255 255 / 0.07);
-}
-
-/* —— 头一句 —— */
-
-.rr__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 0 2px 8px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 12px;
+  background: rgb(10 12 16 / 0.34);
+  backdrop-filter: blur(14px) saturate(1.15);
 }
 
 .rr__live {
@@ -68,13 +65,60 @@
   color: var(--text-low);
 }
 
+/* 从哪首出发。一枚小胶囊，和旁边那两段纯文字区分开，也要看得出能收起。 */
+.rr__seed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 230px;
+  padding: 2px 4px 2px 9px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.28);
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.1);
+  font-size: 11.5px;
+  color: color-mix(in oklab, var(--accent) 78%, white);
+  white-space: nowrap;
+}
+
+/*
+ * 省略号必须落在这一层：.rr__seed 是 flex 容器，里面的裸文本节点不会自己截断，
+ * 长标题会把胶囊撑到 400px 并把「跳过这首」那一组挤到第二行。
+ */
+.rr__seed-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rr__seed-x {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.72;
+  cursor: pointer;
+}
+
+.rr__seed-x:hover {
+  opacity: 1;
+  background: rgb(255 255 255 / 0.12);
+}
+
 /* —— 推流：就地换，改完下一批照新的要 —— */
 
 .rr__plats {
   display: flex;
   align-items: center;
   gap: 3px;
-  margin-left: auto;
   min-width: 0;
   overflow: hidden;
 }
@@ -110,7 +154,45 @@
   color: var(--text-hi);
 }
 
-/* —— 两个动作：要一批、收起来 —— */
+/* —— 右边那一撮：针对当前这首的两颗，加要一批、退出 —— */
+
+.rr__acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* 跟卡片上那两颗一样的语义：跳过不留痕（中性），不再推进名单（红）。 */
+.rr__act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-mid);
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.rr__act:hover {
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.2);
+  color: var(--text-hi);
+}
+
+.rr__act--no:hover {
+  background: rgb(232 84 63 / 0.16);
+  border-color: rgb(232 84 63 / 0.45);
+  color: #ff9a8f;
+}
 
 .rr__more,
 .rr__exit {
@@ -145,197 +227,21 @@
   color: var(--text-low);
 }
 
-/* —— 轨道 —— */
-
-.rr__rail {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  padding: 2px 2px 6px;
-  list-style: none;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
-  scroll-behavior: smooth;
-}
-
-.rr__card {
-  position: relative;
-  flex: 0 0 auto;
-  width: 172px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: rgb(255 255 255 / 0.035);
-  transition: background 140ms ease, border-color 140ms ease, opacity 140ms ease;
-}
-
-.rr__card:hover {
-  background: rgb(255 255 255 / 0.075);
-}
-
-/* 正在放的这首是轨道唯一的锚点：主色浅底 + 描边，一眼能在十几张里找到。 */
-.rr__card.is-now {
-  background: rgb(var(--accent-rgb) / 0.13);
-  border-color: rgb(var(--accent-rgb) / 0.4);
-}
-
-/* 听过的降下去，但悬停要能立刻读清——降的是「不重要」，不是「不可用」。 */
-.rr__card.is-heard {
-  opacity: 0.5;
-}
-
-.rr__card.is-heard:hover,
-.rr__card.is-heard.is-now {
-  opacity: 1;
-}
-
-.rr__pick {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.rr__art {
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 6px;
-  overflow: hidden;
-  background: rgb(255 255 255 / 0.05);
-}
-
-.rr__body {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.rr__title {
-  overflow: hidden;
-  color: var(--text-hi);
-  font-size: 12.5px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.rr__sub {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-low);
-  font-size: 11px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.rr__src {
-  flex: none;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: rgb(255 255 255 / 0.07);
-  color: var(--text-mid);
-  font-size: 10px;
-}
-
-/* 撤掉：只在悬停长出，免得一排 × 把轨道变成待办清单。两颗一组：跳过 / 不再推。 */
-.rr__drops {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: flex;
-  gap: 3px;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.rr__drop {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(10 12 16 / 0.74);
-  color: var(--text-mid);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.rr__card:hover .rr__drops,
-.rr__drops:focus-within {
-  opacity: 1;
-}
-
-/* 「不再推」是红的（不可逆的那一下），「跳过」保持中性——它没有代价。 */
-.rr__drop:hover {
-  background: rgb(232 84 63 / 0.92);
-  color: #fff;
-}
-
-.rr__drop--skip:hover {
-  background: rgb(255 255 255 / 0.22);
-  color: var(--text-hi);
-}
-
-/* —— 尾巴：再来一批 —— */
-
-.rr__tail {
-  flex: 0 0 auto;
-  display: flex;
-}
-
-.rr__again {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 96px;
-  border: 1px dashed rgb(255 255 255 / 0.16);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-mid);
-  font-size: 11.5px;
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
-}
-
-.rr__again:hover:not(:disabled) {
-  border-color: rgb(255 255 255 / 0.3);
-  background: rgb(255 255 255 / 0.03);
-  color: var(--text-hi);
-}
-
-.rr__again:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* 要不到时的一句话。不是错误弹窗：这里失败只影响下一批，正在放的歌不受影响。 */
 .rr__note {
-  margin: 4px 2px 0;
+  flex-basis: 100%;
+  margin: 0;
   color: #e0a06a;
   font-size: 11.5px;
 }
 
 /* 撤掉之后三秒的撤回条。语气要平：这不是失败，是一次可以反悔的操作。 */
 .rr__undo {
+  flex-basis: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 4px 2px 0;
+  margin: 0;
   color: var(--text-mid);
   font-size: 11.5px;
 }
@@ -407,20 +313,14 @@
   .rr__plats-k {
     display: none;
   }
-  .rr__card {
-    width: 152px;
-  }
-  .rr__again {
-    width: 84px;
-  }
 }
 
 @media (max-width: 900px) {
-  /* 平台开关在窄窗里挤不下：那里留给计数与两个动作，平台去设置页改。 */
+  /* 平台开关在窄窗里挤不下：那里留给计数与动作，平台去设置页改。 */
   .rr__plats {
     display: none;
   }
-  .rr__more {
+  .rr__acts {
     margin-left: auto;
   }
 }
@@ -428,8 +328,5 @@
 @media (prefers-reduced-motion: reduce) {
   .rr__live-dot {
     animation: none;
-  }
-  .rr__rail {
-    scroll-behavior: auto;
   }
 }

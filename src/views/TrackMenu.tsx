@@ -17,6 +17,8 @@ interface TrackMenuProps {
   /** 三页里的第一层：先看这首歌是什么，再决定听不听。 */
   onOpenDetail(): void
   onPlayNext(): void
+  /** 从这一首出发开一趟漫游：按同专辑、同艺人往外扩。 */
+  onRoam?: () => void
   /**
    * 把这首歌存到本地。本机文件已经在磁盘上，所以那种行不会拿到这个回调，
    * 菜单里也不该出现一个按了没反应的「下载」。
@@ -50,6 +52,7 @@ export function TrackMenu({
   onClose,
   onOpenDetail,
   onPlayNext,
+  onRoam,
   onDownload,
   onAddToPlaylist,
   onRemoveFromPlaylist,
@@ -126,6 +129,12 @@ export function TrackMenu({
       <button className="menu__item" role="menuitem" onClick={onPlayNext}>
         下一首播放
       </button>
+
+      {onRoam ? (
+        <button className="menu__item" role="menuitem" onClick={onRoam}>
+          从这首漫游
+        </button>
+      ) : null}
 
       {onDownload ? (
         <button className="menu__item" role="menuitem" onClick={onDownload}>
