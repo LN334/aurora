@@ -15,7 +15,7 @@ import type { KugouQuality } from './types'
  * 第三方 SDK 的 jar 需要照顾。
  */
 
-export interface KugouProfileState {
+interface KugouProfileState {
   token: string
   userid: string
   nickname: string

@@ -127,17 +127,6 @@ if (typeof window !== 'undefined') {
   })
 }
 
-/*
- * Selectors return stored references, never freshly built objects: zustand v5
- * compares by identity, and a new array on every call would re-render on every
- * store read. Components slice / summarise what they need themselves.
- */
-
-/** The whole stored history. */
-export function useHistoryState(): HistoryState {
-  return useHistory((state) => state.history)
-}
-
 /** Recently played, newest first. */
 export function useRecentEntries(): RecentEntry[] {
   return useHistory((state) => state.history.recent)

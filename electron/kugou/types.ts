@@ -76,7 +76,7 @@ export interface KugouSong {
   paid: boolean
 }
 
-export interface KugouStream {
+interface KugouStream {
   /** 上游 http(s) 地址，经 `aurora-remote:` 播放，页面不直接碰酷狗域名。 */
   url: string
   /** 请求的档位。 */

@@ -13,7 +13,7 @@ import { showFlash } from '../../ui/flash'
  */
 
 /** 这一家的写通道；没有就是这家还写不了。 */
-export function playlistWriter(providerId: ProviderId | string): ProviderPlaylistWriteApi | null {
+function playlistWriter(providerId: ProviderId | string): ProviderPlaylistWriteApi | null {
   const provider = getProvider(providerId as ProviderId)
   return provider?.playlists ?? null
 }
@@ -38,13 +38,13 @@ export function canWritePlaylist(
 }
 
 /** 平台侧的歌 id：写接口都吃这个，不吃 Track.id。 */
-export function platformSongIdOf(providerId: ProviderId | string, track: Track): number {
+function platformSongIdOf(providerId: ProviderId | string, track: Track): number {
   const provider = getProvider(providerId as ProviderId)
   const backend = provider?.backend as PlatformBackend | undefined
   return backend?.songIdOf(track) ?? 0
 }
 
-export interface WriteResult {
+interface WriteResult {
   ok: boolean
   /** 失败时给用户看的一句话。 */
   message?: string

@@ -294,7 +294,7 @@ The account side lives in `src/features/accounts/providers.ts`. `ProviderId` alr
 
 ### Testing
 
-`npm test` runs 414 cases over logic that doesn't need Electron: LRC parsing, m3u encode/decode, queue advancement, folder trees, version comparison, profile isolation, protocol path checks, scan throttling, NetEase pure functions, initial search source, source-label rules, wallpaper selection and quality maths, and daily listening history.
+`npm test` runs 482 cases over logic that doesn't need Electron: LRC parsing, m3u encode/decode, queue advancement, folder trees, version comparison, profile isolation, protocol path checks, scan throttling, NetEase pure functions, initial search source, source-label rules, wallpaper selection and quality maths, and daily listening history.
 
 The UI is covered by a real-window walkthrough. `npm run smoke` starts Electron with its own user-data-dir (your actual settings are untouched), clicks through every page from the sidebar, collects console errors, broken images and uncaught exceptions, then runs an online search and plays one online track long enough to prove the bar moved past 0:00. With Wallpaper Engine installed it also picks a wallpaper for real and checks the scene canvas is mounted and still producing frames. Any failure exits 1 and leaves screenshots in `shots/smoke/`.
 

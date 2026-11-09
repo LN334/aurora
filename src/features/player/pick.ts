@@ -20,7 +20,7 @@ function rank(source: string | undefined, order: readonly string[]): number {
 }
 
 /** 候选版本：主行自己 + 其它平台版本，按优先级排序并去掉重复。 */
-export function playableCandidates(track: Track, order: readonly string[] = sourceOrder()): Track[] {
+function playableCandidates(track: Track, order: readonly string[] = sourceOrder()): Track[] {
   const seen = new Set<string>()
   const list = [track, ...(track.versions ?? [])].filter((item) => {
     const key = `${item.source ?? 'local'}:${item.onlineId ?? item.id}`
@@ -31,7 +31,7 @@ export function playableCandidates(track: Track, order: readonly string[] = sour
   return list.sort((a, b) => rank(a.source, order) - rank(b.source, order))
 }
 
-export interface PickedSource {
+interface PickedSource {
   /** 真正要播的那个版本。 */
   track: Track
   /** 已经能交给 audio 元素的地址。 */

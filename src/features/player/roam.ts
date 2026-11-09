@@ -12,7 +12,7 @@ import { useHistory } from './history-store'
 import type { Track } from '../../types'
 import { SLOTS } from '../online/slots'
 
-export interface RoamPool {
+interface RoamPool {
   /** 池子里所有的歌，同曲多版本已并成一行。 */
   tracks: Track[]
   /** 池子里不在「我的」里的那部分：平台推过来、还没收藏过的。 */

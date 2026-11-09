@@ -105,7 +105,7 @@ let inFlight: Promise<ProxyEndpoint | null> | null = null
  * Probes run together and the whole search is capped at one probe timeout, so a
  * machine with no proxy pays well under a second before the update starts.
  */
-export async function findWorkingProxy(force = false): Promise<ProxyEndpoint | null> {
+async function findWorkingProxy(force = false): Promise<ProxyEndpoint | null> {
   if (!force && cached) {
     const ttl = cached.endpoint ? FOUND_TTL_MS : MISS_TTL_MS
     if (Date.now() - cached.at < ttl) return cached.endpoint
@@ -135,7 +135,7 @@ async function search(): Promise<ProxyEndpoint | null> {
   return results.find((result) => result.ok)?.endpoint ?? null
 }
 
-export interface UpdateRoute {
+interface UpdateRoute {
   /** The proxy in use, or null when the download goes out directly. */
   endpoint: ProxyEndpoint | null
   /** Human-readable form, for the settings panel and the startup log. */

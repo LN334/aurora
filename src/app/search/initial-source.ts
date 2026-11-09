@@ -9,7 +9,7 @@
  * has right now, which is the whole point.
  */
 
-export interface SourceTab {
+interface SourceTab {
   id: string
   /** True for a remote catalogue, which is the one worth defaulting to. */
   remote: boolean
@@ -31,4 +31,4 @@ export function chooseInitialSource(tabs: readonly SourceTab[], remembered: stri
 }
 
 /** The pseudo-source that searches every platform at once. */
-export const ALL_SOURCES = 'all'
+const ALL_SOURCES = 'all'

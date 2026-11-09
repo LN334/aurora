@@ -24,7 +24,7 @@
     "smoke": "node scripts/smoke.mjs",
     "test": "node --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.json",
-    "check": "npm run typecheck && npm run test && node scripts/audit-reachability.mjs && node scripts/audit-css.mjs && node scripts/audit-stale-paths.mjs",
+    "check": "npm run typecheck && npm run test && node scripts/audit-reachability.mjs && node scripts/audit-css.mjs && node scripts/audit-stale-paths.mjs && node scripts/audit-exports.mjs",
     "audit:exports": "node scripts/audit-exports.mjs",
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder --win"
@@ -100,8 +100,7 @@
     "@sansenjian/qq-music-api": "^2.6.0",
     "electron-updater": "^6.8.9",
     "music-metadata": "^11.9.0",
-    "qishui-music-api": "^0.2.2",
-    "webwallgl": "^3.0.1"
+    "qishui-music-api": "^0.2.2"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -116,6 +115,7 @@
     "typescript": "^5.6.0",
     "vite": "^7.0.0",
     "wait-on": "^8.0.1",
+    "webwallgl": "^3.0.1",
     "zustand": "^5.0.0"
   }
 }

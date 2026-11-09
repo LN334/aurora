@@ -55,7 +55,7 @@ interface NowPlayingProps {
  *
  * 所以这一页留着外壳（左栏、播放条都在），只是把中间那块换成封面加歌词。
  */
-export function NowPlaying({
+export function NowPlayingPage({
   track,
   lyrics,
   duration,

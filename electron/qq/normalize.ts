@@ -649,36 +649,6 @@ export function normalizePlaylists(response: unknown): QqPlaylistSummary[] {
   return playlists
 }
 
-/**
- * 排行榜列表：`body.toplist.data.group[].toplist[]`。
- *
- * 每行 `topId` 是榜号（4=流行指数、26=热歌…），`title` 是榜名，`frontPicUrl`
- * 是封面，`totalNum` 是首数。这些都能直接当歌单卡用，点开是榜歌曲。
- */
-export function normalizeTopLists(response: unknown): QqPlaylistSummary[] {
-  const body = record(record(response).body ?? response)
-  const data = record(record(body.toplist).data)
-  const rows: unknown[] = []
-  for (const group of firstList(data.group)) rows.push(...firstList(record(group).toplist))
-  const seen = new Set<number>()
-  const playlists: QqPlaylistSummary[] = []
-  for (const row of rows) {
-    const entry = record(row)
-    const id = integer(pick(entry, 'topId', 'topid', 'id'))
-    const name = text(pick(entry, 'title', 'name', 'topTitle'))
-    if (!id || !name || seen.has(id)) continue
-    seen.add(id)
-    playlists.push({
-      id,
-      name,
-      coverUrl: text(pick(entry, 'frontPicUrl', 'picUrl', 'headPicUrl', 'cover')) || null,
-      trackCount: integer(pick(entry, 'totalNum', 'songCount', 'num')) || 0,
-      creator: 'QQ 音乐排行榜'
-    })
-  }
-  return playlists
-}
-
 
 /** 一个榜里的歌：`body.toplist.data.song[]`，行结构与搜索一致。 */
 export function normalizeTopDetail(response: unknown): QqSong[] {
@@ -816,7 +786,6 @@ function firstList(...values: unknown[]): unknown[] {
 // --- album & artist -----------------------------------------------------
 
 const ALBUM_INFO_DESC_LIMIT = 4000
-const SINGER_DESC_LIMIT = 8000
 
 /**
  * The collected-albums shelf.
@@ -917,20 +886,4 @@ export function normalizeAlbumSongs(response: unknown): QqSong[] {
     if (song) songs.push(song)
   }
   return songs
-}
-
-/**
- * The artist description document.
- *
- * Upstream answers XML (`body.response` is a string), so this reads the
- * `<desc><![CDATA[…]]></desc>` block out of it. A malformed or empty document is
- * "no description", never an error: the page still has a name and an avatar.
- */
-export function normalizeSingerDesc(response: unknown): { description: string } {
-  const body = record(response)
-  const raw = typeof body.response === 'string' ? body.response : text(pick(body, 'response', 'data'))
-  if (!raw) return { description: '' }
-  const match = /<desc><!\[CDATA\[([\s\S]*?)\]\]><\/desc>/i.exec(raw)
-  const description = match?.[1]?.trim() ?? ''
-  return { description: description.slice(0, SINGER_DESC_LIMIT) }
 }

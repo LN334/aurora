@@ -30,7 +30,7 @@ export function normalizeName(value: string): string {
     .trim()
 }
 
-export function normalizeTitle(title: string): string {
+function normalizeTitle(title: string): string {
   return normalizeName((title || '').replace(FEAT, ' '))
 }
 
@@ -57,7 +57,7 @@ export function trackKey(track: Track): string {
  * 没设过就按「本机优先，其次网易云，其次 QQ，再次酷狗」——本机文件不需要联网、
  * 也不需要会员，先试它是唯一不会白等一次请求的选择。
  */
-export const DEFAULT_SOURCE_ORDER = ['local', 'netease', 'qq', 'kugou'] as const
+const DEFAULT_SOURCE_ORDER = ['local', 'netease', 'qq', 'kugou'] as const
 
 function rank(source: string | undefined, order: readonly string[]): number {
   const index = order.indexOf(source ?? 'local')
@@ -105,9 +105,4 @@ export function sourcesOf(track: Track, order: readonly string[] = DEFAULT_SOURC
   const unique = [...new Set(all)]
   unique.sort((a, b) => rank(a, order) - rank(b, order))
   return unique
-}
-
-/** 这一行里属于某个平台的版本（主行自己也在其中）。 */
-export function versionsOf(track: Track, source: string): Track[] {
-  return [track, ...(track.versions ?? [])].filter((item) => (item.source ?? 'local') === source)
 }

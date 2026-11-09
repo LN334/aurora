@@ -25,7 +25,7 @@ export interface ScanProgress {
  *
  * `scanLibrary` reports once per *discovered* file and once per *indexed* file,
  * so a 5,000-track library produced ~10,000 `library:progress` messages
- * (measured: scripts/probe-aurora-bg.mjs reports `messagesPerFile: 2`). Each one
+ * (measured: `messagesPerFile: 2`). Each one
  * cost the renderer two store writes (`setCurrentScan` + `setProgress`) and one
  * render of the whole App tree, because the progress bar is state at the root
  * (src/features/library/scan.ts, src/App.tsx). None of it is visible while the window is

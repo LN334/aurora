@@ -26,7 +26,7 @@ src/
     wallpaper/    动态背景：选择规则的纯函数、开关与可见度的存储、场景挂载
   views/        页面与面板，一个文件一个屏幕或一块面板；views/settings/ 是单页设置的
                 四个编号分区（parts.tsx 是排版零件，panes/ 每段一个文件）；
-                AccountView.tsx 是账号页（档案 + 在线平台 + 本地文件夹），
+                AccountPage.tsx 是账号页（档案 + 在线平台 + 本地文件夹），
                 settings/panes/AccountPane.tsx 是它的内容，两者共用同一份零件
   ui/           共享基元：Artwork、icons、TrackList、format、UpdatePanel
   stage/        歌词舞台与可视化
@@ -67,7 +67,7 @@ tests/          单元测试，主要覆盖纯逻辑
 按「你会为什么来这里」排：01 播放与音质、02 外观与桌面、03 快捷键、04 更新与关于、
 05 清理与维护。
 
-**账号不在这**：`src/views/AccountView.tsx` 是独立一页（入口是侧栏底部的头像），
+**账号不在这**：`src/views/AccountPage.tsx` 是独立一页（入口是侧栏底部的头像），
 内容是 `settings/panes/AccountPane.tsx`。它和设置页共用 `parts.tsx` 的排版零件与
 `settings.css`，所以两页看起来是同一个系统的两屏，而不是两套界面。把它留在设置里会
 让「换档案 / 扫码登录」这种高频动作埋进低频页面。
@@ -242,18 +242,6 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
 - `JunkScan` 因此带两个数字：`cleanedBytes`（两次测量真实下降的量）与 `deferredBytes`
   （排进下次启动、取清理后缓存总量）。两者互为补数，界面上写「已清理」和「下次启动再清」，
   不会同一批字节既算清掉又算没清。
-
-## 搬迁工具
-
-`scripts/move-files.mjs` 移动文件并改写所有相对 import（静态、动态、type-only、
-`export … from`），基于 TypeScript AST 而不是正则：
-
-```bash
-node scripts/move-files.mjs --plan scripts/moves/features.json          # 试运行，打印改动
-node scripts/move-files.mjs --plan scripts/moves/features.json --apply  # 执行
-```
-
-计划文件在 `scripts/moves/`。工具在动任何文件**之前**会校验全部源路径与目标路径。
 
 ## 踩过的坑（避免重复）
 

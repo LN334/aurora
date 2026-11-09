@@ -42,8 +42,3 @@ export async function neteaseDiscover(
   return discover.call(netease, kind, limit, offset)
 }
 
-/** 这个构建有没有接上发现页的通道；页面用它区分「空」和「没接通」。 */
-export function hasNeteaseDiscover(): boolean {
-  return typeof netease.discover === 'function'
-}
-

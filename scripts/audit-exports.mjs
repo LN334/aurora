@@ -75,6 +75,8 @@ for (const file of files) {
 
 results.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 
+if (results.length > 0) process.exitCode = 1
+
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(results, null, 2))
 } else {

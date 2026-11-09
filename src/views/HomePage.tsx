@@ -116,7 +116,7 @@ interface HomeViewProps {
   onNavigate(route: ShellRoute): void
 }
 
-export function HomeView({ onNavigate }: HomeViewProps) {
+export function HomePage({ onNavigate }: HomeViewProps) {
   const queue = usePlayer((state) => state.queue)
   const index = usePlayer((state) => state.index)
   const playing = usePlayer((state) => state.playing)

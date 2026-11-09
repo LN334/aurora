@@ -15,7 +15,7 @@ import { createQishuiDeviceId, isQishuiDeviceId } from 'qishui-music-api'
  * 原样加解密：读它的字段就是把 SDK 的内部结构钉死在这里，升级就断。
  */
 
-export interface QishuiProfileState {
+interface QishuiProfileState {
   deviceId: string
   session: unknown
 }

@@ -42,7 +42,7 @@ export function parseStrength(raw: string | null): number {
   return value
 }
 
-export interface WallpaperChoice {
+interface WallpaperChoice {
   enabled: boolean
   selection: string
   info: WallpaperInfo | null
@@ -169,7 +169,7 @@ export function parseQuality(raw: string | null): WallpaperQuality {
     : DEFAULT_QUALITY
 }
 
-export interface SceneRenderOptions {
+interface SceneRenderOptions {
   fps: number
   renderDpr: number
 }

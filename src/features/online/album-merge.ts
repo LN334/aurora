@@ -1,7 +1,7 @@
-export type AlbumProvider = 'netease' | 'qq' | 'kugou'
+type AlbumProvider = 'netease' | 'qq' | 'kugou'
 
 /** 同一张专辑在某一家的身份。合并之后一张卡可以挂好几家。 */
-export interface AlbumOn {
+interface AlbumOn {
   providerId: AlbumProvider
   providerLabel: string
   id: number
@@ -33,7 +33,7 @@ export interface AlbumCard {
  */
 
 /** 主艺人：一行写了好几个人时，第一个才代表这张唱片是谁的。 */
-export function firstArtist(text: string): string {
+function firstArtist(text: string): string {
   return (text.split(/[/\u3001&]|\sfeat\.?/i)[0] ?? '').trim().toLowerCase()
 }
 
@@ -57,7 +57,7 @@ export function albumKeyOf(row: Pick<AlbumCard, 'name' | 'artistName'>): string 
  * 主行按 网易云 → QQ → 酷狗 排。点卡片只会进一家，优先给信息最全的那家
  * （它带发行年和艺人 id）。
  */
-export const PROVIDER_RANK: Record<AlbumProvider, number> = { netease: 0, qq: 1, kugou: 2 }
+const PROVIDER_RANK: Record<AlbumProvider, number> = { netease: 0, qq: 1, kugou: 2 }
 
 export function mergeAlbumCards(rows: AlbumCard[]): AlbumCard[] {
   const groups = new Map<string, AlbumCard[]>()

@@ -24,7 +24,7 @@ const SOURCES: Record<string, string> = {
  * 所以第一行先给分布（多少首来自哪），不然一屏歌名读不出它们其实不是一回事。
  * 列表本身交给 TrackList——收藏页和歌单页共用同一份行组件，收藏键才只有一处。
  */
-export function LikedView({
+export function LikedPage({
   onNavigate,
   onMenu
 }: {

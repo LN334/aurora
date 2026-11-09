@@ -5,7 +5,7 @@ import { useLikeMenu } from '../features/favorites/like-menu'
 import { showFlash } from '../ui/flash'
 import { Heart } from '../ui/icons'
 import { useLeave } from '../ui/presence'
-import './LikeMenu.css'
+import '../styles/like-menu.css'
 
 const MARGIN = 8
 

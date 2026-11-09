@@ -18,7 +18,7 @@
  * 「糊了一圈」而不是「弯了一下」。edge * strength 就是这个上限，0.5 前后是常态。
  */
 
-export interface DisplacementMap {
+interface DisplacementMap {
   /** PNG data URL，喂给 feImage。 */
   href: string
   /** feDisplacementMap 的 scale，单位 CSS px。 */

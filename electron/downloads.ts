@@ -9,7 +9,7 @@ import { qqStreamUrl } from './qq/client'
 import { loadSettings, saveSettings } from './settings'
 import { ffmpegAvailable, transcode, type TranscodeFormat } from './transcode'
 
-export type DownloadProvider = 'netease' | 'qq' | 'kugou' | 'qishui'
+type DownloadProvider = 'netease' | 'qq' | 'kugou' | 'qishui'
 export type DownloadFormat = 'original' | TranscodeFormat
 export type DownloadState = 'queued' | 'downloading' | 'transcoding' | 'done' | 'failed' | 'canceled'
 

@@ -277,7 +277,7 @@ export function providerHas(providerId: ProviderId, capability: 'search' | 'play
 }
 
 /** The sentence for a failure, naming the platform it came from. */
-export function failTextFor(providerId: ProviderId, reason: string): string {
+function failTextFor(providerId: ProviderId, reason: string): string {
   return failureText(reason as never, getProvider(providerId)?.displayName ?? '在线平台')
 }
 

@@ -263,7 +263,7 @@ export function takenDown(label?: string): ProviderSongAvailability {
  * 只有名字和热门歌曲是每家平台都有的；简介、头像、专辑数按平台能给多少给多少，
  * 缺的用 0 或空串表示「上游没报」，页面据此退化成一行名字。
  */
-export interface OnlineArtistProfile {
+interface OnlineArtistProfile {
   id: number
   name: string
   brief: string
@@ -317,7 +317,7 @@ export interface OnlineArtistProfile {
  * 只读推荐入口，这里是收藏页和列表里的心形按钮真正会调用的写操作。两者都存
  * 在，是因为推荐位只需要读，不该为了一个列表被迫实现写。
  */
-export interface ProviderLikesApi {
+interface ProviderLikesApi {
   /** 账号里已喜欢的歌。未登录返回空数组，由页面判断要不要提示登录。 */
   list(): Promise<OnlineSong[]>
   /** 喜欢（true）或取消喜欢（false）。返回是否真的写成功。 */
@@ -416,7 +416,7 @@ export interface OnlineMusicProvider {
  * Quality arithmetic, shared by every platform because the tiers are the same
  * vocabulary even when the upstream names differ.
  */
-export function qualityRank(level: QualityTier | 'hires'): number {
+function qualityRank(level: QualityTier | 'hires'): number {
   const at = QUALITY_TIERS.indexOf(level as QualityTier)
   return at === -1 ? QUALITY_TIERS.length : at
 }
@@ -490,7 +490,7 @@ export function streamSummary(stream: OnlineStream, requested: QualityTier): str
  * Zero is a real time point, not a missing one: a free trial almost always runs
  * from 0. Only a negative or non-finite value means "unknown".
  */
-export function shortDuration(seconds: number): string {
+function shortDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '--:--'
   const total = Math.round(seconds)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`

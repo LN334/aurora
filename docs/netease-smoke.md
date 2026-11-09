@@ -6,7 +6,7 @@
 > 冷启动（把 %TEMP% 里的 anonymous_token / xeapi_public_key / aurora_device_id
 > 三个文件一起删掉，再让客户端自己从零引导）：`node electron/netease/smoke.cjs --client-only`。
 >
-> 默认模式下探针先按 `scripts/probe-netease5.cjs` 的顺序在本进程里引导一遍；
+> 默认模式下探针先按验证过的顺序在本进程里引导一遍；
 > `--client-only` 模式下探针完全不碰引导，`%TEMP%` 里的空 token 文件、deviceId、
 > xeapi key 与匿名 MUSIC_A 全部由 `dist-electron/netease/client.js` 自己建立。
 > 两种模式驱动的都是**编译产物**（`client.js` 与 `remote-protocol.js`），

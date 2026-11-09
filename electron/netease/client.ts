@@ -231,7 +231,7 @@ let lastFailed: BootstrapState = {
 /**
  * The startup sequence, run once per process while it succeeds, never throwing.
  *
- * Order matters and mirrors `scripts/probe-netease5.cjs`, which is the sequence
+ * Order matters: this is the sequence
  * verified against the live service: empty token file, then our own deviceId,
  * then the xeapi key fetched *with* that deviceId, and only then the anonymous
  * registration. Fetching the key without a deviceId returns a public key with

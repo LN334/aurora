@@ -119,7 +119,7 @@ function viewOf(state: OnlineStore): NeteaseStateView {
 let loginOpenFlag = false
 const loginListeners = new Set<() => void>()
 
-export function loginOpen(): boolean {
+function loginOpen(): boolean {
   return loginOpenFlag
 }
 

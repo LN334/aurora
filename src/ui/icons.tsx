@@ -48,12 +48,6 @@ export const ChevronRight = (p: IconProps) => (
   </Svg>
 )
 
-export const ChevronDown = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M6 9.5 12 15l6-5.5" />
-  </Svg>
-)
-
 export const Search = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="11" cy="11" r="6.5" />
@@ -82,14 +76,6 @@ export const Library = (p: IconProps) => (
     <path d="M4 4.5h3.5v15H4z" />
     <path d="M9.25 4.5h3.5v15h-3.5z" />
     <path d="M14.6 6.1l3.3-.9 3.1 13.3-3.3.8z" />
-  </Svg>
-)
-
-export const Mic = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M12 3.5a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0v-5a3 3 0 0 1 3-3Z" />
-    <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
-    <path d="M12 17.5V21" />
   </Svg>
 )
 
@@ -291,12 +277,6 @@ export const Unlock = (p: IconProps) => (
   <Svg {...p}>
     <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
     <path d="M8 10.5V7.6a4 4 0 0 1 7.7-1.5" />
-  </Svg>
-)
-
-export const Minus = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M5.5 12h13" />
   </Svg>
 )
 

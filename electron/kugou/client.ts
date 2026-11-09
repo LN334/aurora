@@ -265,7 +265,7 @@ export async function ensureServer(): Promise<boolean> {
 }
 
 /** 停服务。随 app 退出调用，也供排障用。 */
-export function stopServer(): void {
+function stopServer(): void {
   const proc = child
   child = null
   serverUrl = ''

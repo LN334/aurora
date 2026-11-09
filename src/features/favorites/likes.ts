@@ -22,15 +22,15 @@ import type { LikeSource } from './like-source'
 export type { LikeSource }
 
 /** 一个来源的加载状态。`anonymous` 和 `error` 分开，是因为一个该提示登录、一个该提示重试。 */
-export type LikeSourceState = 'idle' | 'loading' | 'ready' | 'anonymous' | 'error'
+type LikeSourceState = 'idle' | 'loading' | 'ready' | 'anonymous' | 'error'
 
-export interface LikeSourceSlice {
+interface LikeSourceSlice {
   tracks: Track[]
   state: LikeSourceState
   error: string | null
 }
 
-export interface LikeToggleResult {
+interface LikeToggleResult {
   ok: boolean
   /** 操作后是否处于「已喜欢」。 */
   liked: boolean
@@ -69,13 +69,6 @@ export function likeProviders(): OnlineMusicProvider[] {
   return listProviders().filter(
     (provider) => provider.available() && provider.capabilities.likes && Boolean(provider.likes)
   )
-}
-
-/** 来源的显示名：本机，或平台的短名。 */
-export function likeSourceName(source: LikeSource): string {
-  if (source === 'local') return '本机'
-  const provider = getProvider(source)
-  return provider?.shortName ?? provider?.displayName ?? source
 }
 
 export const useLikes = create<LikesState>()((set, get) => ({
@@ -250,17 +243,4 @@ export function useLikedIds(): ReadonlySet<string> {
 /** 喜欢/取消喜欢。返回值里带着失败原因，由调用方决定怎么提示。 */
 export function toggleLiked(track: Track): Promise<LikeToggleResult> {
   return useLikes.getState().toggle(track)
-}
-
-/** 某首歌现在是不是「已喜欢」。本地的读本地，在线的读缓存。 */
-export function useLiked(track: Track | null | undefined): boolean {
-  const source = likeSourceOf(track)
-  const localLiked = useFavorites((state) =>
-    track ? state.liked.some((entry) => entry.id === track.id) : false
-  )
-  const remoteLiked = useLikes((state) => {
-    if (!track || source === 'local') return false
-    return Boolean(state.sources[source]?.tracks.some((row) => row.id === track.id))
-  })
-  return source === 'local' ? localLiked : remoteLiked
 }

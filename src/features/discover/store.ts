@@ -14,9 +14,9 @@ import { normalizePlaylists, normalizeSongs, type DiscoverKind } from './pure'
  * 一个空白区——这是启动首屏，空白会被当成应用坏了。
  */
 
-export type DiscoverStatus = 'idle' | 'loading' | 'ready' | 'failed'
+type DiscoverStatus = 'idle' | 'loading' | 'ready' | 'failed'
 
-export interface DiscoverBlock {
+interface DiscoverBlock {
   status: DiscoverStatus
   songs: NeteaseSong[]
   playlists: NeteaseDiscoverPlaylist[]
@@ -35,7 +35,7 @@ const TTL_MS = 10 * 60 * 1000
  * 和主进程的默认页一致：偏移量按这个步长前进，「换一批」才不会和上一批
  * 重叠。24 条在宽窗口里正好铺满三行四列。
  */
-export const DISCOVER_PAGE = 24
+const DISCOVER_PAGE = 24
 
 function blankBlock(): DiscoverBlock {
   return { status: 'idle', songs: [], playlists: [], error: '', at: 0 }
@@ -135,8 +135,3 @@ export const useDiscover = create<DiscoverStore>((set, get) => ({
     return run
   }
 }))
-
-/** 在 React 之外预取（例如启动时先把首屏那一栏读起来）。 */
-export function loadDiscover(kind: DiscoverKind, force = false): Promise<void> {
-  return useDiscover.getState().load(kind, { force })
-}

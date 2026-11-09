@@ -10,7 +10,7 @@ import type { Track } from '../../types'
  */
 
 export const HISTORY_KEY = 'aurora.play.history'
-export const HISTORY_VERSION = 1
+const HISTORY_VERSION = 1
 
 /** How many recently played tracks to keep. Long enough to fill a rail. */
 export const RECENT_LIMIT = 60
@@ -42,7 +42,7 @@ export interface RecentEntry {
   track?: Track
 }
 
-export interface DayStat {
+interface DayStat {
   /** Local calendar day, `YYYY-MM-DD`. */
   day: string
   seconds: number

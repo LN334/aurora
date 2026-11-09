@@ -3,7 +3,7 @@ import path from 'node:path'
 import { app } from 'electron'
 import { createQishuiApi, type QishuiApi } from 'qishui-music-api'
 import { readState, writeState, clearSession } from './session'
-import type { QishuiQuality, QishuiRawArtist, QishuiRawTrack } from './types'
+import type { QishuiQuality, QishuiRawTrack } from './types'
 import { write } from '../startup-log'
 
 /**
@@ -226,13 +226,13 @@ function toRawTrack(item: unknown): QishuiRawTrack | null {
 
 /* --------------------------------------------------------------- 契约形状 */
 
-export interface QishuiAccountShape {
+interface QishuiAccountShape {
   id: string
   nickname: string
   avatarUrl: string | null
 }
 
-export interface QishuiSongShape {
+interface QishuiSongShape {
   id: number
   mid: string
   name: string
@@ -242,7 +242,7 @@ export interface QishuiSongShape {
   coverUrl: string | null
 }
 
-export interface QishuiPlaylistShape {
+interface QishuiPlaylistShape {
   id: number
   name: string
   coverUrl: string | null
@@ -250,7 +250,7 @@ export interface QishuiPlaylistShape {
   creator: string
 }
 
-export interface QishuiArtistShape {
+interface QishuiArtistShape {
   id: number
   name: string
   coverUrl: string | null
@@ -711,8 +711,4 @@ export async function qishuiArtistSongs(alias: number, limit: number): Promise<Q
     if (track) songs.push(songShape(track))
   }
   return songs
-}
-
-export function rawArtist(id: string): QishuiRawArtist {
-  return { id, name: '', coverUrl: null, description: '', trackCount: 0 }
 }

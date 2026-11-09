@@ -88,7 +88,7 @@ function browsedOut(): Set<string> {
   return out
 }
 
-export interface RoamState {
+interface RoamState {
   tracks: Track[]
   heard: Record<string, true>
   /** 正在向平台要第一趟。 */
@@ -121,9 +121,9 @@ export interface RoamState {
 }
 
 /** 撤掉一首的两种意思：跳过这一次，还是以后都别再推。 */
-export type RoamDropReason = 'skip' | 'dislike'
+type RoamDropReason = 'skip' | 'dislike'
 
-export interface DroppedTrack {
+interface DroppedTrack {
   track: Track
   reason: RoamDropReason
 }
@@ -140,7 +140,7 @@ export const useRoam = create<RoamState>()(() => ({
 }))
 
 /** 当前这首在不在这趟里。不在就不该显示漫游那套东西。 */
-export function isRoamTrack(track: Track | null): boolean {
+function isRoamTrack(track: Track | null): boolean {
   if (!track) return false
   const key = trackKey(track)
   return useRoam.getState().tracks.some((item) => trackKey(item) === key)
@@ -356,7 +356,7 @@ export function undoDrop(): void {
  * 记「已听」是给轨道上那行字，记「放过」是给下一趟去重——两个都只该在切歌时写，
  * 所以由下面的订阅统一调用，不在组件里到处埋。
  */
-export function markRoamHeard(track: Track | null): void {
+function markRoamHeard(track: Track | null): void {
   if (!track) return
   const key = trackKey(track)
   if (!isRoamTrack(track)) return

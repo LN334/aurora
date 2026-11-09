@@ -30,8 +30,6 @@ export const SLOTS = {
   roam: 20
 } as const
 
-export type SlotName = keyof typeof SLOTS
-
 /** 按某个键分组，保持首次遇到的顺序。 */
 export function groupRows<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>()

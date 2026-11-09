@@ -633,7 +633,7 @@ export async function requestSongLike(params: {
 // 目标；两个都要，且 dirId < 200 才是用户自建的普通歌单（>=200 是系统列表）。
 // 所以每个写操作前先读一次 `GetPlaylistByUin`，用 tid 换出 dirId。
 
-export interface QqCredential {
+interface QqCredential {
   uin: string
   cookie: string
   authst: string
@@ -885,19 +885,6 @@ export async function requestRecommendPlaylists(variant: 'a' | 'b' | 'c'): Promi
   return await musicu(payload)
 }
 
-/**
- * 公开排行榜列表。
- *
- * QQ 的「按标签推荐歌单」要登录（playlist.code=500003），搜索位只回歌曲，所以
- * 首页那个推荐位改用排行榜：这是它唯一一条匿名也给完整数据的面板，每一榜都是
- * 十几到上百首，拿来做「平台推荐了什么」够用。
- */
-export async function requestTopLists(): Promise<unknown> {
-  return await musicu({
-    toplist: { module: 'musicToplist.ToplistInfoServer', method: 'GetAll', param: {} }
-  })
-}
-
 /** 一个榜的歌曲。 */
 export async function requestTopDetail(params: {
   topId: number
@@ -938,27 +925,6 @@ async function musicu(payload: Record<string, unknown>): Promise<unknown> {
     return { status: response.status, body: { error: 'musicu http ' + response.status } }
   }
   return { status: 200, body: await response.json() }
-}
-
-/**
- * 公开歌单搜索。
- *
- * `remoteplace: 'playlist'` 走的是 `txt.yqq.playlist` 这个搜索位，返回的是歌单行
- * （dissid / dissname / imgurl / song_cnt），不需要账号。QQ 的「按标签推荐歌单」
- * 实测要登录（playlist.code=500003），所以首页推荐位用热词搜索来填——和汽水那
- * 一侧的做法一致。
- */
-export async function requestSearchPlaylists(params: {
-  keywords: string
-  limit: number
-}): Promise<unknown> {
-  return await loadSdk().search({
-    key: params.keywords,
-    limit: params.limit,
-    page: 1,
-    catZhida: 0,
-    remoteplace: 'playlist'
-  })
 }
 
 /** Albums this profile collected on the platform. */

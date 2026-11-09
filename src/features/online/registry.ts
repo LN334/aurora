@@ -1,5 +1,4 @@
 import type { Track } from '../../types'
-import type { ViewId } from '../../types'
 import type {
   OnlineMusicProvider,
   PlaybackSourceRef,
@@ -33,20 +32,6 @@ export function registerProvider(provider: OnlineMusicProvider): void {
 
 export function getProvider(id: ProviderId): OnlineMusicProvider | null {
   return providers.get(id) ?? null
-}
-
-/**
- * A platform's route.
- *
- * The two unions - `ViewId` and the registered provider ids - are tied together by
- * convention: a platform's id *is* its route, which is what lets the rail render a
- * link it can pass straight to the router and lets `App` resolve a route back to a
- * provider by lookup. The cast is the single place that convention is asserted;
- * `platformRouteExists` is what keeps a missing route from becoming a silent blank
- * page in the one build where a platform is present without one.
- */
-export function platformView(provider: OnlineMusicProvider): ViewId {
-  return provider.id as ViewId
 }
 
 /**
@@ -118,7 +103,7 @@ export function getPlaybackSourceRef(track: Track | null | undefined): PlaybackS
  * Returns null for a local file so the caller decides whether "本机" is worth
  * printing; the row shows nothing rather than a label that says nothing.
  */
-export function sourceLabelFor(track: Track | null | undefined): string | null {
+function sourceLabelFor(track: Track | null | undefined): string | null {
   return providerForTrack(track)?.shortName ?? providerForTrack(track)?.displayName ?? null
 }
 
@@ -137,7 +122,7 @@ export function sourceLabelFor(track: Track | null | undefined): string | null {
  * the page title and the "结果来自" line already answer it. A screen that mixes
  * origins (a playlist, the queue) prints one on every row, including the files.
  */
-export interface SourceTag {
+interface SourceTag {
   /** What the row prints: the platform's short name, or 本机. */
   label: string
   /** Origin key: a provider id, or 'local'. Used as a CSS modifier, never branched on. */

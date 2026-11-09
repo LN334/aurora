@@ -9,7 +9,7 @@ export const REPO_URL = 'https://github.com/LN334/aurora'
 export const ISSUES_URL = 'https://github.com/LN334/aurora/issues'
 
 /** 反馈 issue 里自动带上的环境信息。 */
-export interface AboutFacts {
+interface AboutFacts {
   version: string
   electron: string
   chrome: string

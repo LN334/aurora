@@ -48,7 +48,7 @@ import {
  * renderer is told so.
  */
 
-export const WALLPAPER_SCHEME = 'aurora-wallpaper'
+const WALLPAPER_SCHEME = 'aurora-wallpaper'
 
 /**
  * The wallpaper's own settings, re-exported here because this module is what the

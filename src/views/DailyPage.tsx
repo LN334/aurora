@@ -19,7 +19,7 @@ import type { Track } from '../types'
  * 从头播、想把某一首拖进歌单。卡片负责「现在就听」，这一页负责「今天这一批
  * 是哪些」。
  */
-export function DailyView({
+export function DailyPage({
   onNavigate,
   onMenu
 }: {

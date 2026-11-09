@@ -49,8 +49,3 @@ export function likeTargets(track: Track): LikeTarget[] {
 
   return out
 }
-
-/** 真正能写的那几个落点。行上按这个数量决定「直接切」还是「先选」。 */
-export function writableTargets(track: Track): LikeTarget[] {
-  return likeTargets(track).filter((target) => target.writable)
-}

@@ -23,7 +23,7 @@ export const STAGE_STYLES = [
   }
 ] as const
 
-export type StageStyleId = (typeof STAGE_STYLES)[number]['id']
+type StageStyleId = (typeof STAGE_STYLES)[number]['id']
 
 const KEY = 'aurora.stage.style'
 const IDS = STAGE_STYLES.map((item) => item.id) as readonly string[]
@@ -39,10 +39,6 @@ function read(): StageStyleId {
 }
 
 const listeners = new Set<() => void>()
-
-export function stageStyle(): StageStyleId {
-  return read()
-}
 
 export function setStageStyle(next: StageStyleId): void {
   if (!IDS.includes(next)) return

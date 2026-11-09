@@ -21,7 +21,7 @@ import { PlatformLoginDialogs, openPlatformLogin } from './settings/panes/Platfo
  * 所有平台的登录入口都收在这一页，不另开页面；平台只作为卡片并列，
  * 不按平台再分页。
  */
-export function AccountView(_props: { onNavigate(route: Route): void }) {
+export function AccountPage(_props: { onNavigate(route: Route): void }) {
   return (
     <div className="acct2-page">
       <ProfilePart />

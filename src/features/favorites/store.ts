@@ -19,7 +19,7 @@ import type { Track } from '../../types'
 
 const KEY = 'aurora.favorites'
 
-export interface LikeEntry {
+interface LikeEntry {
   id: string
   /** 什么时候喜欢的，用来按时间倒序。 */
   at: number

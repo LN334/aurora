@@ -42,18 +42,11 @@ for (const file of tracked) {
 const scanned = tracked.filter(
   (file) =>
     /\.(ts|tsx|mjs|cjs|js|md|json|css|html)$/.test(file) &&
-    file !== 'package-lock.json' &&
-    /*
-     * Move plans are a record of where files *were*: every entry names a source
-     * that no longer exists by design, so they are not stale references. Same for
-     * the `usage:` examples inside the tooling itself, which show a fictional
-     * path on purpose.
-     */
-    !file.startsWith('scripts/moves/')
+    file !== 'package-lock.json'
 )
 
 /** Files whose `usage:` examples show made-up paths. */
-const EXAMPLE_FILES = new Set(['scripts/move-files.mjs', 'scripts/audit-stale-paths.mjs'])
+const EXAMPLE_FILES = new Set(['scripts/audit-stale-paths.mjs'])
 
 /*
  * Longest meaningful source path in a string.

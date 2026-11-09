@@ -24,7 +24,7 @@ interface AlbumDetailProps {
  * 点卡片默认进这一页而不是直接播——先看一眼再决定听不听，是所有音乐库的
  * 共同约定，也是「能浏览」和「只能听」的分界。
  */
-export function AlbumDetail({
+export function AlbumDetailPage({
   album,
   tracks,
   currentId,

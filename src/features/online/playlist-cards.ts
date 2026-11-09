@@ -39,7 +39,7 @@ export const PLAYLIST_PROVIDERS: { id: ProviderId; label: string }[] = [
  * 平台给了 `ownership` 就用它；没给的（网易云这条链一路是主进程原样返回的），
  * 退回它的原生 `subscribed`。两者都没有时答 `'unknown'`，不猜。
  */
-export function ownershipOf(
+function ownershipOf(
   summary: Pick<OnlinePlaylistSummary, 'subscribed' | 'ownership'> | null | undefined
 ): PlaylistOwnership {
   if (!summary) return 'unknown'
@@ -48,7 +48,7 @@ export function ownershipOf(
   return 'unknown'
 }
 
-export function toCard(
+function toCard(
   provider: { id: ProviderId; label: string },
   playlist: OnlinePlaylistSummary
 ): PlaylistCard {
@@ -65,7 +65,7 @@ export function toCard(
   }
 }
 
-export interface AccountPlaylistsState {
+interface AccountPlaylistsState {
   cards: PlaylistCard[]
   loading: boolean
 }
@@ -125,9 +125,4 @@ export function useAccountPlaylists(): AccountPlaylistsState {
 /** 我收藏的：明确是收来的，加上平台分不出来但至少不是「我建的」。 */
 export function collectedOnly(rows: readonly PlaylistCard[]): PlaylistCard[] {
   return rows.filter((row) => row.ownership !== 'mine')
-}
-
-/** 我建的：只有平台明确说是自己建的那些。 */
-export function mineOnly(rows: readonly PlaylistCard[]): PlaylistCard[] {
-  return rows.filter((row) => row.ownership === 'mine')
 }

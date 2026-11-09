@@ -7,7 +7,7 @@ import { TrackInfo } from './TrackInfo'
 import { Transport } from './Transport'
 import { Volume } from './Volume'
 
-export interface PlayerBarProps {
+interface PlayerBarProps {
   track: Track | null
   playing: boolean
   loading: boolean

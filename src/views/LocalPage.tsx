@@ -27,7 +27,7 @@ const TABS: Array<[Tab, string]> = [
  * 里的四个页签，而不是左栏的四个入口——左栏只解决「去哪个来源」，不解决
  * 「按什么看」。文件夹只在这一页存在，在线来源没有这个概念。
  */
-export function LocalView({
+export function LocalPage({
   onNavigate,
   onMenu,
   initialTab

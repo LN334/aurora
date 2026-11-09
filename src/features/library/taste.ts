@@ -18,7 +18,7 @@ export interface TasteProfile {
   size: number
 }
 
-export interface TasteInput {
+interface TasteInput {
   /** 最近播放，最新在前。 */
   recent: { track?: Track; artist?: string; source?: string; at?: number }[]
   /** 我喜欢的曲目。 */
@@ -93,7 +93,7 @@ export function buildTaste(input: TasteInput): TasteProfile {
   return { artists: normalize(artists), sources: normalize(sources), size }
 }
 
-export function affinityOf(profile: TasteProfile, track: Track): number {
+function affinityOf(profile: TasteProfile, track: Track): number {
   if (profile.size === 0) return 0
   const artist = profile.artists[artistKey(track)] ?? 0
   const source = profile.sources[track.source ?? 'local'] ?? 0
@@ -143,11 +143,4 @@ export function tastefulDaily(
     }
   }
   return out
-}
-
-export function tasteTopArtists(profile: TasteProfile, limit = 5): { artist: string; weight: number }[] {
-  return Object.entries(profile.artists)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([artist, weight]) => ({ artist, weight }))
 }

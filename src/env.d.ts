@@ -249,7 +249,7 @@ export interface JunkScan {
 }
 
 /** 维护：只动本应用自己的进程与目录，不接受任何外部路径。 */
-export interface MaintenanceApi {
+interface MaintenanceApi {
   memory(): Promise<MemoryRelease>
   scan(): Promise<JunkScan>
   clean(ids: JunkId[]): Promise<JunkScan>
@@ -1070,7 +1070,7 @@ export interface WallpaperEntry {
   properties?: WallpaperProperty[]
 }
 
-export interface WallpaperApi {
+interface WallpaperApi {
   /**
    * 当前壁纸。`force` 会绕过主进程的 30 秒扫描缓存——用户可以在播放器开着的时候
    * 去 Wallpaper Engine 里换壁纸，回到窗口时我们得看到新的那张。
@@ -1081,7 +1081,7 @@ export interface WallpaperApi {
 }
 
 /** 窗口层面的动作：全屏不落盘，下次启动回到普通窗口。 */
-export interface WindowApi {
+interface WindowApi {
   /** 切换全屏，返回切换之后的状态。 */
   toggleFullscreen(): Promise<boolean>
   isFullscreen(): Promise<boolean>
@@ -1152,14 +1152,14 @@ export interface KugouApi {
 export type QishuiQuality = 'standard' | 'high' | 'lossless' | 'hires'
 
 /** 复用网易云的原因词汇；界面上四个平台共用一套文案。 */
-export type QishuiFailureReason = NeteaseFailureReason
+type QishuiFailureReason = NeteaseFailureReason
 
-export interface QishuiArtist {
+interface QishuiArtist {
   id: number
   name: string
 }
 
-export interface QishuiAlbumRef {
+interface QishuiAlbumRef {
   id: number
   name: string
   picUrl: string | null
@@ -1178,39 +1178,39 @@ export interface QishuiSong {
   coverUrl: string | null
 }
 
-export type QishuiStreamResult =
+type QishuiStreamResult =
   | { ok: true; url: string; level: QishuiQuality; br: number; trial: boolean }
   | { ok: false; reason: QishuiFailureReason; message?: string }
 
-export interface QishuiSearchResult {
+interface QishuiSearchResult {
   songs: QishuiSong[]
 }
 
-export interface QishuiAccount {
+interface QishuiAccount {
   id: string
   nickname: string
   avatarUrl: string | null
 }
 
-export interface QishuiStatusResult {
+interface QishuiStatusResult {
   ready: boolean
   loggedIn: boolean
   detail?: string
 }
 
 /** 待扫的二维码。key 是不透明句柄，轮询用它。 */
-export interface QishuiQrSession {
+interface QishuiQrSession {
   key: string
   imageDataUrl: string
 }
 
-export interface QishuiQrResult {
+interface QishuiQrResult {
   status: 'waiting' | 'scanned' | 'expired' | 'confirmed' | 'failed'
   account?: QishuiAccount
   message?: string
 }
 
-export interface QishuiPlaylistSummary {
+interface QishuiPlaylistSummary {
   id: number
   name: string
   coverUrl: string | null
@@ -1219,7 +1219,7 @@ export interface QishuiPlaylistSummary {
   creator: string
 }
 
-export interface QishuiArtistProfile {
+interface QishuiArtistProfile {
   id: number
   name: string
   coverUrl: string | null

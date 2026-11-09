@@ -1,5 +1,3 @@
-import type { QishuiApi } from '../../src/env'
-
 /**
  * 汽水音乐这一层自己的类型。
  *
@@ -25,13 +23,3 @@ export interface QishuiRawTrack {
   artists: { id: string; name: string }[]
   coverUrl: string | null
 }
-
-export interface QishuiRawArtist {
-  id: string
-  name: string
-  coverUrl: string | null
-  description: string
-  trackCount: number
-}
-
-export type QishuiApiSurface = QishuiApi

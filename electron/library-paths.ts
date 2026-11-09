@@ -11,7 +11,7 @@ import { DEFAULT_PROFILE, profileFileStem } from './pure/profile-id'
  * what the other profile sees. The list lives in its own file per profile so
  * that switching profiles cannot half-apply.
  */
-export interface LibraryPaths {
+interface LibraryPaths {
   /** Folders included in the library. */
   roots: string[]
   /** Paths skipped inside those folders. */
@@ -182,10 +182,6 @@ export function setLibraryProfile(profile: string | null): void {
   if (next === activeProfile && !rebinding && cache !== null) return
   activeProfile = next
   cache = null
-}
-
-export function activeLibraryProfile(): string {
-  return activeProfile
 }
 
 /** Whether the renderer has told the main process which profile it is on. */

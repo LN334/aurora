@@ -13,7 +13,7 @@ import path from 'node:path'
  */
 export type TranscodeFormat = 'mp3' | 'flac' | 'm4a'
 
-export interface TranscodeOptions {
+interface TranscodeOptions {
   format: TranscodeFormat
   /** kbps for the lossy targets; ignored by FLAC. */
   bitrate?: number
@@ -21,7 +21,7 @@ export interface TranscodeOptions {
   duration?: number
 }
 
-export interface TranscodeResult {
+interface TranscodeResult {
   ok: boolean
   message?: string
 }
@@ -46,7 +46,7 @@ function onPath(command: string): boolean {
 }
 
 /** Resolved once per process: spawning a version probe per track would be silly. */
-export function findFfmpeg(): string | null {
+function findFfmpeg(): string | null {
   if (cached !== undefined) return cached
   const candidates = [
     process.env.AURORA_FFMPEG ?? '',

@@ -240,15 +240,6 @@ export interface QqAlbumBundle {
   detail: QqAlbumDetail
   songs: QqSong[]
 }
-
-export interface QqArtistProfile {
-  id: number
-  mid: string
-  name: string
-  coverUrl: string | null
-  description: string
-}
-
 export interface QqPlaylistSummary {
   /** `dissid`, the profile-scoped id the detail route takes. */
   id: number

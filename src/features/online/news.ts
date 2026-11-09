@@ -41,7 +41,7 @@ async function shelfNewSongs(id: ProviderId, limit: number): Promise<Track[]> {
  * 新歌原先固定只问 QQ 与酷狗，用户把这两家关掉之后这一排还在——别的推荐位都
  * 已经照着开关走了，只有它漏了。现在关掉就是不发请求。
  */
-export async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promise<Track[]> {
+async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promise<Track[]> {
   const wanted = platforms === undefined ? null : new Set(platforms)
   const ids = SOURCES.filter((id) => wanted === null || wanted.has(id))
   if (ids.length === 0) return []

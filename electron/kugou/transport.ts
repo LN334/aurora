@@ -30,10 +30,6 @@ export function setBaseUrl(url: string): void {
   base = url.replace(/\/+$/, '')
 }
 
-export function baseUrl(): string {
-  return base
-}
-
 // --- 音质 ---------------------------------------------------------------
 
 interface TierFormat {
@@ -79,7 +75,7 @@ export function hashForTier(song: KugouSong, tier: KugouQuality): string {
 
 // --- HTTP ---------------------------------------------------------------
 
-export interface KugouRequestOptions {
+interface KugouRequestOptions {
   method?: 'GET' | 'POST'
   /** query 参数；`undefined` 的项不发送。 */
   query?: Record<string, string | number | undefined>
@@ -89,13 +85,13 @@ export interface KugouRequestOptions {
   timeoutMs?: number
 }
 
-export interface KugouResponse {
+interface KugouResponse {
   body: unknown
   /** Set-Cookie 原始行（扫码成功时 token/userid 在这里）。 */
   setCookie: string[]
 }
 
-export class KugouHttpError extends Error {
+class KugouHttpError extends Error {
   status: number
 
   constructor(message: string, status: number) {
@@ -179,7 +175,7 @@ export async function request(
  *
  * 两个来源都认，缺的字段留空，不编。
  */
-export function readSongRow(value: unknown): KugouSong | null {
+function readSongRow(value: unknown): KugouSong | null {
   const row = asRecord(value)
   const name = asString(row.SongName) || asString(row.songname) || asString(row.name)
   if (!name) return null
@@ -373,7 +369,7 @@ export function readUserPlaylists(raw: unknown): RawPlaylist[] {
   })
 }
 
-export interface RawPlaylist {
+interface RawPlaylist {
   /** 上游歌单身份（字符串），主进程给它配数字别名。 */
   globalId: string
   name: string

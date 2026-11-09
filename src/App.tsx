@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { AccountView } from './views/AccountView'
-import { CollectionsView } from './views/CollectionsView'
-import { AlbumDetail } from './views/AlbumDetail'
-import { ArtistView } from './views/ArtistView'
+import { AccountPage } from './views/AccountPage'
+import { CollectionsPage } from './views/CollectionsPage'
+import { AlbumDetailPage } from './views/AlbumDetailPage'
+import { ArtistPage } from './views/ArtistPage'
 import { EqPanel } from './views/EqPanel'
-import { DailyView } from './views/DailyView'
-import { LikedView } from './views/LikedView'
-import { LocalView } from './views/LocalView'
+import { DailyPage } from './views/DailyPage'
+import { LikedPage } from './views/LikedPage'
+import { LocalPage } from './views/LocalPage'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
 import { bindUpdateEvents } from './features/updates/store'
@@ -17,11 +17,11 @@ import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
-import { PlaylistsView } from './views/PlaylistsView'
+import { PlaylistsPage } from './views/PlaylistsPage'
 import { startRoam, useRoam } from './features/player/roam-session'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/player-bar/PlayerBar'
-import { PlaylistDetail } from './views/PlaylistDetail'
+import { PlaylistDetailPage } from './views/PlaylistDetailPage'
 import { QueuePanel } from './views/QueuePanel'
 import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
@@ -44,7 +44,7 @@ import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
 import { useAccounts } from './features/accounts/store'
 import { useNetease } from './features/netease/store'
 import { DesktopLyricsBridge } from './overlay/DesktopLyricsBridge'
-import { SettingsView } from './views/settings/SettingsView'
+import { SettingsPage } from './views/settings/SettingsPage'
 import { useWindowVisibility } from './visibility'
 import { Backdrop } from './features/wallpaper/Backdrop'
 import { chooseEntry } from './features/wallpaper/pure'
@@ -79,11 +79,11 @@ import {
   STRESS_TRACKS
 } from './app/preview'
 import { usePlaylistFiles } from './features/playlists/io'
-import { HomeView } from './views/HomeView'
+import { HomePage } from './views/HomePage'
 import { Sources } from './views/Sources'
-import { RecentView } from './views/RecentView'
+import { RecentPage } from './views/RecentPage'
 import { TrackView } from './views/TrackView'
-import { NowPlaying } from './views/NowPlaying'
+import { NowPlayingPage } from './views/NowPlayingPage'
 import { Refraction } from './features/glass/Refraction'
 
 /**
@@ -796,7 +796,7 @@ export function App() {  if (!isNative) {
   const submitSearch = useCallback(() => {
     navigate({ view: 'search' })
     void useSearch.getState().submit(useLibrary.getState().tracks)
-  }, [])
+  }, [navigate])
 
   const body = () => {
     // 这三个是外壳自己的页面，旧的 `Route` 里没有对应项，所以放在最前面。
@@ -804,17 +804,17 @@ export function App() {  if (!isNative) {
       return <OnlinePage route={shell} onMenu={openTrackMenu} />
     }
     if (shell.view === 'home') {
-      return <HomeView onNavigate={goShell} />
+      return <HomePage onNavigate={goShell} />
     }
-    if (shell.view === 'daily') return <DailyView onNavigate={goShell} onMenu={openTrackMenu} />
-    if (shell.view === 'recent') return <RecentView onNavigate={navigate} onMenu={openTrackMenu} />
-    if (shell.view === 'liked') return <LikedView onNavigate={goShell} onMenu={openTrackMenu} />
-    if (shell.view === 'collections') return <CollectionsView onNavigate={goShell} />
-      if (shell.view === 'playlists') return <PlaylistsView onNavigate={goShell} />
-    if (shell.view === 'local') return <LocalView onNavigate={goShell} onMenu={openTrackMenu} />
+    if (shell.view === 'daily') return <DailyPage onNavigate={goShell} onMenu={openTrackMenu} />
+    if (shell.view === 'recent') return <RecentPage onNavigate={navigate} onMenu={openTrackMenu} />
+    if (shell.view === 'liked') return <LikedPage onNavigate={goShell} onMenu={openTrackMenu} />
+    if (shell.view === 'collections') return <CollectionsPage onNavigate={goShell} />
+      if (shell.view === 'playlists') return <PlaylistsPage onNavigate={goShell} />
+    if (shell.view === 'local') return <LocalPage onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'nowplaying') {
       return (
-        <NowPlaying
+        <NowPlayingPage
           track={track}
           lyrics={lyrics}
           duration={duration}
@@ -844,7 +844,7 @@ export function App() {  if (!isNative) {
         const own = tracks.filter((item) => item.albumArtist === found.name)
         const ownAlbums = albums.filter((item) => found.albumIds.includes(item.id))
         return (
-          <ArtistView
+          <ArtistPage
             artist={found}
             albums={ownAlbums}
             tracks={own}
@@ -858,16 +858,16 @@ export function App() {  if (!isNative) {
       }
     }
     if (view === 'sources') return <Sources roots={roots} onAdd={addFolders} onRemove={remove} busy={busy} />
-    if (view === 'settings') return <SettingsView />
+    if (view === 'settings') return <SettingsPage />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={openTrackMenu} />
     // 平台不是目的地。网易云、QQ、酷狗都只是来源，内容分别落进推荐、我喜欢的、
     // 歌单与搜索里；这两个旧地址统一落到歌单页，旧书签点了不至于白屏。
-    if (view === 'netease' || view === 'qq') return <PlaylistsView onNavigate={goShell} />
+    if (view === 'netease' || view === 'qq') return <PlaylistsPage onNavigate={goShell} />
     // 账号（谁在用、登了哪些平台）是单独一页：它不是偏好设置，而是侧栏底部
-    // 那张头像点进来的地方。页面内容见 src/views/AccountView.tsx。
-    if (view === 'accounts') return <AccountView onNavigate={navigate} />
+    // 那张头像点进来的地方。页面内容见 src/views/AccountPage.tsx。
+    if (view === 'accounts') return <AccountPage onNavigate={navigate} />
 
     // Playlists come before the empty-library check: a playlist can hold tracks
     // from a folder that is not currently in the library, and the management UI
@@ -875,7 +875,7 @@ export function App() {  if (!isNative) {
     if (view === 'playlists') {
       if (activePlaylist) {
         return (
-          <PlaylistDetail
+          <PlaylistDetailPage
             playlist={activePlaylist}
             tracks={playlistTracks.tracks}
             missingCount={playlistTracks.missing}
@@ -889,13 +889,13 @@ export function App() {  if (!isNative) {
           />
         )
       }
-      return <PlaylistsView onNavigate={goShell} />
+      return <PlaylistsPage onNavigate={goShell} />
     }
 
     if (view === 'albums') {
       if (albumDetail) {
         return (
-          <AlbumDetail
+          <AlbumDetailPage
             album={albumDetail.album}
             tracks={albumDetail.tracks}
             currentId={track?.id ?? null}
@@ -914,10 +914,10 @@ export function App() {  if (!isNative) {
         )
       }
 
-      return <LocalView onNavigate={goShell} onMenu={openTrackMenu} initialTab="albums" />
+      return <LocalPage onNavigate={goShell} onMenu={openTrackMenu} initialTab="albums" />
     }
     if (view === 'artists') {
-      return <LocalView onNavigate={goShell} onMenu={openTrackMenu} initialTab="artists" />
+      return <LocalPage onNavigate={goShell} onMenu={openTrackMenu} initialTab="artists" />
     }
     return null
   }

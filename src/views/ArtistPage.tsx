@@ -12,7 +12,7 @@ import { DetailHero } from './DetailHero'
  * 之前点艺人只是把那一行点亮，没有「这一位」的页面。艺人在音乐库里是一个真正
  * 的落点——一个人听过某位十张专辑之后，会想从人这一侧再看一次自己的库。
  */
-export function ArtistView({
+export function ArtistPage({
   artist,
   albums,
   tracks,

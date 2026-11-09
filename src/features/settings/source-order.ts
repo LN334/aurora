@@ -22,7 +22,7 @@ const LOCAL_LAST_KEY = 'aurora.sourceOrder.localLast'
  * 这个播放器是各音乐平台的客户端，本机文件只是其中一个来源——同名的歌能出流
  * 时先问平台，本机排在末尾顶着。
  */
-export const DEFAULT_ORDER = ['netease', 'qq', 'kugou', 'qishui', 'local']
+const DEFAULT_ORDER = ['netease', 'qq', 'kugou', 'qishui', 'local']
 
 const listeners = new Set<() => void>()
 let current: string[] = read()
@@ -67,7 +67,7 @@ function migrateLocalLast(order: string[]): string[] {
   return [...rest, 'local']
 }
 
-export function setSourceOrder(order: string[]): void {
+function setSourceOrder(order: string[]): void {
   const next = order.filter((id) => id.length > 0)
   if (next.join('|') === current.join('|')) return
   current = next

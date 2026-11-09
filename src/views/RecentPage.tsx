@@ -16,7 +16,7 @@ const LIMIT = 200
  * 它和「我喜欢的」的区别是——喜欢是人的判断，最近播放是人的行为。所以它用
  * 播放时间倒序，而不是名字排序；也不给筛选，因为「最近」本身就是筛选。
  */
-export function RecentView({
+export function RecentPage({
   onNavigate,
   onMenu
 }: {

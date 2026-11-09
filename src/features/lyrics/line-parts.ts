@@ -11,7 +11,7 @@
  */
 const CJK = /[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/
 
-export interface LyricLineParts {
+interface LyricLineParts {
   main: string
   sub: string
 }

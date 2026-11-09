@@ -12,7 +12,7 @@ import type { ProviderId } from './types'
  * 收藏关系只存在于平台账号里，所以这一页的数据一律按账号来，未登录就是空。
  */
 
-export interface CollectedAlbum {
+interface CollectedAlbum {
   key: string
   providerId: ProviderId
   providerLabel: string

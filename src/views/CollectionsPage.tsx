@@ -13,7 +13,7 @@ import { Note } from '../ui/icons'
  * 本机专辑在「本机音乐」——各有各的去处，这一页不重复它们。
  * 平台只是卡片上的一行来源标注，不按平台分段：收藏本来不多，分段只会让人多翻一次。
  */
-export function CollectionsView({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
+export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const albums = useCollectedAlbums()
 
   if (albums.length === 0) {

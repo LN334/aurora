@@ -9,7 +9,7 @@ import type { Track } from '../../types'
  * 由一处全局状态托管，列表行不必各自保存弹出状态。
  */
 
-export interface LikeMenuRequest {
+interface LikeMenuRequest {
   track: Track
   /** 弹出的位置，视口坐标。 */
   x: number

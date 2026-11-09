@@ -19,7 +19,7 @@ import { NameModal } from './NameModal'
  * 新建只出现在能写歌单的平台（现在只有网易云）。点了就把歌建到那个平台的账号
  * 上，Aurora 自己不存歌单——所以换台机器登录同一个账号，单子还在。
  */
-export function PlaylistsView({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
+export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const { cards, loading } = useAccountPlaylists()
   const netease = useOnlineStore('netease')()
   const qq = useOnlineStore('qq')()

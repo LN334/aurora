@@ -44,7 +44,7 @@ export const useLibrary = create<LibraryState>()((set) => ({
 }))
 
 /** `albumArtist\u0000album` - the natural key for one release. */
-export function albumKey(track: Track): string {
+function albumKey(track: Track): string {
   return `${track.albumArtist}\u0000${track.album}`
 }
 

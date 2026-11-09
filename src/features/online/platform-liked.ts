@@ -49,7 +49,7 @@ export async function loadPlatformLiked(): Promise<Track[]> {
 }
 
 /** 收藏页要区分「还没读完」和「读完了是空的」——两者都长得像空列表，但只有一个该显示空态。 */
-export interface PlatformLikedState {
+interface PlatformLikedState {
   tracks: Track[]
   loading: boolean
 }

@@ -18,7 +18,7 @@ interface DesktopLyricsBridgeProps {
  * Subscribes to the *derived active line index* rather than to `position`, so
  * crossing the process boundary happens a handful of times per song instead of
  * sixty times a second. Measured at 0.25 pushes/second (10 per 40-second song)
- * by scripts/probe-aurora-bg.mjs - the same trick that keeps the stage from
+ * by an earlier probe - the same trick that keeps the stage from
  * re-rendering also keeps this IPC channel quiet.
  *
  * The strip walks the fill forward on its own from the position handed over with

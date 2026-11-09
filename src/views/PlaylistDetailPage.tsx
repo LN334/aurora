@@ -22,7 +22,7 @@ interface PlaylistDetailProps {
   onRename(name: string): void
 }
 
-export function PlaylistDetail({
+export function PlaylistDetailPage({
   playlist,
   tracks,
   missingCount,

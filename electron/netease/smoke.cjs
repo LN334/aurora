@@ -9,7 +9,7 @@
  *
  * It does two things in one process, in this order and for a reason:
  *
- *  1. Bootstraps the upstream package the way `scripts/probe-netease5.cjs`
+ *  1. Bootstraps the upstream package the way the live probe
  *     established: an empty `%TEMP%\anonymous_token` must exist *before* the
  *     first `require`, because the package reads it while its modules load; the
  *     deviceId has to be minted by us and passed to `getXeapiPublicKey`, because

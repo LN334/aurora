@@ -76,7 +76,7 @@ const CAPABILITIES: ProviderCapabilities = {
   likes: true
 }
 
-export const neteaseBackend: PlatformBackend = {
+const neteaseBackend: PlatformBackend = {
   id: 'netease',
   displayName: '网易云音乐',
 

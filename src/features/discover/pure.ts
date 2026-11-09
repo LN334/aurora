@@ -11,7 +11,7 @@ import type { NeteaseDiscoverPlaylist, NeteaseSong } from '../../env'
 /** 发现页的栏目。顺序就是第二排标签的顺序。 */
 export type DiscoverKind = 'newsongs' | 'playlists' | 'quality'
 
-export interface DiscoverTab {
+interface DiscoverTab {
   id: DiscoverKind
   label: string
 }
@@ -22,20 +22,6 @@ export const DISCOVER_TABS: readonly DiscoverTab[] = [
   { id: 'playlists', label: '推荐歌单' },
   { id: 'quality', label: '分类歌单' }
 ]
-
-/**
- * 三栏各自从哪来。
- *
- * 推荐歌单与分类歌单听起来像同一件事，实际上是两个不同的上游：前者的第一批是
- * 平台给这个人的推荐（未登录时是公开的编辑推荐），换一批进歌单广场按热度翻页；
- * 后者按风格甄选，换一批换一个风格。把来源写在这里、放在标签的 title 上，
- * 用户指一下就知道了，不用在页面上占一行解释文字。
- */
-export const DISCOVER_TAB_HINTS: Record<DiscoverKind, string> = {
-  newsongs: '平台每天推的新歌。换一批换一个榜单。',
-  playlists: '平台按热度推的歌单。换一批换下一批。',
-  quality: '按风格甄选。换一批换一个风格。'
-}
 
 export function isDiscoverKind(value: string): value is DiscoverKind {
   return DISCOVER_TABS.some((tab) => tab.id === value)
