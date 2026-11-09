@@ -188,5 +188,10 @@ export function picksByProvider(
   for (const bucket of shuffled) {
     rest.push(...bucket.slice(perProvider, perProvider * 2))
   }
-  return { picks, rest }
+  /*
+   * 交错取保证了一行里各家都有，代价却是位置和平台绑死：第 1 格永远网易云、
+   * 第 2 格永远 QQ、第 3 格永远酷狗——扫一眼就知道格子等于平台，而这正是合并
+   * 要消掉的东西。整批再洗一次：平台构成不变，位置不再可预测。
+   */
+  return { picks: shuffleWithSeed(picks, batch * 7919 + 13), rest }
 }
