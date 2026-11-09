@@ -335,11 +335,27 @@ export function App() {  if (!isNative) {
    * 没生效；只跳页不放歌，进去是一片空的播放页。所以收成一个动作，左栏与 R 键
    * 共用这一个入口。
    */
+  /*
+   * 人此刻停在哪一页。漫游是异步的，要几秒才回来，得知道这几秒里人走了没有。
+   */
+  const hereRef = useRef<ShellRoute | null>(null)
+  useEffect(() => {
+    hereRef.current = stack[cursor] ?? null
+  }, [stack, cursor])
+
   const roamNow = useCallback((seed?: Track) => {
+    const from = hereRef.current
     void startRoam(seed).then((ok) => {
-      if (ok) goShell({ view: 'nowplaying' })
-      // 点了没反应比报错更糟：要不到时把原因说出来。
-      else setFlash(useRoam.getState().error || '这一趟没要到歌')
+      if (!ok) {
+        // 点了没反应比报错更糟：要不到时把原因说出来。
+        setFlash(useRoam.getState().error || '这一趟没要到歌')
+        return
+      }
+      /*
+       * 只有人还停在原地才把人带进播放页。要是这几秒里已经点去别处了，
+       * 再跳一次就是把正在看的东西顶掉——只把队列换掉，不动页面。
+       */
+      if (hereRef.current === from) goShell({ view: 'nowplaying' })
     })
   }, [goShell])
 
