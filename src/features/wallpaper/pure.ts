@@ -72,7 +72,7 @@ export function chooseEntry(choice: WallpaperChoice): WallpaperEntry | null {
  * 传给场景引擎的一个属性值。
  *
  * 形状照抄 Wallpaper Engine：滑块是数字、开关是布尔，颜色是 "r g b" 三个
- * 0..1 的浮点数拼成的字符串，其余（文本框、下拉）都是字符串。
+ * 0..1 的浮点数拼成的字符串，下拉是字符串。
  */
 export type PropertyValue = boolean | number | string
 

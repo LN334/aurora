@@ -281,10 +281,9 @@ test('editableProperties reads every control type a wallpaper declares', () => {
       text: '字体',
       value: '4',
       options: [{ label: '字体1', value: '1' }, { label: '2', value: '2' }]
-    },
-    // A text input whose author wrote a number still reaches the renderer as a
-    // string, because it ends up in an <input>.
-    { name: 'bgm', type: 'textinput', text: 'bgm：', value: '3' }
+    }
+    // 上面 manifest 里的 bgm 是 textinput：设置页没有文本框，这一类在解析层就被
+    // 丢掉了，所以它不出现在结果里。
   ])
 })
 

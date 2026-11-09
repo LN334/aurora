@@ -26,7 +26,6 @@ const color: WallpaperProperty = {
 }
 
 const flag: WallpaperProperty = { name: 'hdr', type: 'bool', text: 'HDR 关闭', value: true }
-const text: WallpaperProperty = { name: '_2', type: 'textinput', text: '文字', value: 'abc' }
 const combo: WallpaperProperty = {
   name: 'mode',
   type: 'combo',
@@ -74,15 +73,15 @@ test('coercePropertyValue 只接受布尔给开关', () => {
   assert.equal(coercePropertyValue(flag, 'false'), null)
 })
 
-test('coercePropertyValue 把非字符串文本转成字符串', () => {
-  assert.equal(coercePropertyValue(text, 'hi'), 'hi')
-  assert.equal(coercePropertyValue(text, 42), '42')
+test('coercePropertyValue 让下拉只收字符串', () => {
   assert.equal(coercePropertyValue(combo, 'a'), 'a')
+  // 存下来的值可能被手改坏了；认不出来的原样交回去，由 propertyValues 退回默认值。
+  assert.equal(coercePropertyValue(combo, true), null)
 })
 
 test('propertyValues 没有覆盖值时就是工程默认值', () => {
-  const values = propertyValues([slider, flag, text], undefined)
-  assert.deepEqual(values, { glow: 0.9, hdr: true, _2: 'abc' })
+  const values = propertyValues([slider, flag, combo], undefined)
+  assert.deepEqual(values, { glow: 0.9, hdr: true, mode: 'b' })
 })
 
 test('propertyValues 用用户的覆盖值盖掉默认值', () => {

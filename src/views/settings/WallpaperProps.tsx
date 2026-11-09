@@ -7,12 +7,12 @@ import { Toggle } from './parts'
  * 一张壁纸工程自带的可调项。
  *
  * Wallpaper Engine 的工程可以在 project.json 里声明 general.properties：滑块、
- * 开关、颜色、文本框、下拉。作者把这些值接进自己的着色器，所以在播放器里改它们，
+ * 开关、颜色、下拉。作者把这些值接进自己的着色器，所以在播放器里改它们，
  * 效果和在桌面 WE 里改是同一份——但**只改我们这边的显示**，不动用户磁盘上的
  * project.json（那是 WE 自己的配置，改了下次开 WE 会发现被外部篡改）。
  *
- * 控件形态只有五种，一一对应 WE 的类型；没有样式的项（作者写的 HTML 说明横幅、
- * 文件选择之类的）在主进程就丢掉了，这里不用再判。
+ * 控件形态只有四种，一一对应 WE 的类型；没有样式的项（作者写的 HTML 说明横幅、
+ * 文件选择、文本框之类的）在主进程就丢掉了，这里不用再判。
  */
 export function WallpaperProps({
   entry,
@@ -97,15 +97,6 @@ function PropertyRow({
             aria-label={property.text || property.name}
             value={colorToHex(value)}
             onChange={(event) => onChange(hexToColor(event.currentTarget.value))}
-          />
-        ) : null}
-        {property.type === 'textinput' ? (
-          <input
-            type="text"
-            className="input wp-prop__text"
-            aria-label={property.text || property.name}
-            value={String(value)}
-            onChange={(event) => onChange(event.currentTarget.value)}
           />
         ) : null}
         {property.type === 'combo' ? (

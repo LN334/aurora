@@ -2,32 +2,34 @@
    复用 tokens.css 的变量与 app.css 既有组件（.btn/.seg/.switch/.icon-btn/.specs），
    这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
 
-/* 版式：左目录 + 右内容。
-   720px 的单列是上一版的样子——所有分区堆成一条长带，找一项得先滑过整页。
-   现在目录常驻在左边（sticky），右边每一段都有锚点，点一下就到。 */
-.settings {
-  display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  align-items: start;
-  gap: 48px;
-  /* 目录贴着页面左边、与页标题同一个起点：居中的话左边会空出一大片壁纸，
-     看起来像这一页还没写完。右边内容自己限宽，行控件不会拉到屏幕另一头。 */
-  max-width: none;
-  margin-inline: 0;
-  padding-bottom: var(--s7);
-}
 
-.settings__nav {
-  position: sticky;
-  top: 0;
+/* 分区带：三组依次排开，组名是 11px 低对比的小字，点的是组内的项。
+   一条横带放八个，比竖着一列少占一栏；分组让「设置里有什么」仍然一眼能数完。 */
+.settings__tabs {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-block: 2px 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding-bottom: var(--s3);
+  border-bottom: var(--line-soft);
 }
 
-.settings__nav-item {
-  padding: 7px 12px;
+.settings__tabgroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.settings__tabgroup__title {
+  margin-right: 6px;
+  color: var(--text-low);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+}
+
+.settings__tab {
+  padding: 6px 10px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -35,20 +37,19 @@
   font-family: inherit;
   font-size: 13px;
   line-height: 1.45;
-  text-align: left;
   cursor: pointer;
-  /* 目录项悬停是「手指碰到」的回应，用最短那档，缓动走全局的 ease-out。 */
+  /* 悬停是「手指碰到」的回应，用最短那档，缓动走全局的 ease-out。 */
   transition:
     background-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
 
-.settings__nav-item:hover {
+.settings__tab:hover {
   background: color-mix(in oklab, var(--text-hi) 6%, transparent);
   color: var(--text-hi);
 }
 
-.settings__nav-item.is-active {
+.settings__tab.is-active {
   background: color-mix(in oklab, var(--text-hi) 10%, transparent);
   color: var(--text-hi);
   font-weight: 600;
@@ -60,39 +61,10 @@
   gap: var(--s6);
   min-width: 0;
   /* 一行 label 左、控件右，超过这个宽度两者隔太远，读的时候要来回扫。 */
-  max-width: 780px;
+  max-width: 900px;
 }
 
-/* 点目录跳过来时，标题不要贴到滚动容器的上沿。 */
-.settings .set-part {
-  scroll-margin-top: 14px;
-}
 
-/* 窗口窄到放不下两栏时，目录变成一条横向的标签带，仍然比滚一整页好找。 */
-@media (max-width: 1180px) {
-  .settings {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--s5);
-  }
-
-  .settings__nav {
-    position: static;
-    flex-direction: row;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-
-  .settings__nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .settings__nav-item {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-}
 
 
 
@@ -322,6 +294,15 @@
 }
 
 /* 数值项：滑块 + 数字，滑块占满剩余宽度。 */
+/* 配额行右边那个数：等宽数字，几行竖着对齐。 */
+.set-count {
+  min-width: 2.5em;
+  color: var(--text-hi);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .settings__slider {
   display: flex;
   align-items: center;
@@ -647,52 +628,9 @@
   cursor: pointer;
 }
 
-.wp-prop__text,
 .wp-prop__select {
   width: 100%;
   min-width: 0;
-}
-
-/*
- * 宽窗口下把分区抬头挪到左边一列：编号、英文小标、中文名竖排在左，行在右。
- *
- * 原来抬头压在 800px 行宽的上方，一行里的 label 与开关隔着半个屏幕，
- * 读一行要横扫两次，页面整体也因此显得很空。两栏之后同一行的两端回到一段视线里，
- * 左栏的编号又成了往下扫时的路标。
- */
-@media (min-width: 1080px) {
-  .settings {
-    max-width: 880px;
-  }
-
-  .set-part {
-    display: grid;
-    grid-template-columns: 172px minmax(0, 1fr);
-    column-gap: var(--s5);
-    align-items: start;
-  }
-
-  .set-part__head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    margin-bottom: 0;
-    padding-top: var(--s1);
-  }
-
-  /* 竖排之后这条发丝线没有收住任何东西，去掉。 */
-  .set-part__rule {
-    display: none;
-  }
-
-  .set-part__en {
-    letter-spacing: 0.1em;
-  }
-
-  .set-part__title {
-    white-space: normal;
-    line-height: 1.25;
-  }
 }
 
 /*
@@ -733,14 +671,6 @@
 /* 上面那圈卡片在壁纸透出来的背景上几乎看不见：底色提到 0.5、边线提到 0.08，
    让「一小节」真的读成一个块，而不是一条压在壁纸上的长表。 */
 @media (min-width: 1080px) {
-  .settings {
-    max-width: 820px;
-  }
-
-  .set-part {
-    grid-template-columns: 152px minmax(0, 1fr);
-  }
-
   .set-sub {
     background: rgb(9 12 15 / 0.5);
     border-color: rgb(255 255 255 / 0.08);
@@ -856,39 +786,23 @@
 }
 
 
-/* =============================================================================
-   左目录版式的收尾
-
-   更早的规则在宽屏上把设置页限宽 820px、并把「分区标题 | 内容」排成左右两列。
-   那是单列长表时代的写法：标题占一列能压住整页。现在左边已经有目录，标题再占
-   一列只会把内容挤成一条窄带，所以标题回到内容顶部，宽度也交还给外层网格。
-   ========================================================================== */
-
+/* 宽窗口不再给正文限宽：分区带占顶部一条，下面这一段的卡片吃满主区。 */
 @media (min-width: 1080px) {
-  .settings {
-    max-width: none;
-  }
-
-  .set-part {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
   .settings__hint {
     max-width: 56ch;
   }
 }
 
 /* ==========================================================================
-   右栏吃满主区宽度
+   正文宽度
 
-   780px 的上限是单列时代的写法：1600 窗口下主区有约 1100px，内容只到 780，
-   右边留一整条空壁纸，看着像这页没写完。上限改成 1180，普通窗口下就是满宽；
-   只在超宽屏才收住，免得行里的控件被拉到屏幕另一头。
+   设置是「标签在左、控件在右」的行表：一行太长，两端隔着半个屏幕，读一行要
+   横扫两次；太窄又会在右边留一条空壁纸。980 是这个窗口里两者都还站得住的位置，
+   再宽的行会把下面的音质分段按钮推到视线之外。
    ========================================================================== */
 .settings__body {
-  max-width: min(100%, 1180px);
+  max-width: min(100%, 980px);
+  margin-inline: 0;
 }
 
 /* 行卡变宽后两侧距离拉开一点，label 与控件之间不至于空得发飘。 */
@@ -912,65 +826,6 @@
   width: 100%;
 }
 
-/* ==========================================================================
-   宽屏两列
-
-   单列 + 行卡吃满 1100px 时，开关飞到最右边，中间留一条更长的空——比原来还空。
-   宽屏下把分区排成两列：每列约 540px，行卡正好是「标签 + 控件」贴着的长度。
-   快捷键是表格，横跨两列。
-   ========================================================================== */
-@media (min-width: 1240px) {
-  .settings__body {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 30px 36px;
-    align-items: start;
-  }
-
-  .set-part {
-    margin-bottom: 0;
-  }
-
-  .set-part + .set-part {
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .set-part--wide {
-    grid-column: 1 / -1;
-  }
-
-  .settings__error {
-    grid-column: 1 / -1;
-  }
-}
-
-/* 两列用多列流，不用 grid。
-   grid 两列时「快捷键」这类长分区会把某一列占满、另一列剩一大块空白；
-   多列流按内容高度自动均衡，分区之间不会断开（break-inside: avoid）。 */
-@media (min-width: 1240px) {
-  .settings__body {
-    display: block;
-    columns: 2;
-    column-gap: 36px;
-    max-width: none;
-  }
-
-  .set-part {
-    break-inside: avoid;
-    margin-bottom: 28px;
-  }
-
-  .set-part + .set-part {
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .settings__error {
-    column-span: all;
-  }
-}
-
 /* 行卡以前是很淡的一层（白 3.5%），亮壁纸下文字直接压在建筑上，读起来像和背景
    叠在一起。换成与首页卡片同一配方：白 5.5% + 模糊，壁纸再亮也有一层底。 */
 .settings__row {
@@ -979,24 +834,6 @@
 }
 .settings__row:hover {
   background: rgb(255 255 255 / 0.085);
-}
-
-/* 两块并排读起来乱：设置是「从上往下一条线」的东西，并排之后视线要来回跳。
-   回到单列，但内容区不再贴左边——在右栏里居中，两侧留白对称，
-   行卡也收在 900px 内，控件不会飞到屏幕另一头。 */
-@media (min-width: 1240px) {
-  .settings__body {
-    display: block;
-    columns: auto;
-    column-count: 1;
-    max-width: 900px;
-    margin-inline: auto;
-  }
-
-  .set-part {
-    break-inside: auto;
-    margin-bottom: 30px;
-  }
 }
 
 /* 行卡不要用模糊：壁纸是亮的，backdrop-filter 会把背后糊成一片白雾，
@@ -1091,26 +928,17 @@
 }
 
 
-/* ---- 设置页：目录 + 内容改成 flex，杜绝 grid 列被内容撑开导致右侧溢出 ---- */
+/* 版式：顶上一条分区带，下面一次只放一段。
+   上一版是左目录 + 右内容：主窗口左边已经有一条主导航，再长出一条次导航，
+   两列竖排并排贴在一起，读起来像「栏里套栏」。分区带把八件事一次全露出来，
+   点哪段就只渲染哪段——设置里几乎不需要两段对照着改。 */
 .settings {
   display: flex;
-  align-items: flex-start;
-  gap: 40px;
+  flex-direction: column;
+  gap: var(--s4);
   max-width: none;
   margin-inline: 0;
-}
-.settings__nav {
-  flex: 0 0 168px;
-  width: 168px;
-  position: sticky;
-  top: 0;
-}
-.settings__body {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 900px;
-  margin-inline: 0;
-  width: auto;
+  padding-bottom: var(--s7);
 }
 .settings .set-part,
 .settings .set-part__body {
@@ -1124,9 +952,4 @@
   flex-shrink: 1;
   min-width: 0;
   max-width: 100%;
-}
-@media (max-width: 1180px) {
-  .settings { flex-direction: column; gap: 20px; }
-  .settings__nav { flex: none; width: 100%; position: static; }
-  .settings__body { width: 100%; max-width: none; }
 }

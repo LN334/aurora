@@ -245,9 +245,12 @@ export function parseLibraryFolders(vdfText: string): string[] {
  *
  * Wallpaper Engine's project editor writes these into `project.json` under
  * `general.properties`, and they are exactly the values the engine lets a user
- * change after subscribing: sliders, colours, switches, text fields and combos.
+ * change after subscribing: sliders, colours, switches and combos.
+ *
+ * There is no `textinput`: a free-text field needs a text box, and this page has
+ * none. Those properties are dropped here rather than drawn as a dead row.
  */
-export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'textinput' | 'combo'
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo'
 
 /**
  * One customizable option a wallpaper declares for itself.
@@ -281,7 +284,7 @@ export interface WallpaperProperty {
  * app does not implement. Showing a control that cannot work is worse than not
  * showing it.
  */
-const EDITABLE_PROPERTY_TYPES = new Set<string>(['slider', 'bool', 'color', 'textinput', 'combo'])
+const EDITABLE_PROPERTY_TYPES = new Set<string>(['slider', 'bool', 'color', 'combo'])
 
 /**
  * Wallpaper Engine's own colour scheme, which is not a wallpaper setting.
@@ -376,10 +379,6 @@ function readProperty(name: string, entry: unknown): WallpaperProperty | null {
       if (options.length === 0) return null
       return { name, type, text, value: String(value), options }
     }
-    case 'textinput':
-      // Authors sometimes write a number where a string is expected, and the
-      // caller only needs to put it in an input's value.
-      return { name, type, text, value: String(value) }
   }
 
   return null

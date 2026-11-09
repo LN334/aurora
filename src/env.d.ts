@@ -1030,14 +1030,14 @@ export interface WallpaperInfo {
 
 export type WallpaperKind = 'none' | 'scene' | 'video' | 'web' | 'image'
 
-/** 壁纸自带的可调项类型。只剩这五种是真正能改的控件，其余在解析层就被丢掉了。 */
-export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'textinput' | 'combo'
+/** 壁纸自带的可调项类型。只剩这四种是真正能改的控件，其余在解析层就被丢掉了。 */
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo'
 
 /**
  * Wallpaper Engine 工程自带的一项自定义设置（project.json 的 general.properties）。
  *
  * 值就按 WE 自己的标量形状走：slider 是数字，bool 是布尔，color 是 "r g b"
- * 三个 0..1 浮点数拼成的字符串，textinput/combo 是字符串。
+ * 三个 0..1 浮点数拼成的字符串，combo 是字符串。
  */
 export interface WallpaperProperty {
   name: string
