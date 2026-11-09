@@ -5,6 +5,7 @@ import {
   hideRoamTrack,
   pullRoamMore,
   ROAM_MORE,
+  undoDrop,
   useRoam,
   useRoamProgress
 } from '../features/player/roam-session'
@@ -14,7 +15,7 @@ import { sourceLabelFor } from '../features/online/registry'
 import { trackKey } from '../features/online/unify'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
-import { Close, Note, Plus } from '../ui/icons'
+import { Close, Next, Note, Plus } from '../ui/icons'
 
 /** 平台全名太长（「网易云音乐」），轨道头上只留能分辨的那几个字。 */
 function shortPlatform(name: string): string {
@@ -43,6 +44,7 @@ export function RoamRail() {
   const heard = useRoam((state) => state.heard)
   const pulling = useRoam((state) => state.pulling)
   const error = useRoam((state) => state.error)
+  const dropped = useRoam((state) => state.dropped)
   const chosen = useRoamPlatforms()
   const current = usePlayer((state) => state.current())
   const progress = useRoamProgress(current)
@@ -140,15 +142,30 @@ export function RoamRail() {
                   </span>
                 </span>
               </button>
-              <button
-                type="button"
-                className="rr__drop"
-                onClick={() => hideRoamTrack(track)}
-                title="划掉这首，以后不再推"
-                aria-label={`划掉 ${track.title}`}
-              >
-                <Close size={11} />
-              </button>
+              {/*
+                两颗，不是一个 ×：跳过和讨厌是两件事。混成一个动作，名单会
+                越攒越大，最后推什么都不对。
+              */}
+              <span className="rr__drops">
+                <button
+                  type="button"
+                  className="rr__drop rr__drop--skip"
+                  onClick={() => hideRoamTrack(track, 'skip')}
+                  title="跳过这首，只跳过这一次"
+                  aria-label={`跳过 ${track.title}`}
+                >
+                  <Next size={11} />
+                </button>
+                <button
+                  type="button"
+                  className="rr__drop"
+                  onClick={() => hideRoamTrack(track, 'dislike')}
+                  title="不想再听这首，以后不再推"
+                  aria-label={`不再推 ${track.title}`}
+                >
+                  <Close size={11} />
+                </button>
+              </span>
             </li>
           )
         })}
@@ -165,6 +182,16 @@ export function RoamRail() {
           </button>
         </li>
       </ol>
+
+      {/* 划错了没有第二次机会（尤其「不想再听」是写进名单的），所以留三秒撤回。 */}
+      {dropped ? (
+        <p className="rr__undo">
+          已{dropped.reason === 'skip' ? '跳过' : '不再推'}〈{dropped.track.title}〉
+          <button type="button" onClick={undoDrop}>
+            撤销
+          </button>
+        </p>
+      ) : null}
 
       {error ? <p className="rr__note">{error}</p> : null}
     </section>

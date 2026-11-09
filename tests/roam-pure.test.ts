@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { appendFresh, roamProgress, shouldPullMore, withoutTrack } from '../src/features/player/roam-pure.ts'
+import {
+  appendFresh,
+  remainingSeconds,
+  roamProgress,
+  shouldPullMore,
+  withoutTrack
+} from '../src/features/player/roam-pure.ts'
 import { trackKey } from '../src/features/online/unify.ts'
 import type { Track } from '../src/types.ts'
 
@@ -92,4 +98,17 @@ test('shouldPullMore 后面剩得不多就要补，负数也照补', () => {
 test('shouldPullMore 后面的还够听一段就不补，免得白白要歌', () => {
   assert.equal(shouldPullMore(7, 6), false)
   assert.equal(shouldPullMore(58, 6), false)
+})
+
+test('remainingSeconds 只算当前之后，时长不认就按 0', () => {
+  const long = track('l', '长', 480)
+  const noMeta = track('n', '没时长', 0)
+  assert.equal(remainingSeconds([a, b, long], 0), 200 + 480)
+  assert.equal(remainingSeconds([a, b, long], 2), 0)
+  assert.equal(remainingSeconds([a, noMeta], 0), 0)
+})
+
+test('remainingSeconds 位次不在列表里返回 0', () => {
+  assert.equal(remainingSeconds([a, b], -1), 0)
+  assert.equal(remainingSeconds([], 0), 0)
 })

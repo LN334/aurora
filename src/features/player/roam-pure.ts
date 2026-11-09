@@ -72,3 +72,20 @@ export function withoutTrack(tracks: readonly Track[], target: Track): Track[] {
 export function shouldPullMore(left: number, ahead: number): boolean {
   return left <= ahead
 }
+
+/**
+ * 从这一首之后到这一趟结尾还有多少秒。
+ *
+ * 补批的提前量该按「还能听多久」算，而不是「还剩几首」：6 首短歌二十分钟不到，
+ * 6 首现场版能撑到四十分钟。时长元数据缺失（本机扫描失败、平台没给）时按 0
+ * 计，调用方据此退回首数判据。index 不在这一趟里就是 -1，返回 0。
+ */
+export function remainingSeconds(tracks: readonly Track[], index: number): number {
+  if (index < 0) return 0
+  let total = 0
+  for (let i = index + 1; i < tracks.length; i += 1) {
+    const seconds = tracks[i]?.duration
+    if (typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0) total += seconds
+  }
+  return total
+}

@@ -3,7 +3,14 @@ import type { RepeatMode, Track } from '../../types'
 import { SLOTS } from '../online/slots'
 import { trackKey } from '../online/unify'
 import { player } from './actions'
-import { appendFresh, roamProgress, shouldPullMore, type RoamProgress, withoutTrack } from './roam-pure'
+import {
+  appendFresh,
+  remainingSeconds,
+  roamProgress,
+  shouldPullMore,
+  type RoamProgress,
+  withoutTrack
+} from './roam-pure'
 import { buildRoamQueue, loadRoamPool, loadRoamStream } from './roam'
 import { roamPlatforms } from './roam-sources'
 import { usePlayer } from './store'
@@ -42,6 +49,14 @@ const PLAYED_LIMIT = 200
 
 /** 剩下几首时开始要下一批：留出提前量，免得等到最后一首才开始要、中间断一口气。 */
 const AHEAD = 6
+
+/**
+ * 还剩多少秒时开始要下一批。
+ *
+ * 首数是个不稳的尺子：6 首短歌二十分钟不到，6 首现场版能撑四十分钟。所以两条
+ * 判据并行——首数先到就先补，剩余时长先到也先补；时长缺失时退回只看首数。
+ */
+const PULL_SECONDS = 900
 
 function readKeys(key: string): Set<string> {
   try {
@@ -89,6 +104,21 @@ export interface RoamState {
    * 不在这里换就没有别处能改。退出时还原。
    */
   parkedRepeat: RepeatMode | null
+  /**
+   * 刚被撤掉的那一首，只活三秒。
+   *
+   * 「不想再听」是一次不可见的写操作（进黑名单），划错了没有第二次机会，所以
+   * 轨道上留一条能撤回的提示。同一次会话里只记最后一首。
+   */
+  dropped: DroppedTrack | null
+}
+
+/** 撤掉一首的两种意思：跳过这一次，还是以后都别再推。 */
+export type RoamDropReason = 'skip' | 'dislike'
+
+export interface DroppedTrack {
+  track: Track
+  reason: RoamDropReason
 }
 
 export const useRoam = create<RoamState>()(() => ({
@@ -97,7 +127,8 @@ export const useRoam = create<RoamState>()(() => ({
   busy: false,
   pulling: false,
   error: '',
-  parkedRepeat: null
+  parkedRepeat: null,
+  dropped: null
 }))
 
 /** 当前这首在不在这趟里。不在就不该显示漫游那套东西。 */
@@ -208,20 +239,70 @@ export async function pullRoamMore(): Promise<void> {
   }
 }
 
+let undoClock: ReturnType<typeof setTimeout> | null = null
+
+/** 撤回提示活三秒：够看见、够点，但不至于在下一次换歌时还挂着。 */
+const UNDO_MS = 3000
+
+function clearUndoClock(): void {
+  if (!undoClock) return
+  clearTimeout(undoClock)
+  undoClock = null
+}
+
 /**
- * 划掉这首。
+ * 撤掉一首。
  *
- * 两件事同时做：从这一趟里拿掉（轨道上立刻消失），记进划掉名单（下次要歌时不再
- * 出现）。正在放的就是它，就跳下一首——否则卡片没了歌还在响，看起来像没生效。
+ * 两种意思，用户分得清，代码也要分清：
+ *
+ * - `skip`：这一次不想听。从这一趟里拿掉就完了，不进黑名单——跳过不等于讨厌，
+ *   把两者混成一个「划掉」，名单会越攒越大，最后推什么都不对。
+ * - `dislike`：以后别再推。除了拿掉，还写进持久名单（上限 300 首）。
+ *
+ * 两种情况都做同一件事：从轨道和队列里一起摘掉。正在放的就是它，队列索引会落到
+ * 后一首上，就地换歌——否则卡片没了歌还在响，看起来像没生效。
  */
-export function hideRoamTrack(track: Track): void {
-  const hidden = readKeys(HIDE_KEY)
-  hidden.add(trackKey(track))
-  writeKeys(HIDE_KEY, hidden, HIDE_LIMIT)
+export function hideRoamTrack(track: Track, reason: RoamDropReason = 'dislike'): void {
+  if (reason === 'dislike') {
+    const hidden = readKeys(HIDE_KEY)
+    hidden.add(trackKey(track))
+    writeKeys(HIDE_KEY, hidden, HIDE_LIMIT)
+  }
   useRoam.setState((prev) => ({ tracks: withoutTrack(prev.tracks, track) }))
   // 队列里也摘掉：只从轨道上拿走的话，放到它时还会响，看起来像划掉没生效。
   const at = usePlayer.getState().queue.findIndex((item) => trackKey(item) === trackKey(track))
   if (at >= 0) player.removeFromQueue(at)
+
+  clearUndoClock()
+  useRoam.setState({ dropped: { track, reason } })
+  undoClock = setTimeout(() => {
+    undoClock = null
+    if (useRoam.getState().dropped?.track === track) useRoam.setState({ dropped: null })
+  }, UNDO_MS)
+}
+
+/**
+ * 撤回上一次撤掉的那首。
+ *
+ * 名单里删掉（如果是「不想再听」），轨道末尾放回去，队列末尾也补一份——队列里
+ * 那一份刚被摘掉了，不补回来会出现「列表里有、放到这首时跳过」的怪状态。
+ * 放末尾而不是原位：这排是候选，不是一条有承诺的顺序，插回中间会把正在看的位置顶开。
+ */
+export function undoDrop(): void {
+  const dropped = useRoam.getState().dropped
+  if (!dropped) return
+  clearUndoClock()
+  const { track, reason } = dropped
+  const key = trackKey(track)
+  if (reason === 'dislike') {
+    const hidden = readKeys(HIDE_KEY)
+    if (hidden.delete(key)) writeKeys(HIDE_KEY, hidden, HIDE_LIMIT)
+  }
+  useRoam.setState((prev) => ({
+    tracks: prev.tracks.some((item) => trackKey(item) === key) ? prev.tracks : [...prev.tracks, track],
+    dropped: null
+  }))
+  player.addToQueue([track], 'end')
 }
 
 /**
@@ -244,9 +325,10 @@ export function markRoamHeard(track: Track | null): void {
 
 /** 退出漫游：轨道收起来。队列不换，正在放的继续放；被换掉的循环模式放回去。 */
 export function endRoam(): void {
+  clearUndoClock()
   const { parkedRepeat } = useRoam.getState()
   if (parkedRepeat) usePlayer.getState().setRepeat(parkedRepeat)
-  useRoam.setState({ tracks: [], heard: {}, error: '', parkedRepeat: null })
+  useRoam.setState({ tracks: [], heard: {}, error: '', parkedRepeat: null, dropped: null })
 }
 
 let retry: ReturnType<typeof setTimeout> | null = null
@@ -258,7 +340,12 @@ function refillIfLow(): void {
   const now = usePlayer.getState()
   const current = now.current()
   if (!current || !isRoamTrack(current)) return
-  if (!shouldPullMore(now.queue.length - now.index - 1, AHEAD)) return
+  const left = now.queue.length - now.index - 1
+  const leftSec = remainingSeconds(now.queue, now.index)
+  // 首数到了就补；首数没到但剩下的时长不够了（长曲之后常发生）也补。
+  // 时长为 0 表示这一批都没给时长，这时只用首数判据，免得每切一首都要一次网络。
+  const soon = shouldPullMore(left, AHEAD) || (leftSec > 0 && leftSec < PULL_SECONDS)
+  if (!soon) return
   void pullRoamMore().then(() => {
     // 断网、平台重复推：先记一句话，过一会儿再来。队列真走到尽头也由这里的重试接着。
     if (!useRoam.getState().error || retry) return
