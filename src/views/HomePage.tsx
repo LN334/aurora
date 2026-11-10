@@ -141,6 +141,10 @@ interface HomeViewProps {
 
 export function HomePage({ onNavigate }: HomeViewProps) {
   const homeSections = useHomeSections()
+
+  /* 四块全关时首页只剩每日推荐与快捷卡，得说一句，不然像是坏了。 */
+  const allHidden =
+    !homeSections.playlists && !homeSections.albums && !homeSections.fresh && !homeSections.recent
   const queue = usePlayer((state) => state.queue)
   const index = usePlayer((state) => state.index)
   const playing = usePlayer((state) => state.playing)
@@ -585,6 +589,15 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           </div>
         </div>
       </div>
+
+      {allHidden ? (
+        <div className="rh-hidden">
+          <p>推荐歌单、推荐专辑、最近新歌、最近听过 都关掉了，首页只剩这些。</p>
+          <button type="button" className="btn" onClick={() => onNavigate({ view: 'settings' })}>
+            去设置 → 首页里打开
+          </button>
+        </div>
+      ) : null}
 
       {homeSections.playlists && (!cardsReady || picks.length > 0) ? (
         <section className="rh-sec">
