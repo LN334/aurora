@@ -902,6 +902,10 @@
   backdrop-filter: blur(6px);
 }
 
+.rh-card__art--round {
+  border-radius: 50%;
+}
+
 .rh-card__art--add {
   border: 1px dashed rgb(255 255 255 / 0.16);
   background: none;

@@ -606,6 +606,10 @@ export interface NeteaseApi {
   albumSublist(): Promise<
     { id: number; name: string; coverUrl: string | null; artistName: string; artistId: number; year: number; songCount: number }[]
   >
+  /** 关注的艺人；未登录返回空数组。 */
+  artistSublist(): Promise<
+    { id: number; name: string; avatarUrl: string | null; albumCount: number; musicCount: number }[]
+  >
   topAlbums(limit?: number): Promise<
     { id: number; name: string; coverUrl: string | null; artistName: string; artistId: number; year: number; songCount: number }[]
   >

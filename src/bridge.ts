@@ -297,6 +297,7 @@ const webFallback: AuroraApi = {
     logout: async () => true,
     myPlaylists: async () => [],
     albumSublist: async () => [],
+    artistSublist: async () => [],
     topAlbums: async () => [],
     playlistTracks: async () => [],
     dailySongs: async () => [],

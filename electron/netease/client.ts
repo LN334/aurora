@@ -22,6 +22,7 @@ import type {
   NeteaseDiscoverKind,
   NeteaseDiscoverPlaylist,
   NeteaseDiscoverResult,
+  NeteaseFollowedArtist,
   NeteaseLoginResult,
   NeteaseLyricsResult,
   NeteasePlaylistSummary,
@@ -85,6 +86,8 @@ interface Upstream {
   user_cloud: UpstreamCall
   user_playlist: UpstreamCall
   album_sublist: UpstreamCall
+  /** 关注的艺人（artist_sublist）：与收藏专辑同一条账号通道。 */
+  artist_sublist: UpstreamCall
   top_album: UpstreamCall
   album_newest: UpstreamCall
   likelist: UpstreamCall
@@ -1446,6 +1449,35 @@ export async function neteaseTopAlbums(limit = 24, offset = 0): Promise<NeteaseC
       }
     })
     .filter((entry): entry is NeteaseCollectedAlbum => entry !== null)
+}
+
+/**
+ * 关注的艺人（artist_sublist）。跟收藏专辑同一条账号通道，未登录一样返回空。
+ */
+export async function neteaseArtistSublist(
+  limit = 500,
+  offset = 0
+): Promise<NeteaseFollowedArtist[]> {
+  await bootstrapOnce()
+  if (!(await safeAccount())) return []
+  const res = await call('artist_sublist', { limit: clamp(limit, 1, 500), offset: Math.max(0, offset) })
+  // 和 album_sublist 一样：实测放 data，老文档写 sub。
+  const body = asRecord(res.body)
+  const rows = asArray(body.data).length > 0 ? asArray(body.data) : asArray(body.sub)
+  return rows
+    .map((entry) => {
+      const raw = asRecord(entry)
+      const artistId = asNumber(raw.id)
+      if (!artistId) return null
+      return {
+        id: artistId,
+        name: asString(raw.name),
+        avatarUrl: asNullableString(raw.picUrl) ?? asNullableString(raw.img1v1Url),
+        albumCount: asNumber(raw.albumSize),
+        musicCount: asNumber(raw.musicSize)
+      }
+    })
+    .filter((entry): entry is NeteaseFollowedArtist => entry !== null)
 }
 
 /**

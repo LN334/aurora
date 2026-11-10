@@ -3,10 +3,9 @@ import { useOnlineBindings } from '../features/accounts/bindings'
 import { useFavorites } from '../features/favorites/store'
 import { useRecentEntries } from '../features/player/history-store'
 import { useRoam } from '../features/player/roam-session'
-import { usePlaylists } from '../features/playlists/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Album, Compass, Heart, List, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
+import { Album, Compass, Folder, Heart, List, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
 import type { ShellRoute, ShellView } from './shell'
 
 /**
@@ -34,6 +33,8 @@ interface RailProps {
   /** 当前档案名，显示在底部；档案是设置里的第一个分区，不是导航项。 */
   profileLabel: string | null
   onOpenProfile: () => void
+  /** 四家账号里歌单的合计：左栏那个数字说的是「平台上有多少张」，不是本机建过几张。 */
+  playlistCount: number
   albumCount: number
   artistCount: number
   /** 随机放点什么。左栏之所以收它，见文件头的注释。 */
@@ -50,11 +51,18 @@ interface RailItem {
   icon: typeof Compass
 }
 
-/** 「库」那一段：同一批东西的三种排法。 */
+/**
+ * 「库」那一段：我手上有什么——歌单、专辑、艺人，再加这一台机器上的文件。
+ *
+ * 前三样问的是平台账号（收藏来的、关注来的），最后一样问磁盘。本机的歌、专辑、
+ * 艺人收在「本机」那一页的标签里，所以不另开两个入口——「专辑」「艺人」以前打开
+ * 的正是那两面本地的墙，看着像收藏其实是磁盘，这就是「怎么还是本地」的由来。
+ */
 const SHELF: RailItem[] = [
   { view: 'playlists', label: '歌单', icon: List },
-  { view: 'album', label: '专辑', icon: Album },
-  { view: 'artist', label: '艺人', icon: User }
+  { view: 'collections', label: '专辑', icon: Album },
+  { view: 'followedartists', label: '艺人', icon: User },
+  { view: 'local', label: '本机', icon: Folder }
 ]
 
 const FOOT: RailItem[] = [{ view: 'settings', label: '设置', icon: Settings }]
@@ -66,6 +74,7 @@ export function Rail({
   onToggleCollapsed,
   profileLabel,
   onOpenProfile,
+  playlistCount,
   albumCount,
   artistCount,
   onRoam,
@@ -92,7 +101,6 @@ export function Rail({
 
   const likedCount = useFavorites((state) => state.liked.length)
   const recentCount = useRecentEntries().length
-  const playlistCount = usePlaylists((state) => state.playlists.length)
 
   /*
    * 详情页要点亮它属于哪一条线：专辑、艺人的详情各自回到自己那一格，歌单
@@ -101,8 +109,10 @@ export function Rail({
    */
   const owner = (view: ShellView): ShellView => {
     if (view === 'playlist' || view === 'onlineplaylist') return 'playlists'
-    if (view === 'onlinealbum') return 'album'
-    if (view === 'onlineartist') return 'artist'
+    // 本地专辑/艺人详情是从「本机音乐」走进来的，点亮那一格才对得上来路。
+    if (view === 'album' || view === 'artist') return 'local'
+    if (view === 'onlinealbum') return 'collections'
+    if (view === 'onlineartist') return 'followedartists'
     return view
   }
   const lit = owner(route.view)
@@ -111,8 +121,8 @@ export function Rail({
     if (view === 'liked') return likedCount
     if (view === 'recent') return recentCount
     if (view === 'playlists') return playlistCount
-    if (view === 'album') return albumCount
-    if (view === 'artist') return artistCount
+    if (view === 'collections') return albumCount
+    if (view === 'followedartists') return artistCount
     return null
   }
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AccountPage } from './views/AccountPage'
+import { useCollectedAlbums, useFollowedArtists } from './features/online/platform-collections'
 import { CollectionsPage } from './views/CollectionsPage'
+import { FollowedArtistsPage } from './views/FollowedArtistsPage'
 import { AlbumDetailPage } from './views/AlbumDetailPage'
 import { ArtistPage } from './views/ArtistPage'
 import { EqPanel } from './views/EqPanel'
@@ -702,6 +704,11 @@ export function App() {  if (!isNative) {
     legacyPlaylists
   )
 
+  // 左栏「库」那几格的数字都该来自点进去那条路：歌单数用上面那份账号歌单，
+  // 专辑数问收藏，艺人数问关注。标本机数会让人点进去发现对不上（那正是「还是本地」）。
+  const collectedAlbums = useCollectedAlbums()
+  const followedArtists = useFollowedArtists()
+
   const { playAlbum } = useTrackActions({ albums, trackById })
 
   const { exportPlaylist } = usePlaylistFiles({
@@ -826,7 +833,8 @@ export function App() {  if (!isNative) {
     if (shell.view === 'recent') return <RecentPage onNavigate={navigate} onMenu={openTrackMenu} />
     if (shell.view === 'liked') return <LikedPage onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'collections') return <CollectionsPage onNavigate={goShell} />
-      if (shell.view === 'playlists') return <PlaylistsPage onNavigate={goShell} />
+    if (shell.view === 'followedartists') return <FollowedArtistsPage onNavigate={goShell} />
+    if (shell.view === 'playlists') return <PlaylistsPage onNavigate={goShell} />
     if (shell.view === 'local') return <LocalPage onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'nowplaying') {
       return (
@@ -984,8 +992,9 @@ export function App() {  if (!isNative) {
           onToggleCollapsed={toggleCollapsed}
           profileLabel={activeAccount?.label ?? null}
           onOpenProfile={() => goShell({ view: 'me' })}
-          albumCount={albums.length}
-          artistCount={artists.length}
+          playlistCount={accountPlaylists.cards.length}
+          albumCount={collectedAlbums.length}
+          artistCount={followedArtists.length}
           onRoam={roamNow}
         />
 

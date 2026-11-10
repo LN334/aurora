@@ -168,6 +168,15 @@ export interface NeteaseCollectedAlbum {
   songCount: number
 }
 
+export interface NeteaseFollowedArtist {
+  id: number
+  name: string
+  avatarUrl: string | null
+  /** 专辑数、歌曲数：卡片上那行「N 张专辑」就是它，上游没给时是 0。 */
+  albumCount: number
+  musicCount: number
+}
+
 export interface NeteaseAlbumSummary {
   id: number
   name: string

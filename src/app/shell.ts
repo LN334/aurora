@@ -21,6 +21,8 @@ export type ShellView =
   | 'liked'
   | 'recent'
   | 'collections'
+  /** 关注的艺人：和收藏专辑同类，都是平台账号里的关系，不是本机曲库。 */
+  | 'followedartists'
   /** 歌单：按平台分组，一页看完四个账号里的单子。 */
   | 'playlists'
   | 'local'
@@ -60,6 +62,7 @@ export const SHELL_TITLES: Record<ShellView, string> = {
   liked: '我喜欢的音乐',
   recent: '最近播放',
   collections: '收藏专辑',
+  followedartists: '关注艺人',
   playlists: '歌单',
   local: '本机音乐',
   album: '专辑',
