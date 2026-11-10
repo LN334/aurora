@@ -1023,7 +1023,15 @@
   white-space: nowrap;
   overflow: hidden;
 }
+/* 名字先让位：一行放不下时截歌手的名字，平台名短，尽量不切。 */
+.rh-alb-row__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .rh-alb-row__srcs {
+  flex: none;
   color: var(--text-mid);
   opacity: 0.75;
 }

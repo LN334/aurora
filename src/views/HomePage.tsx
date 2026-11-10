@@ -683,7 +683,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                     <span className="rh-alb-row__main">
                       <span className="rh-alb-row__title">{row.name}</span>
                       <span className="rh-alb-row__sub">
-                        <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
+                        <span className="rh-alb-row__name">
+                          <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
+                        </span>
                         {row.platforms.length > 0 ? (
                           <span className="rh-alb-row__srcs">
                             {row.platforms.map((on) => on.providerLabel).join(' / ')}
