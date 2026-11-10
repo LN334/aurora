@@ -53,6 +53,12 @@
 3. `git count-objects -vH` 看 `.git` 体积。超过 200 MB 就要查是不是把大文件提交进去了；
 4. 看一眼 Actions 用量，别让缓存把配额吃满。
 
+### CI 只检查，不打包
+
+`.github/workflows/ci.yml` 在 **windows-latest** 上跑 `npm run check` 与 `npm run build`。选 Windows 不是为了跟产品对齐好看：单元测试断言的是 Windows 路径语义（Steam 库路径、反斜杠穿越、盘符），在 ubuntu 上会稳定假红。
+
+它**不产安装包**。安装包要把 `vendor/KuGouMusicApi` 一起带进 `resources`，而 `vendor/` 不入库，CI 上没有这份东西。所以发版只能在本机做，也就没有「推 tag 自动发版」这种流程。
+
 ### 每次发版
 
 1. 把 `CHANGELOG.md` 的「未发布」整段挪到新版本号下，改成 `## X.Y.Z — YYYY-MM-DD`；
