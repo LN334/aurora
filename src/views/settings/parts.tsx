@@ -19,16 +19,12 @@ interface PartProps {
 /**
  * 一个分区。
  *
- * 以前这里带两位编号和英文小标（01 / PLAYBACK & QUALITY / 播放与音质），那是
- * 借参考项目的分级方式。可这一页只有五块、各自标题已经说清是什么，编号只增加
- * 阅读负担。现在与首页共用 .rh-sec 的分区头：中文短语一行。
+ * 不再打区名：顶上那条分区带已经把当前是哪一段标出来了，再写一遍只是把同一句
+ * 话说两次。`zh` 留给无障碍标签，`id` 留给锚点。
  */
 export function Part({ zh, id, children }: PartProps) {
   return (
     <section className="rh-sec set-part" aria-label={zh} id={id ? `set-${id}` : undefined}>
-      <header className="rh-sec__head">
-        <h3>{zh}</h3>
-      </header>
       <div className="set-part__body">{children}</div>
     </section>
   )

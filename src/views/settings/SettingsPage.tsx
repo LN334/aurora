@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useSettingsPage } from '../../features/settings/store'
 import { Part } from './parts'
 import { AppearancePane } from './panes/AppearancePane'
+import { HomePane } from './panes/HomePane'
 import { SystemPane } from './panes/SystemPane'
 import { PlaybackPane } from './panes/PlaybackPane'
 import { RecommendPane } from './panes/RecommendPane'
@@ -32,32 +33,29 @@ interface SettingsSection {
 
 interface SettingsGroup {
   id: string
-  label: string
   sections: SettingsSection[]
 }
 
 const GROUPS: SettingsGroup[] = [
   {
     id: 'listen',
-    label: '听歌',
     sections: [
       { id: 'playback', label: '播放与音质' },
-      { id: 'recommend', label: '推荐来源' },
-      { id: 'downloads', label: '下载' }
+      { id: 'recommend', label: '推荐来源' }
     ]
   },
   {
     id: 'look',
-    label: '界面',
     sections: [
+      { id: 'home', label: '首页' },
       { id: 'appearance', label: '外观与桌面' },
       { id: 'keys', label: '快捷键' }
     ]
   },
   {
     id: 'app',
-    label: '应用',
     sections: [
+      { id: 'downloads', label: '下载' },
       { id: 'system', label: '启动与系统' },
       { id: 'maintenance', label: '清理与维护' },
       { id: 'update', label: '更新与关于' }
@@ -80,6 +78,7 @@ const PANES: Record<string, PaneFactory> = {
   playback: (page) => <PlaybackPane page={page} />,
   recommend: () => <RecommendPane />,
   downloads: () => <DownloadPane />,
+  home: () => <HomePane />,
   appearance: (page) => <AppearancePane page={page} />,
   system: (page) => <SystemPane page={page} />,
   keys: () => <HotkeysPane />,
@@ -100,7 +99,6 @@ export function SettingsPage() {
       <div className="settings__tabs" aria-label="设置分区">
         {GROUPS.map((group) => (
           <div className="settings__tabgroup" key={group.id}>
-            <span className="settings__tabgroup__title">{group.label}</span>
             {group.sections.map((item) => (
               <button
                 key={item.id}

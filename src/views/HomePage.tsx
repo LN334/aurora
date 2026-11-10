@@ -15,6 +15,7 @@ import { usePlayer } from '../features/player/store'
 import { openOnlineAlbum, openOnlinePlaylist } from '../features/refs/navigate'
 import { ArtistById, ArtistName } from '../ui/NameRef'
 import { DiscWall } from '../features/discover/DiscWall'
+import { useHomeSections } from '../features/settings/home-sections'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { usePlatformLiked } from '../features/online/platform-liked'
@@ -139,6 +140,7 @@ interface HomeViewProps {
 }
 
 export function HomePage({ onNavigate }: HomeViewProps) {
+  const homeSections = useHomeSections()
   const queue = usePlayer((state) => state.queue)
   const index = usePlayer((state) => state.index)
   const playing = usePlayer((state) => state.playing)
@@ -584,7 +586,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         </div>
       </div>
 
-      {!cardsReady || picks.length > 0 ? (
+      {homeSections.playlists && (!cardsReady || picks.length > 0) ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>推荐歌单</h3>
@@ -627,7 +629,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         </section>
       ) : null}
 
-      {!cardsReady || albumPicks.length > 0 ? (
+      {homeSections.albums && (!cardsReady || albumPicks.length > 0) ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>
@@ -708,7 +710,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         </section>
       ) : null}
 
-      {freshTracks.length > 0 || !settled ? (
+      {homeSections.fresh && (freshTracks.length > 0 || !settled) ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>最近新歌</h3>
@@ -788,7 +790,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         </section>
       ) : null}
 
-      {recentTracks.length > 0 || !settled ? (
+      {homeSections.recent && (recentTracks.length > 0 || !settled) ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>最近听过</h3>

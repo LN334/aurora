@@ -3,13 +3,14 @@
    这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
 
 
-/* 分区带：三组依次排开，组名是 11px 低对比的小字，点的是组内的项。
-   一条横带放八个，比竖着一列少占一栏；分组让「设置里有什么」仍然一眼能数完。 */
+/* 分区带：一路横排，组与组之间只隔一条发丝线。
+   以前每组头上还写一个组名（听歌 / 界面 / 应用），可组名不承载任何操作，
+   读的人只会先问一句「听歌是什么」——删掉，让八个分区自己说话。 */
 .settings__tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
+  gap: 8px 0;
   padding-bottom: var(--s3);
   border-bottom: var(--line-soft);
 }
@@ -20,12 +21,10 @@
   gap: 2px;
 }
 
-.settings__tabgroup__title {
-  margin-right: 6px;
-  color: var(--text-low);
-  font-size: 11px;
-  line-height: 1.4;
-  letter-spacing: 0.06em;
+.settings__tabgroup + .settings__tabgroup {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: var(--line-soft);
 }
 
 .settings__tab {
@@ -58,10 +57,25 @@
 .settings__body {
   display: flex;
   flex-direction: column;
-  gap: var(--s6);
+  gap: var(--s5);
   min-width: 0;
-  /* 一行 label 左、控件右，超过这个宽度两者隔太远，读的时候要来回扫。 */
-  max-width: 900px;
+  /*
+   * 一行 label 左、控件右，超过这个宽度两者隔太远，读的时候要来回扫。
+   * 窗口再宽时整列居中，左右各留一道等宽的边，而不是全堆在左栏旁边。
+   */
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: var(--s5) var(--s5) var(--s6);
+  border-radius: 18px;
+  /*
+   * 底下一层是会动的壁纸：没有这块板，行与行之间就是漏出来的壁纸，
+   * 看着像表格没画完；有了它，中间那段才是「留白」而不是「空的」。
+   */
+  background: rgb(12 16 22 / 0.3);
+  -webkit-backdrop-filter: blur(20px) saturate(115%);
+  backdrop-filter: blur(20px) saturate(115%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 
@@ -82,7 +96,7 @@
 
 /* 分区之间只用一条发丝线加留白分开：四个分区是同一页的四段，不是四个卡片。 */
 .set-part + .set-part {
-  padding-top: var(--s6);
+  padding-top: var(--s5);
   border-top: var(--line-soft);
 }
 
@@ -152,9 +166,10 @@
 
 .set-sub__head {
   display: flex;
-  align-items: baseline;
-  gap: var(--s3);
-  padding: 0 2px var(--s2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 0 2px var(--s3);
 }
 
 .set-sub__title {
@@ -254,7 +269,7 @@
   display: flex;
   align-items: center;
   gap: var(--s5);
-  padding: var(--s4) 2px;
+  padding: var(--s3) 2px;
   border-bottom: var(--line-soft);
 }
 
@@ -328,12 +343,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /*
+   * 预览按桌面歌词窗口那个宽度收：32px 字号铺满整页会变成一行巨字，
+   * 看不出它装进小窗口是什么样。520px 差不多是那扇窗的实际宽度。
+   */
+  width: 100%;
+  max-width: 440px;
+  margin-inline: auto;
   min-height: 78px;
-  padding: var(--s3) var(--s4);
-  border: 1px dashed var(--ink-600);
+  padding: var(--s4) var(--s5);
+  border: 1px dashed rgb(255 255 255 / 0.18);
   border-radius: var(--r-panel);
+  background: rgb(0 0 0 / 0.22);
   color: var(--text-hi);
   text-align: center;
+  white-space: nowrap;
   overflow: hidden;
 }
 
@@ -673,11 +697,11 @@
 .settings__row {
   padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid rgb(255 255 255 / 0.06);
-  background: rgb(255 255 255 / 0.035);
+  border: 1px solid rgb(255 255 255 / 0.075);
+  background: rgb(255 255 255 / 0.045);
 }
 .settings__row:hover {
-  background: rgb(255 255 255 / 0.055);
+  background: rgb(255 255 255 / 0.065);
 }
 
 .set-rows {
@@ -694,10 +718,10 @@
 }
 
 .set-sub__title {
-  font-size: 14px;
-  letter-spacing: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--text-hi);
+  color: var(--text-mid);
 }
 
 /* 音源优先级：一行一个平台，序数、名字、上下挪的箭头。 */
@@ -779,15 +803,16 @@
    设置是「标签在左、控件在右」的行表：一行太长，两端隔着半个屏幕，读一行要
    横扫两次；太窄又会在右边留一条空壁纸。980 是这个窗口里两者都还站得住的位置，
    再宽的行会把下面的音质分段按钮推到视线之外。
+   窗口再宽时整列居中，左右各留一道等宽的边，而不是全堆在左栏旁边。
    ========================================================================== */
 .settings__body {
-  max-width: min(100%, 980px);
-  margin-inline: 0;
+  max-width: min(100%, 820px);
+  margin-inline: auto;
 }
 
-/* 行卡变宽后两侧距离拉开一点，label 与控件之间不至于空得发飘。 */
+/* label 与控件之间留一档就够：空到 64px 时中间那截看着像没画完。 */
 .settings__row {
-  gap: var(--s6);
+  gap: var(--s5);
 }
 
 /* 滑块那一行不适合跟着行卡拉满：推子太长反而不好拖。 */
@@ -827,8 +852,11 @@
   background: rgb(10 12 16 / 0.74);
 }
 
-/* 内容不再包一张卡：壁纸是这页的一部分，再压一层黑底就成了一张盖在画面上的
-   不透光表格。行与行之间留一条发丝线，段与段之间靠留白分开。 */
+/*
+ * 分段之内不再各包一张卡：那样一层套一层，像表格叠表格。分段之间只留一条发丝线。
+ * 整页由 .settings__body 那一层淡玻璃兜住——底下的壁纸一直在动，没有这层板，
+ * 行与行之间就是漏出来的画面，看着像表格没画完。
+ */
 .set-part__body {
   padding: 0;
 }
@@ -836,7 +864,7 @@
 .settings__row {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 0;
   padding: 14px 2px;
   /* 行卡悬停只提亮一点点底色，没有过渡时整片页面扫过去像在闪开关。 */
