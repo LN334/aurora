@@ -1189,20 +1189,30 @@ export async function neteaseDiscover(
 
     const listIndex = (batch - 1) % DISCOVER_TOPLISTS.length
     const round = Math.floor((batch - 1) / DISCOVER_TOPLISTS.length)
-    const res = await call('playlist_detail', { id: DISCOVER_TOPLISTS[listIndex] })
-    const tracks = asArray(asRecord(asRecord(res.body).playlist).tracks)
-    const songs = tracks
-      .map(toSong)
-      .filter((song): song is NeteaseSong => song !== null)
-    if (songs.length === 0) return { kind, songs: [], playlists: [] }
 
-    // 榜单长度不固定（100 / 200 首都有），翻到底就绕回开头：按钮永远有东西可给，
-    // 不会变成一次空列表让页面闪一下空态。
-    const from = (round * size) % songs.length
-    const window = songs.slice(from, from + size)
-    const wrapped =
-      window.length === size ? window : window.concat(songs.slice(0, size - window.length))
-    return { kind, songs: wrapped, playlists: [] }
+    /*
+     * 一张榜单取回空是常有的事：上游按 id 做缓存，抖一次就整个 track 列表都不给。
+     * 早先这里直接返回空，前端「换一批」就变成「整块消失」。现在按顺序试下一张，
+     * 四张都空才算这次真的没有。
+     */
+    for (let attempt = 0; attempt < DISCOVER_TOPLISTS.length; attempt += 1) {
+      const id = DISCOVER_TOPLISTS[(listIndex + attempt) % DISCOVER_TOPLISTS.length]
+      const res = await call('playlist_detail', { id })
+      const tracks = asArray(asRecord(asRecord(res.body).playlist).tracks)
+      const songs = tracks
+        .map(toSong)
+        .filter((song): song is NeteaseSong => song !== null)
+      if (songs.length === 0) continue
+
+      // 榜单长度不固定（100 / 200 首都有），翻到底就绕回开头：按钮永远有东西可给，
+      // 不会变成一次空列表让页面闪一下空态。
+      const start = (round * size) % songs.length
+      const window = songs.slice(start, start + size)
+      const wrapped =
+        window.length === size ? window : window.concat(songs.slice(0, size - window.length))
+      return { kind, songs: wrapped, playlists: [] }
+    }
+    return { kind, songs: [], playlists: [] }
   }
 
   /*

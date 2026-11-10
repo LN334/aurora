@@ -674,6 +674,16 @@
   /* 滚到底不要把整页带着一起滚。 */
   overscroll-behavior-y: contain;
   padding-right: 2px;
+  animation: freshListIn 200ms var(--ease-out);
+}
+/* 换一批：整列淡进来，别让三十九行字在原地换掉。重建列表时（key 带批次）重播。 */
+@keyframes freshListIn {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
 }
 .rh-fresh__list::-webkit-scrollbar {
   width: 4px;

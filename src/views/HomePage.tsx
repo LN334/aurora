@@ -194,6 +194,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   const [freshBatch, setFreshBatch] = useState(0)
   /* 鼠标停在哪一行，左边的大卡就换哪一首；移出去回到第一首。 */
   const [freshLead, setFreshLead] = useState(0)
+  const freshList = useRef<HTMLDivElement | null>(null)
   /**
    * 每平台各出 3 张，交错排。
    *
@@ -380,14 +381,26 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 只挪切片不重取的话，平台第二次给的还是同一份榜单，用户会看到同一批歌；
    * 所以按钮同时把 freshTick 加一，让 QQ 与酷狗那边也重新问一次。
    */
+  /**
+   * 空回来时沿用上一批。
+   *
+   * 上游某张榜单偶尔整个 track 列表都不给，store 会正常返回「零首」。若照它渲染，
+   * 这块会从页面上消失、按钮也跟着没了。留一份最近的非空顺序顶住。
+   */
+  const lastFresh = useRef<Track[]>([])
+  useEffect(() => {
+    if (freshOrder.length > 0) lastFresh.current = freshOrder
+  }, [freshOrder])
+  const freshRows = freshOrder.length > 0 ? freshOrder : lastFresh.current
+
   const freshTracks = useMemo(() => {
     const size = SLOTS.fresh
-    if (freshOrder.length <= size) return freshOrder
-    const start = (freshBatch * size) % freshOrder.length
-    const out = freshOrder.slice(start, start + size)
-    if (out.length < size) out.push(...freshOrder.slice(0, size - out.length))
+    if (freshRows.length <= size) return freshRows
+    const start = (freshBatch * size) % freshRows.length
+    const out = freshRows.slice(start, start + size)
+    if (out.length < size) out.push(...freshRows.slice(0, size - out.length))
     return out
-  }, [freshOrder, freshBatch])
+  }, [freshRows, freshBatch])
 
   const leadIndex = freshTracks[freshLead] ? freshLead : 0
   const leadTrack = freshTracks[leadIndex]
@@ -402,7 +415,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    */
   useEffect(() => {
     setFreshLead(0)
-  }, [freshBatch])
+    // 换一批之后列表还停在上一批滚到的位置，人会以为没换到；回到顶上。
+    const list = freshList.current
+    if (list) list.scrollTop = 0
+  }, [freshBatch, freshTick])
 
   const [settled, setSettled] = useState(false)
   useEffect(() => {
@@ -742,8 +758,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
               onClick={() => {
                 setFreshBatch((n) => n + 1)
                 setFreshTick((n) => n + 1)
-                // 网易云那一份在发现页的缓存里，也顺手强制重取，别让三家只有两家换。
-                void useDiscover.getState().load('newsongs', { force: true }).catch(() => {})
+                //
+                // 网易云那份不能只是重取：一天只有一份新歌，重发拿回同一个列表，按钮
+                // 看起来就是没反应。走 next 把游标往前推一页，主进程会换到下一个榜单。
+                void useDiscover.getState().next('newsongs').catch(() => {})
               }}
             >
               换一批
@@ -779,7 +797,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                   </span>
                 </button>
               ) : null}
-              <div className="rh-fresh__list">
+              <div className="rh-fresh__list" ref={freshList} key={'fresh-' + freshBatch}>
                 {freshTracks.slice(1).map((track, at) => (
                   <button
                     className={'rh-fresh__row' + (at + 1 === leadIndex ? ' is-lead' : '')}
