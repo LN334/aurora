@@ -92,6 +92,24 @@
           "!**/.git/**",
           "!**/*.md"
         ]
+      },
+      {
+        "from": "vendor/KuGouMusicApi/node_modules",
+        "to": "KuGouMusicApi/node_modules",
+        "filter": [
+          "**/*",
+          "!typescript/**",
+          "!@rolldown/**",
+          "!prettier/**",
+          "!@babel/**",
+          "!@types/**",
+          "!nodemon/**",
+          "!ts-node/**",
+          "!tsdown/**",
+          "!pkg/**",
+          "!**/*.md",
+          "!**/*.map"
+        ]
       }
     ]
   },
