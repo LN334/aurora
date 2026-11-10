@@ -15,8 +15,8 @@ import { Row, Rows, Sub, Toggle } from '../parts'
 const SHELVES: { name: string; hint: string; count: number }[] = [
   { name: '今天听什么', hint: '一天一批，第二天换', count: SLOTS.daily },
   { name: '推荐歌单', hint: '四行六列', count: SLOTS.playlist },
-  { name: '推荐专辑', hint: '两行四列；取三家新碟与新歌里的专辑，可按批翻页', count: SLOTS.album },
-  { name: '新歌', hint: '一屏十二行；网易云走缓存，QQ 与酷狗现取新歌榜', count: SLOTS.fresh },
+  { name: '推荐专辑', hint: '一行横条、左右可翻；取三家新碟与新歌里的专辑，可按批翻页', count: SLOTS.album },
+  { name: '新歌', hint: '左边一张主推，右边十一首；网易云走缓存，QQ 与酷狗现取新歌榜', count: SLOTS.fresh },
   { name: '漫游', hint: '一次要这么多，再从中挑一批出来', count: SLOTS.roam }
 ]
 

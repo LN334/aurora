@@ -439,20 +439,30 @@
 }
 
 /*
- * 推荐专辑：两行四列。
+ * 推荐专辑：两行四列的横条。
  *
- * 上一版是六列小卡（.rh-mini），一张不到 170px：封面看不出是什么，标题只有一行
- * 小字，整排像一条附录。推荐位里它和歌单是同级，卡也该是同级——四列之后封面
- * 到 260px 上下，能读出专辑名与艺人。窗口窄下来退三列，不硬挤。
+ * 这一块试过三版：四列大卡（一张 300px，两行占满一屏）、六列小卡（和上面的
+ * 推荐歌单长得一模一样，并排放着分不出谁是谁）。定稿是横条——小方图在左、
+ * 专辑名与艺人在右。歌单是「封面墙」，专辑是「条目」，形状先替内容把话说清楚。
  */
-.rh-alb-grid {
+.rh-alb-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--s5) var(--s4);
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 4 * var(--s3)) / 5);
+  gap: var(--s3);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  /* 横条自己带 hover 底色，边缘再留一点，不然贴边那张像被裁了。 */
+  padding: 2px 0;
+}
+.rh-alb-list::-webkit-scrollbar {
+  display: none;
 }
 @media (max-width: 1180px) {
-  .rh-alb-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .rh-alb-list {
+    grid-auto-columns: calc((100% - 2 * var(--s3)) / 3);
   }
 }
 
@@ -514,21 +524,18 @@
  * ------------------------------------------------------------------------- */
 
 .rh-card.is-sk,
-.rh-alb.is-sk,
-.trk.is-sk,
+.rh-alb-row.is-sk,
 .rh-now.is-sk {
   pointer-events: none;
 }
 .rh-card.is-sk .rh-card__art,
-.rh-alb.is-sk .rh-alb__art {
+.rh-alb-row.is-sk .rh-alb-row__art {
   box-shadow: none;
 }
 .rh-card.is-sk .rh-card__title,
 .rh-card.is-sk .rh-card__sub,
-.rh-alb.is-sk .rh-alb__title,
-.rh-alb.is-sk .rh-alb__sub,
-.trk.is-sk .trk__title-text,
-.trk.is-sk .trk__sub,
+.rh-alb-row.is-sk .rh-alb-row__title,
+.rh-alb-row.is-sk .rh-alb-row__sub,
 .rh-now.is-sk .rh-now__kicker,
 .rh-now.is-sk .rh-now__title,
 .rh-now.is-sk .rh-now__sub {
@@ -539,16 +546,9 @@
   background-size: 70% 10px;
 }
 .rh-card.is-sk .rh-card__sub,
-.rh-alb.is-sk .rh-alb__sub,
-.trk.is-sk .trk__sub,
+.rh-alb-row.is-sk .rh-alb-row__sub,
 .rh-now.is-sk .rh-now__sub {
   background-size: 42% 9px;
-}
-.trk.is-sk .trk__title-text {
-  background-size: 180px 10px;
-}
-.trk.is-sk .trk__sub {
-  background-size: 110px 9px;
 }
 .rh-now.is-sk .rh-now__kicker {
   background-size: 88px 9px;
@@ -557,16 +557,187 @@
   background-size: 150px 13px;
 }
 
-/* 新歌那一段还没有真数据时，用同样的行结构与行高占位。 */
-.sk-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  --trk-cols: 32px 44px minmax(0, 340px) minmax(0, 1fr) 52px 54px;
-  --trk-gap: 16px;
-  --row-h: 60px;
+/* ---------------------------------------------------------------------------
+ * 最近新歌：左边一张主推，右边一列紧凑行。
+ *
+ * 首页上下已经有四段封面墙（推荐歌单、推荐专辑、最近听过），新歌若再排一堵
+ * 六列网格，整页就是「一路封面向下」，扫到第三段已经分不清哪块是哪块。所以
+ * 这一块单独分两栏：左边一张大图把「这周出了什么」立住，右边按序号排开其余
+ * 十一首——既有主次，也和上下的网格错开节奏。
+ * ------------------------------------------------------------------------- */
+.rh-fresh {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .rh-fresh {
+    grid-template-columns: minmax(0, 236px) minmax(0, 1fr);
+    gap: var(--s4);
+  }
 }
 
+.rh-fresh__lead {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.rh-fresh__lead-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
+  color: var(--text-mid);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 0.36);
+  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
+}
+.rh-fresh__lead-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rh-fresh__lead:hover .rh-fresh__lead-art {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgb(0 0 0 / 0.46);
+}
+.rh-fresh__lead-play {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgb(10 12 16 / 0.62);
+  color: #fff;
+}
+.rh-fresh__lead-kicker {
+  margin-top: var(--s3);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--text-low);
+}
+.rh-fresh__lead-title {
+  margin-top: 2px;
+  font-size: 16.5px;
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rh-fresh__lead-sub {
+  margin-top: 2px;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rh-fresh__list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* 行宽拉到整页会把平台名与时长甩到最右，中段空出一大片；收在这里刚好一行读得完。 */
+  max-width: 780px;
+}
+.rh-fresh__row {
+  display: grid;
+  grid-template-columns: 20px 34px minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms var(--ease-out);
+}
+.rh-fresh__row:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+.rh-fresh__row-idx {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.rh-fresh__row-art {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text-mid);
+}
+.rh-fresh__row-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rh-fresh__row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rh-fresh__row-title {
+  font-size: var(--fs-meta);
+  color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rh-fresh__row-sub {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rh-fresh__row-src {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.rh-fresh__row-dur {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  /* 「5 分 22 秒」比 mm:ss 长，窄列里会被按字切开 */
+  white-space: nowrap;
+}
+
+/* 占位：文字用灰条顶住，尺寸与真卡一致。 */
+.rh-fresh__lead.is-sk,
+.rh-fresh__row.is-sk {
+  pointer-events: none;
+}
+.rh-fresh__lead.is-sk .rh-fresh__lead-title,
+.rh-fresh__lead.is-sk .rh-fresh__lead-sub,
+.rh-fresh__row.is-sk .rh-fresh__row-title,
+.rh-fresh__row.is-sk .rh-fresh__row-sub {
+  color: transparent;
+  background-image: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 70% 10px;
+}
 /* 今天听什么：正文还没算出来时也先占住那一块的高度。 */
 .rh-daily.is-sk {
   min-height: 232px;
@@ -794,45 +965,67 @@
   }
 }
 
-.rh-alb {
-  display: flex;
-  flex-direction: column;
+.rh-alb-row {
+  scroll-snap-align: start;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
   min-width: 0;
-  padding: 0;
+  padding: 7px 9px;
   border: 0;
+  border-radius: 11px;
   background: none;
   text-align: left;
+  transition: background 160ms var(--ease-out);
+}
+.rh-alb-row:hover {
+  background: rgb(255 255 255 / 0.06);
 }
 
-.rh-alb__art {
+.rh-alb-row__art {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 12px;
+  border-radius: 9px;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 0.06);
   background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
   color: var(--text-mid);
-  box-shadow: 0 10px 24px rgb(0 0 0 / 0.32);
-  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.3);
 }
-.rh-alb__art img {
+.rh-alb-row__art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.rh-alb:hover .rh-alb__art {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 32px rgb(0 0 0 / 0.42);
-}
 
-.rh-alb__title {
-  margin-top: var(--s3);
-  font-size: var(--fs-body);
+.rh-alb-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rh-alb-row__title {
+  font-size: var(--fs-meta);
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.rh-alb-row__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.rh-alb-row__srcs {
+  color: var(--text-mid);
+  opacity: 0.75;
 }
 
 /* 今天听什么：内容区第一块。左文右图，一张卡把「现在就能听」说清楚。 */
@@ -2149,7 +2342,7 @@
  * 卡片封面上的平台标：主页与歌单页共用，位置靠 relative 撑起来。
  */
 .rh-card__art,
-.rh-alb__art {
+.rh-alb-row__art {
   position: relative;
 }
 
@@ -2200,19 +2393,6 @@
   z-index: 2;
 }
 
-/* 推荐专辑卡：封面下一行歌名，再一行作者与年份。 */
-.rh-alb__sub {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-low);
-  font-size: var(--fs-meta);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.rh-alb__meta {
-  opacity: 0.7;
-}
 
 /* 本机音乐的文件夹页：上面一行是监听中的目录，下面是文件树 */
 .lm-roots {
@@ -2246,4 +2426,54 @@
   font-size: 12.5px;
   line-height: 1.65;
   color: var(--text-low);
+}
+
+/* ---------------------------------------------------------------------------
+ * 最近听过：收尾的一排窄卡。
+ *
+ * 这一块在页面最末，任务是「刚听了什么」，不是「推荐什么」。八张窄卡并排、
+ * 只留歌名与多久以前，高度压到上面几块的一半——扫到底部时眼睛能松一口气，
+ * 也不至于把首页收成第三堵封面墙。
+ * ------------------------------------------------------------------------- */
+.rh-row--tight {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.rh-row--tight .rh-card__title {
+  margin-top: 6px;
+  font-size: var(--fs-meta);
+}
+.rh-row--tight .rh-card__sub {
+  font-size: var(--fs-micro);
+}
+@media (max-width: 1180px) {
+  .rh-row--tight {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 首页区块头右侧的动作组：翻页箭头 + 换一批。
+ * ------------------------------------------------------------------------- */
+.rh-sec__acts {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.rh-nav {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+}
+.rh-nav:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--text-hi);
 }

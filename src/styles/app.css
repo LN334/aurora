@@ -2083,7 +2083,6 @@ html.is-resizing {
  * 卡片不会跟着抖；只补「手指/鼠标按下去了」这一下回应。
  */
 .rh-card,
-.rh-alb,
 .rh-sc,
 .pl-card,
 .rh-btn,
@@ -2094,7 +2093,6 @@ html.is-resizing {
   transition: transform 140ms var(--ease-out), filter 140ms var(--ease-out);
 }
 .rh-card:active,
-.rh-alb:active,
 .rh-sc:active,
 .pl-card:active,
 .rh-btn:active,
@@ -2119,7 +2117,7 @@ html.is-resizing {
   .main__body { animation: none; }
   .artwork__img { animation: none; }
   .trk__like.is-pop svg { animation: none; }
-  .rh-card:active, .rh-alb:active, .rh-sc:active, .pl-card:active,
+  .rh-card:active, .rh-sc:active, .pl-card:active,
   .rh-btn:active, .rh-daily__all:active, .rh-more:active,
   .card__art-open:active, .card__play:active { transform: none; }
 }

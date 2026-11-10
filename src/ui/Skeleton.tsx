@@ -37,37 +37,46 @@ export function SkeletonCards({ count }: { count: number }) {
   )
 }
 
-/** 推荐专辑那排的大卡：两行四列，占位和真卡同尺寸。 */
+/** 推荐专辑那排的横条：两行四列，占位和真卡同尺寸。 */
 export function SkeletonAlbums({ count }: { count: number }) {
   return (
-    <>
+    <div className="rh-alb-list" aria-hidden="true">
       {Array.from({ length: count }, (_, at) => (
-        <div className="rh-alb is-sk" key={'sk-alb-' + at} aria-hidden="true">
-          <span className="rh-alb__art" style={tint('sk-alb-' + at)} />
-          <span className="rh-alb__title">{NBSP}</span>
-          <span className="rh-alb__sub">{NBSP}</span>
+        <div className="rh-alb-row is-sk" key={'sk-alb-' + at}>
+          <span className="rh-alb-row__art" style={tint('sk-alb-' + at)} />
+          <span className="rh-alb-row__main">
+            <span className="rh-alb-row__title">{NBSP}</span>
+            <span className="rh-alb-row__sub">{NBSP}</span>
+          </span>
         </div>
       ))}
-    </>
+    </div>
   )
 }
 
-/** 曲目列表的行（首页新歌、漫游）。 */
-export function SkeletonRows({ count }: { count: number }) {
+/** 首页新歌：左边一张主推、右边一列行，占位和真卡同构。 */
+export function SkeletonFresh({ rows }: { rows: number }) {
   return (
-    <div className="sk-rows" aria-hidden="true">
-      {Array.from({ length: count }, (_, at) => (
-        <div className="trk is-sk" key={'sk-row-' + at}>
-          <span className="trk__idx" />
-          <span className="trk__art" />
-          <div className="trk__main">
-            <span className="trk__title">
-              <span className="trk__title-text">{NBSP}</span>
+    <div className="rh-fresh" aria-hidden="true">
+      <div className="rh-fresh__lead is-sk">
+        <span className="rh-fresh__lead-art" style={tint('sk-fresh-lead')} />
+        <span className="rh-fresh__lead-kicker">{NBSP}</span>
+        <span className="rh-fresh__lead-title">{NBSP}</span>
+        <span className="rh-fresh__lead-sub">{NBSP}</span>
+      </div>
+      <div className="rh-fresh__list">
+        {Array.from({ length: rows }, (_, at) => (
+          <div className="rh-fresh__row is-sk" key={'sk-fresh-' + at}>
+            <span className="rh-fresh__row-idx" />
+            <span className="rh-fresh__row-art" style={tint('sk-fresh-row-' + at)} />
+            <span className="rh-fresh__row-main">
+              <span className="rh-fresh__row-title">{NBSP}</span>
+              <span className="rh-fresh__row-sub">{NBSP}</span>
             </span>
-            <span className="trk__sub">{NBSP}</span>
+            <span className="rh-fresh__row-dur" />
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { likedTracks, useFavorites } from '../features/favorites/store'
 import { coverFor } from '../features/library/cover'
-import { artworkFor } from '../features/library/source'
+import { artThumbFor, artworkFor } from '../features/library/source'
 import { useLibrary } from '../features/library/store'
 import { toTrack } from '../features/netease/track'
 import { player } from '../features/player/actions'
@@ -26,10 +26,9 @@ import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
-import { SkeletonAlbums, SkeletonCards, SkeletonRows } from '../ui/Skeleton'
+import { SkeletonAlbums, SkeletonCards, SkeletonFresh } from '../ui/Skeleton'
 import { formatSpan } from '../ui/format'
-import { TrackList } from '../ui/TrackList'
-import { ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
+import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
 /**
  * 推荐页。
@@ -45,6 +44,16 @@ import { ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icon
  * 「推荐」。平台没有独立卡片位：网易云与 QQ 是来源，内容以推荐的形式出现。
  */
 
+/** 多久以前：这一排写相对时间，比印绝对时刻更像「最近」。 */
+function sinceLabel(at: number): string {
+  if (!at) return ''
+  const diff = Date.now() - at
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前'
+  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + ' 小时前'
+  return Math.floor(diff / 86_400_000) + ' 天前'
+}
+
 function greeting(now: Date): string {
   const hour = now.getHours()
   if (hour < 6) return '夜深了'
@@ -56,7 +65,9 @@ function greeting(now: Date): string {
 
 const SOURCE_NAMES: Record<string, string> = {
   netease: '网易云',
-  qq: 'QQ 音乐'
+  qq: 'QQ 音乐',
+  kugou: '酷狗',
+  qishui: '汽水'
 }
 
 function sourceName(track: Track | null): string {
@@ -109,7 +120,7 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
 }
 
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
-const ROW = 6
+const ROW = 8
 
 /**
  * 卡片副标题：先报首数，没有首数就报它从哪来。
@@ -180,6 +191,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   /** 推荐专辑：跟歌单一样有「换一批」，换的是平台那边的下一屏，不是本页重排。 */
   const [albumBatch, setAlbumBatch] = useState(0)
   const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album, albumBatch)
+  const albumStrip = useRef<HTMLDivElement | null>(null)
+  /*
+   * 一排横条放得下一屏，剩下的横着藏。翻的是一屏（减去一点，让上一屏最后一张
+   * 留个边、看得出「后面还有」），不是一张一张挪——那要按十几次。
+   */
+  function slideAlbums(direction: 1 | -1): void {
+    const strip = albumStrip.current
+    if (!strip) return
+    strip.scrollBy({ left: direction * strip.clientWidth * 0.9, behavior: 'smooth' })
+  }
   /**
    * 这一批专辑到底来自哪几家。
    *
@@ -245,6 +266,13 @@ export function HomePage({ onNavigate }: HomeViewProps) {
       if (out.length >= ROW) break
     }
     return out
+  }, [recent])
+
+  /* 这一排写「多久以前听的」，比只印歌名更像一条时间线。 */
+  const recentAt = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const entry of recent) if (entry.track) map.set(entry.track.id, entry.at)
+    return map
   }, [recent])
 
   const order = useSourceOrder()
@@ -603,43 +631,65 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                 <span className="rh-sec__note">{albumSources.join(' · ')}</span>
               ) : null}
             </h3>
-            <button className="rh-more" type="button" onClick={() => setAlbumBatch((n) => n + 1)}>
-              换一批
-            </button>
+            <div className="rh-sec__acts">
+              <button
+                className="rh-nav"
+                type="button"
+                aria-label="往前翻几张专辑"
+                onClick={() => slideAlbums(-1)}
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                className="rh-nav"
+                type="button"
+                aria-label="往后翻几张专辑"
+                onClick={() => slideAlbums(1)}
+              >
+                <ChevronRight size={15} />
+              </button>
+              <button className="rh-more" type="button" onClick={() => setAlbumBatch((n) => n + 1)}>
+                换一批
+              </button>
+            </div>
           </header>
           {/*
            * 跟歌单同一道闸：没到齐只画占位，到齐整排一次换过来。
            * 这排尤其要等齐——网易云的新碟榜最快，先画就是「一整排网易云」。
            */}
-          <div className="rh-alb-grid">
+          {/*
+           * 专辑不排封面墙：歌单已经是三行六列的方卡了，两者并排几乎看不出区别。
+           * 这里改成横条——小方图在左、专辑名与艺人在右，两行四列往下走一格，
+           * 与歌单的「墙」错开节奏，也把「这是作品不是合集」写进形状里。
+           */}
+          <div className="rh-alb-list" ref={albumStrip}>
             {cardsReady ? (
               <>
                 {albumPicks.map((row, at) => (
                   <button
-                    className="rh-alb"
+                    className="rh-alb-row"
                     type="button"
                     key={row.key}
                     onClick={() => openOnlineAlbum(row.providerId, row.id)}
                   >
-                    <span className="rh-alb__art" style={tintOf(row.key)}>
+                    <span className="rh-alb-row__art" style={tintOf(row.key)}>
                       <Artwork
-                        src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 420), 420) : null}
+                        src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240), 240) : null}
                         alt=""
-                        fallback={<Note size={22} />}
+                        fallback={<Note size={16} />}
                         priority={at < 4}
                       />
-                      <span className="rh-card__srcs">
-                        {row.platforms.map((on) => (
-                          <span key={on.providerId} className={'pl-card__src src-dot--' + on.providerId}>
-                            {on.providerLabel}
-                          </span>
-                        ))}
-                      </span>
                     </span>
-                    <span className="rh-alb__title">{row.name}</span>
-                    <span className="rh-alb__sub">
-                      <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
-                      {row.year ? <span className="rh-alb__meta"> · {row.year}</span> : null}
+                    <span className="rh-alb-row__main">
+                      <span className="rh-alb-row__title">{row.name}</span>
+                      <span className="rh-alb-row__sub">
+                        <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
+                        {row.platforms.length > 0 ? (
+                          <span className="rh-alb-row__srcs">
+                            {row.platforms.map((on) => on.providerLabel).join(' / ')}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                   </button>
                 ))}
@@ -669,14 +719,64 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             </button>
           </header>
           {freshTracks.length > 0 ? (
-            <TrackList
-              tracks={freshTracks}
-              currentId={current?.id ?? null}
-              playing={playing}
-              onPlayAt={(at) => player.playQueue(freshTracks, at)}
-            />
+            <div className="rh-fresh">
+              {freshTracks[0] ? (
+                <button
+                  className="rh-fresh__lead"
+                  type="button"
+                  onClick={() => player.playQueue(freshTracks, 0)}
+                  title={'播放 ' + (freshTracks[0].title || '这首歌')}
+                >
+                  <span className="rh-fresh__lead-art" style={tintOf(freshTracks[0].id)}>
+                    <Artwork
+                      src={artThumbFor(freshTracks[0]) ?? coverFor(freshTracks[0].id, 360)}
+                      alt=""
+                      fallback={<Note size={22} />}
+                      priority
+                    />
+                    <span className="rh-fresh__lead-play" aria-hidden>
+                      <Play size={16} />
+                    </span>
+                  </span>
+                  <span className="rh-fresh__lead-kicker">本周新歌</span>
+                  <span className="rh-fresh__lead-title">{freshTracks[0].title || '（无标题）'}</span>
+                  <span className="rh-fresh__lead-sub">
+                    {(freshTracks[0].artist || '未知艺术家') + ' · ' + sourceName(freshTracks[0])}
+                  </span>
+                </button>
+              ) : null}
+              <div className="rh-fresh__list">
+                {freshTracks.slice(1).map((track, at) => (
+                  <button
+                    className="rh-fresh__row"
+                    type="button"
+                    key={track.id}
+                    onClick={() => player.playQueue(freshTracks, at + 1)}
+                    title={'播放 ' + (track.title || '这首歌')}
+                  >
+                    <span className="rh-fresh__row-idx tnum">{at + 2}</span>
+                    <span className="rh-fresh__row-art">
+                      <Artwork
+                        src={artThumbFor(track) ?? coverFor(track.id, 96)}
+                        alt=""
+                        fallback={<Note size={14} />}
+                      />
+                    </span>
+                    <span className="rh-fresh__row-main">
+                      <span className="rh-fresh__row-title">{track.title || '（无标题）'}</span>
+                      <span className="rh-fresh__row-sub">
+                        {(track.artist || '未知艺术家') + ' · ' + sourceName(track)}
+                      </span>
+                    </span>
+                    <span className="rh-fresh__row-dur tnum">
+                      {track.duration > 0 ? formatSpan(track.duration) : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : (
-            <SkeletonRows count={SLOTS.fresh} />
+            <SkeletonFresh rows={SLOTS.fresh - 1} />
           )}
         </section>
       ) : null}
@@ -690,8 +790,8 @@ export function HomePage({ onNavigate }: HomeViewProps) {
               <ChevronRight size={13} />
             </button>
           </header>
-          <div className="rh-row">
-            {recentTracks.length === 0 ? <SkeletonCards count={6} /> : null}
+          <div className="rh-row rh-row--tight">
+            {recentTracks.length === 0 ? <SkeletonCards count={ROW} /> : null}
             {recentTracks.map((track) => (
               <button
                 className="rh-card"
@@ -706,7 +806,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                   <Artwork src={artworkFor(track)} alt="" fallback={<Note size={20} />} />
                 </span>
                 <span className="rh-card__title">{track.title}</span>
-                <span className="rh-card__sub"><ArtistName track={track} /></span>
+                <span className="rh-card__sub">{sinceLabel(recentAt.get(track.id) ?? 0)}</span>
               </button>
             ))}
           </div>
