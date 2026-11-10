@@ -1,7 +1,7 @@
 {
   "name": "aurora-player",
   "private": true,
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Windows 桌面音乐客户端：本机文件和网易云、QQ 音乐、酷狗、汽水同列一个曲库，同一首歌只出一行，按音源优先级播放",
   "author": "Aurora contributors",
   "license": "MIT",
