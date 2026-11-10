@@ -238,6 +238,8 @@ GPU 和着色器缓存在播放器运行时被占用，删不掉。软件会把�
 
 ## 开发者
 
+工程流程：参与与提交规范见 [CONTRIBUTING.md](CONTRIBUTING.md)，每个版本改了什么见 [CHANGELOG.md](CHANGELOG.md)，定期维护与回滚见 [docs/maintenance.md](docs/maintenance.md)。
+
 ### 环境
 
 Node.js 22 或更新版本。
@@ -264,10 +266,11 @@ electron_mirror=https://npmmirror.com/mirrors/electron/
 | `npm run preview` | 浏览器预览，产出单文件 HTML |
 | `npm test` | 测试 |
 | `npm run typecheck` | 类型检查 |
-| `npm run check` | 类型检查 + 测试 + 三个死代码审计 |
+| `npm run check` | 类型检查 + 测试 + 四项审计（可达性 / 死选择器 / 失效路径 / 多余导出） |
 | `npm run smoke` | 真实窗口巡检：逐页截图、联网搜索、在线播放、（有 Wallpaper Engine 时）壁纸背景。失败返回 1 |
 | `npm run perf` | 运行时占用测量 |
 | `npm run scan -- <文件夹>` | 只跑扫描器，打印每个文件被读成了什么 |
+| `npm run clean` | 清构建产物与巡检截图；`npm run clean -- --all` 连安装包与探针账号副本一起清 |
 | `npm run dist` | 打包 Windows 安装包 |
 
 ### 代码结构

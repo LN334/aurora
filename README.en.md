@@ -223,6 +223,8 @@ Open the account page from the avatar and switch profile. Each profile is bound 
 
 ## Development
 
+Project workflow: [CONTRIBUTING.md](CONTRIBUTING.md) for issues and pull requests, [CHANGELOG.md](CHANGELOG.md) for what changed in each version, [docs/maintenance.md](docs/maintenance.md) for the maintenance and rollback routine.
+
 ### Setup
 
 Node.js 22 or newer.
@@ -249,10 +251,11 @@ electron_mirror=https://npmmirror.com/mirrors/electron/
 | `npm run preview` | Browser preview as a single HTML file |
 | `npm test` | Tests |
 | `npm run typecheck` | Type check |
-| `npm run check` | Type check, tests and three dead-code audits |
+| `npm run check` | Type check, tests and four audits (reachability, dead selectors, stale paths, unused exports) |
 | `npm run smoke` | Real-window walkthrough: page screenshots, an online search, online playback, and a wallpaper check when Wallpaper Engine is present. Exits 1 on failure |
 | `npm run perf` | Runtime usage measurement |
 | `npm run scan -- <folder>` | Run only the scanner and print what it made of each file |
+| `npm run clean` | Remove build output and walkthrough screenshots; `npm run clean -- --all` also drops the installers and the probe account copy |
 | `npm run dist` | Build the Windows installer |
 
 ### Layout

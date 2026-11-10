@@ -35,6 +35,14 @@ desktop.ini
 .dsh-vision-toolkit/
 *.tsbuildinfo
 
+# local test output and env files.
+# The project has neither lint nor .env today; listed so that adding either later
+# cannot leak a cache or a secret through a stray `git add -A`.
+coverage/
+.eslintcache
+.env
+.env.*.local
+
 # Local npm registry mirror configuration.
 #
 # Deliberately not published: it points npm and the Electron downloader at a

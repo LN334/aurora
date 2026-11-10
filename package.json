@@ -13,6 +13,8 @@
   "scripts": {
     "dev": "npm run build:electron && concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron . --dev\"",
     "clean:electron": "node scripts/clean-electron.mjs",
+    "clean": "node scripts/clean.mjs",
+    "clean:all": "node scripts/clean.mjs --all",
     "build:electron": "npm run clean:electron && tsc -p tsconfig.electron.json",
     "build": "npm run build:electron && vite build",
     "preview": "vite build --config vite.preview.config.ts && vite build --config vite.preview-overlay.config.ts && node scripts/inline-preview.mjs",
