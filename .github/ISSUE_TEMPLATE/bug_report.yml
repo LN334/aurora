@@ -1,0 +1,68 @@
+name: 报告一个问题
+description: 播放、下载、歌词、账号或界面哪里不对
+title: '[问题] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        报之前先看一眼 README 的「常见问题」与「已知限制」：四个在线平台都走第三方接口，
+        某一首搜不到、某个会员曲放不了，多半是平台侧的限制，不是应用坏了。
+
+  - type: input
+    id: version
+    attributes:
+      label: Aurora 版本
+      description: 设置 → 更新与关于里能看到，也可以直接写安装包文件名里的版本号
+      placeholder: 0.6.7
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 出问题的部分
+      options:
+        - 播放（没声音、卡住、进度不走、跳歌）
+        - 漫游与推荐
+        - 歌词（播放页 / 舞台 / 桌面歌词）
+        - 下载与转码
+        - 平台账号（登录、收藏、歌单写回）
+        - 界面与动画
+        - 设置项改了没效果
+        - 安装、更新与启动
+        - 其它
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 实际看到的与期望的不一样在哪。有截图或录屏就贴上来，比文字快得多。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现
+      description: 从打开应用开始，按顺序写。只有一次出现、说不清步骤也没关系，照实写。
+      placeholder: |
+        1. 打开首页，点「开始播放」
+        2. 切到第三首
+        3. 进度停在 0:00 不动
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志（可选）
+      description: |
+        安装版：%APPDATA%\aurora-player\startup.log
+        开发版：仓库根目录 .probe-profile\startup.log
+        日志里有账号 cookie，贴之前把含 token 的行删掉。
+      render: text
+    validations:
+      required: false

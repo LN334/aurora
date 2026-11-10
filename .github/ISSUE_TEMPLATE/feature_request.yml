@@ -1,0 +1,33 @@
+name: 提一个想法
+description: 希望加什么、改什么
+title: '[想法] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先说清要解决的是谁的什么问题。Aurora 的边界写在 README 里：只做各平台的客户端，
+        不绕过平台付费，也不内置版权内容。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 现在哪里别扭
+      description: 具体到某一次使用：当时想做什么、卡在哪一步。
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望它怎么做
+      description: 有参考的软件或截图更好。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 想过的其它办法（可选）
+    validations:
+      required: false

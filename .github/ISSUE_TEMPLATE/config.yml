@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 下载与历史版本
+    url: https://github.com/LN334/aurora/releases
+    about: 安装包、差分更新清单，以及每个版本改了什么
+  - name: 已知限制
+    url: https://github.com/LN334/aurora/blob/main/README.md
+    about: 四个平台都走第三方接口，失效是常态；安装包没有代码签名
