@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
 import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
+import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
 import type { OverlayStatus } from '../../../env'
@@ -55,9 +56,17 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
+  const lyricSizeNow = useLyricSize()
+  const [lyricDraft, setLyricDraft] = useState<number | null>(null)
+  const lyricSize = lyricDraft ?? lyricSizeNow
   useEffect(() => {
     setPreviewSize(desktopLyrics.size)
   }, [desktopLyrics.size])
+
+  /* 别处（或另一个窗口）改了字号时，把草稿让回真值 */
+  useEffect(() => {
+    setLyricDraft(null)
+  }, [lyricSizeNow])
 
   useEffect(() => {
     if (wallpaperEnabled) void refreshWallpaper()
@@ -114,6 +123,33 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             onKeyUp={() => void page.setLyricsSize(previewSize)}
           />
           <span className="settings__number">{previewSize}px</span>
+        </div>
+      </div>
+
+      <div className="settings__row settings__row--stacked">
+        <div className="settings__text">
+          <div className="settings__label">播放页歌词字号</div>
+          <p className="settings__hint">播放页那一列歌词的大小，松手就生效。</p>
+        </div>
+        <div className="settings__slider">
+          <input
+            type="range"
+            min={LYRICS_MIN_SIZE}
+            max={LYRICS_MAX_SIZE}
+            step={1}
+            value={lyricSize}
+            aria-label="播放页歌词字号"
+            onChange={(event) => setLyricDraft(Number(event.target.value))}
+            onPointerUp={() => {
+              writeLyricSize(lyricSize)
+              setLyricDraft(null)
+            }}
+            onKeyUp={() => {
+              writeLyricSize(lyricSize)
+              setLyricDraft(null)
+            }}
+          />
+          <span className="settings__number">{lyricSize}px</span>
         </div>
       </div>
       </Sub>

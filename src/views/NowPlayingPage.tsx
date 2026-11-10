@@ -7,6 +7,7 @@ import { RoamRail } from './RoamRail'
 import type { Lyrics } from '../features/lyrics/lrc'
 import { activeLineAt } from '../features/lyrics/lrc'
 import { splitLyricLine } from '../features/lyrics/line-parts'
+import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
 import { useProgressPosition } from '../features/player/Bar'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { artworkFor } from '../features/library/source'
@@ -29,11 +30,11 @@ import {
   VolumeMute
 } from '../ui/icons'
 
-/**
+/*
  * 行高必须和 CSS 里 .np__line 的高度一致：歌词靠 translateY 精确居中，
  * 而不是靠 scrollTop —— 后者在换歌、跳行、窗口缩放时会抖一下。
+ * 字号可调之后两边都从 lineHeightOf() 算，别在这里另写一个数。
  */
-const LINE_H = 44
 
 interface NowPlayingProps {
   track: Track | null
@@ -81,6 +82,8 @@ function LyricRoll({
   const dragRef = useRef<{ id: number; y: number; base: number; moved: boolean } | null>(null)
   const clockRef = useRef(0)
   const rafRef = useRef(0)
+  const size = useLyricSize()
+  const lineH = useRef(lineHeightOf(size))
   const last = Math.max(0, lines.length - 1)
   const lastRef = useRef(last)
   lastRef.current = last
@@ -101,6 +104,14 @@ function LyricRoll({
     holdRef.current = 0
     farRef.current = []
   }, [lines])
+
+  /* 字号改了：行高跟着变，按新行高重新落到当前行 */
+  useEffect(() => {
+    lineH.current = lineHeightOf(size)
+    posRef.current = activeRef.current
+    aimRef.current = activeRef.current
+    velRef.current = 0
+  }, [size])
 
   useEffect(() => {
     let alive = true
@@ -131,7 +142,8 @@ function LyricRoll({
       }
       const pos = Math.max(0, Math.min(lastRef.current, posRef.current))
       if (strip.current) {
-        strip.current.style.transform = 'translate3d(0,' + (-(pos * LINE_H + LINE_H / 2)).toFixed(2) + 'px,0)'
+        const h = lineH.current
+        strip.current.style.transform = 'translate3d(0,' + (-(pos * h + h / 2)).toFixed(2) + 'px,0)'
       }
       /* 远近档位跟着显示的中心行走，不是跟着播放行走 */
       const centre = Math.round(pos)
@@ -178,7 +190,7 @@ function LyricRoll({
     const dy = event.clientY - drag.y
     if (!drag.moved && Math.abs(dy) > 4) drag.moved = true
     if (!drag.moved) return
-    posRef.current = Math.max(0, Math.min(lastRef.current, drag.base - dy / LINE_H))
+    posRef.current = Math.max(0, Math.min(lastRef.current, drag.base - dy / lineH.current))
     aimRef.current = posRef.current
     velRef.current = 0
     holdRef.current = performance.now() + 4000

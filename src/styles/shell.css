@@ -1531,13 +1531,14 @@
   align-items: flex-start;
   justify-content: center;
   gap: 1px;
-  height: 44px;
+  /* 行高与字号由设置页的「播放页歌词字号」驱动，默认 17px / 44px。 */
+  height: var(--np-line-h, 44px);
   width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--text-low);
-  font-size: 17px;
+  font-size: var(--np-line-size, 17px);
   line-height: 1.25;
   text-align: left;
   transition:
@@ -1552,19 +1553,19 @@
  */
 .np__line[data-far='1'] {
   opacity: 0.84;
-  font-size: 16.5px;
+  font-size: calc(var(--np-line-size, 17px) * 0.97);
 }
 .np__line[data-far='2'] {
   opacity: 0.58;
-  font-size: 16px;
+  font-size: calc(var(--np-line-size, 17px) * 0.94);
 }
 .np__line[data-far='3'] {
   opacity: 0.36;
-  font-size: 15.5px;
+  font-size: calc(var(--np-line-size, 17px) * 0.91);
 }
 .np__line[data-far='4'] {
   opacity: 0.2;
-  font-size: 15px;
+  font-size: calc(var(--np-line-size, 17px) * 0.88);
 }
 /*
  * 一句原文、一句译文：原文照常，译文小一号、淡一档，贴在下面。
@@ -1593,7 +1594,7 @@
 }
 .np__line.is-active {
   color: var(--text-hi);
-  font-size: 20px;
+  font-size: calc(var(--np-line-size, 17px) * 1.176);
   font-weight: 500;
 }
 

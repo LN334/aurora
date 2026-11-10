@@ -27,6 +27,7 @@ import { bridge } from './bridge'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
+import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
 
 /*
  * Establish the profile before anything renders.
@@ -39,6 +40,7 @@ import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
  * already pointing at its slot.
  */
 applyReduceMotion(readReduceMotion())
+applyLyricSize(readLyricSize())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
 /*
