@@ -73,23 +73,40 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
  * 问哪几家跟着设置里那份勾选走（roam-sources 是唯一真源）；勾选变了就重拉，
  * 缓存按集合分开，所以来回改不会拿到上一份的结果。
  */
-export function usePlatformDaily(): Track[] {
+export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
   const chosen = useRoamPlatforms()
-  const [tracks, setTracks] = useState<Track[]>(() => caches.get(chosen.slice().sort().join(','))?.tracks ?? [])
+  const key = chosen.slice().sort().join(',')
+  const [tracks, setTracks] = useState<Track[]>(() => caches.get(key)?.tracks ?? [])
+  /*
+   * 首屏要判「这一份到底还来不来」。
+   *
+   * 以前只回一个数组，调用方分不清「平台确实没有推荐」和「还没回来」：缓存是空的
+   * 就先拿本机曲库顶上，几秒后平台数据到了整组换掉——首页那三张预览图因此会先
+   * 画一次、再换一次。多给一个 ready，等它落地再画。
+   *
+   * 有缓存（同一会话里进出过首页）就直接算落地：此时数组里的就是最终结果。
+   */
+  const [ready, setReady] = useState(() => caches.has(key))
 
   useEffect(() => {
     let alive = true
+    setReady(caches.has(key))
     void loadPlatformDaily(chosen)
       .then((next) => {
-        if (alive) setTracks(next)
+        if (!alive) return
+        setTracks(next)
+        setReady(true)
       })
-      .catch(() => {})
+      .catch(() => {
+        // 全挂了也算落地：调用方要的是「还要不要等」，不是「有没有拿到」。
+        if (alive) setReady(true)
+      })
     return () => {
       alive = false
     }
-  }, [chosen])
+  }, [chosen, key])
 
-  return tracks
+  return { tracks, ready }
 }
 
 /**

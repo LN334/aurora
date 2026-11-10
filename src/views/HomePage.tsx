@@ -235,7 +235,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     [liked, platformLiked, order]
   )
 
-  const platformDaily = usePlatformDaily()
+  const { tracks: platformDaily, ready: platformDailyReady } = usePlatformDaily()
   // 口味画像只改排序：常听的人和他常去的平台排前面。
   const taste = useTasteProfile()
 
@@ -341,6 +341,24 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     const timer = window.setTimeout(() => setSettled(true), 1600)
     return () => window.clearTimeout(timer)
   }, [])
+
+  /*
+   * 三张预览图等平台那一份落地再画。
+   *
+   * 平台推荐还没回来时 daily 先用本机曲库补齐，于是这三张会先画一次；几百毫秒后
+   * 平台数据到、daily 重算，三张整组换源——旧图消失、新图逐张加载，录屏里那块
+   * 就是在这段时间里反复变。等到了再一次画，中间的等待用同尺寸的 tint 块占位。
+   *
+   * 兜底单独放宽到 3 秒而不是复用上面那道 1.6 秒的 settled：录屏里新图 3.5 秒才
+   * 全部到位，1.6 秒一触发就先画了本机那组、平台回来再换掉，等于把要消的动作
+   * 留着。这道兜底只赌「请求永远不回来」这一种情况，多等两个色块好过再闪一次。
+   */
+  const [dailyArtSettled, setDailyArtSettled] = useState(false)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDailyArtSettled(true), 3000)
+    return () => window.clearTimeout(timer)
+  }, [])
+  const dailyArtReady = platformDailyReady || dailyArtSettled
 
   const now = new Date()
 
@@ -486,16 +504,27 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             </div>
           </div>
           <div className="rh-daily__art">
-            {dailyArt.map((track) => (
-              <span key={track.id} className="rh-daily__tile" style={tintOf(track.id)}>
-                <Artwork
-                  src={thumbOf(track, 200) ?? coverFor(track.id, 132)}
-                  alt=""
-                  fallback={null}
-                  priority
+            {dailyArtReady ? (
+              dailyArt.map((track) => (
+                <span key={track.id} className="rh-daily__tile" style={tintOf(track.id)}>
+                  <Artwork
+                    src={thumbOf(track, 200) ?? coverFor(track.id, 132)}
+                    alt=""
+                    fallback={null}
+                    priority
+                  />
+                </span>
+              ))
+            ) : (
+              // 与真图同尺寸同位置，落地时只换里面的内容，不推动版式。
+              [0, 1, 2].map((slot) => (
+                <span
+                  key={'daily-wait-' + slot}
+                  className="rh-daily__tile"
+                  style={tintOf('daily-wait-' + slot)}
                 />
-              </span>
-            ))}
+              ))
+            )}
           </div>
         </section>
       ) : !settled ? (

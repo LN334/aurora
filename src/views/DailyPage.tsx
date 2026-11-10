@@ -37,7 +37,7 @@ export function DailyPage({
     return out
   }, [recent])
 
-  const platformDaily = usePlatformDaily()
+  const { tracks: platformDaily } = usePlatformDaily()
   // 口味画像只影响排序；没有历史时退化成按日期挑。
   const taste = useTasteProfile()
 
