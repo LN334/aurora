@@ -38,6 +38,9 @@ interface NowPlayingProps {
   lyrics: Lyrics
   duration: number
   playing: boolean
+  /** 在线歌词开关当前是否打开；关着时下面给出入口。 */
+  onlineEnabled: boolean
+  onEnableOnline(): void
   onBack(): void
   onSeek(seconds: number): void
   onSeekRatio(ratio: number): void
@@ -60,6 +63,8 @@ export function NowPlayingPage({
   lyrics,
   duration,
   playing,
+  onlineEnabled,
+  onEnableOnline,
   onBack,
   onSeek,
   onSeekRatio,
@@ -222,6 +227,23 @@ export function NowPlayingPage({
             <div className="np__nolyrics">
               <Note size={22} />
               这首歌还没有歌词
+              {/*
+               * 没有词多半是这一家（酷狗、汽水）没有歌词接口，而不是这首歌真的没词：
+               * 同一首在网易云或 QQ 上常常是有的。给出路而不是只报一句空话——在线库
+               * 默认关着，用户不点开关就永远不知道还有这条路。
+               */}
+              {onlineEnabled ? null : (
+                <>
+                  <button
+                    type="button"
+                    className="btn np__nolyrics-act"
+                    onClick={onEnableOnline}
+                  >
+                    从公共歌词库找一次
+                  </button>
+                  <p className="np__nolyrics-hint">会把歌名和艺术家发送到 lrclib.net</p>
+                </>
+              )}
             </div>
           )}
         </div>

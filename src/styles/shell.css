@@ -1217,6 +1217,19 @@
   gap: 10px;
   color: var(--text-low);
   font-size: 13.5px;
+  text-align: center;
+}
+/* 空态里的出路：按钮与舞台页那颗同一套外观，只收一点尺寸。 */
+.np__nolyrics-act {
+  margin-top: 4px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+}
+.np__nolyrics-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-low);
+  opacity: 0.75;
 }
 
 /* —— 底部进度 —— */

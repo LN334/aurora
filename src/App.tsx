@@ -835,6 +835,8 @@ export function App() {  if (!isNative) {
           lyrics={lyrics}
           duration={duration}
           playing={playing}
+          onlineEnabled={lyricsOnline}
+          onEnableOnline={() => void setLyricsOnline(true)}
           onBack={goBack}
           onSeek={(seconds) => player.seekTo(seconds)}
           onSeekRatio={(ratio) => player.seekRatio(ratio)}
