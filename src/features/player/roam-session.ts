@@ -260,9 +260,19 @@ export async function startRoam(seed?: Track): Promise<boolean> {
     return true
   }
 
+  /*
+   * 一家都没勾就别要了。这时上游一定回空，落到下面那句「这几家今天还没推过来，
+   * 换几家或过会儿再试」——把人往「再等等」上引，而真正缺的是一个勾。
+   * 推流平台只在设置里改，漫游轨上不再摆第二套开关。
+   */
+  const wanted = roamPlatforms()
+  if (wanted.length === 0) {
+    useRoam.setState({ busy: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
+    return false
+  }
+
   useRoam.setState({ busy: true, error: '' })
   try {
-    const wanted = roamPlatforms()
     /*
      * 先要一小批就能开播。
      *
@@ -319,9 +329,14 @@ export async function startRoam(seed?: Track): Promise<boolean> {
 export async function pullRoamMore(): Promise<void> {
   const state = useRoam.getState()
   if (state.pulling) return
+  const wanted = roamPlatforms()
+  if (wanted.length === 0) {
+    useRoam.setState({ pulling: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
+    return
+  }
   useRoam.setState({ pulling: true, error: '' })
   try {
-    const more = await loadRoamStream(ROAM_MORE)
+    const more = await loadRoamStream(ROAM_MORE, wanted)
     const fresh = appendFresh(useRoam.getState().tracks, more, browsedOut())
     if (fresh.length === 0) {
       useRoam.setState({ pulling: false, error: '平台这批和手上重复了，过一会儿再要' })

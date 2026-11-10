@@ -1,11 +1,12 @@
 import { dropSeed, endRoam, hideRoamTrack, pullRoamMore, ROAM_MORE, undoDrop, useRoam, useRoamProgress } from '../features/player/roam-session'
-import { roamCandidates, setRoamPlatform, useRoamPlatforms } from '../features/player/roam-sources'
+import { roamCandidates, useRoamPlatforms } from '../features/player/roam-sources'
 import { usePlayer } from '../features/player/store'
 import { Close, Next, Plus } from '../ui/icons'
 
 /** 平台全名太长（「网易云音乐」），这里只留能分辨的那几个字。 */
 function shortPlatform(name: string): string {
-  return name.replace(/音乐$/, '')
+  // 「QQ 音乐」去掉「音乐」会剩一个尾空格，两个平台之间就成了「QQ  · 」两格。
+  return name.replace(/\s*音乐$/, '')
 }
 
 /**
@@ -61,23 +62,20 @@ export function RoamRail() {
         已听 {progress.heard} / 共 {progress.total}
       </span>
 
-      <div className="rr__plats" role="group" aria-label="这一趟从哪几家要">
+      {/*
+        只报设置里的勾选，这里不给开关。以前这排是能点的，改的其实也是设置里同一份，
+        但摆在漫游轨上就像漫游自有第二套配置——同一个问题两个答案。要改去设置。
+      */}
+      <div className="rr__plats" role="note" aria-label="这一趟按设置里的推荐来源要">
         <span className="rr__plats-k">推流</span>
-        {candidates.map((item) => {
-          const on = chosenSet.has(item.id)
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={`rr__plat${on ? ' is-on' : ''}`}
-              aria-pressed={on}
-              title={on ? `不再向${item.name}要` : `下一批也向${item.name}要`}
-              onClick={() => setRoamPlatform(item.id, !on)}
-            >
-              {shortPlatform(item.name)}
-            </button>
-          )
-        })}
+        <span className="rr__plats-v">
+          {chosen.length > 0
+            ? candidates
+                .filter((item) => chosenSet.has(item.id))
+                .map((item) => shortPlatform(item.name))
+                .join(' · ')
+            : '设置里一家都没勾'}
+        </span>
       </div>
 
       <div className="rr__acts">
@@ -117,8 +115,17 @@ export function RoamRail() {
           <Plus size={13} />
           {pulling ? '正在要…' : `再要 ${wantMore} 首`}
         </button>
-        <button type="button" className="rr__exit" onClick={endRoam} title="收起这一趟，继续放当前的">
-          退出漫游
+        {/*
+          结束的是「这一趟」，不是播放：队列不换、正在放的继续放，所以文案不能写成
+          「退出」——按过的人会以为歌也该停。真正会变的是补池停下、循环模式还原。
+        */}
+        <button
+          type="button"
+          className="rr__exit"
+          onClick={endRoam}
+          title="这一趟到此为止：队列不换，正在放的继续放；循环模式还原成进漫游前的样子"
+        >
+          结束漫游
         </button>
       </div>
 
