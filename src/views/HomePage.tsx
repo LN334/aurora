@@ -429,6 +429,58 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         ) : null}
       </header>
 
+      {daily.length > 0 ? (
+        <section className="rh-daily">
+          <div className="rh-daily__text">
+            <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
+            <h2>今天听什么</h2>
+            <div className="rh-daily__acts">
+              <button
+                className="rh-btn rh-btn--main"
+                type="button"
+                onClick={() => player.playQueue(daily, 0)}
+              >
+                <Play size={15} />
+                开始播放
+              </button>
+              <button
+                className="rh-more"
+                type="button"
+                onClick={() => onNavigate({ view: 'daily' })}
+              >
+                全部 {daily.length} 首
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+          <DiscWall
+            tiles={
+              dailyArtReady
+                ? dailyArt.map((track) => ({
+                    key: track.id,
+                    label: track.title + (track.artist ? ' · ' + track.artist : ''),
+                    art: thumbOf(track, 200) ?? coverFor(track.id, 132),
+                    tint: tintCss(track.id)
+                  }))
+                : // 与真图同尺寸同位置，落地时只换里面的内容，不推动版式。
+                  Array.from({ length: 12 }, (_, slot) => ({
+                    key: 'daily-wait-' + slot,
+                    label: '',
+                    art: null,
+                    tint: tintCss('daily-wait-' + slot)
+                  }))
+            }
+            onPlay={(index) => {
+              const track = dailyArt[index]
+              const at = track ? daily.indexOf(track) : -1
+              if (at >= 0) player.playQueue(daily, at)
+            }}
+          />
+        </section>
+      ) : !settled ? (
+        <section className="rh-daily is-sk" aria-hidden="true" />
+      ) : null}
+
       {focus ? (
         <section className="rh-now">
           <button
@@ -531,58 +583,6 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           </div>
         </div>
       </div>
-
-      {daily.length > 0 ? (
-        <section className="rh-daily">
-          <div className="rh-daily__text">
-            <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
-            <h2>今天听什么</h2>
-            <div className="rh-daily__acts">
-              <button
-                className="rh-btn rh-btn--main"
-                type="button"
-                onClick={() => player.playQueue(daily, 0)}
-              >
-                <Play size={15} />
-                开始播放
-              </button>
-              <button
-                className="rh-more"
-                type="button"
-                onClick={() => onNavigate({ view: 'daily' })}
-              >
-                全部 {daily.length} 首
-                <ChevronRight size={13} />
-              </button>
-            </div>
-          </div>
-          <DiscWall
-            tiles={
-              dailyArtReady
-                ? dailyArt.map((track) => ({
-                    key: track.id,
-                    label: track.title + (track.artist ? ' · ' + track.artist : ''),
-                    art: thumbOf(track, 200) ?? coverFor(track.id, 132),
-                    tint: tintCss(track.id)
-                  }))
-                : // 与真图同尺寸同位置，落地时只换里面的内容，不推动版式。
-                  Array.from({ length: 12 }, (_, slot) => ({
-                    key: 'daily-wait-' + slot,
-                    label: '',
-                    art: null,
-                    tint: tintCss('daily-wait-' + slot)
-                  }))
-            }
-            onPlay={(index) => {
-              const track = dailyArt[index]
-              const at = track ? daily.indexOf(track) : -1
-              if (at >= 0) player.playQueue(daily, at)
-            }}
-          />
-        </section>
-      ) : !settled ? (
-        <section className="rh-daily is-sk" aria-hidden="true" />
-      ) : null}
 
       {!cardsReady || picks.length > 0 ? (
         <section className="rh-sec">
