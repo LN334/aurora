@@ -12,7 +12,6 @@
   place-items: center;
   padding: 24px;
   background: rgb(4 6 10 / 0.97);
-  backdrop-filter: blur(18px) saturate(120%);
 }
 
 .onb__panel {

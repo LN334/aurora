@@ -29,7 +29,7 @@ import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { SkeletonAlbums, SkeletonCards, SkeletonFresh } from '../ui/Skeleton'
-import { formatSpan } from '../ui/format'
+import { formatSpan, formatTime } from '../ui/format'
 import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
 /**
@@ -791,7 +791,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                       </span>
                     </span>
                     <span className="rh-fresh__row-dur tnum">
-                      {track.duration > 0 ? formatSpan(track.duration) : ''}
+                      {track.duration > 0 ? formatTime(track.duration) : ''}
                     </span>
                   </button>
                 ))}

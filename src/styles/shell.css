@@ -654,7 +654,7 @@
 }
 .rh-fresh__row {
   display: grid;
-  grid-template-columns: 20px 34px minmax(0, 1fr) 58px;
+  grid-template-columns: 20px 34px minmax(0, 1fr) 46px;
   align-items: center;
   gap: 10px;
   height: 42px;
@@ -708,18 +708,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rh-fresh__row-src {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-  opacity: 0.85;
-  white-space: nowrap;
-}
 .rh-fresh__row-dur {
   font-size: var(--fs-micro);
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
   text-align: right;
-  /* 「5 分 22 秒」比 mm:ss 长，窄列里会被按字切开 */
   white-space: nowrap;
 }
 
