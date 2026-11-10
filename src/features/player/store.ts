@@ -9,6 +9,11 @@ import type { RepeatMode, Track } from '../../types'
  */
 import { identityOrder, reconcile, shuffledOrder } from './queue.ts'
 import { volumeForUnmute } from './volume.ts'
+/*
+ * Explicit `.ts` extension for the same reason as queue.ts above: tests import
+ * this module directly under Node.
+ */
+import { readSessionRestore } from '../settings/session-restore.ts'
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const
  const EQ_FLAT: number[] = EQ_BANDS.map(() => 0)
@@ -236,7 +241,10 @@ export const usePlayer = create<PlayerState>()(
       // Keyed by the active profile: volume and EQ belong to the person, not to
       // the machine.
       storage: createJSONStorage(createProfileScopedStorage),
-      // Only user preferences survive a restart; the queue is session state.
+      //
+      // 用户偏好总是留着；队列只在「启动时恢复上次队列」开着时一起存。
+      // 不存 position：恢复后停在 0:00，比从半截接上稳。
+      //
       partialize: (state) => ({
         volume: state.volume,
         muted: state.muted,
@@ -244,7 +252,10 @@ export const usePlayer = create<PlayerState>()(
         repeat: state.repeat,
         eqEnabled: state.eqEnabled,
         eqGains: state.eqGains,
-        crossfadeSec: state.crossfadeSec
+        crossfadeSec: state.crossfadeSec,
+        ...(readSessionRestore()
+          ? { queue: state.queue, index: state.index, order: state.order }
+          : {})
       })
     }
   )
@@ -262,9 +273,22 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
 
   const stored = createProfileScopedStorage().getItem(PREFS_KEY)
   if (stored === null) {
-    usePlayer.setState(defaultPrefs())
+    usePlayer.setState({ ...defaultPrefs(), queue: [], index: -1, order: [] })
     return
   }
 
   await usePlayer.persist.rehydrate()
+
+  /*
+   * 队列是按 profile 存的：换到一个没存过队列的 profile 时，persist 只会
+   * 合并它有的字段，旧队列会留在内存里。没有就是没有，显式清空。
+   */
+  let carriesQueue = false
+  try {
+    const parsed = JSON.parse(stored) as { state?: { queue?: unknown } }
+    carriesQueue = Array.isArray(parsed.state?.queue)
+  } catch {
+    carriesQueue = false
+  }
+  if (!carriesQueue) usePlayer.setState({ queue: [], index: -1, order: [] })
 }

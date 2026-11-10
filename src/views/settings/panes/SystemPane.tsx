@@ -1,4 +1,5 @@
 import type { useSettingsPage } from '../../../features/settings/store'
+import { useSessionRestore, writeSessionRestore } from '../../../features/settings/session-restore'
 import { Row, Rows, Toggle } from '../parts'
 
 /**
@@ -10,6 +11,7 @@ import { Row, Rows, Toggle } from '../parts'
  */
 export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const { closeToTray, launchAtLogin, preventSleepWhilePlaying } = page.settings
+  const restoreQueue = useSessionRestore()
 
   return (
     <Rows>
@@ -34,6 +36,17 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
           disabled={page.busy}
           label="放歌时阻止系统休眠"
           onChange={(next) => void page.setPreventSleep(next)}
+        />
+      </Row>
+
+      <Row
+        label="启动时恢复上次队列"
+        hint="下次打开还是上次那一列，停在 0:00 等你按播放。不记播放进度。"
+      >
+        <Toggle
+          checked={restoreQueue}
+          label="启动时恢复上次队列"
+          onChange={(next) => writeSessionRestore(next)}
         />
       </Row>
 
