@@ -2,7 +2,7 @@ import type { Track } from '../../types'
 import { engineHooks } from './engine'
 import { driver } from './driver'
 import { step } from './queue'
-import { usePlayer } from './store'
+import { isRestoringPrefs, usePlayer } from './store'
 import { showFlash } from '../../ui/flash'
 
 /**
@@ -54,10 +54,22 @@ export const player = {
   },
 
   toggle(): void {
-    const { playing, current } = usePlayer.getState()
-    if (!current()) return
-    if (playing) driver.pause()
-    else void driver.play()
+    const state = usePlayer.getState()
+    const track = state.current()
+    if (!track) return
+    if (state.playing) {
+      driver.pause()
+      return
+    }
+    /*
+     * 启动时恢复的队列只是摆在那儿，没有真的指上音频元素。这时按播放要把
+     * 当前这首装上再放，否则 play() 打在空元素上，按了不出声。
+     */
+    if (!driver.isTrackReady(track)) {
+      loadCurrent(true)
+      return
+    }
+    void driver.play()
   },
 
   play(): void {
@@ -228,6 +240,8 @@ usePlayer.subscribe((state) => {
   if (state.index === lastIndex) return
   const wasIdle = lastIndex === -1
   lastIndex = state.index
+  // 恢复出来的队列不该一启动就自己响；等用户按播放（toggle 会自己装载）。
+  if (isRestoringPrefs()) return
   // Advancing an already-playing queue keeps rolling; selecting the first track
   // of an idle player starts it.
   if (state.playing || wasIdle) loadCurrent(true)

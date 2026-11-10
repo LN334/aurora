@@ -2,7 +2,7 @@ import { setMissingStreamHandler } from '../library/source'
 import { setNeteaseResume, useNetease } from '../netease/store'
 import type { Track } from '../../types'
 import { driver } from './driver'
-import { usePlayer } from './store'
+import { isRestoringPrefs, usePlayer } from './store'
 
 /**
  * Playback wiring for the online source.
@@ -64,6 +64,12 @@ let lastPrefetchIndex = -1
 usePlayer.subscribe((state) => {
   if (state.index === lastPrefetchIndex) return
   lastPrefetchIndex = state.index
+  /*
+   * 启动时从盘上恢复的队列不该预取：这里问到的地址一落地，recover 就会回调
+   * reloadCurrent 把这首歌装上并 autoplay，等于应用一开就自己唱。等用户真的
+   * 按播放，那条路会自己把地址取回来。
+   */
+  if (isRestoringPrefs()) return
   if (state.index < 0 || state.queue.length === 0) return
 
   const upcoming: Track[] = []

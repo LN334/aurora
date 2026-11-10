@@ -238,6 +238,12 @@ export const usePlayer = create<PlayerState>()(
     {
       name: PREFS_KEY,
       version: 1,
+      /*
+       * 加载交给 loadProfilePlayerPrefs 显式做。store 一创建就自动 hydrate 会
+       * 在没有任何人盯着的时候把队列灌进来，订阅把它当成用户点了歌，一启动
+       * 就自己响；那时也还不知道该读哪个 profile 的槽。
+       */
+      skipHydration: true,
       // Keyed by the active profile: volume and EQ belong to the person, not to
       // the machine.
       storage: createJSONStorage(createProfileScopedStorage),
@@ -268,6 +274,16 @@ export const usePlayer = create<PlayerState>()(
  * when it is genuinely empty. Clearing first would let the persist middleware
  * write the cleared state over the preferences of the profile being switched to.
  */
+/**
+ * 恢复队列的那一次 rehydrate：这期间 index 从 -1 跳到某首歌，
+ * actions 的订阅不该把它当成「用户点了播放」。
+ */
+let restoringPrefs = false
+
+export function isRestoringPrefs(): boolean {
+  return restoringPrefs
+}
+
 export async function loadProfilePlayerPrefs(profileId: string | null): Promise<void> {
   setActiveStorageProfile(profileId)
 
@@ -277,7 +293,21 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
     return
   }
 
-  await usePlayer.persist.rehydrate()
+  restoringPrefs = true
+  try {
+    await usePlayer.persist.rehydrate()
+  } finally {
+    restoringPrefs = false
+  }
+
+  /*
+   * 开关关掉时连读都不读。只靠 partialize 只管写：关掉后盘上仍留着上一次
+   * 的队列，这次启动照样会读回来，要等下一次写盘才真的消失。
+   */
+  if (!readSessionRestore()) {
+    usePlayer.setState({ queue: [], index: -1, order: [] })
+    return
+  }
 
   /*
    * 队列是按 profile 存的：换到一个没存过队列的 profile 时，persist 只会
