@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDiscover } from '../discover/store'
 import { useRoamPlatforms } from '../player/roam-sources'
 import type { PlaylistCard } from './playlist-cards'
@@ -29,11 +29,37 @@ import { useOnlineStore } from './store'
  */
 const QISHUI_WORDS = ['歌单', '民谣', '夜晚']
 
-export function useRecommendedPlaylists(): PlaylistCard[] {
+/**
+ * 各家都落定之后再多等一会儿。
+ *
+ * 同一批卡片常分两次提交：store 里那一份先落，搜索回来那一份后落，中间隔着
+ * 一两帧。放行晚一帧，两批就并成同一次画，不会看到一排卡先出现又补满。
+ */
+const READY_TAIL_MS = 120
+
+/** 这一排要的东西，连同「可以画了没有」。 */
+interface RecommendedPlaylists {
+  rows: PlaylistCard[]
+  /** 勾选的每一家都问过一遍了（成功失败都算）。 */
+  ready: boolean
+}
+
+export function useRecommendedPlaylists(): RecommendedPlaylists {
   const block = useDiscover((state) => state.blocks.playlists)
   const kugou = useOnlineStore('kugou')()
   const [qishui, setQishui] = useState<PlaylistCard[]>([])
   const [qq, setQq] = useState<PlaylistCard[]>([])
+  /*
+   * 每一家落定就记一笔。
+   *
+   * 以前是边到边画：网易云的块先回来就先长六格，QQ 回来再长六格，首页这一排
+   * 是一格一格冒出来的。占位格挡得住高度跳动，挡不住「东西在偷偷填」。所以
+   * 这里只记落定、不记先后，由上层等齐了再一次性换成真卡。
+   */
+  const [done, setDone] = useState<Record<string, boolean>>({})
+  const markDone = useCallback((id: string) => {
+    setDone((prev) => (prev[id] ? prev : { ...prev, [id]: true }))
+  }, [])
   /*
    * 「推荐来源」那一页的勾选必须管到这里。
    *
@@ -45,80 +71,124 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
 
   // 取数只在进页面时做一次；勾选变化只影响下面两个 effect 与最后的过滤。
   useEffect(() => {
-    void useDiscover.getState().load('playlists').catch(() => {})
-    void useOnlineStore('kugou').getState().init().catch(() => {})
+    void useDiscover
+      .getState()
+      .load('playlists')
+      .catch(() => {})
   }, [])
 
+  /*
+   * 网易云：块状态离开 idle/loading 就算落定，成功失败都算。
+   * 失败也放行是有意的——接口挂了要收起骨架，而不是让一排卡永远停在占位。
+   */
+  const neteaseDone = block.status === 'ready' || block.status === 'failed'
+  useEffect(() => {
+    if (neteaseDone) markDone('netease')
+  }, [neteaseDone, markDone])
+
+  /*
+   * 酷狗：歌单是 init 里顺手发出去的（未登录走公开榜单），拿不到自己的 promise。
+   * 所以用「init 完成 + 不在加载中」两条件近似落定，中间可能差的一帧由
+   * READY_TAIL_MS 那个收敛窗吃掉。
+   */
+  const [kugouInit, setKugouInit] = useState(false)
   useEffect(() => {
     let alive = true
-    void (async () => {
-      if (!chosen.includes('qishui')) {
-        setQishui([])
-        return
-      }
-      const api = window.aurora?.qishui
-      if (!api?.searchPlaylists) return
-      const batches = await Promise.all(
-        QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
-      )
-      const seen = new Set<number>()
-      const rows = batches.flat().filter((row) => {
-        if (seen.has(row.id)) return false
-        seen.add(row.id)
-        return true
+    void useOnlineStore('kugou')
+      .getState()
+      .init()
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setKugouInit(true)
       })
-      if (!alive || rows.length === 0) return
-      setQishui(
-        rows.map((row) => ({
-          key: 'qishui:' + row.id,
-          providerId: 'qishui' as const,
-          providerLabel: '汽水音乐',
-          id: row.id,
-          name: row.name,
-          coverUrl: row.coverUrl,
-          trackCount: row.trackCount,
-          creator: row.creator,
-          ownership: 'unknown' as const
-        }))
-      )
-    })()
     return () => {
       alive = false
     }
-  }, [chosenKey])
+  }, [])
+  const kugouLoading = kugou.playlistsLoading
+  useEffect(() => {
+    if (kugouInit && !kugouLoading) markDone('kugou')
+  }, [kugouInit, kugouLoading, markDone])
 
   useEffect(() => {
     let alive = true
     void (async () => {
-      if (!chosen.includes('qq')) {
-        setQq([])
-        return
+      // 关掉的那家也算落定：它连请求都不发，等它只会让这一排永远停在占位。
+      try {
+        if (!chosen.includes('qishui')) {
+          setQishui([])
+          return
+        }
+        const api = window.aurora?.qishui
+        if (!api?.searchPlaylists) return
+        const batches = await Promise.all(
+          QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
+        )
+        const seen = new Set<number>()
+        const rows = batches.flat().filter((row) => {
+          if (seen.has(row.id)) return false
+          seen.add(row.id)
+          return true
+        })
+        if (!alive || rows.length === 0) return
+        setQishui(
+          rows.map((row) => ({
+            key: 'qishui:' + row.id,
+            providerId: 'qishui' as const,
+            providerLabel: '汽水音乐',
+            id: row.id,
+            name: row.name,
+            coverUrl: row.coverUrl,
+            trackCount: row.trackCount,
+            creator: row.creator,
+            ownership: 'unknown' as const
+          }))
+        )
+      } finally {
+        if (alive) markDone('qishui')
       }
-      const api = window.aurora?.qq
-      if (!api?.recommendPlaylists) return
-      const rows = await api.recommendPlaylists(12).catch(() => [])
-      if (!alive || rows.length === 0) return
-      setQq(
-        rows.map((row) => ({
-          key: 'qq:' + row.id,
-          providerId: 'qq' as const,
-          providerLabel: 'QQ 音乐',
-          id: row.id,
-          name: row.name,
-          coverUrl: row.coverUrl,
-          trackCount: row.trackCount,
-          creator: row.creator,
-          ownership: 'unknown' as const
-        }))
-      )
     })()
     return () => {
       alive = false
     }
-  }, [chosenKey])
+  }, [chosenKey, markDone])
 
-  return useMemo(() => {
-    const rows: PlaylistCard[] = block.playlists.map((playlist) => ({
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        if (!chosen.includes('qq')) {
+          setQq([])
+          return
+        }
+        const api = window.aurora?.qq
+        if (!api?.recommendPlaylists) return
+        const rows = await api.recommendPlaylists(12).catch(() => [])
+        if (!alive || rows.length === 0) return
+        setQq(
+          rows.map((row) => ({
+            key: 'qq:' + row.id,
+            providerId: 'qq' as const,
+            providerLabel: 'QQ 音乐',
+            id: row.id,
+            name: row.name,
+            coverUrl: row.coverUrl,
+            trackCount: row.trackCount,
+            creator: row.creator,
+            ownership: 'unknown' as const
+          }))
+        )
+      } finally {
+        if (alive) markDone('qq')
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [chosenKey, markDone])
+
+  const rows = useMemo(() => {
+    const out: PlaylistCard[] = block.playlists.map((playlist) => ({
       key: 'netease:' + playlist.id,
       providerId: 'netease' as const,
       providerLabel: '网易云音乐',
@@ -130,7 +200,7 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
       ownership: 'unknown' as const
     }))
     for (const playlist of kugou.playlists) {
-      rows.push({
+      out.push({
         key: 'kugou:' + playlist.id,
         providerId: 'kugou',
         providerLabel: '酷狗音乐',
@@ -142,11 +212,30 @@ export function useRecommendedPlaylists(): PlaylistCard[] {
         ownership: 'unknown'
       })
     }
-    rows.push(...qq)
-    rows.push(...qishui)
+    out.push(...qq)
+    out.push(...qishui)
     // 最后再按勾选筛一遍：网易云与酷狗的行是上面拼进来的，没经过 effect。
-    return rows.filter((row) => chosen.includes(row.providerId as never))
+    return out.filter((row) => chosen.includes(row.providerId as never))
   }, [block.playlists, kugou.playlists, qq, qishui, chosenKey])
+
+  /*
+   * 要等哪几家，是按勾选算的。关掉的那家连请求都没发，把它算进来就永远等不到。
+   */
+  const wanted = useMemo(
+    () => ['netease', 'kugou', 'qq', 'qishui'].filter((id) => chosen.includes(id as never)),
+    // chosen 每份快照都是新数组，用 join 后的字符串当依赖。
+    [chosenKey]
+  )
+  const allDone = wanted.every((id) => done[id])
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!allDone) return
+    const timer = window.setTimeout(() => setReady(true), READY_TAIL_MS)
+    return () => window.clearTimeout(timer)
+  }, [allDone])
+
+  return { rows, ready }
 }
 
 /**

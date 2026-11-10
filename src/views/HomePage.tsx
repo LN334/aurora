@@ -165,7 +165,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 之前拿各平台的我的歌单来填，首屏就出现了自己的「我喜欢的音乐」和自建
    * 歌单——推荐位放自己的收藏，等于把音乐库又摆了一遍。
    */
-  const recommended = useRecommendedPlaylists()
+  const { rows: recommended, ready: playlistsReady } = useRecommendedPlaylists()
   const [batch, setBatch] = useState(0)
   /** 最近新歌：freshTick 驱动重取，freshBatch 驱动换一行看。 */
   const [freshTick, setFreshTick] = useState(0)
@@ -177,7 +177,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 全是酷狗」。数量按平台限定之后，「换一批」只在各家内部换。
    */
   const { picks } = useMemo(() => picksByProvider(recommended, batch, SLOTS.playlist), [recommended, batch])
-  const albumPicks = useRecommendedAlbums(18)
+  const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album)
+
+  /*
+   * 两排一起等，一起画。
+   *
+   * 推荐歌单是四家谁先回谁先长，推荐专辑是三家 Promise.all 一次落地——本来就
+   * 不同步，于是首页先长出一排歌单，专辑再补上来。现在两块都等到位才放行，
+   * 中间只留占位格，用户看到的是「一次出来」，而不是「一张一张填」。
+   */
+  const cardsReady = playlistsReady && albumsReady
 
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。
@@ -334,7 +343,6 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [])
 
   const now = new Date()
-  const hasRecommend = picks.length > 0
 
   return (
     <div className="rh">
@@ -494,7 +502,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         <section className="rh-daily is-sk" aria-hidden="true" />
       ) : null}
 
-      {hasRecommend || !settled ? (
+      {!cardsReady || picks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>推荐歌单</h3>
@@ -504,13 +512,12 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           </header>
           <div className="rh-row">
             {/*
-             * 推荐位的张数是「几家有货就轮流出几张」，所以它是一格一格长出来的：
-             * 6 → 12 → 18 → 24。按最终的两行来补齐，页面在这 0.9 秒里就不动。
+             * 没到齐之前一格真卡都不画，只留占位：占位张数按最终的两行给，
+             * 数据一到位整排一次换过来——不会先长六张、再补六张。
              */}
-            {!settled && picks.length < SLOTS.playlist ? (
-              <SkeletonCards count={SLOTS.playlist - picks.length} />
-            ) : null}
-            {picks.map((row, at) => (
+            {cardsReady ? (
+              <>
+                {picks.map((row, at) => (
               <button
                 className="rh-card"
                 type="button"
@@ -528,20 +535,28 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                 </span>
                 <span className="rh-card__title">{row.name}</span>
                 {row.creator ? <span className="rh-card__sub">{row.creator}</span> : null}
-              </button>
-            ))}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <SkeletonCards count={SLOTS.playlist} />
+            )}
           </div>
         </section>
       ) : null}
 
-      {albumPicks.length > 0 || !settled ? (
+      {!cardsReady || albumPicks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
             <h3>推荐专辑</h3>
           </header>
           <div className="rh-row">
-            {albumPicks.length === 0 ? <SkeletonMinis count={6} /> : null}
-            {albumPicks.map((row, at) => (
+            {/*
+             * 跟歌单同一道闸：没到齐只画占位，到齐整排一次换过来。
+             */}
+            {cardsReady ? (
+              <>
+                {albumPicks.map((row, at) => (
               <button
                 className="rh-mini"
                 type="button"
@@ -567,8 +582,12 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                 <span className="rh-mini__sub">
                   <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
                 </span>
-              </button>
-            ))}
+                  </button>
+                ))}
+              </>
+            ) : (
+              <SkeletonMinis count={SLOTS.album} />
+            )}
           </div>
         </section>
       ) : null}

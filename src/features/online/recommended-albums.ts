@@ -121,8 +121,20 @@ function interleave(groups: AlbumCard[][], limit: number): AlbumCard[] {
   return rows
 }
 
-export function useRecommendedAlbums(limit = 18): AlbumCard[] {
+/** 这一排要的东西，连同「可以画了没有」。 */
+interface RecommendedAlbums {
+  rows: AlbumCard[]
+  /** 三家（按勾选）都问过一遍了。 */
+  ready: boolean
+}
+
+export function useRecommendedAlbums(limit = 18): RecommendedAlbums {
   const [rows, setRows] = useState<AlbumCard[]>([])
+  /*
+   * 三家并发取，一个 Promise.all 落地，本来就只 set 一次。这里补一个 ready
+   * 是为了跟推荐歌单对齐：两排要等齐了同一次画出来，不能一排先出现。
+   */
+  const [ready, setReady] = useState(false)
   /*
    * 推荐来源是全局的一处开关（设置 → 推荐来源），推荐歌单、每日推荐、漫游都
    * 已经照它走；这排本来漏了，关掉 QQ / 酷狗之后它们还会从专辑这里冒回来。
@@ -133,19 +145,25 @@ export function useRecommendedAlbums(limit = 18): AlbumCard[] {
 
   useEffect(() => {
     let alive = true
+    // 勾选变了要重新等，先把上一轮的放行收回。
+    setReady(false)
     void (async () => {
-      /*
-       * 每家多要一倍：合并会把同一张专辑的两三条并成一条，按 18 要就凑不满
-       * 三行六列。多要的这一倍正好填合并掉的坑。
-       */
-      const want = limit * 2
-      // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
-      const groups = await Promise.all([
-        chosen.includes('netease') ? neteaseAlbums(want).catch(() => []) : Promise.resolve([]),
-        chosen.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
-        chosen.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
-      ])
-      if (alive) setRows(mergeAlbumCards(interleave(groups, want)).slice(0, limit))
+      try {
+        /*
+         * 每家多要一倍：合并会把同一张专辑的两三条并成一条，按 18 要就凑不满
+         * 三行六列。多要的这一倍正好填合并掉的坑。
+         */
+        const want = limit * 2
+        // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
+        const groups = await Promise.all([
+          chosen.includes('netease') ? neteaseAlbums(want).catch(() => []) : Promise.resolve([]),
+          chosen.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
+          chosen.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
+        ])
+        if (alive) setRows(mergeAlbumCards(interleave(groups, want)).slice(0, limit))
+      } finally {
+        if (alive) setReady(true)
+      }
     })()
     return () => {
       alive = false
@@ -153,5 +171,5 @@ export function useRecommendedAlbums(limit = 18): AlbumCard[] {
     // chosen 是每份快照都会新建的数组，用 join 后的字符串当依赖。
   }, [limit, chosenKey])
 
-  return rows
+  return { rows, ready }
 }
