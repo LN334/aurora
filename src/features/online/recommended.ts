@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDiscover } from '../discover/store'
-import { useRoamPlatforms } from '../player/roam-sources'
+import { usePushPlatforms } from './push-platforms'
 import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
 import { fillSlots, groupRows, SLOTS } from './slots'
@@ -66,8 +66,13 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
    * 以前它只管漫游和每日推荐，首页这一排照样四家都上——用户在设置里关掉
    * QQ、酷狗、汽水之后回到首页，看到的还是那三家，等于那个开关是假的。
    */
-  const chosen = useRoamPlatforms()
-  const chosenKey = chosen.join(',')
+  /*
+   * 与每日推荐同一个判断：勾着且登录着的平台才问（push-platforms）。还没问完时
+   * 给 null，这一排就停在占位，别先画一版再收紧。
+   */
+  const chosen = usePushPlatforms()
+  const list = chosen ?? []
+  const chosenKey = list.join(',')
 
   // 取数只在进页面时做一次；勾选变化只影响下面两个 effect 与最后的过滤。
   useEffect(() => {
@@ -115,7 +120,8 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
     void (async () => {
       // 关掉的那家也算落定：它连请求都不发，等它只会让这一排永远停在占位。
       try {
-        if (!chosen.includes('qishui')) {
+        if (!chosen) return
+        if (!list.includes('qishui')) {
           setQishui([])
           return
         }
@@ -157,7 +163,8 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
     let alive = true
     void (async () => {
       try {
-        if (!chosen.includes('qq')) {
+        if (!chosen) return
+        if (!list.includes('qq')) {
           setQq([])
           return
         }
@@ -215,14 +222,14 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
     out.push(...qq)
     out.push(...qishui)
     // 最后再按勾选筛一遍：网易云与酷狗的行是上面拼进来的，没经过 effect。
-    return out.filter((row) => chosen.includes(row.providerId as never))
+    return out.filter((row) => list.includes(row.providerId as never))
   }, [block.playlists, kugou.playlists, qq, qishui, chosenKey])
 
   /*
    * 要等哪几家，是按勾选算的。关掉的那家连请求都没发，把它算进来就永远等不到。
    */
   const wanted = useMemo(
-    () => ['netease', 'kugou', 'qq', 'qishui'].filter((id) => chosen.includes(id as never)),
+    () => ['netease', 'kugou', 'qq', 'qishui'].filter((id) => list.includes(id as never)),
     // chosen 每份快照都是新数组，用 join 后的字符串当依赖。
     [chosenKey]
   )
@@ -235,7 +242,8 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
     return () => window.clearTimeout(timer)
   }, [allDone])
 
-  return { rows, ready }
+  // 还没定下问哪几家时不要放行：放了就是先画一版空推荐再换掉。
+  return { rows, ready: chosen === null ? false : ready }
 }
 
 /**

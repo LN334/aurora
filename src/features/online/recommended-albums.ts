@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useRoamPlatforms } from '../player/roam-sources'
+import { usePushPlatforms } from './push-platforms'
 
 /**
  * 首页「推荐专辑」。
@@ -161,10 +161,16 @@ export function useRecommendedAlbums(limit = 8, tick = 0): RecommendedAlbums {
    * 已经照它走；这排本来漏了，关掉 QQ / 酷狗之后它们还会从专辑这里冒回来。
    * 没选的平台连请求都不发，省一次往返。
    */
-  const chosen = useRoamPlatforms()
-  const chosenKey = chosen.join(',')
+  /*
+   * 与每日推荐、推荐歌单同一个判断：勾着且登录着的平台才问（push-platforms）。
+   * 还没问完时不画，免得先出一排网易云、过一秒才补齐另外两家。
+   */
+  const chosen = usePushPlatforms()
+  const list = chosen ?? []
+  const chosenKey = list.join(',')
 
   useEffect(() => {
+    if (!chosen) return
     let alive = true
     // 勾选变了要重新等，先把上一轮的放行收回。
     setReady(false)
@@ -181,9 +187,9 @@ export function useRecommendedAlbums(limit = 8, tick = 0): RecommendedAlbums {
         const offset = (tick % 3) * want
         // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
         const groups = await Promise.all([
-          chosen.includes('netease') ? neteaseAlbums(want, offset).catch(() => []) : Promise.resolve([]),
-          chosen.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
-          chosen.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
+          list.includes('netease') ? neteaseAlbums(want, offset).catch(() => []) : Promise.resolve([]),
+          list.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
+          list.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
         ])
         const pool = mergeAlbumCards(interleave(groups, want * 3))
         if (alive) setRows(takeWindow(pool, tick * limit, limit))
@@ -197,5 +203,6 @@ export function useRecommendedAlbums(limit = 8, tick = 0): RecommendedAlbums {
     // chosen 是每份快照都会新建的数组，用 join 后的字符串当依赖。
   }, [limit, tick, chosenKey])
 
-  return { rows, ready }
+  // 还没定下问哪几家时不要放行：放了就是先画一排再换。
+  return { rows: chosen === null ? [] : rows, ready: chosen === null ? false : ready }
 }

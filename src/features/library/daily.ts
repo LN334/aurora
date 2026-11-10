@@ -68,3 +68,19 @@ export function interleaveBySource(tracks: Track[]): Track[] {
 export function dailyLabel(day = new Date()): string {
   return `${day.getMonth() + 1} 月 ${day.getDate()} 日`
 }
+
+/**
+ * 把一份列表的起点按种子转一转。
+ *
+ * 平台的日推顺序本身是稳定的——官方把「今天最想推的」排在前面，一天之内不动。
+ * 于是若两天拿到的是同一批歌，首页就会一模一样。这里按日期挪一下起点：同一天里
+ * 怎么打开都是同一个顺序（种子就是日期），跨天第一首就换人了。
+ *
+ * 只转起点、不重排：靠前的歌仍聚在前排，不会把一整份列表打散。
+ */
+export function rotateBySeed(tracks: Track[], seed: string): Track[] {
+  if (tracks.length < 2) return tracks
+  const at = hash(seed) % tracks.length
+  return at === 0 ? tracks : [...tracks.slice(at), ...tracks.slice(0, at)]
+}
+

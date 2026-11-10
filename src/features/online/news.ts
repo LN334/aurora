@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
 import { sourceOrder } from '../settings/source-order'
 import { getProvider } from './registry'
-import { useRoamPlatforms } from '../player/roam-sources'
+import { usePushPlatforms } from './push-platforms'
 import type { PlatformBackend } from './store'
 import { mergeVersions } from './unify'
 import type { ProviderId } from './types'
@@ -40,6 +40,9 @@ async function shelfNewSongs(id: ProviderId, limit: number): Promise<Track[]> {
  *
  * 首页这几块推送位（每日推荐、推荐歌单、推荐专辑、最近新歌）与漫游共用同一个
  * 勾选：用户关掉一家，是「别拿它来推给我」，这几块一起不再问它。
+ *
+ * 另外还过一道 push-platforms：默认只问登录着的平台（见那里的注释）。网易云与
+ * 酷狗的新歌榜游客也能读，但「游客能读的榜单」不等于「给你的推荐」。
  */
 async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promise<Track[]> {
   const wanted = platforms === undefined ? null : new Set(platforms)
@@ -57,11 +60,13 @@ async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promi
  * 所以按钮同时做两件事——这里靠 tick 重取，页面上再向前挪一格切片。
  */
 export function usePlatformNewSongs(limit = 20, tick = 0): Track[] {
-  const chosen = useRoamPlatforms()
-  const chosenKey = chosen.join(',')
+  const chosen = usePushPlatforms()
+  const chosenKey = chosen ? chosen.join(',') : ''
   const [rows, setRows] = useState<Track[]>([])
 
   useEffect(() => {
+    // 还没问出「哪几家登录着」，先别取：先取一版再收紧，看起来就是内容在换。
+    if (!chosen) return
     let alive = true
     void loadPlatformNewSongs(limit, chosen)
       .then((next) => {

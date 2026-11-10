@@ -5,8 +5,8 @@ import { useOnlineStore, type PlatformBackend } from './store'
 import type { ProviderId } from './types'
 import { mergeVersions } from './unify'
 import { sourceOrder } from '../settings/source-order'
-import { useRoamPlatforms } from '../player/roam-sources'
-import { DAILY_SIZE, dailyTracks, interleaveBySource } from '../library/daily'
+import { usePushPlatforms } from './push-platforms'
+import { DAILY_SIZE, dailyTracks, interleaveBySource, rotateBySeed } from '../library/daily'
 import type { TasteProfile } from '../library/taste'
 import { trackKey } from './unify'
 
@@ -45,6 +45,12 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
     (provider) =>
       Boolean(provider.recommendations?.dailySongs) && (wanted === null || wanted.has(provider.id))
   )
+  /*
+   * 每家的起点按日期挪一挪（见 rotateBySeed）。上游那 30 首的顺序是稳定的，
+   * 两天都拿到同一批的话首页就一模一样；挪过之后同一份数据在不同日子给出
+   * 不同的首曲，用户能看出「今天换过了」，而当天之内怎么进出首页都不变。
+   */
+  const daySeed = new Date().toDateString()
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
@@ -55,7 +61,10 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
         const daily = provider.recommendations?.dailySongs
         if (!backend || !daily) return [] as Track[]
         const songs = await daily()
-        return songs.map((song) => backend.toTrack(song))
+        return rotateBySeed(
+          songs.map((song) => backend.toTrack(song)),
+          daySeed + provider.id
+        )
       } catch {
         return [] as Track[]
       }
@@ -74,9 +83,15 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
  * 缓存按集合分开，所以来回改不会拿到上一份的结果。
  */
 export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
-  const chosen = useRoamPlatforms()
-  const key = chosen.slice().sort().join(',')
-  const [tracks, setTracks] = useState<Track[]>(() => caches.get(key)?.tracks ?? [])
+  /*
+   * 问哪几家看 push-platforms：勾着、并且登录着的那几家。还没问完时它给 null，
+   * 这一支就先停在加载态——先画一版本机兜底、等平台落地再整组换掉，正是首页
+   * 那三张预览图换源的老毛病。
+   */
+  const chosen = usePushPlatforms()
+  const key = chosen ? chosen.slice().sort().join(',') : ''
+  const blocked = chosen === null
+  const [tracks, setTracks] = useState<Track[]>(() => (chosen ? caches.get(key)?.tracks ?? [] : []))
   /*
    * 首屏要判「这一份到底还来不来」。
    *
@@ -86,9 +101,10 @@ export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
    *
    * 有缓存（同一会话里进出过首页）就直接算落地：此时数组里的就是最终结果。
    */
-  const [ready, setReady] = useState(() => caches.has(key))
+  const [ready, setReady] = useState(() => (chosen ? caches.has(key) : false))
 
   useEffect(() => {
+    if (!chosen) return
     let alive = true
     setReady(caches.has(key))
     void loadPlatformDaily(chosen)
@@ -106,7 +122,7 @@ export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
     }
   }, [chosen, key])
 
-  return { tracks, ready }
+  return blocked ? { tracks: [], ready: false } : { tracks, ready }
 }
 
 /**

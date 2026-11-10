@@ -1,5 +1,6 @@
 import { SLOTS } from '../../../features/online/slots'
 import { roamCandidates, setRoamPlatform, useRoamPlatforms } from '../../../features/player/roam-sources'
+import { setPushSignedOnly, usePushSignedOnly } from '../../../features/settings/push-signed'
 import { Row, Rows, Sub, Toggle } from '../parts'
 
 /**
@@ -22,6 +23,7 @@ const SHELVES: { name: string; hint: string; count: number }[] = [
 
 export function RecommendPane() {
   const chosen = useRoamPlatforms()
+  const signedOnly = usePushSignedOnly()
   const candidates = roamCandidates()
   /* 全关就等于把推荐整块关掉，首页会只剩空壳。留最后一家，它那一档开关是灰的。 */
   const lastOne = chosen.length <= 1
@@ -43,6 +45,12 @@ export function RecommendPane() {
       ) : (
         <Sub title="从哪几家要" hint="勾掉的平台不再发请求，缺的位置由还开着的平台补上。至少留一家：全关就没有推荐可看了。">
           <Rows>
+            <Row
+              label="只用我登录了的平台"
+              hint="关掉后，没登录的平台也会推，但推的是公开榜单，不是给你的推荐。"
+            >
+              <Toggle checked={signedOnly} onChange={setPushSignedOnly} label="只用我登录了的平台" />
+            </Row>
             {candidates.map((item) => (
               <Row key={item.id} label={item.name}>
                 <Toggle
