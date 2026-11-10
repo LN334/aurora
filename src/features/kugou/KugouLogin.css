@@ -11,7 +11,8 @@
 .kugou-login {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* 比引导层（90）高，原因见 QqLogin.css。 */
+  z-index: 95;
   display: grid;
   place-items: center;
   padding: var(--s5);

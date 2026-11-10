@@ -12,7 +12,8 @@
 .qq-login {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* 比首次启动的引导层（90）高：否则引导里点「登录」，框会藏在它下面，看起来像没反应。 */
+  z-index: 95;
   display: grid;
   place-items: center;
   padding: var(--s5);
