@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
 import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
+import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features/settings/row-density'
 import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
@@ -53,6 +54,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
   const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
   const accentFromArt = useAccentFromArt()
+  const density = useRowDensity()
 
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
@@ -175,6 +177,20 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             writeReduceMotion(next)
           }}
         />
+      </Row>
+
+      <Row label="列表行密度" hint="歌单、搜索结果、队列里每一行的高度。">
+        <div className="seg">
+          {ROW_DENSITIES.map((item) => (
+            <button
+              key={item.id}
+              className={density.id === item.id ? 'is-active' : ''}
+              onClick={() => writeRowDensity(item.id)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
       </Row>
 
       <Row label="Wallpaper Engine 动态背景" hint={wallpaperHint}>

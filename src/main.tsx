@@ -27,6 +27,7 @@ import { bridge } from './bridge'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
+import { applyRowDensity, readRowDensity } from './features/settings/row-density'
 import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
 
 /*
@@ -41,6 +42,7 @@ import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
  */
 applyReduceMotion(readReduceMotion())
 applyLyricSize(readLyricSize())
+applyRowDensity(readRowDensity())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
 /*

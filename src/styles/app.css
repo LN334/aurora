@@ -1246,7 +1246,8 @@ input::placeholder {
      中间，专辑名被推到离标题几百像素之外，整行看着是散的。 */
   --trk-cols: 32px 44px minmax(0, 340px) minmax(0, 1fr) 52px 54px;
   --trk-gap: 16px;
-  --row-h: 60px;
+  /* 行密度由设置里的「列表行密度」驱动，没设过就是原来的 60。 */
+  --row-h: var(--row-h-trk, 60px);
 }
 
 .trk {
