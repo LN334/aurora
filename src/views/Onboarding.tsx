@@ -40,13 +40,9 @@ export function Onboarding({ onDone }: { onDone(): void }) {
         )}
 
         <div className="onb__acts">
-          <p className="onb__hint">
-            {step === 0
-              ? chosen.length === 0
-                ? '至少留一家：全关就没有推荐可看了。'
-                : '下一页顺手摆一下听歌的样子。'
-              : '这些随时能在设置页里改。'}
-          </p>
+          {step === 0 && chosen.length === 0 ? (
+            <p className="onb__hint">至少留一家</p>
+          ) : null}
           <div className="onb__btns">
             {step === 0 ? (
               <>
@@ -99,13 +95,9 @@ function PushStep({
   return (
     <>
       <h2 className="onb__title">先挑一下从哪儿给你推歌</h2>
-      <p className="onb__note">
-        勾掉的平台不会被问，也不会出现在每日推荐、推荐歌单、推荐专辑、最近新歌与漫游里。
-        收藏、关注和最近听过不受影响。
-      </p>
 
       {providers.length === 0 ? (
-        <p className="onb__note">这一版没有可用的在线平台，直接用本机音乐就好。</p>
+        <p className="onb__note">这一版没有可用的在线平台。</p>
       ) : (
         <div className="onb__plats">
           {providers.map((provider) => (
@@ -122,9 +114,7 @@ function PushStep({
       <div className="onb__signed">
         <div className="onb__signed-text">
           <span className="onb__signed-name">只用我登录了的平台</span>
-          <span className="onb__signed-hint">
-            关掉后，没登录的平台也会推，但推的是它家的公开榜单，不是给你的。
-          </span>
+          <span className="onb__signed-hint">没登录的只推公开榜单</span>
         </div>
         <Toggle checked={signedOnly} label="只用我登录了的平台" onChange={setPushSignedOnly} />
       </div>
@@ -146,15 +136,11 @@ function LookStep() {
 
   return (
     <>
-      <h2 className="onb__title">再顺手摆一下听歌的样子</h2>
-      <p className="onb__note">两样都能随时关掉，关了界面会安静一些。</p>
+      <h2 className="onb__title">听歌的样子</h2>
 
       <div className="onb__signed">
         <div className="onb__signed-text">
           <span className="onb__signed-name">桌面歌词</span>
-          <span className="onb__signed-hint">
-            在桌面上开一个小窗口，只显示正在唱的那一句；换歌自动跟上。
-          </span>
         </div>
         {isNative ? (
           <button className="btn" type="button" onClick={() => void bridge.overlay.toggle(!open)}>
@@ -168,9 +154,6 @@ function LookStep() {
       <div className="onb__signed">
         <div className="onb__signed-text">
           <span className="onb__signed-name">界面跟着封面取色</span>
-          <span className="onb__signed-hint">
-            开着时主色随当前封面变；壁纸本身很花的话，关掉更清爽。
-          </span>
         </div>
         <Toggle checked={accent} label="界面跟着封面取色" onChange={setAccentFromArt} />
       </div>
@@ -200,24 +183,17 @@ function OnboardPlatform({
   }, [init])
 
   const name = provider.shortName ?? provider.displayName
-  const meta = account
-    ? account.nickname
-    : blocked
-      ? (detail ?? '暂时连不上')
-      : ready
-        ? '还没有登录'
-        : '正在确认登录状态…'
+  /* 未登录不必再写一句「还没有登录」——右边那个按钮就是这句话。 */
+  const meta = account ? account.nickname : blocked ? (detail ?? '连不上') : ready ? '' : '…'
 
   return (
     <div className={'onb-plat' + (on ? ' is-on' : '')}>
       <span className={'onb-plat__dot acct2-dot--' + provider.id} aria-hidden="true" />
       <div className="onb-plat__text">
         <span className="onb-plat__name">{name}</span>
-        <span className="onb-plat__meta">{meta}</span>
+        {meta ? <span className="onb-plat__meta">{meta}</span> : null}
       </div>
-      {account ? (
-        <span className="onb-plat__tag">已登录</span>
-      ) : (
+      {account ? null : (
         <button
           className="btn btn--small"
           type="button"
