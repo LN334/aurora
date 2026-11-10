@@ -117,6 +117,14 @@ export interface PlatformBackend {
    * when it answers `loginStatus` at all.
    */
   status?(): Promise<{ ready: boolean; detail?: string }>
+  /**
+   * 这一家现在能不能给出音频地址。
+   *
+   * 与 status 是两件事：status 说的是「后台活着」，这里说的是「点播放真能出声」。
+   * 酷狗就是这样——榜单和漫游对游客照给，取流却一律回 login-required。缺这个方法
+   * 就当作能播：只有明确知道自己「能浏览但放不了」的平台才需要声明。
+   */
+  canStream?(): Promise<boolean>
   /** Bind the main process to a profile before anything else is asked of it. */
   bindProfile?(profileId: string): Promise<void>
 }
@@ -339,44 +347,50 @@ function createOnlineStore(providerId: ProviderId) {
     }
 
     /**
-     * Resolve one song, at most once at a time, remembering a refusal briefly.
+     * Resolve one song's URL by id, at most once at a time, remembering a refusal briefly.
+     *
+     * Only the id is passed on purpose: each main-process client keeps its own song
+     * index, and a queue built by roam (or restored from disk) carries ids without
+     * ever having passed through this store's lists. This used to require the song
+     * record, which made exactly those queues silent while the same song played
+     * fine from a collection that happened to be open.
      *
      * The three outcomes stay distinct on purpose - a stream, a refusal and a miss.
      * Collapsing the last two is exactly how "you are not signed in" becomes
      * "this is gone".
      */
-    const fetchStream = (song: OnlineSong): Promise<void> =>
-      dedupe(providerId, song.id, async () => {
+    const fetchStream = (songId: number): Promise<void> =>
+      dedupe(providerId, songId, async () => {
         const platform = backend()
         if (!platform) {
           const message = '这个构建没有该平台的后端'
-          rememberFailure(providerId, song.id, 'service-unavailable', message)
-          fail('service-unavailable', message, song.id)
+          rememberFailure(providerId, songId, 'service-unavailable', message)
+          fail('service-unavailable', message, songId)
           announce('service-unavailable')
           return
         }
 
         const quality = get().quality
-        const result = await platform.streamUrl(song.id, quality)
+        const result = await platform.streamUrl(songId, quality)
 
         if (result.ok) {
-          rememberStream(providerId, song.id, result.stream)
+          rememberStream(providerId, songId, result.stream)
           set({
             delivered: streamSummary(result.stream, quality),
             deliveredFellBack: isQualityFallback(result.stream.level, quality),
             deliveredLevel: result.stream.level,
-            deliveredLevelSongId: song.id,
+            deliveredLevelSongId: songId,
             // A trial fragment is the account's ceiling, not a failure - worth
             // saying once, where what is playing is reported.
             fail: result.stream.trial
-              ? { reason: 'trial-only', message: '只能试听片段', songId: song.id, at: Date.now() }
+              ? { reason: 'trial-only', message: '只能试听片段', songId, at: Date.now() }
               : null
           })
           return
         }
 
-        rememberFailure(providerId, song.id, result.reason, result.message)
-        fail(result.reason, result.message ?? '', song.id)
+        rememberFailure(providerId, songId, result.reason, result.message)
+        fail(result.reason, result.message ?? '', songId)
         announce(result.reason)
       })
 
@@ -683,27 +697,14 @@ function createOnlineStore(providerId: ProviderId) {
         if (!platform) return
 
         /*
-         * The URL is gone and nobody has a copy of the song record. Recording the
-         * attempt is what arms `recover`: when the fetch below lands, the engine's
-         * load is re-run for the track that is already playing. Without it a queue
-         * restored from disk, or advanced into past the screen the user is looking
-         * at, would be silent with no explanation.
+         * Recording the attempt is what arms `recover`: when the fetch below
+         * lands, the engine's load is re-run for the track that is already
+         * playing. Without it a queue restored from disk, or advanced into past
+         * the screen the user is looking at, would be silent with no explanation.
          */
         pendingRecovery = { songId, at: Date.now() }
 
-        const song =
-          get().collection.find((item) => item.id === songId) ??
-          get().songs.find((item) => item.id === songId) ??
-          (await platform.songById(songId))
-
-        if (!song) {
-          // The platform cannot describe it either. Nothing to resolve, and the
-          // pending attempt is left to expire rather than reported as a failure
-          // this layer has no evidence for.
-          return
-        }
-
-        await fetchStream(song)
+        await fetchStream(songId)
         if (cachedStream(providerId, songId)) recover(songId)
       },
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { RepeatMode, Track } from '../../types'
+import type { ProviderId } from '../online/types'
 import { SLOTS } from '../online/slots'
 import { trackKey } from '../online/unify'
 import { player } from './actions'
@@ -11,7 +12,7 @@ import {
   type RoamProgress,
   withoutTrack
 } from './roam-pure'
-import { buildRoamQueue, loadRoamPool, loadRoamStream, loadSeedTracks } from './roam'
+import { buildRoamQueue, loadRoamPool, loadRoamQuick, loadRoamStream, loadSeedTracks } from './roam'
 import { roamPlatforms } from './roam-sources'
 import { usePlayer } from './store'
 
@@ -170,6 +171,62 @@ function parkRepeat(): void {
 }
 
 /**
+ * 把这一趟的队列装上并开播。
+ *
+ * 过滤全在这一处做，因为现在有两条来源：先到的快池、后来补齐的整池。两处各写一
+ * 遍迟早会偏，而且「名单把池子吃空了就清一次滚动记录」这种兜底只需要一套。
+ *
+ * 种子是用户亲手挑的：哪怕它在「不想再听」名单里，这一趟也得放它。
+ */
+function commitRoam(queue: Track[], seed: Track | undefined): boolean {
+  const hidden = readKeys(HIDE_KEY)
+  // 名单只读一次；以前放在 filter 回调里，每首歌都要读一遍 localStorage。
+  const skip = browsedOut()
+  const keep = seed ? trackKey(seed) : ''
+  let tracks = queue.filter((track) => {
+    const key = trackKey(track)
+    return key === keep || !skip.has(key)
+  })
+  if (tracks.length === 0) {
+    // 排除名单把池子吃空了。这是名单自己的问题：清掉滚动的部分再试一次，
+    // 划掉的仍然排除。不清就会变成「漫游永远要不到歌」。
+    writeKeys(PLAYED_KEY, new Set(), PLAYED_LIMIT)
+    tracks = queue.filter((track) => trackKey(track) === keep || !hidden.has(trackKey(track)))
+  }
+  if (tracks.length === 0) return false
+  // 漫游不重复：循环会让放过的再来一遍，先关掉，退出时还原。
+  useRoam.setState({
+    tracks,
+    heard: {},
+    seed: seed ?? null,
+    busy: false,
+    pulling: false,
+    error: ''
+  })
+  parkRepeat()
+  player.playQueue(tracks, 0)
+  return true
+}
+
+/**
+ * 开播之后在后台把整池补进来。
+ *
+ * 队列已经放起来了，这里只往后接：正在放的这首不动，用户不会因为等池子多等一秒。
+ * 要不到就算了——refillIfLow 之后还会按剩余量再要，不必在这里重试。
+ */
+async function fillRoamPool(wanted: ProviderId[]): Promise<void> {
+  const full = await loadRoamPool(wanted).catch(() => null)
+  if (!full || full.tracks.length === 0) return
+  // 用户可能在这几百毫秒里退出了漫游，那就别再往空队列里塞。
+  const state = useRoam.getState()
+  if (state.tracks.length === 0) return
+  const extra = appendFresh(state.tracks, full.tracks, browsedOut())
+  if (extra.length === 0) return
+  useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...extra] }))
+  player.addToQueue(extra, 'end')
+}
+
+/**
  * 点「漫游」。
  *
  * 有这一趟就接着听：先找第一首没听过的。没有就现要一趟。返回 true 表示队列已经
@@ -206,12 +263,31 @@ export async function startRoam(seed?: Track): Promise<boolean> {
   useRoam.setState({ busy: true, error: '' })
   try {
     const wanted = roamPlatforms()
+    /*
+     * 先要一小批就能开播。
+     *
+     * 完整池要每家问三轮（私人漫游一次只回几首），四家就是十二次往返。原先这些
+     * 全挡在「出声」前面：用户点完「漫游」之后要等池子攒齐才听到第一个音。快池
+     * 每家只问一轮，够建一条队列就先放起来，剩下的在后面补。
+     *
+     * 种子模式不走这条：那一趟必须从这首出发，得等它自己的搜索结果。
+     */
+    if (!chosen) {
+      const quick = await loadRoamQuick(wanted)
+      if (
+        quick.length > 0 &&
+        commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined)
+      ) {
+        void fillRoamPool(wanted)
+        return true
+      }
+    }
+    // 种子模式，或者快池一首都没要到：退回攒齐的老路。
     // 种子模式要两路一起要：平台今天推的，和这个人的歌。
     const [pool, near] = await Promise.all([
       loadRoamPool(wanted),
       chosen ? loadSeedTracks(chosen, wanted) : Promise.resolve([] as Track[])
     ])
-    const hidden = readKeys(HIDE_KEY)
     /*
      * 同艺人的歌多半是用户手上已有的，严格说不算「新的」；但这一趟要的就是从这一
      * 首走进这个人的作品里，所以并进来一起排序。种子自己也在 near 里，建队列时去重。
@@ -221,35 +297,10 @@ export async function startRoam(seed?: Track): Promise<boolean> {
       SLOTS.roam,
       chosen
     )
-    // 名单只读一次；以前放在 filter 回调里，每首歌都要读一遍 localStorage。
-    const skip = browsedOut()
-    // 种子是用户亲手挑的：哪怕它在「不想再听」名单里，这一趟也得放它。
-    const keep = chosen ? trackKey(chosen) : ''
-    let tracks = queue.filter((track) => {
-      const key = trackKey(track)
-      return key === keep || !skip.has(key)
-    })
-    if (tracks.length === 0) {
-      // 排除名单把池子吃空了。这是名单自己的问题：清掉滚动的部分再试一次，
-      // 划掉的仍然排除。不清就会变成「漫游永远要不到歌」。
-      writeKeys(PLAYED_KEY, new Set(), PLAYED_LIMIT)
-      tracks = queue.filter((track) => trackKey(track) === keep || !hidden.has(trackKey(track)))
-    }
-    if (tracks.length === 0) {
+    if (!commitRoam(queue, chosen)) {
       useRoam.setState({ busy: false, error: '这几家今天还没推过来，换几家或过会儿再试' })
       return false
     }
-    // 漫游不重复：循环会让放过的再来一遍，先关掉，退出时还原。
-    useRoam.setState({
-      tracks,
-      heard: {},
-      seed: chosen ?? null,
-      busy: false,
-      pulling: false,
-      error: ''
-    })
-    parkRepeat()
-    player.playQueue(tracks, 0)
     return true
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)

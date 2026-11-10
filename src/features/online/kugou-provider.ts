@@ -177,6 +177,17 @@ const kugouBackend: PlatformBackend = {
     return status ? { ready: status.ready, detail: status.detail } : { ready: false }
   },
 
+  /*
+   * 未登录取不到音频地址：上游对游客一律回 login-required（实测三种音质都拒）。
+   *
+   * 榜单、搜索、每日推荐对游客照给，所以「能浏览」不等于「能播」。漫游池据此把
+   * 这一家挡在外面——否则快池「谁先回算谁的」会先端上一整批点了就跳的酷狗曲。
+   */
+  async canStream() {
+    const status = await client()?.status()
+    return Boolean(status?.loggedIn)
+  },
+
   async bindProfile(profileId) {
     if (!profileId) return
     await client()?.setProfile(profileId)

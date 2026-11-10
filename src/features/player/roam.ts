@@ -117,13 +117,24 @@ export async function loadRoamStream(
 
   /* 至少问 6 首：personalFm 一次给得少，摊到每家只剩一两首时问不出东西。 */
   const per = Math.max(6, Math.ceil(total / providers.length))
+  /*
+   * 同一家的几轮并发要，不排队。
+   *
+   * 私人漫游一次只回几首，要凑满 per 得问好几轮。原先是一轮一轮串着等：四家 ×
+   * 三轮，等于十二次往返头尾相接，用户点完「漫游」两秒多才出声全耗在这里。轮与
+   * 轮之间没有依赖（每一轮就是「再来几首」），并发发出去，谁先回算谁的。
+   */
   const ROUNDS = 3
   const lists = await Promise.all(
     providers.map(async (provider) => {
+      await initProvider(provider)
+      if (!(await canStreamNow(provider))) return []
+      const rounds = await Promise.all(
+        Array.from({ length: ROUNDS }, () => fetchStreamOnce(provider, per))
+      )
       const out: Track[] = []
       const seen = new Set<string>()
-      for (let round = 0; round < ROUNDS && out.length < per; round += 1) {
-        const chunk = await fetchStream(provider, per)
+      for (const chunk of rounds) {
         for (const track of chunk) {
           const key = trackKey(track)
           if (seen.has(key)) continue
@@ -138,17 +149,93 @@ export async function loadRoamStream(
   return mergeVersions(lists.flat(), sourceOrder())
 }
 
-/** 一家的下一批：私人漫游优先，没有就退回每日推荐。失败当这家没给。 */
-async function fetchStream(
+/** 够开播就走的那一批：每家只问一轮。 */
+const QUICK_PER = 6
+
+/**
+ * 快池：谁先回来就先拿谁的，不等齐。
+ *
+ * 「漫游」要的是马上出声。完整池要每家三轮（四家就是十二次往返），快池每家只问
+ * 一轮；但一轮四家也还是得等最慢的那家——上游偶尔有一家卡三秒，整趟就被它拖着。
+ * 所以第一家带回歌就先放起来，其余的回来也来得及补进队列（fillRoamPool）。
+ *
+ * 代价是开局这几首只来自一家，风格偏单一；几十秒后整池补上来就散了。
+ */
+export function loadRoamQuick(platforms?: ProviderId[]): Promise<Track[]> {
+  const providers = roamProviders(platforms)
+  if (providers.length === 0) return Promise.resolve([])
+  return new Promise((resolve) => {
+    let pending = providers.length
+    let settled = false
+    const finish = (tracks: Track[]): void => {
+      if (settled) return
+      settled = true
+      resolve(tracks)
+    }
+    for (const provider of providers) {
+      void (async () => {
+        try {
+          await initProvider(provider)
+          if (!(await canStreamNow(provider))) return
+          const chunk = await fetchStreamOnce(provider, QUICK_PER)
+          if (chunk.length > 0) finish(chunk)
+        } catch {
+          // 这家没给：让别家说话。
+        } finally {
+          pending -= 1
+          if (pending === 0) finish([])
+        }
+      })()
+    }
+  })
+}
+
+/** 能推流的这几家，按用户勾选筛过。 */
+function roamProviders(platforms?: ProviderId[]): ReturnType<typeof listAvailableProviders> {
+  const wanted = platforms === undefined ? null : new Set(platforms)
+  return listAvailableProviders().filter(
+    (provider) =>
+      Boolean(provider.recommendations?.personalFm || provider.recommendations?.dailySongs) &&
+      (wanted === null || wanted.has(provider.id))
+  )
+}
+
+/**
+ * 这家现在能不能出声。
+ *
+ * 只问声明了 canStream 的平台（目前只有酷狗：未登录时取流必然 login-required）。
+ * 挡在取数之前，是为了不让一批注定放不了的歌占掉快池的开局——快池是谁先回算
+ * 谁的，酷狗先回来，头六首就全是点了即跳的曲子。
+ */
+async function canStreamNow(
+  provider: ReturnType<typeof listAvailableProviders>[number]
+): Promise<boolean> {
+  const backend = getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined
+  if (!backend?.canStream) return true
+  try {
+    return await backend.canStream()
+  } catch {
+    // 问不出来不等于放不了：放行，让真正失败的那一刻按「没源」处理。
+    return true
+  }
+}
+
+/** 绑定档案在 init 里，跳过它上游会当游客。 */
+async function initProvider(
+  provider: ReturnType<typeof listAvailableProviders>[number]
+): Promise<void> {
+  await useOnlineStore(provider.id as never)
+    .getState()
+    .init()
+    .catch(() => {})
+}
+
+/** 真正发那一次请求。调用方保证已经 init 过。 */
+async function fetchStreamOnce(
   provider: ReturnType<typeof listAvailableProviders>[number],
   limit: number
 ): Promise<Track[]> {
   try {
-    // 绑定档案在 init 里，跳过它上游会当游客。
-    await useOnlineStore(provider.id as never)
-      .getState()
-      .init()
-      .catch(() => {})
     const backend =
       (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
     const api = provider.recommendations
