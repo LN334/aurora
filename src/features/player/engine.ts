@@ -3,13 +3,13 @@ import { coverDataUrl } from './artwork'
 import { volumeIntentChanged } from './volume'
 import { sourceFor } from '../library/source'
 import { pickPlayable } from './pick'
+import { swapFadeMs } from './crossfade'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
 import { EQ_BANDS, usePlayer } from './store'
 
 const FADE_IN_MS = 220
 const FADE_OUT_MS = 150
-const SWAP_MS = 380
 
 /**
  * How often the playhead is published while the player window is off screen.
@@ -127,6 +127,13 @@ class AudioEngine {
   private loadingTrack: Track | null = null
   /** Invalidates in-flight fades when the user interrupts one. */
   private fadeToken = 0
+  /**
+   * 切歌那一次淡入该用多久。
+   *
+   * 设成 0 时才退回 FADE_IN_MS——普通暂停恢复不该因为交叉淡化调成 6 秒
+   * 就跟着慢慢浮起来。
+   */
+  private pendingFadeInMs = 0
 
   /**
    * Which metadata update the cover being encoded belongs to. The cover is read
@@ -317,14 +324,21 @@ class AudioEngine {
       }
       const url = picked.url
 
-      const { crossfadeSec } = store
-      const swapping = crossfadeSec > 0 && !el.paused && this.loadedPath !== null
+      const swapMs = swapFadeMs(store.crossfadeSec)
+      /*
+       * 这个秒数就是「淡出用多久、淡入也用多久」。上一版读它只当成一个开关，
+       * 真正淡的时长写死 190ms，滑到 12 秒和滑到 1 秒一模一样——设置页写着
+       * 「两首歌重叠的秒数」就更是空话：整个播放引擎只有一个 audio 元素，
+       * 换 src 时上一首已经停了，两首不可能叠在一起。
+       */
+      const swapping = swapMs > 0 && !el.paused && this.loadedPath !== null
 
       if (swapping) {
         const token = ++this.fadeToken
-        this.ramp(0, SWAP_MS / 2)
-        await new Promise((resolve) => window.setTimeout(resolve, SWAP_MS / 2))
+        this.ramp(0, swapMs)
+        await new Promise((resolve) => window.setTimeout(resolve, swapMs))
         if (token !== this.fadeToken) return
+        this.pendingFadeInMs = swapMs
       }
 
       el.src = url
@@ -345,7 +359,11 @@ class AudioEngine {
     useHistory.getState().noteStart(track)
 
     if (autoplay) await this.play()
-    else store.setLoading(false)
+    else {
+      // 没开播就不该留着这一份淡入时长，下次纯手点播放会被它拖慢。
+      this.pendingFadeInMs = 0
+      store.setLoading(false)
+    }
     this.loadingTrack = null
   }
 
@@ -382,7 +400,8 @@ class AudioEngine {
       usePlayer.getState().setPlaying(false)
       return
     }
-    this.ramp(1, FADE_IN_MS)
+    this.ramp(1, this.pendingFadeInMs || FADE_IN_MS)
+    this.pendingFadeInMs = 0
     usePlayer.getState().setPlaying(true)
     this.startTicker()
   }

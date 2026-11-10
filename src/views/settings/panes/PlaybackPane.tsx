@@ -30,17 +30,17 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         <div className="settings__text">
           <div className="settings__label">交叉淡化</div>
           <p className="settings__hint">
-            切歌时两首歌重叠的秒数，0 为直接切换。
+            切歌时先把这一首淡出、再把下一首淡入，各用这么久。0 就是硬切。
           </p>
         </div>
         <div className="settings__slider">
           <input
             type="range"
             min={0}
-            max={12}
+            max={6}
             step={1}
             value={crossfadeSec}
-            aria-label="交叉淡化时长（秒）"
+            aria-label="切歌淡出淡入时长（秒）"
             onChange={(event) => setCrossfade(Number(event.target.value))}
           />
           <span className="settings__number">{crossfadeSec} 秒</span>
