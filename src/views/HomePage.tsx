@@ -192,6 +192,8 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   /** 最近新歌：freshTick 驱动重取，freshBatch 驱动换一行看。 */
   const [freshTick, setFreshTick] = useState(0)
   const [freshBatch, setFreshBatch] = useState(0)
+  /* 鼠标停在哪一行，左边的大卡就换哪一首；移出去回到第一首。 */
+  const [freshLead, setFreshLead] = useState(0)
   /**
    * 每平台各出 3 张，交错排。
    *
@@ -335,9 +337,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    *
    * 网易云那份来自发现页的缓存，QQ 与酷狗从各自的新歌榜现取（都不需要登录）；
    * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
-   * 一次要三十首/家：池子得够两屏十二行，「换一批」才有地方可换。
+   * 一次要六十首/家：池子得够一屏四十首，「换一批」才有地方可换。
    */
-  const platformFresh = usePlatformNewSongs(30, freshTick)
+  const platformFresh = usePlatformNewSongs(60, freshTick)
 
   /**
    * 按源轮转的全序。
@@ -373,7 +375,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [newBlock.songs, platformFresh, order])
 
   /**
-   * 一屏十二行，换一批往后挪十二格，到底回到开头。
+   * 一屏四十首，换一批往后挪四十格，到底回到开头。
    *
    * 只挪切片不重取的话，平台第二次给的还是同一份榜单，用户会看到同一批歌；
    * 所以按钮同时把 freshTick 加一，让 QQ 与酷狗那边也重新问一次。
@@ -387,6 +389,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     return out
   }, [freshOrder, freshBatch])
 
+  const leadIndex = freshTracks[freshLead] ? freshLead : 0
+  const leadTrack = freshTracks[leadIndex]
+
   /*
    * 首帧的那一下。
    *
@@ -395,6 +400,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 数据快慢，只解决「框的位置提前定好」：先按真实版式画占位，数据到了填空。
    * 数据一直不来（离线、接口挂了）就把占位收掉，不留一排空框假装在加载。
    */
+  useEffect(() => {
+    setFreshLead(0)
+  }, [freshBatch])
+
   const [settled, setSettled] = useState(false)
   useEffect(() => {
     const timer = window.setTimeout(() => setSettled(true), 1600)
@@ -741,38 +750,43 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             </button>
           </header>
           {freshTracks.length > 0 ? (
-            <div className="rh-fresh">
-              {freshTracks[0] ? (
+            <div className="rh-fresh" onMouseLeave={() => setFreshLead(0)}>
+              {leadTrack ? (
                 <button
                   className="rh-fresh__lead"
+                  key={leadTrack.id}
                   type="button"
-                  onClick={() => player.playQueue(freshTracks, 0)}
-                  title={'播放 ' + (freshTracks[0].title || '这首歌')}
+                  onClick={() => player.playQueue(freshTracks, leadIndex)}
+                  title={'播放 ' + (leadTrack.title || '这首歌')}
                 >
-                  <span className="rh-fresh__lead-art" style={tintOf(freshTracks[0].id)}>
+                  <span className="rh-fresh__lead-art" style={tintOf(leadTrack.id)}>
                     <Artwork
-                      src={artThumbFor(freshTracks[0]) ?? coverFor(freshTracks[0].id, 360)}
+                      src={artThumbFor(leadTrack, 640) ?? coverFor(leadTrack.id, 640)}
                       alt=""
                       fallback={<Note size={22} />}
-                      priority
+                      priority={leadIndex === 0}
                     />
                     <span className="rh-fresh__lead-play" aria-hidden>
                       <Play size={16} />
                     </span>
                   </span>
-                  <span className="rh-fresh__lead-kicker">本周新歌</span>
-                  <span className="rh-fresh__lead-title">{freshTracks[0].title || '（无标题）'}</span>
+                  <span className="rh-fresh__lead-kicker">
+                    {leadIndex === 0 ? '本周新歌' : '第 ' + (leadIndex + 1) + ' 首'}
+                  </span>
+                  <span className="rh-fresh__lead-title">{leadTrack.title || '（无标题）'}</span>
                   <span className="rh-fresh__lead-sub">
-                    {(freshTracks[0].artist || '未知艺术家') + ' · ' + sourceName(freshTracks[0])}
+                    {(leadTrack.artist || '未知艺术家') + ' · ' + sourceName(leadTrack)}
                   </span>
                 </button>
               ) : null}
               <div className="rh-fresh__list">
                 {freshTracks.slice(1).map((track, at) => (
                   <button
-                    className="rh-fresh__row"
+                    className={'rh-fresh__row' + (at + 1 === leadIndex ? ' is-lead' : '')}
                     type="button"
                     key={track.id}
+                    onMouseEnter={() => setFreshLead(at + 1)}
+                    onFocus={() => setFreshLead(at + 1)}
                     onClick={() => player.playQueue(freshTracks, at + 1)}
                     title={'播放 ' + (track.title || '这首歌')}
                   >

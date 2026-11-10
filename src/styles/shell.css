@@ -622,6 +622,23 @@
   background: rgb(10 12 16 / 0.62);
   color: #fff;
 }
+/*
+ * 换片：从下往上浮一点再定住，封面和标题不是硬切。位移放在 lead 自己身上，
+ * hover 的上浮在 .rh-fresh__lead-art 上，两处不抢同一个 transform。
+ */
+.rh-fresh__lead {
+  animation: freshLeadIn 240ms var(--ease-out);
+}
+@keyframes freshLeadIn {
+  from {
+    opacity: 0.35;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .rh-fresh__lead-kicker {
   margin-top: var(--s3);
   font-size: var(--fs-micro);
@@ -651,6 +668,22 @@
   min-width: 0;
   /* 行宽拉到整页会把平台名与时长甩到最右，中段空出一大片；收在这里刚好一行读得完。 */
   max-width: 780px;
+  /* 九行正好和左边主推卡齐平；后面的往下滚，不把首页越拉越长。 */
+  max-height: 378px;
+  overflow-y: auto;
+  /* 滚到底不要把整页带着一起滚。 */
+  overscroll-behavior-y: contain;
+  padding-right: 2px;
+}
+.rh-fresh__list::-webkit-scrollbar {
+  width: 4px;
+}
+.rh-fresh__list::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.16);
+}
+.rh-fresh__list::-webkit-scrollbar-track {
+  background: transparent;
 }
 .rh-fresh__row {
   display: grid;
@@ -658,13 +691,15 @@
   align-items: center;
   gap: 10px;
   height: 42px;
+  /* 列表是 flex 列，不禁用收缩的话几十行会被挤成三十几 px。 */
+  flex: none;
   padding: 0 8px;
   border: 0;
   border-radius: 8px;
   background: none;
   text-align: left;
   cursor: pointer;
-  transition: background 140ms var(--ease-out);
+  transition: background 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
 }
 .rh-fresh__row:hover {
   background: rgb(255 255 255 / 0.06);
@@ -673,6 +708,7 @@
   font-size: var(--fs-micro);
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
+  transition: color 140ms var(--ease-out);
 }
 .rh-fresh__row-art {
   display: grid;
@@ -714,6 +750,14 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+/* 左边正在显示的那首：行底提亮、左缘一道主色、序号跟着变色，鼠标扫过能看出联动。 */
+.rh-fresh__row.is-lead {
+  background: rgb(255 255 255 / 0.055);
+  box-shadow: inset 2px 0 0 rgb(var(--accent-rgb) / 0.72);
+}
+.rh-fresh__row.is-lead .rh-fresh__row-idx {
+  color: rgb(var(--accent-rgb));
 }
 
 /* 占位：文字用灰条顶住，尺寸与真卡一致。 */
