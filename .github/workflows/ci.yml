@@ -19,8 +19,10 @@ jobs:
   check:
     # 只跑类型检查、单元测试、四项审计与渲染层构建，不打包安装包，
     # 所以不需要 Windows 机器；构建产物也就能在任何 runner 上复现。
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 测试断言的是 Windows 路径语义（Steam 库路径、反斜杠穿越、盘符），
+    # 在 ubuntu 上会假红，而产品也只发 Windows，所以直接跑在 windows 上。
+    runs-on: windows-latest
+    timeout-minutes: 40
     env:
       # 这一步用不到 100 MB 的 Electron 二进制，跳过下载能省一分多钟。
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
