@@ -3,16 +3,23 @@
   position: fixed;
   inset: 0;
   z-index: 90;
+  /*
+   * 第一帧就是不透明的，也不淡入。
+   * 底下首页还在装内容（骨架换真卡、封面陆续到），只要透出来一瞬，肉眼看到的就是
+   * 「页面闪了一下」。这里宁可硬切一整块深色，也不要让底下的变化漏上来。
+   */
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(4 6 10 / 0.72);
+  background: rgb(4 6 10 / 0.97);
   backdrop-filter: blur(18px) saturate(120%);
 }
 
 .onb__panel {
   display: flex;
   flex-direction: column;
+  /* 连同淡入往上抬 8px：出现的动作看得见，字就不会像凭空一跳。 */
+  animation: onbRise 260ms var(--ease-out) both;
   width: min(560px, 100%);
   /* 两步内容一多一少，不撑住最小高度的话翻页时整块会跳一下。 */
   min-height: min(300px, calc(100vh - 48px));
@@ -79,9 +86,15 @@
 .onb-plat__text {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   flex: 1;
   min-width: 0;
+  /*
+   * 一行名字是 39px，有昵称时两行也是 39px。固定住这一格，登录状态一问回来
+   * 就不会因为少一行昵称而让整块面板上下跳——那一下在遮罩上看着就是闪。
+   */
+  min-height: 39px;
 }
 
 .onb-plat__name {
@@ -102,6 +115,7 @@
   flex: none;
   white-space: nowrap;
 }
+
 
 .onb__signed {
   display: flex;
@@ -180,4 +194,30 @@
 
 .onb__signed .switch {
   flex: none;
+}
+
+@keyframes onbFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes onbRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb__panel {
+    animation: none;
+  }
 }

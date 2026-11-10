@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../bridge'
 import { useAvailableProviders } from '../features/online/hooks'
+import { useProvidersSettled } from '../features/online/settled'
 import { useOnlineStore } from '../features/online/store'
 import type { OnlineMusicProvider } from '../features/online/types'
 import { useOverlayStatus } from '../features/overlay/status'
@@ -24,6 +25,16 @@ export function Onboarding({ onDone }: { onDone(): void }) {
   const chosen = useRoamPlatforms()
   const signedOnly = usePushSignedOnly()
   const lastOne = chosen.length <= 1
+  /*
+   * 状态没问齐之前不露面：先画一行「登录」再换成昵称，那一下在遮罩上就是闪。
+   * 最多等 1.2 秒，卡住的平台不拦着引导出来。
+   */
+  const answered = useProvidersSettled(providers.map((provider) => provider.id))
+
+  if (!answered) {
+    /* 状态没问齐：遮罩先铺上，别让首页露一瞬再被盖住；面板等齐了再整块浮上来。 */
+    return <div className="onb" aria-hidden="true" />
+  }
 
   return (
     <div className="onb" role="dialog" aria-modal="true" aria-label="先设置一下">
@@ -183,8 +194,12 @@ function OnboardPlatform({
   }, [init])
 
   const name = provider.shortName ?? provider.displayName
-  /* 未登录不必再写一句「还没有登录」——右边那个按钮就是这句话。 */
-  const meta = account ? account.nickname : blocked ? (detail ?? '连不上') : ready ? '' : '…'
+  /*
+   * 未登录不必再写一句「还没有登录」——右边那个按钮就是这句话。
+   * 状态没问回来之前什么都不写：先摆一个「…」再换成真内容，等于让四行文字
+   * 轮流闪一下。行高由 CSS 固定，晚出来的按钮淡入就够了。
+   */
+  const meta = account ? account.nickname : blocked ? (detail ?? '连不上') : ''
 
   return (
     <div className={'onb-plat' + (on ? ' is-on' : '')}>
@@ -193,16 +208,11 @@ function OnboardPlatform({
         <span className="onb-plat__name">{name}</span>
         {meta ? <span className="onb-plat__meta">{meta}</span> : null}
       </div>
-      {account ? null : (
-        <button
-          className="btn btn--small"
-          type="button"
-          disabled={!ready || blocked}
-          onClick={() => openPlatformLogin(provider.id)}
-        >
+      {!account && (ready || blocked) ? (
+        <button className="btn btn--small" type="button" onClick={() => openPlatformLogin(provider.id)}>
           登录
         </button>
-      )}
+      ) : null}
       <Toggle
         checked={on}
         disabled={locked}
