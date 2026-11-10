@@ -11,7 +11,11 @@
 }
 
 .onb__panel {
+  display: flex;
+  flex-direction: column;
   width: min(560px, 100%);
+  /* 两步内容一多一少，不撑住最小高度的话翻页时整块会跳一下。 */
+  min-height: min(380px, calc(100vh - 48px));
   max-height: calc(100vh - 48px);
   overflow: auto;
   padding: 28px;
@@ -135,6 +139,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* 面板有最小高度，两步内容一样高，动作条贴着底边才不悬在中间。 */
+  margin-top: auto;
+  padding-top: 18px;
+  flex: none;
 }
 
 .onb__hint {
@@ -160,4 +168,19 @@
 
 .onb-plat:not(.is-on):hover {
   opacity: 1;
+}
+
+/* 第几步。写在 kicker 里，字号跟它一致，只把数字提亮一点。 */
+.onb__step {
+  color: var(--text-mid);
+}
+
+/* 第二步那两行也用 .onb__signed：行内右侧是按钮或开关，不许被文字挤窄。 */
+.onb__signed .btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+.onb__signed .switch {
+  flex: none;
 }

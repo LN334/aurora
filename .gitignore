@@ -66,6 +66,9 @@ shots/
 .perf/
 .perf-*
 
+# 参考仓库的 README 与源码摘录，读的时候抓下来，不随项目入库。
+.refs/
+
 # Unpacked copy of an installed build, used to diff a shipped version against
 # the repository. Temporary by nature; the extract is 60+ MB.
 .installed*/

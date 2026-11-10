@@ -5,7 +5,7 @@ import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features
 import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
-import type { OverlayStatus } from '../../../env'
+import { useOverlayStatus } from '../../../features/overlay/status'
 import { useWallpaper } from '../../../features/wallpaper/store'
 import { chooseEntry } from '../../../features/wallpaper/pure'
 import { Refresh } from '../../../ui/icons'
@@ -314,23 +314,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
  * 一样，所以它只在歌词窗口开着的时候才有意义。
  */
 function DesktopLyricsRows() {
-  const [status, setStatus] = useState<OverlayStatus | null>(null)
-
-  useEffect(() => {
-    if (!isNative) return
-    let alive = true
-    void bridge.overlay
-      .getStatus()
-      .then((next) => {
-        if (alive) setStatus(next)
-      })
-      .catch(() => {})
-    const off = bridge.overlay.onStatus((next) => setStatus(next))
-    return () => {
-      alive = false
-      off()
-    }
-  }, [])
+  const status = useOverlayStatus()
 
   const open = status?.open ?? false
   const locked = status?.locked ?? false
