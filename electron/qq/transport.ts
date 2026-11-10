@@ -941,3 +941,39 @@ export async function requestCollectedAlbums(params: {
     cookie: params.cookie
   })
 }
+
+/**
+ * 「今日私享」那张歌单的 id。
+ *
+ * `get_recommend` 现在对所有人都回 500003 / 860100005 —— 登录、匿名、带不带
+ * cookie 都一样，所以日推不能走那条路。Mac 版首页的 HTML 里，登录账号的「为你
+ * 推荐」会多出一张「今日私享」卡，卡上的 `data-rid` 就是日推歌单的 id；拿到它
+ * 之后走普通的歌单详情接口即可（那条一直是通的）。
+ *
+ * 游客拿到的是同一张页面，但那一栏叫「官方歌单」，没有这张卡 —— 所以必须带 cookie。
+ */
+export async function requestDailyPlaylistId(params: { cookie: string }): Promise<string | null> {
+  const response = await fetch('https://c.y.qq.com/node/musicmac/v6/index.html', {
+    headers: {
+      referer: 'https://y.qq.com/',
+      'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      cookie: params.cookie
+    }
+  })
+  if (!response.ok) return null
+  const html = await response.text()
+  const start = html.indexOf('mod_for_u')
+  if (start < 0) return null
+  /*
+   * 一张卡一张卡地看：标题与 data-rid 在同一段 li 里，标题是「今日私享」的那张
+   * 才算。不取「第一张」——游客版第一张是「官方歌单」，而且栏目的顺序会变。
+   */
+  const section = html.slice(start, start + 60000)
+  for (const card of section.match(/<li[^>]*playlist__item[\s\S]*?<\/li>/g) ?? []) {
+    if (!card.includes('今日私享')) continue
+    const rid = /data-rid="(\d+)"/.exec(card)
+    if (rid) return rid[1]
+  }
+  return null
+}

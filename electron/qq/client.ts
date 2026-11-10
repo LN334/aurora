@@ -29,6 +29,7 @@ import {
   requestAlbumInfo,
   requestAlbumSongs,
   requestCollectedAlbums,
+  requestDailyPlaylistId,
   requestDailyRecommend,
   requestLikedSongs,
   requestLoginQr,
@@ -728,13 +729,30 @@ export async function qqNewSongs(limit = 20): Promise<QqSong[]> {
   }
 }
 
-/** The account's daily recommendation. Same envelope family as the liked list. */
+/**
+ * The account's daily recommendation.
+ *
+ * 换了一条路：`get_recommend` 现在对所有人回 500003（见 transport 里
+ * requestDailyPlaylistId 的注释），改成从 Mac 首页找「今日私享」歌单，再按普通
+ * 歌单取曲目。老接口仍留在后面当退路——哪天它恢复了就能自己回来，两头都空时再
+ * 由上层退到公开新歌。
+ */
 export async function qqDaily(): Promise<QqSong[]> {
   const state = readState(activeProfileId)
   if (!state.cookie) return []
   const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
   if (!uin) return []
   try {
+    const disstid = await requestDailyPlaylistId({ cookie: state.cookie }).catch(() => null)
+    if (disstid) {
+      const detail = await requestPlaylistTracks({ disstid, cookie: state.cookie })
+      const rows = normalizePlaylistTracks(detail)
+      if (rows.length > 0) {
+        log('qq daily via today-pl ' + disstid + ' rows=' + rows.length)
+        return rememberAll(rows)
+      }
+      log('qq daily playlist empty ' + disstid)
+    }
     const response = await requestDailyRecommend({ uin, cookie: state.cookie })
     const rows = normalizeSongCollection(response)
     if (rows.length === 0) log('qq daily empty ' + JSON.stringify(response).slice(0, 1000))
