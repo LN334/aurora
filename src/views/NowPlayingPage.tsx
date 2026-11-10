@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
@@ -5,6 +6,7 @@ import { trackKey } from '../features/online/unify'
 import { RoamRail } from './RoamRail'
 import type { Lyrics } from '../features/lyrics/lrc'
 import { activeLineAt } from '../features/lyrics/lrc'
+import { splitLyricLine } from '../features/lyrics/line-parts'
 import { useProgressPosition } from '../features/player/Bar'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { artworkFor } from '../features/library/source'
@@ -47,6 +49,182 @@ interface NowPlayingProps {
   onOpenStage(): void
 }
 
+/**
+ * 歌词可以自己翻。
+ *
+ * 原来是「播放到哪行，整条就滑到哪行」，想看一眼刚唱过的那句或者下面还有什么，
+ * 只能等下——和舞台那种「翻一下就钉住」差得远。这里补上同一件事：滚轮、拖动都
+ * 能把歌词往上往下拨，停手四秒交还播放，还在翻的时候播放的进度也照旧往前走。
+ *
+ * 位移不走 React：整列只有一条 transform，每帧在 rAF 里直接写，跨行时顺手把每行
+ * 的远近档位刷一遍（远处小、暗）。这样翻的时候一次重渲染都不发生——和每日推荐
+ * 那道封面墙是同一个做法，卡顿就是从「每帧 setState」来的。
+ */
+function LyricRoll({
+  lines,
+  active,
+  onSeek
+}: {
+  lines: Lyrics['lines']
+  active: number
+  onSeek(seconds: number): void
+}) {
+  const win = useRef<HTMLDivElement | null>(null)
+  const strip = useRef<HTMLDivElement | null>(null)
+  const rows = useRef<(HTMLButtonElement | null)[]>([])
+  const posRef = useRef(0)
+  const aimRef = useRef(0)
+  const velRef = useRef(0)
+  const holdRef = useRef(0)
+  const activeRef = useRef(0)
+  const farRef = useRef<number[]>([])
+  const dragRef = useRef<{ id: number; y: number; base: number; moved: boolean } | null>(null)
+  const clockRef = useRef(0)
+  const rafRef = useRef(0)
+  const last = Math.max(0, lines.length - 1)
+  const lastRef = useRef(last)
+  lastRef.current = last
+  activeRef.current = active < 0 ? 0 : active
+
+  /* 播放换行了：只要用户没在翻，就把目标交还给播放 */
+  useEffect(() => {
+    if (dragRef.current) return
+    if (performance.now() < holdRef.current) return
+    aimRef.current = activeRef.current
+  }, [active])
+
+  /* 换歌、换歌词：回到新的当前行，别停在上一首的位置 */
+  useEffect(() => {
+    posRef.current = activeRef.current
+    aimRef.current = activeRef.current
+    velRef.current = 0
+    holdRef.current = 0
+    farRef.current = []
+  }, [lines])
+
+  useEffect(() => {
+    let alive = true
+    const tick = (now: number): void => {
+      if (!alive) return
+      const previous = clockRef.current || now
+      clockRef.current = now
+      const dt = Math.min(0.05, Math.max(0.004, (now - previous) / 1000))
+      /* 停手四秒之后把位置还给播放 */
+      if (!dragRef.current && now > holdRef.current) aimRef.current = activeRef.current
+      const aim = Math.max(0, Math.min(lastRef.current, aimRef.current))
+      const gap = aim - posRef.current
+      if (!dragRef.current) {
+        if (Math.abs(gap) < 0.004 && Math.abs(velRef.current) < 0.03) {
+          posRef.current = aim
+          velRef.current = 0
+        } else if (Math.abs(gap) > 1.2) {
+          /* 远距离：速度跟着距离给，翻得再快也不会一顿一顿 */
+          const want = Math.max(-9, Math.min(9, gap * 8 + Math.sign(gap) * 0.45))
+          velRef.current += (want - velRef.current) * Math.min(1, dt * 26)
+          posRef.current += velRef.current * dt
+        } else {
+          /* 收尾欠阻尼：滑过去、弹回来、站住 */
+          const acc = gap * 190 - velRef.current * 14
+          velRef.current += acc * dt
+          posRef.current += velRef.current * dt
+        }
+      }
+      const pos = Math.max(0, Math.min(lastRef.current, posRef.current))
+      if (strip.current) {
+        strip.current.style.transform = 'translate3d(0,' + (-(pos * LINE_H + LINE_H / 2)).toFixed(2) + 'px,0)'
+      }
+      /* 远近档位跟着显示的中心行走，不是跟着播放行走 */
+      const centre = Math.round(pos)
+      const list = rows.current
+      for (let i = 0; i < list.length; i += 1) {
+        const far = Math.min(4, Math.abs(i - centre))
+        if (farRef.current[i] !== far) {
+          farRef.current[i] = far
+          list[i]?.setAttribute('data-far', String(far))
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      alive = false
+      cancelAnimationFrame(rafRef.current)
+    }
+  }, [])
+
+  /* 滚轮：非被动监听，拦下页面滚动 */
+  useEffect(() => {
+    const el = win.current
+    if (!el) return
+    const wheel = (event: WheelEvent): void => {
+      if (!event.deltaY) return
+      event.preventDefault()
+      aimRef.current += Math.max(-2, Math.min(2, event.deltaY / 120))
+      holdRef.current = performance.now() + 4000
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [])
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = { id: event.pointerId, y: event.clientY, base: posRef.current, moved: false }
+    holdRef.current = performance.now() + 4000
+  }
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== event.pointerId) return
+    const dy = event.clientY - drag.y
+    if (!drag.moved && Math.abs(dy) > 4) drag.moved = true
+    if (!drag.moved) return
+    posRef.current = Math.max(0, Math.min(lastRef.current, drag.base - dy / LINE_H))
+    aimRef.current = posRef.current
+    velRef.current = 0
+    holdRef.current = performance.now() + 4000
+  }
+  const endDrag = (): void => {
+    const drag = dragRef.current
+    if (!drag) return
+    dragRef.current = null
+    if (!drag.moved) return
+    aimRef.current = Math.round(posRef.current)
+    holdRef.current = performance.now() + 4000
+  }
+
+  return (
+    <div
+      className="np__lyr-window"
+      ref={win}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+    >
+      <div className="np__lyr" ref={strip}>
+        {lines.map((line, index) => {
+          const { main, sub } = splitLyricLine(line.text || '·')
+          return (
+            <button
+              key={index}
+              type="button"
+              className={`np__line${index === active ? ' is-active' : ''}`}
+              data-far={Math.min(4, Math.abs(index - (active < 0 ? 0 : active)))}
+              ref={(el) => {
+                rows.current[index] = el
+              }}
+              onClick={() => onSeek(line.time)}
+              title={formatTime(line.time)}
+            >
+              <span className="np__line-main">{main}</span>
+              {sub ? <span className="np__line-sub">{sub}</span> : null}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 /**
  * 正在播放。
  *
@@ -94,7 +272,6 @@ export function NowPlayingPage({
 
   // 只订阅「第几行」而不是 position：进度每秒跳六十次，这个值一首歌只变几十次。
   const active = usePlayer((state) => (lyrics.lines.length > 0 ? activeLineAt(lyrics.lines, state.position) : -1))
-  const anchor = active < 0 ? 0 : active
 
   if (!track) {
     return (
@@ -205,24 +382,7 @@ export function NowPlayingPage({
 
         <div className="np__right">
           {lyrics.lines.length > 0 ? (
-            <div className="np__lyr-window">
-              <div
-                className="np__lyr"
-                style={{ transform: `translateY(${-(anchor * LINE_H + LINE_H / 2)}px)` }}
-              >
-                {lyrics.lines.map((line, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`np__line${index === active ? ' is-active' : ''}`}
-                    onClick={() => onSeek(line.time)}
-                    title={formatTime(line.time)}
-                  >
-                    <span>{line.text || '·'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <LyricRoll lines={lyrics.lines} active={active} onSeek={onSeek} />
           ) : (
             <div className="np__nolyrics">
               <Note size={22} />

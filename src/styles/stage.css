@@ -189,37 +189,42 @@
  * 抬起来，读起来才像在滚，而不是在跳。动画挂在列上而不是格子上：格子是
  * 按行号重挂载的，挂在格子上九段动画会同时开跑，反而更像闪。
  */
-.stage__lyrics.is-shift-next {
-  animation: lyrPushUp var(--dur-2) var(--ease-out);
+.stage__lyrics.is-drag {
+  cursor: grabbing;
 }
-.stage__lyrics.is-shift-prev {
-  animation: lyrPushDown var(--dur-2) var(--ease-out);
-}
-@keyframes lyrPushUp {
-  from {
-    transform: translateY(18px);
-    opacity: 0.55;
-  }
-}
-@keyframes lyrPushDown {
-  from {
-    transform: translateY(-18px);
-    opacity: 0.55;
-  }
+.stage__lyrics.is-drag .lyr__text {
+  transition: none;
 }
 
 .stage__lyrics {
+  /*
+   * 一条轨道九个槽，整条在 JS 里逐帧上移，而不是「换一格重排一次」。
+   * 槽高写死成变量：位移按它算，量到的和算的必须是同一个数。
+   */
+  --lyr-h: clamp(84px, 11.5vh, 112px);
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  height: 100%;
   min-height: 0;
   padding: 0 var(--s6);
   /* Lyrics are the whole point here; nothing should be selectable chrome. */
   overflow: hidden;
   /* 上下渐隐：歌词像从雾里进出，而不是被容器边缘硬切一刀。 */
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
   mask-image: linear-gradient(180deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
+/* 九槽一条轨道：内容按整行换，位移按半格补，两者相加才是连续滚动。 */
+.stage__lyrics-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
 }
 
 /*
@@ -231,8 +236,17 @@
   display: grid;
   place-items: center;
   width: 100%;
+  height: var(--lyr-h);
   /* 槽高是写死的，内容一超出就会压到上下句上；裁在槽内是最后一道闸。 */
   overflow: hidden;
+  /*
+   * 远近由 --far 连续给（0 = 正中那行，1 = 隔一行…），不再是 d0..d4 四档跳变。
+   * 每帧只写一个 CSS 变量，缩放和透明度都交给合成层算。
+   */
+  transform: scale(clamp(0.44, calc(1 - var(--far, 0) * 0.4), 1));
+  opacity: clamp(0.06, calc(1 - var(--far, 0) * 0.72), 1);
+  transform-origin: center;
+  will-change: transform, opacity;
 }
 
 .lyr__text {
@@ -242,9 +256,10 @@
   letter-spacing: -0.014em;
   line-height: 1.2;
   max-width: min(1100px, 82vw);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: var(--text-hi);
   transform-origin: center;
   transition: transform var(--dur-3) var(--ease-out), opacity var(--dur-3) var(--ease-out),
@@ -255,16 +270,7 @@
   color: var(--text-hi);
 }
 
-.lyr--d0 {
-  animation: lyrStep var(--dur-3) var(--ease-out);
-}
-@keyframes lyrStep {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-.lyr--d0 .lyr__text {
+.lyr.is-active .lyr__text {
   transform: scale(1);
   opacity: 1;
   /*
@@ -280,31 +286,9 @@
 /* Not yet started: the centre slot holds the upcoming line at reduced weight,
    because size is driven by distance from the centre, not by whether the line
    is actually playing. Without this the first line looks permanently active. */
-.lyr--d0.is-pending .lyr__text {
+.lyr.is-pending .lyr__text {
   opacity: 0.5;
   text-shadow: none;
-}
-.lyr--d1 {
-  height: 60px;
-}.lyr--d1 .lyr__text {
-  transform: scale(0.6);
-  opacity: 0.34;
-}
-.lyr--d2 {
-  height: 46px;
-}
-.lyr--d2 .lyr__text {
-  transform: scale(0.5);
-  opacity: 0.15;
-}
-.lyr--d3,
-.lyr--d4 {
-  height: 36px;
-}
-.lyr--d3 .lyr__text,
-.lyr--d4 .lyr__text {
-  transform: scale(0.44);
-  opacity: 0.07;
 }
 
 .stage__nolyrics {
@@ -603,7 +587,7 @@
 }
 
 /* 壁纸是亮的，顶栏和底栏的小字得自己带一点影子才立得住。歌词行不在这里加，
-   它的光晕由 .lyr--d0 单独负责，叠上去会糊。 */
+   它的光晕由正在唱的那一行单独负责，叠上去会糊。 */
 .stage--wallpaper .stage__top,
 .stage--wallpaper .stage__bottom {
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
@@ -612,144 +596,34 @@
 /*
  * 长句不再用省略号砍掉。
  *
- * 中文歌词一句常常超过 40 字，单行 nowrap 会把它截成「……」，而歌词恰恰是
- * 舞台页唯一要读的东西。基准行允许折成两行并居中；其余槽位仍是单行——
- * 它们已经缩小到 0.44–0.6，两行会挤在一起，读不出层次。
+ * 中文歌词一句常超过 40 字，单行 nowrap 会截成「……」，而歌词是舞台唯一要读的
+ * 东西。所以正在唱的这一句折两行；其余槽位仍是单行——它们已经缩到 0.44–0.6，
+ * 两行只会挤成一团。
+ *
+ * 译文靠溢出自然取舍：主文一行时（44 + 25 ≈ 73px）放得下，折成两行时（约 105px）
+ * 槽高不够，译文被裁掉而主文完整——这比用 JS 量高度再判断稳得多。
  */
-.lyr__text {
-  white-space: normal;
-  text-align: center;
-  overflow-wrap: anywhere;
+/*
+ * 裁切与折行都放在 .lyr__main 上，不能放在按钮上：按钮里还坐着译文，
+ * 一旦把按钮变成 -webkit-box，两个 span 会一起被 line-clamp 裁掉——
+ * 「翻译行抽搐不显示」就是这么来的。
+ */
+.lyr__main {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.lyr--d0 .lyr__text {
+.lyr.is-active .lyr__main {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
-
-.lyr:not(.lyr--d0) .lyr__text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/*
- * 两行需要更高的槽位；高度仍是固定的，居中逻辑不变。
- *
- * 必须是 160px：两行 44px 主行约 106px，加译文 25px 和间距 13px 要 143px。
- * 之前这条是 clamp(76px, 10vh, 132px)，1000 高窗口只给 100px——被 -webkit-line-clamp
- * 裁掉的那半行还把译文压到上一句上，就是用户看到的「重叠」。
- */
-.lyr--d0 {
-  height: 160px;
-}
-
-/* --- 歌词演出模板 --------------------------------------------------------
-   舞台只有一套排版（九个固定槽位、中间永远是当前行），模板只改「当前行怎么被
-   演出来」。都挂在 .stage--lyric-{id} 前缀下，切换只换一个类名，不动数据。
-   经典那一套就是上面的默认样式，所以这里只有三套覆盖 + 选择面板。 */
-
-.stage__aside {
-  position: relative;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-}
-
-.stage__look {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-  border: 1px solid rgb(255 255 255 / 0.12);
-  background: rgb(10 12 16 / 0.45);
-  transition: color 160ms var(--ease-out), border-color 160ms var(--ease-out);
-}
-.stage__look:hover {
-  color: var(--text-hi);
-  border-color: rgb(255 255 255 / 0.24);
-}
-.stage__look.is-open {
-  color: var(--text-hi);
-  border-color: rgb(var(--accent-rgb) / 0.5);
-}
-
-.stage__looks {
-  position: absolute;
-  top: 38px;
-  right: 0;
-  z-index: 5;
-  width: 264px;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(12 14 18 / 0.94);
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.45);
-}
-
-.stage__look-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  text-align: left;
-  color: var(--text-mid);
-}
-.stage__look-item:hover {
-  background: rgb(255 255 255 / 0.06);
-  color: var(--text-hi);
-}
-.stage__look-item.is-on {
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--text-hi);
-}
-.stage__look-name {
-  font-size: 13px;
-  font-weight: 600;
-}
-.stage__look-note {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-}
-
-/* 诗行：左对齐，当前行压一条底色和一根竖线，像诗稿上的批注 */
-.stage--lyric-verse .stage__lyrics {
-  align-items: flex-start;
-  padding-left: clamp(28px, 8vw, 160px);
-}
-.stage--lyric-verse .lyr {
-  place-items: start;
-}
-.stage--lyric-verse .lyr__text {
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(16px, 1.7vw, 26px);
-  letter-spacing: 0;
-}
-.stage--lyric-verse .lyr--d0 .lyr__text {
-  display: inline-block;
-  -webkit-line-clamp: unset;
-  overflow: visible;
-  font-size: clamp(30px, 3.6vw, 52px);
-  padding: 6px 18px 8px 16px;
-  border-left: 3px solid rgb(var(--accent-rgb));
-  background: rgb(10 12 16 / 0.34);
-  border-radius: 0 10px 10px 0;
-  text-shadow: 0 2px 24px rgb(0 0 0 / 0.5);
-}
-.stage--lyric-verse .lyr--d1 .lyr__text { opacity: 0.5; transform: none; }
-.stage--lyric-verse .lyr--d2 .lyr__text { opacity: 0.28; transform: none; }
-.stage--lyric-verse .lyr--d3 .lyr__text,
-.stage--lyric-verse .lyr--d4 .lyr__text { opacity: 0.12; transform: none; }
 
 /* 面板要能点：三块主区（顶栏 / 歌词 / 底栏）同属 z-index:1 的层，谁在后面谁
    盖住谁，而歌词那一块铺满整片 1fr，正好压在顶栏展开的菜单上。把顶栏抬到歌词
@@ -759,7 +633,6 @@
 }
 
 /* --- 翻译分行：原文一行，译文一行小字 --- */
-.lyr__main { display: block; }
 .lyr__sub {
   display: block;
   margin-top: 0.3em;
@@ -774,7 +647,6 @@
   max-width: 100%;
 }
 .lyr.is-active .lyr__sub { opacity: 0.82; }
-.stage--lyric-verse .lyr__sub { text-align: left; }
 
 /*
  * 九宫格每个槽位的高度是固定的（居中靠固定槽高算出来），一行放两句就要

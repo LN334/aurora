@@ -1056,30 +1056,38 @@
   overflow: hidden;
 }
 
+/*
+ * 左边这一列：日期 → 大标题 → 两个动作，只靠字号和间距撑起分量。
+ *
+ * 之前标题只有 26px，整列 116px 高悬在 269px 的卡片里，右边又是 660px 宽的
+ * 一片封面墙，看上去左轻右重。文案不用来解释推荐机制，把标题放大到 36px、
+ * 按钮和标题之间留出 22px，比重自然就回来了。
+ */
 .rh-daily__text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  align-self: stretch;
+  justify-content: flex-start;
   min-width: 0;
+  max-width: 460px;
+  padding: 8px 0;
 }
 .rh-daily__kicker {
+  margin-bottom: 12px;
   font-size: var(--fs-micro);
   color: var(--text-low);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 .rh-daily__text h2 {
-  margin: 0;
-  font-size: 26px;
+  margin: 0 0 22px;
+  font-size: 36px;
+  line-height: 1.1;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
-.rh-daily__text p {
-  margin: 0 0 var(--s3);
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-}
+
 
 /*
  * 今日推荐的封面墙：一排沿弧线摊开的封面，中间那张正对、最大、最亮，往外逐渐
@@ -1510,13 +1518,19 @@
   left: 0;
   right: 0;
   padding-left: 4px;
-  transition: transform 460ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  /*
+   * 位移由 JS 每帧直写 —— 这里不能再留 transition，否则 CSS 过渡和 rAF 抢同一个
+   * transform，滚轮一动就一顿一顿（封面墙那轮踩过同一个坑）。
+   */
   will-change: transform;
 }
 
 .np__line {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
   height: 44px;
   width: 100%;
   padding: 0;
@@ -1524,16 +1538,55 @@
   background: transparent;
   color: var(--text-low);
   font-size: 17px;
-  line-height: 1.4;
+  line-height: 1.25;
   text-align: left;
   transition:
     color 240ms var(--ease-out),
-    font-size 240ms var(--ease-out);
+    font-size 240ms var(--ease-out),
+    opacity 260ms var(--ease-out);
+  will-change: opacity;
 }
-.np__line > span {
+/*
+ * 远处几行按距离退到后面去：字号一档小一点、透明度一档低一点。
+ * 只写到四档——再远就被窗口的渐变遮住了，写了也看不见，白算。
+ */
+.np__line[data-far='1'] {
+  opacity: 0.84;
+  font-size: 16.5px;
+}
+.np__line[data-far='2'] {
+  opacity: 0.58;
+  font-size: 16px;
+}
+.np__line[data-far='3'] {
+  opacity: 0.36;
+  font-size: 15.5px;
+}
+.np__line[data-far='4'] {
+  opacity: 0.2;
+  font-size: 15px;
+}
+/*
+ * 一句原文、一句译文：原文照常，译文小一号、淡一档，贴在下面。
+ *
+ * 上游歌词常把译文用「 / 」接在原文后面（`And I never meant to make you cry, no /
+ * "无意让你落泪 不"`），整条挤成一行时英文占满宽度、中文被折到第二行，读起来
+ * 像两段互不相干的字粘在一起。拆成两行才是双语歌词该有的样子；拆不拆由
+ * splitLyricLine 判断（合作署名里的斜杠不会被当成分隔符）。
+ *
+ * 高度仍是固定的 44px —— 位移按行高算，行高变了整条就错位。
+ */
+.np__line-main,
+.np__line-sub {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.np__line-sub {
+  font-size: 0.68em;
+  font-weight: 400;
+  opacity: 0.62;
 }
 .np__line:hover {
   color: var(--text-mid);
@@ -2487,6 +2540,7 @@
  * 找地方。
  */
 .rh-daily__acts {
+  margin-top: auto;
   display: flex;
   align-items: center;
   gap: 16px;

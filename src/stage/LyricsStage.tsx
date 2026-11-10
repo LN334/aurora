@@ -8,7 +8,6 @@ import { ChevronLeft, Locate, Note, Next, Pause, Play, Prev, Volume, VolumeMute 
 import { Artwork } from '../ui/Artwork'
 import { artworkFor } from '../features/library/source'
 import { usePlayer } from '../features/player/store'
-import { STAGE_STYLES, setStageStyle, useStageStyle } from '../features/lyrics/stage-style'
 import { splitLyricLine } from '../features/lyrics/line-parts'
 import { player } from '../features/player/actions'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -31,106 +30,282 @@ interface LyricColumnProps {
 
 function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
   const active = usePlayer((state) => activeLineAt(lyrics.lines, state.position))
-  // Before the first line starts, anchor on it so the stage is never blank.
-  const base = active < 0 ? 0 : active
+  const live = active < 0 ? 0 : active
+  const last = Math.max(0, lyrics.lines.length - 1)
+
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const trackRef = useRef<HTMLDivElement | null>(null)
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([])
+  const posRef = useRef(0)
+  const velRef = useRef(0)
+  const aimRef = useRef(0)
+  const baseRef = useRef(0)
+  const hRef = useRef(96)
+  const dragRef = useRef<{ id: number; y: number; base: number; moved: boolean } | null>(null)
+  /*
+   * 内容也由帧循环直写，React 只在挂载时渲染九个空槽。
+   *
+   * 旧版把整列内容放在 JSX 里，跨行时 setState 会让九个槽同时换文本节点：
+   * 那一帧既掉帧，译文 span 又会先被拆掉再插回来，看起来就是「抽一下、译文
+   * 闪没」。现在 DOM 结构从挂载到卸载不变，只改 textContent 和 class。
+   */
+  const paintedRef = useRef(-1)
+  const classRef = useRef<string[]>([])
+
+  const liveRef = useRef(live)
+  const lastRef = useRef(last)
+  const linesRef = useRef(lyrics.lines)
+  const activeRef = useRef(active)
+  liveRef.current = live
+  lastRef.current = last
+  linesRef.current = lyrics.lines
+  activeRef.current = active
+
   /*
    * 手动翻看。
    *
-   * 舞台原来只有一个位置：正在唱的那一行。想抬头看刚唱过的那句、或者往下看看
-   * 后面是什么，只能等它自己唱过去。滚轮（触控板一样）给一个「钉住某一行」的
-   * 位置，画面停在那儿不再随播放漂移；停手 6 秒、换歌、或者点「回到正在唱」，
-   * 就把位置交还给歌曲。
-   *
-   * 钉住的行号由舞台持有：「回到正在唱」挂在底栏上，不能和歌词渲染绑在一个
-   * 容器里——那个容器的上下渐隐遮罩正是它以前又暗又小的原因。
+   * `pinned` 是舞台持有的行号（拖动、滚轮改它），null 表示跟着正在唱的那句。
+   * 这里只负责「把画面挪到那个位置」——上下拖动、停手六秒自动交还，都在舞台和
+   * 底栏那颗「回到正在唱」上。
    */
-  const listRef = useRef<HTMLDivElement | null>(null)
-  const last = Math.max(0, lyrics.lines.length - 1)
-  const anchor = pinned === null ? base : Math.max(0, Math.min(last, pinned))
+  if (!dragRef.current) {
+    aimRef.current = Math.max(0, Math.min(last, pinned === null ? live : pinned))
+  }
+
+  /* 换歌：从跟着播放的位置重新出发，别把上一首的行号带到这一首身上 */
+  useEffect(() => {
+    const seat = Math.max(0, Math.min(lastRef.current, liveRef.current))
+    posRef.current = seat
+    velRef.current = 0
+    baseRef.current = Math.round(seat)
+    paintedRef.current = -1
+    classRef.current = []
+  }, [lyrics.lines])
 
   /*
-   * wheel 必须是非被动监听：舞台自己不该滚，但外层容器会跟着滚一下。这里
-   * 拦下默认行为，只把它当作「上下翻一行」。
+   * 槽高由 CSS 变量给，窗口一变就换一套值，量一次不够用。
+   *
+   * 必须量布局高度（offsetHeight）：.lyr 自身带 scale，getBoundingClientRect
+   * 拿到的是缩放后的 44%–100%，拿它当槽高会让整列只滚了不到一半的距离，
+   * 顶端几行就顶出画面。
+   */
+  useEffect(() => {
+    const read = (): void => {
+      const node = trackRef.current?.firstElementChild as HTMLElement | null
+      if (!node) return
+      const height = node.offsetHeight
+      if (height > 0) hRef.current = height
+    }
+    read()
+    window.addEventListener('resize', read)
+    return () => window.removeEventListener('resize', read)
+  }, [])
+
+  /* 把「以 centre 为中行」的九行写进固定槽位。只动 textContent 与 class。 */
+  function paint(centre: number): void {
+    const lines = linesRef.current
+    for (let i = 0; i < SLOTS; i += 1) {
+      const node = slotRefs.current[i]
+      const button = node?.firstElementChild as HTMLButtonElement | null
+      if (!node || !button) continue
+      const main = button.children[0] as HTMLElement
+      const sub = button.children[1] as HTMLElement
+      const index = centre - SPAN + i
+      const line = lines[index]
+      if (!line) {
+        button.dataset.index = ''
+        button.classList.add('lyr__text--empty')
+        main.textContent = ''
+        sub.textContent = ''
+        sub.style.display = 'none'
+        button.removeAttribute('title')
+        continue
+      }
+      const parts = splitLyricLine(line.text || '·')
+      button.dataset.index = String(index)
+      button.classList.remove('lyr__text--empty')
+      main.textContent = parts.main
+      sub.textContent = parts.sub || ''
+      sub.style.display = parts.sub ? '' : 'none'
+      button.title = '跳到 ' + formatTime(line.time)
+    }
+  }
+
+  /*
+   * 谁在唱、谁待唱：每帧对一遍，变了才写 class。
+   *
+   * 走帧循环而不是 JSX，是为了让「正在唱」的切换和位移落在同一帧——以前
+   * setState 晚一帧，高亮追着字跑，看起来就是抽搐。
+   */
+  function paintState(centre: number): void {
+    const activeNow = activeRef.current
+    const lines = linesRef.current
+    for (let i = 0; i < SLOTS; i += 1) {
+      const node = slotRefs.current[i]
+      if (!node) continue
+      const index = centre - SPAN + i
+      const isActive = activeNow >= 0 && index === activeNow
+      const isPending = activeNow < 0 && i === SPAN && Boolean(lines[index])
+      const next = isActive ? 'lyr is-active' : isPending ? 'lyr is-pending' : 'lyr'
+      if (classRef.current[i] === next) continue
+      classRef.current[i] = next
+      node.className = next
+    }
+  }
+
+  /*
+   * 每帧推进。
+   *
+   * 欠阻尼弹簧：拨一下会先冲过一格再被拉回来，停手才收住——这就是「有动画」和
+   * 「跳一格」的差别。整列位移是连续的，跨行时内容按整行换、位移补上半格，两件
+   * 事叠在一起看，就是一路滑过去，而不是一格一格闪。
+   */
+  useEffect(() => {
+    let raf = 0
+    let clock = 0
+    const tick = (now: number): void => {
+      const previous = clock || now
+      clock = now
+      const dt = Math.min(0.05, Math.max(0.004, (now - previous) / 1000))
+      const height = hRef.current
+      if (!dragRef.current) {
+        const gap = aimRef.current - posRef.current
+        if (Math.abs(gap) < 0.002 && Math.abs(velRef.current) < 0.02) {
+          posRef.current = aimRef.current
+          velRef.current = 0
+        } else {
+          velRef.current += (gap * 170 - velRef.current * 13) * dt
+          posRef.current += velRef.current * dt
+        }
+      }
+      const pos = Math.max(0, Math.min(lastRef.current, posRef.current))
+      const centred = Math.round(pos)
+      if (centred !== paintedRef.current) {
+        paintedRef.current = centred
+        paint(centred)
+      }
+      /*
+       * 内容在整行上，画面在小数上：两者相加才是连续滚动。
+       * 轨道是绝对定位的，得自己把「容器中心」补上，否则整列会顶到画面上沿。
+       */
+      const track = trackRef.current
+      if (track) {
+        const shift = (centred - pos) * height
+        const half = track.parentElement ? track.parentElement.clientHeight / 2 : 0
+        track.style.transform =
+          'translate3d(0,' + (half - (SPAN + 0.5) * height + shift).toFixed(2) + 'px,0)'
+      }
+      const delta = pos - centred
+      for (let i = 0; i < SLOTS; i += 1) {
+        const node = slotRefs.current[i]
+        if (!node) continue
+        const far = Math.abs(i - SPAN - delta)
+        /* 只写到两位小数：连续的远近距离没必要每帧刷新一次样式 */
+        const coarse = Math.round(far * 40)
+        if (node.dataset.far === String(coarse)) continue
+        node.dataset.far = String(coarse)
+        node.style.setProperty('--far', (coarse / 40).toFixed(3))
+      }
+      paintState(centred)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  /*
+   * 滚轮翻行。必须是非被动监听：舞台自己不该滚，但外层容器会跟着滚一下。
+   * 一次滚最多两行——触控板的惯性 delta 能到几百，照搬会直接甩出去。
    */
   useEffect(() => {
     const node = listRef.current
     if (!node) return
-    const onWheel = (event: WheelEvent) => {
+    const onWheel = (event: WheelEvent): void => {
       if (!event.deltaY) return
       event.preventDefault()
-      const step = event.deltaY > 0 ? 1 : -1
-      const from = pinned === null ? base : pinned
-      onPin(Math.max(0, Math.min(last, from + step)))
+      const from = pinned === null ? live : pinned
+      const step = Math.max(-2, Math.min(2, event.deltaY / 120))
+      onPin(Math.max(0, Math.min(last, Math.round(from + step))))
     }
     node.addEventListener('wheel', onWheel, { passive: false })
     return () => node.removeEventListener('wheel', onWheel)
-  }, [base, last, pinned, onPin])
+  }, [pinned, live, last, onPin])
 
   /*
-   * 换行时给整列轻轻推一格（见 .stage__lyrics.is-shift-next）。
+   * 拖动换行。
    *
-   * 九个槽位的内容是按行号重挂载的，换行就是九格同时换成下一批。只靠格子
-   * 自己的淡入，看上去是「原地闪」；让整列带着方向滑一下，才像在滚。方向
-   * 用上一个锚点比较，往回翻（滚轮或点上一句）就反着推。
+   * 只有移动超过 6px 才抢指针：抢早了，点某一句跳过去的 click 会落到容器上。
+   * 拖动过程中直接改位置（跟手），松手才把「停在那一行」交回去，让弹簧吸过去。
    */
-  const prevAnchor = useRef(anchor)
-  useEffect(() => {
-    if (anchor === prevAnchor.current) return
-    const next = anchor > prevAnchor.current
-    prevAnchor.current = anchor
-    const node = listRef.current
-    if (!node) return
-    node.classList.remove('is-shift-next', 'is-shift-prev')
-    // 读一次 offsetWidth，同名动画才会从头再跑一遍。
-    void node.offsetWidth
-    node.classList.add(next ? 'is-shift-next' : 'is-shift-prev')
-  }, [anchor])
-
-  const slots = Array.from({ length: SLOTS }, (_, i) => {
-    const lineIndex = anchor - SPAN + i
-    const line = lyrics.lines[lineIndex]
-    const distance = Math.abs(i - SPAN)
-    return {
-      key: lineIndex,
-      line,
-      distance,
-      isActive: active >= 0 && lineIndex === active,
-      // Before the first timestamp there is nothing to highlight; the centre
-      // slot holds the upcoming line but must not read as "currently playing".
-      isPending: active < 0 && distance === 0
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) return
+    const from = pinned === null ? live : pinned
+    dragRef.current = {
+      id: event.pointerId,
+      y: event.clientY,
+      base: Math.max(0, Math.min(last, from)),
+      moved: false
     }
-  })
+  }
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== event.pointerId) return
+    const dy = event.clientY - drag.y
+    if (!drag.moved) {
+      if (Math.abs(dy) <= 6) return
+      drag.moved = true
+      event.currentTarget.setPointerCapture(event.pointerId)
+      event.currentTarget.classList.add('is-drag')
+    }
+    posRef.current = Math.max(0, Math.min(last, drag.base - dy / hRef.current))
+    velRef.current = 0
+  }
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (!drag) return
+    dragRef.current = null
+    event.currentTarget.classList.remove('is-drag')
+    if (!drag.moved) return
+    onPin(Math.round(posRef.current))
+  }
 
   return (
-    <div className="stage__lyrics" role="list" aria-live="off" ref={listRef}>
-      {slots.map((slot) => (
-        <div
-          key={slot.key}
-          role="listitem"
-          className={'lyr lyr--d' + Math.min(slot.distance, 4) + (slot.isActive ? ' is-active' : '') + (slot.isPending ? ' is-pending' : '')}
-        >
-          {slot.line ? (
+    <div
+      className="stage__lyrics"
+      role="list"
+      aria-live="off"
+      ref={listRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+    >
+      <div className="stage__lyrics-track" ref={trackRef}>
+        {/* 九个固定槽位：内容由帧循环直写，React 挂载后不再碰这里 */}
+        {Array.from({ length: SLOTS }, (_, i) => (
+          <div
+            key={i}
+            role="listitem"
+            className="lyr"
+            ref={(node) => {
+              slotRefs.current[i] = node
+            }}
+          >
             <button
               type="button"
               className="lyr__text"
-              onClick={() => onSeek(slot.line.time)}
-              title={'跳到 ' + formatTime(slot.line.time)}
+              onClick={(event) => {
+                const index = Number(event.currentTarget.dataset.index)
+                const line = lyrics.lines[index]
+                if (line) onSeek(line.time)
+              }}
             >
-              {(() => {
-                const { main, sub } = splitLyricLine(slot.line.text || '·')
-                return (
-                  <>
-                    <span className="lyr__main">{main}</span>
-                    {sub ? <span className="lyr__sub">{sub}</span> : null}
-                  </>
-                )
-              })()}
+              <span className="lyr__main" />
+              <span className="lyr__sub" />
             </button>
-          ) : (
-            <span className="lyr__text lyr__text--empty" />
-          )}
-        </div>
-      ))}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -213,8 +388,6 @@ export function LyricsStage({
   closing = false,
   onClose
 }: LyricsStageProps) {
-  const style = useStageStyle()
-  const [looksOpen, setLooksOpen] = useState(false)
 
   /*
    * 手动翻看歌词时钉住的行号；null = 跟着正在唱的那句走。
@@ -270,7 +443,6 @@ export function LyricsStage({
       className={[
         'stage',
         wallpaper ? 'stage--wallpaper' : '',
-        'stage--lyric-' + style,
         closing ? 'is-closing' : ''
       ]
         .filter(Boolean)
@@ -322,37 +494,7 @@ export function LyricsStage({
             <span className="stage__artist">没有在播放</span>
           )}
         </div>
-        <div className="stage__aside">
-          <button
-            type="button"
-            className={'stage__look' + (looksOpen ? ' is-open' : '')}
-            onClick={() => setLooksOpen((open) => !open)}
-            aria-expanded={looksOpen}
-            aria-haspopup="listbox"
-          >
-            样式
-          </button>
-          {looksOpen ? (
-            <div className="stage__looks" role="listbox" aria-label="歌词演出模板">
-              {STAGE_STYLES.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="option"
-                  aria-selected={item.id === style}
-                  className={'stage__look-item' + (item.id === style ? ' is-on' : '')}
-                  onClick={() => {
-                    setStageStyle(item.id)
-                    setLooksOpen(false)
-                  }}
-                >
-                  <span className="stage__look-name">{item.name}</span>
-                  <span className="stage__look-note">{item.note}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
+
       </header>
 
       {lyrics.empty ? (
