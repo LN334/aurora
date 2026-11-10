@@ -25,6 +25,17 @@ export interface AppSettings {
   launchAtLogin: boolean
   /** 放歌时拦住系统休眠。默认开：一场专辑听一半黑屏睡着，是播放器最没用的失败。 */
   preventSleepWhilePlaying: boolean
+  /** 下载完在资源管理器里把文件选出来。默认关：批量下十首会弹十次。 */
+  openAfterDownload: boolean
+  /** 点一下托盘图标：切换窗口显隐，还是只把窗口叫出来。 */
+  trayClick: TrayClick
+  /**
+   * 锁住桌面歌词时，鼠标悬到那行字上还要不要临时接管。
+   *
+   * 开（默认）时悬停会浮出控制条，代价是那一下点击归歌词窗口；关掉则是完全
+   * 穿透，想动它只能先解锁。
+   */
+  overlayHoverControls: boolean
 }
 
 export interface StorageUsage {
@@ -35,6 +46,14 @@ export interface StorageUsage {
 }
 
 export type UpdateInterval = 'manual' | 'daily' | 'weekly'
+
+/**
+ * 托盘图标的单击行为。
+ *
+ * `toggle` 是原来就有的显隐切换；`show` 只把窗口叫出来，不会把它藏起来——
+ * 有些人是想点开看看，结果一点就没了。
+ */
+export type TrayClick = 'toggle' | 'show'
 
 /** Bounds for the desktop lyric strip. `Overlay.tsx` mirrors these. */
 export const LYRIC_SIZE_MIN = 18
@@ -69,6 +88,12 @@ export interface Settings {
   launchAtLogin: boolean
   /** 播放时阻止系统休眠与锁屏（powerSaveBlocker 的 audio 类型）。 */
   preventSleepWhilePlaying: boolean
+  /** 下载完在资源管理器里把文件选出来。 */
+  openAfterDownload: boolean
+  /** 托盘单击行为。 */
+  trayClick: TrayClick
+  /** 锁住桌面歌词时，悬停是否临时接管鼠标。 */
+  overlayHoverControls: boolean
   /**
    * Allow lyric lookups against lrclib.net.
    *
@@ -112,6 +137,9 @@ const DEFAULTS: Settings = {
   closeToTray: true,
   launchAtLogin: false,
   preventSleepWhilePlaying: true,
+  openAfterDownload: false,
+  trayClick: 'toggle',
+  overlayHoverControls: true,
   neteaseQuality: 'exhigh',
   downloadDir: '',
   downloadFormat: 'original',
@@ -147,6 +175,9 @@ export function loadSettings(): Settings {
       closeToTray: raw.closeToTray !== false,
       launchAtLogin: raw.launchAtLogin === true,
       preventSleepWhilePlaying: raw.preventSleepWhilePlaying !== false,
+      openAfterDownload: raw.openAfterDownload === true,
+      trayClick: raw.trayClick === 'show' ? 'show' : 'toggle',
+      overlayHoverControls: raw.overlayHoverControls !== false,
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
       downloadBitrate: clampBitrate(raw.downloadBitrate)
@@ -201,6 +232,9 @@ export function appSettings(): AppSettings {
     closeToTray: settings.closeToTray !== false,
     launchAtLogin: settings.launchAtLogin === true,
     preventSleepWhilePlaying: settings.preventSleepWhilePlaying !== false,
+    openAfterDownload: settings.openAfterDownload === true,
+    trayClick: settings.trayClick === 'show' ? 'show' : 'toggle',
+    overlayHoverControls: settings.overlayHoverControls !== false,
     desktopLyrics: {
       size: clampLyricSize(settings.desktopLyricsSize),
       min: LYRIC_SIZE_MIN,

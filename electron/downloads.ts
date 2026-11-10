@@ -285,6 +285,28 @@ async function run(job: Job): Promise<void> {
   }
 }
 
+/**
+ * 队列空了之后，把最后下完的那个文件在资源管理器里选出来。
+ *
+ * 只弹一次：批量下十首、每首弹一次，只会让人把这个开关关掉。判据是队列真的
+ * 空了，所以中途失败的那几首也会等整批跑完再收口。
+ */
+let revealedPath = ''
+
+function revealLastIfIdle(): void {
+  if (active > 0 || queue.length > 0) return
+  if (!loadSettings().openAfterDownload) return
+  let latest: Job | null = null
+  for (const job of jobs.values()) {
+    if (job.state !== 'done' || !job.filePath) continue
+    if (!latest || job.createdAt > latest.createdAt) latest = job
+  }
+  const filePath = latest?.filePath
+  if (!filePath || filePath === revealedPath) return
+  revealedPath = filePath
+  shell.showItemInFolder(filePath)
+}
+
 function pump(): void {
   while (active < MAX_ACTIVE && queue.length > 0) {
     const id = queue.shift()!
@@ -294,6 +316,7 @@ function pump(): void {
     void run(job).finally(() => {
       active -= 1
       pump()
+      revealLastIfIdle()
     })
   }
 }

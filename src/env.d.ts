@@ -110,6 +110,9 @@ export type UpdateResult =
 /** How often the background check runs. `manual` means "only when I ask". */
 export type UpdateInterval = 'manual' | 'daily' | 'weekly'
 
+/** 托盘图标的单击行为，镜像 `electron/settings.ts` 的同名类型。 */
+export type TrayClick = 'toggle' | 'show'
+
 export interface UpdatePrefs {
   interval: UpdateInterval
   /** Epoch ms of the last completed check, 0 when it has never run. */
@@ -383,6 +386,12 @@ export interface AppSettings {
   launchAtLogin: boolean
   /** 放歌时拦住系统挂起（屏幕关闭仍按系统电源计划）。 */
   preventSleepWhilePlaying: boolean
+  /** 下载完在资源管理器里把文件选出来。批量下完只弹一次。 */
+  openAfterDownload: boolean
+  /** 点一下托盘图标：切换窗口显隐，还是只把窗口叫出来。 */
+  trayClick: TrayClick
+  /** 锁住桌面歌词时，鼠标悬到那行字上要不要临时接管。 */
+  overlayHoverControls: boolean
 }
 
  interface SettingsApi {
@@ -392,6 +401,9 @@ export interface AppSettings {
   setCloseToTray(enabled: boolean): Promise<AppSettings>
   setLaunchAtLogin(enabled: boolean): Promise<AppSettings>
   setPreventSleep(enabled: boolean): Promise<AppSettings>
+  setOpenAfterDownload(enabled: boolean): Promise<AppSettings>
+  setTrayClick(mode: TrayClick): Promise<AppSettings>
+  setOverlayHoverControls(enabled: boolean): Promise<AppSettings>
   /** Bytes on disk for the cache and data directories; null when unmeasurable. */
   getStorage(): Promise<StorageUsage>
   /**

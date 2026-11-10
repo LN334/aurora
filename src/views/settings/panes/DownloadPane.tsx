@@ -1,6 +1,7 @@
 import { useDownloads } from '../../../features/downloads/store'
+import type { useSettingsPage } from '../../../features/settings/store'
 import type { DownloadFormat } from '../../../env'
-import { Row, Rows } from '../parts'
+import { Row, Rows, Toggle } from '../parts'
 
 const FORMATS: { value: DownloadFormat; label: string; hint: string }[] = [
   { value: 'original', label: '原格式', hint: '平台给什么就存什么，最快，不重新编码。' },
@@ -18,7 +19,7 @@ const BITRATES = [128, 192, 256, 320]
  * 把平台给的字节搬下来，所以选中原格式时码率那行整行禁用，而不是假装它能生效。
  * 转码依赖 ffmpeg；没有就直说，只下原格式不受影响。
  */
-export function DownloadPane() {
+export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const prefs = useDownloads((state) => state.prefs)
   const setFormat = useDownloads((state) => state.setFormat)
   const setBitrate = useDownloads((state) => state.setBitrate)
@@ -47,6 +48,18 @@ export function DownloadPane() {
             打开
           </button>
         </div>
+      </Row>
+
+      <Row
+        label="下完在文件夹里显示"
+        hint="一批下完才弹一次，不会每首各开一个窗口。"
+      >
+        <Toggle
+          checked={page.settings.openAfterDownload}
+          disabled={page.busy}
+          label="下完在文件夹里显示"
+          onChange={(next) => void page.setOpenAfterDownload(next)}
+        />
       </Row>
 
       <Row label="格式" hint={FORMATS.find((item) => item.value === format)?.hint}>

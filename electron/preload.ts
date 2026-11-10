@@ -145,6 +145,12 @@ const api = {
       ipcRenderer.invoke('settings:setLaunchAtLogin', enabled) as Promise<AppSettings>,
     setPreventSleep: (enabled: boolean) =>
       ipcRenderer.invoke('settings:setPreventSleep', enabled) as Promise<AppSettings>,
+    setOpenAfterDownload: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setOpenAfterDownload', enabled) as Promise<AppSettings>,
+    setTrayClick: (mode: 'toggle' | 'show') =>
+      ipcRenderer.invoke('settings:setTrayClick', mode) as Promise<AppSettings>,
+    setOverlayHoverControls: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setOverlayHoverControls', enabled) as Promise<AppSettings>,
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
     clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>
   },

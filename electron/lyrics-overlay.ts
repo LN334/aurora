@@ -144,9 +144,19 @@ function clampBounds(bounds: Rectangle): Rectangle {
   return { x, y, width, height }
 }
 
+/**
+ * 锁住时悬停要不要临时接管，读设置里那一位。
+ *
+ * 默认开：锁住只是「平时不挡」，不是「永远动不了」。关掉的人要的是绝对穿透，
+ * 那就连悬停也不许接管。
+ */
+function hoverTakesOver(): boolean {
+  return loadSettings().overlayHoverControls !== false
+}
+
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
-  overlay.setIgnoreMouseEvents(locked && !hovering, { forward: true })
+  overlay.setIgnoreMouseEvents(locked && !(hovering && hoverTakesOver()), { forward: true })
 }
 
 /** Tell the strip what the pointer is doing so it can reveal its controls. */
@@ -170,6 +180,12 @@ function startHoverPolling(): void {
   stopHoverPolling()
   hoverTimer = setInterval(() => {
     if (!overlay || overlay.isDestroyed() || !locked) return
+    // 关掉「锁住时也能悬停」就别再接管：把状态压回未悬停，窗口保持完全穿透。
+    // 定时器留着不关，用户把开关打开时下一次 tick 就能恢复，不用重开窗口。
+    if (!hoverTakesOver()) {
+      setHovering(false)
+      return
+    }
     const point = screen.getCursorScreenPoint()
     const bounds = overlay.getBounds()
     const area = hitArea ?? { x: 0, y: 0, width: bounds.width, height: bounds.height }
@@ -371,6 +387,16 @@ export function setLocked(next: boolean): boolean {
   applyLock()
   notifyStatus()
   return locked
+}
+
+/**
+ * 设置里「锁住时也能悬停」改过之后立刻生效。
+ *
+ * 不重开窗口：轮询本来就在跑，把状态压回未悬停、再算一次穿透就够了。
+ */
+export function applyOverlayHoverSetting(): void {
+  if (!hoverTakesOver()) setHovering(false)
+  applyLock()
 }
 
 export function isLocked(): boolean {

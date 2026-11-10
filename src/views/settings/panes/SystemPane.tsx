@@ -10,7 +10,7 @@ import { Row, Rows, Toggle } from '../parts'
  * 混在外观里读起来像是又一个视觉开关，实际后果比换个壁纸重得多。
  */
 export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
-  const { closeToTray, launchAtLogin, preventSleepWhilePlaying } = page.settings
+  const { closeToTray, launchAtLogin, preventSleepWhilePlaying, trayClick } = page.settings
   const restoreQueue = useSessionRestore()
 
   return (
@@ -48,6 +48,30 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
           label="启动时恢复上次队列"
           onChange={(next) => writeSessionRestore(next)}
         />
+      </Row>
+
+      <Row
+        label="点一下托盘图标"
+        hint="选「只显示」时，点它不会把窗口收起来——想点开看一眼却点没了，这一档防的就是这个。"
+      >
+        <div className="seg">
+          <button
+            className={trayClick === 'toggle' ? 'is-active' : ''}
+            aria-pressed={trayClick === 'toggle'}
+            disabled={page.busy}
+            onClick={() => void page.setTrayClick('toggle')}
+          >
+            显示 / 隐藏
+          </button>
+          <button
+            className={trayClick === 'show' ? 'is-active' : ''}
+            aria-pressed={trayClick === 'show'}
+            disabled={page.busy}
+            onClick={() => void page.setTrayClick('show')}
+          >
+            只显示
+          </button>
+        </div>
       </Row>
 
       <Row label="点关闭按钮时" hint="收进托盘时窗口消失、继续播放。">

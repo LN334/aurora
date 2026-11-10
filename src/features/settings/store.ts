@@ -6,6 +6,7 @@ import type {
   JunkScan,
   MemoryRelease,
   StorageUsage,
+  TrayClick,
   UpdateInterval,
   UpdatePrefs
 } from '../../env'
@@ -28,7 +29,10 @@ const FALLBACK_SETTINGS: AppSettings = {
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,
-  preventSleepWhilePlaying: true
+  preventSleepWhilePlaying: true,
+  openAfterDownload: false,
+  trayClick: 'toggle',
+  overlayHoverControls: true
 }
 
  interface SettingsPage {
@@ -57,6 +61,12 @@ const FALLBACK_SETTINGS: AppSettings = {
   setLaunchAtLogin(enabled: boolean): Promise<void>
   /** 播放时阻止系统挂起。 */
   setPreventSleep(enabled: boolean): Promise<void>
+  /** 下载完在资源管理器里把文件选出来。 */
+  setOpenAfterDownload(enabled: boolean): Promise<void>
+  /** 托盘单击：切换显隐，还是只叫出来。 */
+  setTrayClick(mode: TrayClick): Promise<void>
+  /** 锁住桌面歌词时，悬停是否临时接管鼠标。 */
+  setOverlayHoverControls(enabled: boolean): Promise<void>
   clearCache(): Promise<void>
   refreshStorage(): Promise<void>
   releaseMemory(): Promise<void>
@@ -177,6 +187,24 @@ export function useSettingsPage(): SettingsPage {
     setPreventSleep: (enabled) =>
       write(
         () => bridge.settings.setPreventSleep(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setOpenAfterDownload: (enabled) =>
+      write(
+        () => bridge.settings.setOpenAfterDownload(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setTrayClick: (mode) =>
+      write(
+        () => bridge.settings.setTrayClick(mode),
+        (next) => setSettings(next)
+      ),
+
+    setOverlayHoverControls: (enabled) =>
+      write(
+        () => bridge.settings.setOverlayHoverControls(enabled),
         (next) => setSettings(next)
       ),
 

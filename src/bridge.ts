@@ -36,7 +36,10 @@ let previewSettings: AppSettings = {
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,
-  preventSleepWhilePlaying: true
+  preventSleepWhilePlaying: true,
+  openAfterDownload: false,
+  trayClick: 'toggle',
+  overlayHoverControls: true
 }
 
 /**
@@ -188,6 +191,11 @@ const webFallback: AuroraApi = {
     setLaunchAtLogin: async (enabled) => (previewSettings = { ...previewSettings, launchAtLogin: enabled }),
     setPreventSleep: async (enabled) =>
       (previewSettings = { ...previewSettings, preventSleepWhilePlaying: enabled }),
+    setOpenAfterDownload: async (enabled) =>
+      (previewSettings = { ...previewSettings, openAfterDownload: enabled }),
+    setTrayClick: async (mode) => (previewSettings = { ...previewSettings, trayClick: mode }),
+    setOverlayHoverControls: async (enabled) =>
+      (previewSettings = { ...previewSettings, overlayHoverControls: enabled }),
     // A browser has no userData directory, so "nothing to measure" is the
     // honest answer rather than a made-up zero.
     getStorage: async () => ({

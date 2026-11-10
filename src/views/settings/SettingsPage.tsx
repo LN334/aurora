@@ -77,7 +77,7 @@ type PaneFactory = (page: PageState) => ReactNode
 const PANES: Record<string, PaneFactory> = {
   playback: (page) => <PlaybackPane page={page} />,
   recommend: () => <RecommendPane />,
-  downloads: () => <DownloadPane />,
+  downloads: (page) => <DownloadPane page={page} />,
   home: () => <HomePane />,
   appearance: (page) => <AppearancePane page={page} />,
   system: (page) => <SystemPane page={page} />,

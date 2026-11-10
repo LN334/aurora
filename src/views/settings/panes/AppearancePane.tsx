@@ -100,7 +100,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
       </Row>
 
       <Sub title="桌面歌词" hint="独立窗口，跟着当前播放的那一句走。">
-        <DesktopLyricsRows />
+        <DesktopLyricsRows page={page} />
 
       <div className="settings__row settings__row--stacked">
         <div className="settings__text">
@@ -313,7 +313,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
  * 画出来，不做本地猜测。锁上之后那个窗口对鼠标透明，和 Windows 上的悬浮控件
  * 一样，所以它只在歌词窗口开着的时候才有意义。
  */
-function DesktopLyricsRows() {
+function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const status = useOverlayStatus()
 
   const open = status?.open ?? false
@@ -343,6 +343,18 @@ function DesktopLyricsRows() {
           label="锁住歌词位置"
           disabled={!isNative || !open}
           onChange={(next) => void bridge.overlay.setLocked(next)}
+        />
+      </Row>
+
+      <Row
+        label="锁住时也能悬停"
+        hint="开着：鼠标移到那行字上会浮出控制条，代价是那一下点击归歌词窗口。关掉：彻底穿透，要动它先解锁。"
+      >
+        <Toggle
+          checked={page.settings.overlayHoverControls}
+          label="锁住时也能悬停"
+          disabled={page.busy}
+          onChange={(next) => void page.setOverlayHoverControls(next)}
         />
       </Row>
     </>

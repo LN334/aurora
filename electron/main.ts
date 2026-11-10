@@ -148,6 +148,14 @@ function notifyVisibility(): void {
 
 const trayHandlers = (): TrayHandlers => ({
   toggleWindow,
+  /*
+   * 「只显示」这一档防的是误触：想点开看一眼，结果一点窗口就没了。
+   * 已经是前台时 showWindow 不会把它藏起来，所以这一档是安全的。
+   */
+  trayClick: () => {
+    if (loadSettings().trayClick === 'show') showWindow()
+    else toggleWindow()
+  },
   isWindowVisible: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()),
   command: sendMediaCommand,
   quit: () => {

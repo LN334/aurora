@@ -7,7 +7,7 @@ import {
   saveSettings,
   storageUsage
 } from '../settings'
-import { setLyricSize } from '../lyrics-overlay'
+import { applyOverlayHoverSetting, setLyricSize } from '../lyrics-overlay'
 import { syncSleepBlocker } from '../power'
 import { applyLoginItem } from '../login-item'
 import type { WindowSource } from './host'
@@ -49,6 +49,24 @@ export function registerSettingsIpc(deps: WindowSource, playing: () => boolean):
     saveSettings({ preventSleepWhilePlaying: next })
     // 立刻生效：正在放歌时关掉它，应该当场允许系统重新计时休眠。
     syncSleepBlocker(playing())
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setOpenAfterDownload', (_event, enabled: unknown) => {
+    saveSettings({ openAfterDownload: Boolean(enabled) })
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setTrayClick', (_event, mode: unknown) => {
+    // 枚举在这里收窄：配置里只该出现这两个字面量，别把渲染层传来的东西原样存下去。
+    saveSettings({ trayClick: mode === 'show' ? 'show' : 'toggle' })
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setOverlayHoverControls', (_event, enabled: unknown) => {
+    saveSettings({ overlayHoverControls: Boolean(enabled) })
+    // 立刻生效：正锁着的时候关掉它，应该当场变成完全穿透，而不是下次开窗才算。
+    applyOverlayHoverSetting()
     return appSettings()
   })
 

@@ -24,6 +24,8 @@ export interface TrayHandlers {
   toggleWindow(): void
   isWindowVisible(): boolean
   command(command: MediaCommand): void
+  /** 单击托盘图标。行为可配，所以由主进程决定，这里只转发。 */
+  trayClick(): void
   quit(): void
   /**
    * Items inserted above Quit. Keeps this module from having to know about
@@ -80,7 +82,7 @@ export function refreshTrayMenu(handlers: TrayHandlers): void {
 export function createTray(handlers: TrayHandlers): Tray {
   tray = new Tray(trayImage())
   tray.setToolTip('Aurora')
-  tray.on('click', () => handlers.toggleWindow())
+  tray.on('click', () => handlers.trayClick())
   refreshTrayMenu(handlers)
 
   nativeTheme.on('updated', () => {
