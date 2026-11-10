@@ -12,6 +12,7 @@
  * dialog stylesheet lives with that platform's code and is imported by its component.
  */
 @import './online.css';
+@import './onboarding.css';
 
 *,
 *::before,

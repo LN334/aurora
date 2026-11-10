@@ -1,6 +1,7 @@
 import { SLOTS } from '../../../features/online/slots'
 import { roamCandidates, setRoamPlatform, useRoamPlatforms } from '../../../features/player/roam-sources'
 import { setPushSignedOnly, usePushSignedOnly } from '../../../features/settings/push-signed'
+import { setOnboarded } from '../../../features/settings/onboarding'
 import { Row, Rows, Sub, Toggle } from '../parts'
 
 /**
@@ -64,6 +65,16 @@ export function RecommendPane() {
           </Rows>
         </Sub>
       )}
+
+      <Sub title="第一次启动的那一遍" hint="引导里挑的也是这一份推流来源，可以再看一遍。">
+        <Rows>
+          <Row label="新手引导" hint="重新显示第一次启动时的设置层。">
+            <button className="btn btn--small" type="button" onClick={() => setOnboarded(false)}>
+              重看一遍
+            </button>
+          </Row>
+        </Rows>
+      </Sub>
     </>
   )
 }

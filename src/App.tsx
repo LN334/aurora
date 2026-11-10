@@ -14,6 +14,8 @@ import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navig
 import { bindUpdateEvents } from './features/updates/store'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
+import { useOnboarded, setOnboarded } from './features/settings/onboarding'
+import { PlatformLoginDialogs } from './views/settings/panes/PlatformSignIn'
 import { usePresence } from './ui/presence'
 import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
@@ -24,6 +26,7 @@ import { startRoam, useRoam } from './features/player/roam-session'
 import { useAvailableProviders } from './features/online/hooks'
 import { PlayerBar } from './views/player-bar/PlayerBar'
 import { PlaylistDetailPage } from './views/PlaylistDetailPage'
+import { Onboarding } from './views/Onboarding'
 import { QueuePanel } from './views/QueuePanel'
 import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
@@ -165,6 +168,7 @@ export function App() {  if (!isNative) {
    * 打开时不需要延迟——stageOpen 立刻为真，mounted 同帧就真。
    */
   const stage = usePresence(stageOpen, 320)
+  const onboarded = useOnboarded()
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   // 顶栏那个框自己的结果浮层。搜索不再是「跳去一个页面」。
@@ -1183,6 +1187,14 @@ export function App() {  if (!isNative) {
 
       {/* 下载浮条：右下角一枚小胶囊，展开是任务列表。 */}
       <DownloadsDock />
+
+      {/*
+        登录对话框挂在这里而不是账号页：第一次启动的设置层也要能直接登录，
+        只在账号页里渲染时，设置层点了「登录」什么都不会发生。
+      */}
+      <PlatformLoginDialogs />
+
+      {onboarded ? null : <Onboarding onDone={() => setOnboarded(true)} />}
 
       {/*
         Actions menu. Held by the app rather than by a row, because only one can

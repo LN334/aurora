@@ -12,7 +12,7 @@ import type { OnlineMusicProvider } from '../features/online/types'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
 import { Check, Folder, Pencil, Plus, Trash } from '../ui/icons'
-import { PlatformLoginDialogs, openPlatformLogin } from './settings/panes/PlatformSignIn'
+import { openPlatformLogin } from './settings/panes/PlatformSignIn'
 
 /**
  * 账号页。
@@ -27,7 +27,6 @@ export function AccountPage(_props: { onNavigate(route: Route): void }) {
       <ProfilePart />
       <PlatformPart />
       <FolderPart />
-      <PlatformLoginDialogs />
     </div>
   )
 }
