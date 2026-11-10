@@ -34,6 +34,10 @@ import { usePlayer } from './store'
   isTrackReady(track: Track): boolean
   /** Analyser magnitudes, or null when there is no signal. */
   getSpectrum(): Uint8Array | null
+  /** Time-domain samples for a real peak/RMS meter. */
+  getWaveform(): Uint8Array | null
+  /** Output context facts, or null before the graph is built. */
+  getAudioInfo(): { sampleRate: number; baseLatency: number; state: string } | null
 }
 
 /** Real playback. */
@@ -45,7 +49,9 @@ const webAudioDriver: AudioDriver = {
   setVolume: () => engine.setVolume(),
   setEq: () => engine.setEq(),
   isTrackReady: (track) => engine.isTrackReady(track),
-  getSpectrum: () => engine.getSpectrum()
+  getSpectrum: () => engine.getSpectrum(),
+  getWaveform: () => engine.getWaveform(),
+  getAudioInfo: () => engine.getAudioInfo()
 }
 
 /**
@@ -75,6 +81,8 @@ function createSyntheticDriver(): AudioDriver {
   const bands = 256
   const spectrum = new Uint8Array(bands)
   const phases = Float32Array.from({ length: bands }, (_, i) => (i * 0.7) % (Math.PI * 2))
+  const wave = new Uint8Array(1024)
+  let wavePhase = 0
 
   /** Advances the synthetic clock by the real elapsed time. */
   const advance = () => {
@@ -194,6 +202,25 @@ function createSyntheticDriver(): AudioDriver {
     getSpectrum() {
       sample()
       return spectrum
+    },
+    getWaveform() {
+      sample()
+      /*
+       * 预览里没有真的声卡，但面板得看得出在动：拿频谱的平均能量当幅度，
+       * 拼一段走相位的正弦当作波形。数字不对，形状对。
+       */
+      let sum = 0
+      for (const value of spectrum) sum += value
+      const level = Math.min(1, sum / spectrum.length / 150)
+      for (let i = 0; i < wave.length; i += 1) {
+        const phase = (i / wave.length) * Math.PI * 7 + wavePhase
+        wave[i] = 128 + Math.round(118 * level * Math.sin(phase))
+      }
+      wavePhase += 0.32
+      return wave
+    },
+    getAudioInfo() {
+      return { sampleRate: 48000, baseLatency: 0.01, state: 'synthetic' }
     }
   }
 }

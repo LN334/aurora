@@ -109,6 +109,7 @@ class AudioEngine {
   private fade: GainNode | null = null
   // Inferred as Uint8Array<ArrayBuffer>, which is what the analyser API wants.
   private spectrum = new Uint8Array(0)
+  private waveform = new Uint8Array(0)
   private raf = 0
   /** Set while the playhead is being published from a timer instead of rAF. */
   private hiddenTimer = 0
@@ -225,6 +226,8 @@ class AudioEngine {
     this.fade = fade
     this.bands = bands
     this.spectrum = new Uint8Array(analyser.frequencyBinCount)
+    // 时域长度是 fftSize，不是 frequencyBinCount——这两者差一倍，指错了就是半个波形。
+    this.waveform = new Uint8Array(analyser.fftSize)
 
     this.applyEq()
     this.applyVolume()
@@ -442,6 +445,26 @@ class AudioEngine {
     if (!analyser || this.spectrum.length === 0) return null
     analyser.getByteFrequencyData(this.spectrum)
     return this.spectrum
+  }
+
+  /**
+   * 时域采样，给峰值 / RMS 表用。
+   *
+   * 频域那一路已经做过平滑（smoothingTimeConstant 0.8），拿它算「这一下有多响」
+   * 会永远慢半拍，也看不出削波。真电平得看波形。
+   */
+  getWaveform(): Uint8Array | null {
+    const analyser = this.analyser
+    if (!analyser || this.waveform.length === 0) return null
+    analyser.getByteTimeDomainData(this.waveform)
+    return this.waveform
+  }
+
+  /** 输出上下文的采样率与延迟；还没建图时返回 null。 */
+  getAudioInfo(): { sampleRate: number; baseLatency: number; state: string } | null {
+    const ctx = this.ctx
+    if (!ctx) return null
+    return { sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency, state: ctx.state }
   }
 
   /**

@@ -47,7 +47,7 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         </div>
       </div>
 
-      <Row label="均衡器" hint="10 段推子在播放界面按 E 打开。">
+      <Row label="均衡器" hint="10 段推子、实时频谱与峰值电平均在播放界面按 E 打开的抽屉里。">
         <Toggle
           checked={eqEnabled}
           label="均衡器"

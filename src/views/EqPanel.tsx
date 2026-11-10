@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react'
+import { AudioDebug } from '../features/player/AudioDebug'
 import { EQ_BANDS } from '../features/player/store'
 import { Close, Wave } from '../ui/icons'
 import { usePresence } from '../ui/presence'
@@ -173,6 +174,8 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
           />
         ))}
       </div>
+
+      <AudioDebug />
 
       <footer className="panel__foot">
         <button className="rh-btn" onClick={() => onPreset(EQ_BANDS.map(() => 0))} disabled={isFlat}>

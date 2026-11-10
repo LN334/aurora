@@ -538,3 +538,67 @@
     rgb(255 255 255 / 0.022);
 }
 
+
+/* --- 均衡器抽屉里的实时电平（AudioDebug.tsx） --------------------------- */
+
+/*
+ * 挂在推子下面：调的时候能立刻看见提了低频是不是开始削波。
+ * 高度压到 86px —— 前面推子已经占了 318px，这里再高抽屉就要滚。
+ */
+.adebug {
+  flex: none;
+  margin: 10px var(--s4) 0;
+  padding: var(--s3) var(--s3) var(--s4);
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+.adebug__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: 8px;
+}
+
+.adebug__title {
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+.adebug__hint {
+  font-size: 10.5px;
+  color: var(--text-low);
+}
+
+.adebug__scope {
+  display: block;
+  width: 100%;
+  height: 86px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.24);
+}
+
+.adebug__meters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s4);
+  margin-top: 8px;
+}
+
+.adebug__meter {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: var(--fs-micro);
+}
+
+.adebug__k {
+  color: var(--text-low);
+}
+
+.adebug__v {
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
