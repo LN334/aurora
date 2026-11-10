@@ -410,6 +410,14 @@
   color: var(--text-hi);
 }
 
+.rh-sec__note {
+  margin-left: 8px;
+  font-size: var(--fs-micro);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-low);
+}
+
 .rh-more {
   display: inline-flex;
   align-items: center;
@@ -428,6 +436,24 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--s4);
+}
+
+/*
+ * 推荐专辑：两行四列。
+ *
+ * 上一版是六列小卡（.rh-mini），一张不到 170px：封面看不出是什么，标题只有一行
+ * 小字，整排像一条附录。推荐位里它和歌单是同级，卡也该是同级——四列之后封面
+ * 到 260px 上下，能读出专辑名与艺人。窗口窄下来退三列，不硬挤。
+ */
+.rh-alb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s5) var(--s4);
+}
+@media (max-width: 1180px) {
+  .rh-alb-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .rh-card {
@@ -488,19 +514,19 @@
  * ------------------------------------------------------------------------- */
 
 .rh-card.is-sk,
-.rh-mini.is-sk,
+.rh-alb.is-sk,
 .trk.is-sk,
 .rh-now.is-sk {
   pointer-events: none;
 }
 .rh-card.is-sk .rh-card__art,
-.rh-mini.is-sk .rh-mini__art {
+.rh-alb.is-sk .rh-alb__art {
   box-shadow: none;
 }
 .rh-card.is-sk .rh-card__title,
 .rh-card.is-sk .rh-card__sub,
-.rh-mini.is-sk .rh-mini__title,
-.rh-mini.is-sk .rh-mini__sub,
+.rh-alb.is-sk .rh-alb__title,
+.rh-alb.is-sk .rh-alb__sub,
 .trk.is-sk .trk__title-text,
 .trk.is-sk .trk__sub,
 .rh-now.is-sk .rh-now__kicker,
@@ -513,7 +539,7 @@
   background-size: 70% 10px;
 }
 .rh-card.is-sk .rh-card__sub,
-.rh-mini.is-sk .rh-mini__sub,
+.rh-alb.is-sk .rh-alb__sub,
 .trk.is-sk .trk__sub,
 .rh-now.is-sk .rh-now__sub {
   background-size: 42% 9px;
@@ -768,7 +794,7 @@
   }
 }
 
-.rh-mini {
+.rh-alb {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -778,30 +804,31 @@
   text-align: left;
 }
 
-.rh-mini__art {
+.rh-alb__art {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 0.06);
   background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
   color: var(--text-mid);
-  box-shadow: 0 8px 18px rgb(0 0 0 / 0.3);
-  transition: transform 200ms var(--ease-out);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.32);
+  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
-.rh-mini__art img {
+.rh-alb__art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.rh-mini:hover .rh-mini__art {
-  transform: translateY(-2px);
+.rh-alb:hover .rh-alb__art {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px rgb(0 0 0 / 0.42);
 }
 
-.rh-mini__title {
-  margin-top: 8px;
-  font-size: var(--fs-meta);
+.rh-alb__title {
+  margin-top: var(--s3);
+  font-size: var(--fs-body);
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
@@ -2122,13 +2149,8 @@
  * 卡片封面上的平台标：主页与歌单页共用，位置靠 relative 撑起来。
  */
 .rh-card__art,
-.rh-mini__art {
+.rh-alb__art {
   position: relative;
-}
-
-.rh-mini .pl-card__src {
-  font-size: 10px;
-  padding: 1px 6px;
 }
 
 /*
@@ -2178,8 +2200,8 @@
   z-index: 2;
 }
 
-/* 推荐专辑卡：封面下一行歌名，再一行作者。 */
-.rh-mini__sub {
+/* 推荐专辑卡：封面下一行歌名，再一行作者与年份。 */
+.rh-alb__sub {
   display: block;
   margin-top: 2px;
   color: var(--text-low);
@@ -2187,6 +2209,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.rh-alb__meta {
+  opacity: 0.7;
 }
 
 /* 本机音乐的文件夹页：上面一行是监听中的目录，下面是文件树 */

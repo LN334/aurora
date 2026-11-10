@@ -312,9 +312,12 @@ export function registerNeteaseIpc(): void {
     guard<NeteaseFollowedArtist[]>('artistSublist', [], () => client.neteaseArtistSublist())
   )
 
-  ipcMain.handle('netease:topAlbums', (_event, limit: unknown) =>
+  ipcMain.handle('netease:topAlbums', (_event, limit: unknown, offset: unknown) =>
     guard<NeteaseCollectedAlbum[]>('topAlbums', [], () =>
-      client.neteaseTopAlbums(typeof limit === 'number' && Number.isFinite(limit) ? limit : 24)
+      client.neteaseTopAlbums(
+        typeof limit === 'number' && Number.isFinite(limit) ? limit : 24,
+        typeof offset === 'number' && Number.isFinite(offset) ? offset : 0
+      )
     )
   )
 

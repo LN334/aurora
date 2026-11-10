@@ -26,7 +26,7 @@ import { mergeVersions } from '../features/online/unify'
 import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
-import { SkeletonCards, SkeletonMinis, SkeletonRows } from '../ui/Skeleton'
+import { SkeletonAlbums, SkeletonCards, SkeletonRows } from '../ui/Skeleton'
 import { formatSpan } from '../ui/format'
 import { TrackList } from '../ui/TrackList'
 import { ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
@@ -177,7 +177,27 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 全是酷狗」。数量按平台限定之后，「换一批」只在各家内部换。
    */
   const { picks } = useMemo(() => picksByProvider(recommended, batch, SLOTS.playlist), [recommended, batch])
-  const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album)
+  /** 推荐专辑：跟歌单一样有「换一批」，换的是平台那边的下一屏，不是本页重排。 */
+  const [albumBatch, setAlbumBatch] = useState(0)
+  const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album, albumBatch)
+  /**
+   * 这一批专辑到底来自哪几家。
+   *
+   * 头部那行小字就报它：三家都在就别让用户以为只有网易云——之前那排先画网易云、
+   * 后补另外两家，看起来正是「来源单一」。
+   */
+  const albumSources = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const row of albumPicks) {
+      for (const on of row.platforms) {
+        if (seen.has(on.providerId)) continue
+        seen.add(on.providerId)
+        out.push(on.providerLabel.replace(/\s*音乐$/, ''))
+      }
+    }
+    return out
+  }, [albumPicks])
 
   /*
    * 两排一起等，一起画。
@@ -276,9 +296,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    *
    * 网易云那份来自发现页的缓存，QQ 与酷狗从各自的新歌榜现取（都不需要登录）；
    * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
-   * 取前六行：再多就要往下滚，首屏的重点是歌单。
+   * 一次要三十首/家：池子得够两屏十二行，「换一批」才有地方可换。
    */
-  const platformFresh = usePlatformNewSongs(20, freshTick)
+  const platformFresh = usePlatformNewSongs(30, freshTick)
 
   /**
    * 按源轮转的全序。
@@ -299,7 +319,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     }
 
     const out: Track[] = []
-    for (let at = 0; at < 24; at += 1) {
+    for (let at = 0; at < 60; at += 1) {
       let added = false
       for (const bucket of buckets.values()) {
         const next = bucket[at]
@@ -314,13 +334,13 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [newBlock.songs, platformFresh, order])
 
   /**
-   * 一屏六行，换一批往后挪六格，到底回到开头。
+   * 一屏十二行，换一批往后挪十二格，到底回到开头。
    *
    * 只挪切片不重取的话，平台第二次给的还是同一份榜单，用户会看到同一批歌；
    * 所以按钮同时把 freshTick 加一，让 QQ 与酷狗那边也重新问一次。
    */
   const freshTracks = useMemo(() => {
-    const size = ROW
+    const size = SLOTS.fresh
     if (freshOrder.length <= size) return freshOrder
     const start = (freshBatch * size) % freshOrder.length
     const out = freshOrder.slice(start, start + size)
@@ -577,45 +597,55 @@ export function HomePage({ onNavigate }: HomeViewProps) {
       {!cardsReady || albumPicks.length > 0 ? (
         <section className="rh-sec">
           <header className="rh-sec__head">
-            <h3>推荐专辑</h3>
+            <h3>
+              推荐专辑
+              {albumSources.length > 0 ? (
+                <span className="rh-sec__note">{albumSources.join(' · ')}</span>
+              ) : null}
+            </h3>
+            <button className="rh-more" type="button" onClick={() => setAlbumBatch((n) => n + 1)}>
+              换一批
+            </button>
           </header>
-          <div className="rh-row">
-            {/*
-             * 跟歌单同一道闸：没到齐只画占位，到齐整排一次换过来。
-             */}
+          {/*
+           * 跟歌单同一道闸：没到齐只画占位，到齐整排一次换过来。
+           * 这排尤其要等齐——网易云的新碟榜最快，先画就是「一整排网易云」。
+           */}
+          <div className="rh-alb-grid">
             {cardsReady ? (
               <>
                 {albumPicks.map((row, at) => (
-              <button
-                className="rh-mini"
-                type="button"
-                key={row.key}
-                onClick={() => openOnlineAlbum(row.providerId, row.id)}
-              >
-                <span className="rh-mini__art" style={tintOf(row.key)}>
-                  <Artwork
-                    src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 240), 240) : null}
-                    alt=""
-                    fallback={<Note size={18} />}
-                    priority={at < 5}
-                  />
-                  <span className="rh-card__srcs">
-                    {row.platforms.map((on) => (
-                      <span key={on.providerId} className={'pl-card__src src-dot--' + on.providerId}>
-                        {on.providerLabel}
+                  <button
+                    className="rh-alb"
+                    type="button"
+                    key={row.key}
+                    onClick={() => openOnlineAlbum(row.providerId, row.id)}
+                  >
+                    <span className="rh-alb__art" style={tintOf(row.key)}>
+                      <Artwork
+                        src={row.coverUrl ? remoteImageUrl(sizedImage(row.coverUrl, 420), 420) : null}
+                        alt=""
+                        fallback={<Note size={22} />}
+                        priority={at < 4}
+                      />
+                      <span className="rh-card__srcs">
+                        {row.platforms.map((on) => (
+                          <span key={on.providerId} className={'pl-card__src src-dot--' + on.providerId}>
+                            {on.providerLabel}
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                </span>
-                <span className="rh-mini__title">{row.name}</span>
-                <span className="rh-mini__sub">
-                  <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
-                </span>
+                    </span>
+                    <span className="rh-alb__title">{row.name}</span>
+                    <span className="rh-alb__sub">
+                      <ArtistById providerId={row.providerId} id={row.artistId} name={row.artistName} />
+                      {row.year ? <span className="rh-alb__meta"> · {row.year}</span> : null}
+                    </span>
                   </button>
                 ))}
               </>
             ) : (
-              <SkeletonMinis count={SLOTS.album} />
+              <SkeletonAlbums count={SLOTS.album} />
             )}
           </div>
         </section>
@@ -646,7 +676,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
               onPlayAt={(at) => player.playQueue(freshTracks, at)}
             />
           ) : (
-            <SkeletonRows count={6} />
+            <SkeletonRows count={SLOTS.fresh} />
           )}
         </section>
       ) : null}

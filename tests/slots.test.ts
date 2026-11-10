@@ -44,10 +44,12 @@ test('空池子与零槽位都返回空数组', () => {
 
 test('槽位表是产品规格，不随开关变化', () => {
   // 改这几个数等于改首页的排数，测试盯住它们别再被「每家出几张」的写法带跑。
+  // 2026-11：推荐专辑从六列小卡（18 张）改成四列大卡（两行 8 张），新歌从
+  // 六行加到十二行——两处都是产品规格，改了就要一起改这里。
   assert.equal(SLOTS.daily, 30)
   assert.equal(SLOTS.playlist, 24)
-  assert.equal(SLOTS.album, 18)
-  assert.equal(SLOTS.fresh, 6)
+  assert.equal(SLOTS.album, 8)
+  assert.equal(SLOTS.fresh, 12)
   assert.equal(SLOTS.roam, 20)
 })
 

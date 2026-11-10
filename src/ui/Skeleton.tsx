@@ -37,15 +37,15 @@ export function SkeletonCards({ count }: { count: number }) {
   )
 }
 
-/** 横向带子上的小卡（推荐专辑）。 */
-export function SkeletonMinis({ count }: { count: number }) {
+/** 推荐专辑那排的大卡：两行四列，占位和真卡同尺寸。 */
+export function SkeletonAlbums({ count }: { count: number }) {
   return (
     <>
       {Array.from({ length: count }, (_, at) => (
-        <div className="rh-mini is-sk" key={'sk-mini-' + at} aria-hidden="true">
-          <span className="rh-mini__art" style={tint('sk-mini-' + at)} />
-          <span className="rh-mini__title">{NBSP}</span>
-          <span className="rh-mini__sub">{NBSP}</span>
+        <div className="rh-alb is-sk" key={'sk-alb-' + at} aria-hidden="true">
+          <span className="rh-alb__art" style={tint('sk-alb-' + at)} />
+          <span className="rh-alb__title">{NBSP}</span>
+          <span className="rh-alb__sub">{NBSP}</span>
         </div>
       ))}
     </>

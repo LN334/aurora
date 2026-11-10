@@ -11,13 +11,18 @@ import { useRoamPlatforms } from '../player/roam-sources'
  */
 import { mergeAlbumCards, type AlbumCard } from './album-merge'
 
-/** 一家能贡献什么：各自去重、各自失败当空，最后统一交错。 */
-type AlbumSource = (limit: number) => Promise<AlbumCard[]>
+/**
+ * 一家能贡献什么：各自去重、各自失败当空，最后统一交错。
+ *
+ * 只有网易云的新碟榜能翻页；QQ 与酷狗是从新歌榜里抽专辑，榜单接口没有 offset，
+ * 所以 offset 是可选的——它们多要一些，靠池子轮转来换批。
+ */
+type AlbumSource = (limit: number, offset?: number) => Promise<AlbumCard[]>
 
-const neteaseAlbums: AlbumSource = async (limit) => {
+const neteaseAlbums: AlbumSource = async (limit, offset) => {
   const api = window.aurora?.netease
   if (!api?.topAlbums) return []
-  const list = await api.topAlbums(limit)
+  const list = await api.topAlbums(limit, offset)
   return (list ?? [])
     .filter((row) => row.id > 0 && row.name)
     .map((row) => ({
@@ -121,6 +126,20 @@ function interleave(groups: AlbumCard[][], limit: number): AlbumCard[] {
   return rows
 }
 
+/**
+ * 从池子里取一屏。
+ *
+ * 到尾巴就绕回开头，不拿空位收场——换一批走到池子末端时，用户该看到下一批，
+ * 而不是一块短了一截的网格。
+ */
+function takeWindow<T>(rows: T[], start: number, size: number): T[] {
+  if (rows.length <= size) return rows
+  const at = start % rows.length
+  const out = rows.slice(at, at + size)
+  if (out.length < size) out.push(...rows.slice(0, size - out.length))
+  return out
+}
+
 /** 这一排要的东西，连同「可以画了没有」。 */
 interface RecommendedAlbums {
   rows: AlbumCard[]
@@ -128,11 +147,13 @@ interface RecommendedAlbums {
   ready: boolean
 }
 
-export function useRecommendedAlbums(limit = 18): RecommendedAlbums {
+export function useRecommendedAlbums(limit = 8, tick = 0): RecommendedAlbums {
   const [rows, setRows] = useState<AlbumCard[]>([])
   /*
    * 三家并发取，一个 Promise.all 落地，本来就只 set 一次。这里补一个 ready
    * 是为了跟推荐歌单对齐：两排要等齐了同一次画出来，不能一排先出现。
+   * 这一点在专辑这排尤其要紧：网易云的新碟榜最先回来，先画就是「一整排网易云」，
+   * 过一秒另外两家才补进来——看起来就是「来源单一」，其实是画早了。
    */
   const [ready, setReady] = useState(false)
   /*
@@ -150,17 +171,22 @@ export function useRecommendedAlbums(limit = 18): RecommendedAlbums {
     void (async () => {
       try {
         /*
-         * 每家多要一倍：合并会把同一张专辑的两三条并成一条，按 18 要就凑不满
-         * 三行六列。多要的这一倍正好填合并掉的坑。
+         * 一次取三屏。合并会把同一张专辑的两三条并成一条，所以每家按三倍要。
+         *
+         * 换一批：网易云那边真往后翻页（它有 offset），QQ 与酷狗的新歌榜没有
+         * 翻页参数，只能重问一遍——所以池子在这里轮转，让每次停下的一屏都不是
+         * 上一屏。三批走完绕回开头，同时重新问一次，榜单换了的自然就冒出来。
          */
-        const want = limit * 2
+        const want = limit * 3
+        const offset = (tick % 3) * want
         // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
         const groups = await Promise.all([
-          chosen.includes('netease') ? neteaseAlbums(want).catch(() => []) : Promise.resolve([]),
+          chosen.includes('netease') ? neteaseAlbums(want, offset).catch(() => []) : Promise.resolve([]),
           chosen.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
           chosen.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
         ])
-        if (alive) setRows(mergeAlbumCards(interleave(groups, want)).slice(0, limit))
+        const pool = mergeAlbumCards(interleave(groups, want * 3))
+        if (alive) setRows(takeWindow(pool, tick * limit, limit))
       } finally {
         if (alive) setReady(true)
       }
@@ -169,7 +195,7 @@ export function useRecommendedAlbums(limit = 18): RecommendedAlbums {
       alive = false
     }
     // chosen 是每份快照都会新建的数组，用 join 后的字符串当依赖。
-  }, [limit, chosenKey])
+  }, [limit, tick, chosenKey])
 
   return { rows, ready }
 }
