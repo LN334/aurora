@@ -41,7 +41,7 @@ import type {
 
 const MAX_KEYWORDS = 100
 const MAX_IDS = 1000
-const MAX_DISCOVER_LIMIT = 30
+const MAX_DISCOVER_LIMIT = 60
 const SEARCH_TYPES = ['song', 'album', 'artist'] as const
 type SearchType = (typeof SEARCH_TYPES)[number]
 const DISCOVER_KINDS = ['newsongs', 'playlists', 'quality'] as const

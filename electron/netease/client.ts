@@ -1053,10 +1053,11 @@ export async function neteasePersonalFm(limit = 3): Promise<NeteaseSong[]> {
  * layer fails before it reaches upstream.
  *
  * 24 是一条卡片墙够用的量：12 条在宽窗口里只铺满一行半，剩下半行是空白，
- * 看起来像没加载完。上限仍是 30（上游一页就这么多），挡住旧渲染层要更大的页。
+ * 看起来像没加载完。上限放到 60：首页「最近新歌」要凑满四十条，早先卡在 30，
+ * 页面只能显示二十四首。这个上限也挡住旧渲染层要更大的页。
  */
 const DISCOVER_DEFAULT_LIMIT = 24
-const DISCOVER_MAX_LIMIT = 30
+const DISCOVER_MAX_LIMIT = 60
 
 /**
  * A row from either route, keyed by the list's own name.

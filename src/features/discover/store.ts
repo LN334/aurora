@@ -32,10 +32,10 @@ const TTL_MS = 10 * 60 * 1000
 /**
  * 一次取多少条。
  *
- * 和主进程的默认页一致：偏移量按这个步长前进，「换一批」才不会和上一批
- * 重叠。24 条在宽窗口里正好铺满三行四列。
+ * 偏移量按这个步长前进，「换一批」才不会和上一批重叠。四十条是首页
+ * 「最近新歌」一屏的量（旧的推荐页路由已经并进首页，另外两栏只剩接口）。
  */
-const DISCOVER_PAGE = 24
+const DISCOVER_PAGE = 40
 
 function blankBlock(): DiscoverBlock {
   return { status: 'idle', songs: [], playlists: [], error: '', at: 0 }
