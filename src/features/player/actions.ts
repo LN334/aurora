@@ -3,6 +3,7 @@ import { engineHooks } from './engine'
 import { driver } from './driver'
 import { step } from './queue'
 import { usePlayer } from './store'
+import { showFlash } from '../../ui/flash'
 
 /**
  * User intents. Components call these; they mutate the store and drive the
@@ -16,11 +17,26 @@ function loadCurrent(autoplay: boolean): void {
   void driver.load(track, autoplay)
 }
 
+/**
+ * 连着几首没源就停。
+ *
+ * 漫游池里混着会员曲（QQ 回 vip-required），一首坏就跳是对的；整池都坏时一路跳
+ * 到底会让界面像失控。原先定三首，实测点一次漫游就能连撞三首（快池开局可能整批
+ * 来自同一家），用户听到的只剩一个劲儿切歌。放宽到六首：依然分得清「偶发」和
+ * 「这一趟放不了」，但足够穿过开头那一段坏曲。
+ */
+const MAX_SKIP_CHAIN = 6
+
+/** 已经为「没源」自动跳过几首。播到有源的歌、或用户自己点歌，就归零。 */
+let skipChain = 0
+
 /** Standard transport behaviour: back within 3s restarts rather than rewinds. */
 const PREV_RESTART_WINDOW = 3
 
 export const player = {
   playQueue(tracks: Track[], startAt = 0): void {
+    // 用户自己点的一趟：跳过链从零开始数。
+    skipChain = 0
     usePlayer.getState().setQueue(tracks, startAt)
     loadCurrent(true)
   },
@@ -55,6 +71,8 @@ export const player = {
   },
 
   next(fromEnd = false): void {
+    // 用户自己按的下一首不算「自动跳过」，计数归零。
+    if (!fromEnd) skipChain = 0
     const state = usePlayer.getState()
     const target = step(state.order, state.index, 1, state.repeat)
 
@@ -77,7 +95,31 @@ export const player = {
     loadCurrent(true)
   },
 
+  /**
+   * 这一首取不到任何音源：跳下一首。
+   *
+   * 引擎在 pickPlayable 全败时只报告「没有源」，跳不跳由这里决定——队列、
+   * 重复模式、连跳了几首，都只有这一侧知道。
+   */
+  skipUnplayable(track: Track): void {
+    const mine = usePlayer.getState().current()
+    /*
+     * 同一首会被两路取流各报一次（引擎的 load 与地址迟到后的补流），只有它
+     * 还是当前曲时才算新的一次；否则一首坏歌就能把三首的额度吃光。
+     */
+    if (mine?.id !== track.id) return
+
+    if (skipChain + 1 >= MAX_SKIP_CHAIN) {
+      skipChain = 0
+      showFlash(`连着 ${MAX_SKIP_CHAIN} 首都取不到音源，先停在这里`)
+      return
+    }
+    skipChain += 1
+    player.next(true)
+  },
+
   prev(): void {
+    skipChain = 0
     const state = usePlayer.getState()
     if (state.position > PREV_RESTART_WINDOW) {
       driver.seek(0)
@@ -110,6 +152,7 @@ export const player = {
   },
 
   jumpTo(orderPosition: number): void {
+    skipChain = 0
     const state = usePlayer.getState()
     if (orderPosition < 0 || orderPosition >= state.order.length) return
     state.jumpTo(state.order[orderPosition])
@@ -170,6 +213,11 @@ export const player = {
 
 engineHooks.next = (fromEnd) => player.next(fromEnd)
 engineHooks.prev = () => player.prev()
+// 引擎报「没源」时由播放器决定跳到哪；报「装上了」时把跳过链归零。
+engineHooks.unplayable = (track) => player.skipUnplayable(track)
+engineHooks.playable = () => {
+  skipChain = 0
+}
 
 /**
  * The queue index is the single trigger for loading a track: wherever the index

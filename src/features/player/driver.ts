@@ -25,6 +25,13 @@ import { usePlayer } from './store'
   seek(seconds: number): void
   setVolume(): void
   setEq(): void
+  /**
+   * 这一首装上没有（正在装也算）。
+   *
+   * 在线地址是异步补上的，补上的那一刻要决定「重新指一遍」还是「已经在装了，
+   * 别再打断」。这个判断属于引擎，不该让调用方去猜元素状态。
+   */
+  isTrackReady(track: Track): boolean
   /** Analyser magnitudes, or null when there is no signal. */
   getSpectrum(): Uint8Array | null
 }
@@ -37,6 +44,7 @@ const webAudioDriver: AudioDriver = {
   seek: (seconds) => engine.seek(seconds),
   setVolume: () => engine.setVolume(),
   setEq: () => engine.setEq(),
+  isTrackReady: (track) => engine.isTrackReady(track),
   getSpectrum: () => engine.getSpectrum()
 }
 
@@ -58,6 +66,7 @@ function createSyntheticDriver(): AudioDriver {
   let position = 0
   let duration = 0
   let playing = false
+  let loadedId = ''
   let frame = 0
   let hiddenTimer = 0
   let unbindVisibility: (() => void) | null = null
@@ -150,6 +159,7 @@ function createSyntheticDriver(): AudioDriver {
 
   return {
     async load(track, autoplay) {
+      loadedId = track.id
       position = Math.min(START_AT, Math.max(0, track.duration - 30))
       duration = track.duration
       store.getState().setDuration(track.duration)
@@ -178,6 +188,9 @@ function createSyntheticDriver(): AudioDriver {
     },
     setVolume() {},
     setEq() {},
+    isTrackReady(track) {
+      return loadedId === track.id
+    },
     getSpectrum() {
       sample()
       return spectrum

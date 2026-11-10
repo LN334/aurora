@@ -28,10 +28,15 @@ const PREFETCH_AHEAD = 3
  * was reached through the first time, so the track is re-pointed with the URL
  * now cached; seeking to zero keeps the playhead off the previous track's
  * position, since the element never got far enough to have one of its own.
+ *
+ * 但「迟到」有两种：上一次真的没装上（该重来），和上一次正在装（地址就是从
+ * 那次 load 里问出来的）。后者若再指一遍 src，正在等的那次 play() 会被新
+ * 的 load 打断（AbortError），进度条从此停在 0:00。所以先问引擎装没装上。
  */
 function reloadCurrent(): void {
   const track = usePlayer.getState().current()
   if (!track) return
+  if (driver.isTrackReady(track)) return
   driver.seek(0)
   void driver.load(track, true)
 }

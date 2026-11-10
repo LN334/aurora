@@ -80,7 +80,16 @@ export function onWindowVisibility(listener: (visible: boolean) => void): () => 
  */
 export const engineHooks = {
   next: (fromEnd: boolean): void => void fromEnd,
-  prev: (): void => {}
+  prev: (): void => {},
+  /**
+   * 这一首取不到任何音源（会员曲、下架、取流全失败）。
+   *
+   * 引擎只如实报告，跳不跳由播放器决定——队列与「连跳几首了」都在 actions
+   * 那一侧，引擎不知道。没有这一步时队列会钉死在 0:00。
+   */
+  unplayable: (track: Track): void => void track,
+  /** 这一首有源、装上了：连续跳过链可以归零。 */
+  playable: (track: Track): void => void track
 }
 
 class AudioEngine {
@@ -107,6 +116,15 @@ class AudioEngine {
   private tickerActive = false
   private unbindVisibility: (() => void) | null = null
   private loadedPath: string | null = null
+  /**
+   * 正在取流/装配的那一首。
+   *
+   * 在线曲目的地址是异步来的：取流成功时 store 会回调「补上了，接着放」，
+   * 而外层的 load 其实还没返回。若那个回调不管不顾再 load 一次，同一个
+   * audio 元素就被指了两次 src，第一次 play() 作废（AbortError），表现是
+   * 进度条停在 0:00 不动。这个字段让回调知道「已经有人在装这一首了」。
+   */
+  private loadingTrack: Track | null = null
   /** Invalidates in-flight fades when the user interrupts one. */
   private fadeToken = 0
 
@@ -261,6 +279,7 @@ class AudioEngine {
 
     if (ctx.state === 'suspended') await ctx.resume()
 
+    this.loadingTrack = track
     const store = usePlayer.getState()
     store.setLoading(true)
     // Show the tag duration immediately; the real one lands on loadedmetadata.
@@ -279,7 +298,21 @@ class AudioEngine {
       const picked = await pickPlayable(track)
       if (!picked) {
         console.error('[aurora] this track has no playable source', track.id)
+        /*
+         * 清掉 loadedPath：这一首没有真正装上。地址迟到之后 store 会回调
+         * reloadCurrent，它靠「装没装上」判断该不该重来——留着上一次的值
+         * 会让重试被当成「已经装好了」，于是永远不出声。
+         */
+        this.loadingTrack = null
+        this.loadedPath = null
         store.setLoading(false)
+        /*
+         * 上一首要停。这一首没装上，元素里还挂着上一首的 src；不停就是
+         * 「标题换成这首、响的还是上一首」，比 0:00 更难懂。
+         */
+        this.pause()
+        // 跳哪去由播放器决定，引擎不替它做决定。
+        engineHooks.unplayable(track)
         return
       }
       const url = picked.url
@@ -299,6 +332,9 @@ class AudioEngine {
       this.loadedPath = track.path
     }
 
+    // 有源、装上了：连续跳过链到此为止。
+    engineHooks.playable(track)
+
     this.applyReplayGain(track)
     this.applyEq()
     this.applyVolume()
@@ -310,6 +346,18 @@ class AudioEngine {
 
     if (autoplay) await this.play()
     else store.setLoading(false)
+    this.loadingTrack = null
+  }
+
+  /**
+   * 这一首是不是已经指上了：正在装，或者已经装好。
+   *
+   * 给「地址迟到」的回填用。为 false 才说明上一次真的没装上，值得再 load
+   * 一次；为 true 时再 load 只会把正在进行的 play() 打断。
+   */
+  isTrackReady(track: Track): boolean {
+    if (this.loadingTrack?.id === track.id) return true
+    return this.loadedPath !== null && this.loadedPath === track.path
   }
 
   async play(): Promise<void> {
@@ -323,6 +371,13 @@ class AudioEngine {
     try {
       await el.play()
     } catch (error) {
+      /*
+       * AbortError 只有一个来源：元素在被指到新的 src，这一次 play() 作废。
+       * 接管它的是另一次 load，那一次会自己调 play，所以这里既不该记成
+       * 「播放被阻止」，也不该把按钮按死——否则界面显示暂停、声音其实在放，
+       * 或者反过来：一首都放不出来。
+       */
+      if ((error as { name?: string } | null)?.name === 'AbortError') return
       console.error('[aurora] playback was blocked', error)
       usePlayer.getState().setPlaying(false)
       return
