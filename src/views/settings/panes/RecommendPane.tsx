@@ -23,6 +23,8 @@ const SHELVES: { name: string; hint: string; count: number }[] = [
 export function RecommendPane() {
   const chosen = useRoamPlatforms()
   const candidates = roamCandidates()
+  /* 全关就等于把推荐整块关掉，首页会只剩空壳。留最后一家，它那一档开关是灰的。 */
+  const lastOne = chosen.length <= 1
 
   return (
     <>
@@ -39,12 +41,13 @@ export function RecommendPane() {
       {candidates.length === 0 ? (
         <p className="settings__hint">还没有能推荐曲目的平台。去「我」登录一个，这里就会出现。</p>
       ) : (
-        <Sub title="从哪几家要" hint="勾掉的平台不再发请求；缺的位置由还开着的平台补上，不是少一截。">
+        <Sub title="从哪几家要" hint="勾掉的平台不再发请求，缺的位置由还开着的平台补上。至少留一家：全关就没有推荐可看了。">
           <Rows>
             {candidates.map((item) => (
               <Row key={item.id} label={item.name}>
                 <Toggle
                   checked={chosen.includes(item.id)}
+                  disabled={lastOne && chosen.includes(item.id)}
                   label={item.name}
                   onChange={(next) => setRoamPlatform(item.id, next)}
                 />

@@ -16,7 +16,7 @@ const KEY = 'aurora.roam.platforms'
 
 const listeners = new Set<() => void>()
 let snapshot: ProviderId[] | null = null
-let snapshotKey = ''
+let snapshotKey: string | null = null
 
 /** 有推荐能力的平台，按注册顺序。 */
 export function roamCandidates(): { id: ProviderId; name: string }[] {
@@ -45,6 +45,11 @@ function read(): ProviderId[] {
   // 没存过就是全选；存过但某家已经装不上了，就按装的来。
   const value = saved === null ? all : saved.filter((id) => all.includes(id))
   const key = value.join(',')
+  /*
+   * 一家都没勾时 key 是空串。快照键以前初值也是空串，两者撞上就永远不写快照，
+   * read() 每次返回一个新数组——useSyncExternalStore 认为状态一直在变，首页
+   * 一路重渲染到 React #185（最大更新深度）白屏。初值改成 null，空集合也能落快照。
+   */
   if (key !== snapshotKey) {
     snapshotKey = key
     snapshot = value
@@ -66,7 +71,7 @@ export function setRoamPlatform(id: ProviderId, on: boolean): void {
   } catch {
     return
   }
-  snapshotKey = ''
+  snapshotKey = null
   for (const listener of listeners) listener()
 }
 
