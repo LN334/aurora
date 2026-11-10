@@ -1,0 +1,47 @@
+name: 检查与构建
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一个分支再有推送就取消上一轮，别排队占机器。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # 只跑类型检查、单元测试、四项审计与渲染层构建，不打包安装包，
+    # 所以不需要 Windows 机器；构建产物也就能在任何 runner 上复现。
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # 这一步用不到 100 MB 的 Electron 二进制，跳过下载能省一分多钟。
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # package-lock 里的 resolved 指向国内镜像。runner 在海外，走官方源更稳；
+      # replace-registry-host=always 会把 lock 里的镜像地址就地换成这个源。
+      npm_config_registry: https://registry.npmjs.org/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci --replace-registry-host=always --no-audit --no-fund
+
+      # 与本地同一条命令：类型检查 → 单元测试 → 可达性 / 死选择器 / 失效路径 / 多余导出。
+      - name: 类型检查、单元测试与四项审计
+        run: npm run check
+
+      # 主进程 tsc + 渲染层 vite；能过说明这次提交至少不会在打包时才炸。
+      - name: 构建
+        run: npm run build

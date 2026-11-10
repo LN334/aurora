@@ -1,0 +1,51 @@
+name: 定期体检
+
+on:
+  schedule:
+    # 每周一 03:00 UTC（北京时间 11:00）。主分支上的依赖漂移只有定时跑才看得见：
+    # 平台接口与上游包随时会变，等到发版那天才发现构建坏了就已经晚了。
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      npm_config_registry: https://registry.npmjs.org/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci --replace-registry-host=always --no-audit --no-fund
+
+      # 与 ci.yml 同一条命令：它红，说明主分支现在已经坏了，不是新提交弄坏的。
+      - name: 类型检查、单元测试与四项审计
+        run: npm run check
+
+      - name: 构建
+        run: npm run build
+
+      # 以下两段只记录不判定失败：依赖有新版、上游包报了漏洞，都不是这一周能修完的事，
+      # 但当它们出现在 Actions 的运行摘要里，每周花一分钟扫一眼就够了。
+      - name: 依赖过期与已知漏洞（只记录）
+        run: |
+          {
+            echo '### 依赖过期'
+            echo '```'
+            npm outdated || true
+            echo '```'
+            echo '### 已知漏洞（生产依赖）'
+            echo '```'
+            npm audit --omit=dev || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
