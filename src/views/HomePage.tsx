@@ -14,6 +14,7 @@ import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { usePlayer } from '../features/player/store'
 import { openOnlineAlbum, openOnlinePlaylist } from '../features/refs/navigate'
 import { ArtistById, ArtistName } from '../ui/NameRef'
+import { DiscWall } from '../features/discover/DiscWall'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { usePlatformLiked } from '../features/online/platform-liked'
@@ -99,6 +100,10 @@ function tintOf(seed: string): CSSProperties {
  */
 const REMOTE_IMAGE = 'aurora-remote://image/'
 
+/** 封面墙要的是能拼进 background 简写的那个值，不是 React 的样式对象。 */
+function tintCss(seed: string): string {
+  return (tintOf(seed).background as string | undefined) ?? 'transparent'
+}
 function thumbOf(track: Track | null | undefined, px = 120): string | null {
   if (!track) return null
   const art = artworkFor(track)
@@ -301,16 +306,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [tracks, recentAll, platformDaily, taste])
 
   /**
-   * 右角那三张预览图。
+   * 右角那面封面墙要摊开的封面：今天这三十首全部。
    *
-   * 直接取前三首会碰上没有封面的歌：那个位置画的是生成式占位图，看起来像
-   * 「图片一直在加载」。先把有封面的排前面，凑不够再把没封面的补上——预览
-   * 只用来说明「这一批大概长什么样」，换顺序不改变播放列表。
+   * 墙会循环，所以张数就是「今天能听多少」——三十首一圈转回来。没有封面的
+   * 那张画的是生成式占位图，看起来像「图片一直在加载」，所以把有封面的排前面；
+   * 反正取模循环，顺序只影响先看到谁，不影响能翻到谁。
    */
   const dailyArt = useMemo(() => {
     const withArt = daily.filter((track) => Boolean(thumbOf(track, 200)))
     const without = daily.filter((track) => !thumbOf(track, 200))
-    return [...withArt, ...without].slice(0, 3)
+    return [...withArt, ...without]
   }, [daily])
 
   /**
@@ -551,29 +556,29 @@ export function HomePage({ onNavigate }: HomeViewProps) {
               </button>
             </div>
           </div>
-          <div className="rh-daily__art">
-            {dailyArtReady ? (
-              dailyArt.map((track) => (
-                <span key={track.id} className="rh-daily__tile" style={tintOf(track.id)}>
-                  <Artwork
-                    src={thumbOf(track, 200) ?? coverFor(track.id, 132)}
-                    alt=""
-                    fallback={null}
-                    priority
-                  />
-                </span>
-              ))
-            ) : (
-              // 与真图同尺寸同位置，落地时只换里面的内容，不推动版式。
-              [0, 1, 2].map((slot) => (
-                <span
-                  key={'daily-wait-' + slot}
-                  className="rh-daily__tile"
-                  style={tintOf('daily-wait-' + slot)}
-                />
-              ))
-            )}
-          </div>
+          <DiscWall
+            tiles={
+              dailyArtReady
+                ? dailyArt.map((track) => ({
+                    key: track.id,
+                    label: track.title + (track.artist ? ' · ' + track.artist : ''),
+                    art: thumbOf(track, 200) ?? coverFor(track.id, 132),
+                    tint: tintCss(track.id)
+                  }))
+                : // 与真图同尺寸同位置，落地时只换里面的内容，不推动版式。
+                  Array.from({ length: 12 }, (_, slot) => ({
+                    key: 'daily-wait-' + slot,
+                    label: '',
+                    art: null,
+                    tint: tintCss('daily-wait-' + slot)
+                  }))
+            }
+            onPlay={(index) => {
+              const track = dailyArt[index]
+              const at = track ? daily.indexOf(track) : -1
+              if (at >= 0) player.playQueue(daily, at)
+            }}
+          />
         </section>
       ) : !settled ? (
         <section className="rh-daily is-sk" aria-hidden="true" />
