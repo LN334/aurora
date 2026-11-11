@@ -1,41 +1,32 @@
-import { dropSeed, endRoam, hideRoamTrack, pullRoamMore, ROAM_MORE, undoDrop, useRoam, useRoamProgress } from '../features/player/roam-session'
-import { roamCandidates, useRoamPlatforms } from '../features/player/roam-sources'
+import { dropSeed, endRoam, hideRoamTrack, undoDrop, useRoam, useRoamProgress } from '../features/player/roam-session'
 import { usePlayer } from '../features/player/store'
-import { Close, Next, Plus } from '../ui/icons'
-
-/** 平台全名太长（「网易云音乐」），这里只留能分辨的那几个字。 */
-function shortPlatform(name: string): string {
-  // 「QQ 音乐」去掉「音乐」会剩一个尾空格，两个平台之间就成了「QQ  · 」两格。
-  return name.replace(/\s*音乐$/, '')
-}
+import { Close } from '../ui/icons'
 
 /**
  * 漫游状态条。
  *
  * 这里原本排着这一趟的全部曲目，后来发现是重复的：漫游换的就是播放队列，右边
  * 那个队列面板里已经是同一批歌，两处并排摆着只是同一份列表画了两遍。所以这一条
- * 只留队列上没有的东西——走到第几首、从哪首出发、向哪几家要、再要一批、退出，
- * 以及「跳过这首 / 不再推」这两颗只能对当前歌生效的动作。
+ * 只留队列上没有的东西——走到第几首、从哪首出发、退出，以及「不再推」这颗
+ * 只对当前歌生效的动作。
+ *
+ * 手动的「再要 N 首」和「跳过这首」都撤了：切歌本身就会触发补池，队列里那首
+ * 不想听按下一首就行——两颗按钮各自只是同一件事的第二种说法。
  *
  * 为什么不做成页面：漫游开始时人就在播放页，列表已经交给队列面板，再跳一次页面
  * 就回到以前的漫游页了。
  */
 export function RoamRail() {
   const tracks = useRoam((state) => state.tracks)
-  const pulling = useRoam((state) => state.pulling)
   const error = useRoam((state) => state.error)
   const dropped = useRoam((state) => state.dropped)
   const seed = useRoam((state) => state.seed)
-  const chosen = useRoamPlatforms()
   const current = usePlayer((state) => state.current())
   const progress = useRoamProgress(current)
 
   if (tracks.length === 0) return null
 
-  const candidates = roamCandidates()
-  const chosenSet = new Set(chosen)
   const inRoam = progress.index >= 0 && current !== null
-  const wantMore = ROAM_MORE
 
   return (
     <section className="rr" aria-label="漫游状态">
@@ -56,65 +47,30 @@ export function RoamRail() {
         </span>
       ) : null}
 
-      <span className="rr__count">
-        {inRoam ? `第 ${progress.index + 1} 首` : '不在这一趟里'}
-        <span className="rr__sep">·</span>
-        已听 {progress.heard} / 共 {progress.total}
-      </span>
-
       {/*
-        只报设置里的勾选，这里不给开关。以前这排是能点的，改的其实也是设置里同一份，
-        但摆在漫游轨上就像漫游自有第二套配置——同一个问题两个答案。要改去设置。
+        原生客户端的漫游不报总数：它是一条流，没有「一共几首」。这里跟着只报
+        已听几首——报总数会让一条流看起来像一份歌单，切久了那个数还会一直涨。
       */}
-      <div className="rr__plats" role="note" aria-label="这一趟按设置里的推荐来源要">
-        <span className="rr__plats-k">推流</span>
-        <span className="rr__plats-v">
-          {chosen.length > 0
-            ? candidates
-                .filter((item) => chosenSet.has(item.id))
-                .map((item) => shortPlatform(item.name))
-                .join(' · ')
-            : '设置里一家都没勾'}
-        </span>
-      </div>
+      <span className="rr__count">
+        {inRoam ? `已听 ${progress.heard} 首` : '不在这一趟里'}
+      </span>
 
       <div className="rr__acts">
         {/*
-          两颗只对当前这首生效。跳过不留痕，不再推会进名单——两者分开，混成一个
-          动作名单会越攒越大，最后推什么都不对。
+          只留一颗：不再推会写进名单（上限 300 首），跟「这一次先不听」是两回事；
+          后者按下一首就够了，不必再摆一颗效果一样的按钮。
         */}
         {inRoam && current ? (
-          <>
-            <button
-              type="button"
-              className="rr__act"
-              onClick={() => hideRoamTrack(current, 'skip')}
-              title="跳过这首，只跳过这一次"
-            >
-              <Next size={12} />
-              跳过这首
-            </button>
-            <button
-              type="button"
-              className="rr__act rr__act--no"
-              onClick={() => hideRoamTrack(current, 'dislike')}
-              title="不想再听这首，以后不再推"
-            >
-              <Close size={12} />
-              不再推
-            </button>
-          </>
+          <button
+            type="button"
+            className="rr__act rr__act--no"
+            onClick={() => hideRoamTrack(current, 'dislike')}
+            title="不想再听这首，以后不再推"
+          >
+            <Close size={12} />
+            不再推
+          </button>
         ) : null}
-        <button
-          type="button"
-          className="rr__more"
-          onClick={() => void pullRoamMore()}
-          disabled={pulling}
-          title={`再接 ${wantMore} 首到末尾，正在放的这首不打断`}
-        >
-          <Plus size={13} />
-          {pulling ? '正在要…' : `再要 ${wantMore} 首`}
-        </button>
         {/*
           结束的是「这一趟」，不是播放：队列不换、正在放的继续放，所以文案不能写成
           「退出」——按过的人会以为歌也该停。真正会变的是补池停下、循环模式还原。

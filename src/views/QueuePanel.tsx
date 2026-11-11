@@ -1,5 +1,6 @@
 import { useFavorites } from '../features/favorites/store'
 import { usePlayer } from '../features/player/store'
+import { useRoam } from '../features/player/roam-session'
 import { formatTime } from '../ui/format'
 import { ArtistName } from '../ui/NameRef'
 import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
@@ -102,6 +103,8 @@ function QueueRow({ trackIndex, label, isCurrent, playing, onJump, onRemove }: R
  */
 export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   const queueLength = usePlayer((s) => s.queue.length)
+  // 漫游时这一份是「流的下半截」，不是用户排的队列：报总数会把它说成一份歌单。
+  const roaming = useRoam((s) => s.tracks.length > 0)
   const order = usePlayer((s) => s.order)
   const index = usePlayer((s) => s.index)
   const shuffle = usePlayer((s) => s.shuffle)
@@ -133,12 +136,14 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   return (
     <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="播放队列">
       <header className="panel__head">
-        <h2 className="panel__title">播放队列</h2>
-        <span className="panel__count tnum">
-          {queueLength} 首
-          {shuffle ? '，随机顺序' : ''}
-          {repeat === 'one' ? '，单曲循环' : repeat === 'all' ? '，列表循环' : ''}
-        </span>
+        <h2 className="panel__title">{roaming ? '漫游 · 接下来' : '播放队列'}</h2>
+        {roaming ? null : (
+          <span className="panel__count tnum">
+            {queueLength} 首
+            {shuffle ? '，随机顺序' : ''}
+            {repeat === 'one' ? '，单曲循环' : repeat === 'all' ? '，列表循环' : ''}
+          </span>
+        )}
         <div className="queue-actions">
           <button
             className="icon-btn"
@@ -198,7 +203,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
             <section className="queue-group">
               <h3 className="queue-group__title">
                 接下来
-                <span className="queue-group__count tnum">{upcoming.length}</span>
+                {/* 漫游里不报还有几首：这是一条流，数字一出来就又像歌单了。 */}
+                {roaming ? null : <span className="queue-group__count tnum">{upcoming.length}</span>}
               </h3>
               {upcoming.length === 0 ? (
                 <p className="queue-group__empty">队列里没有别的曲目了</p>
@@ -228,7 +234,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
               <details className="queue-played">
                 <summary className="queue-group__title">
                   已播放
-                  <span className="queue-group__count tnum">{played.length}</span>
+                  {roaming ? null : <span className="queue-group__count tnum">{played.length}</span>}
                 </summary>
                 <ul className="queue-list">
                   {played.map((queueIndex) => (

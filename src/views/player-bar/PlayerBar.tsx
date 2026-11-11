@@ -113,7 +113,11 @@ export function PlayerBar({
         <ControlButton
           label="播放队列"
           tip="播放队列"
-          badge={queueLength}
+          /*
+           * 漫游里不挂这个数。它是一条一直往下的流，不是「23 首的一份歌单」；
+           * 右上角挂个数字，等于把流说成了列表。
+           */
+          badge={roaming ? 0 : queueLength}
           onClick={onOpenQueue}
         >
           <Queue size={17} />
