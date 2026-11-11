@@ -54,6 +54,12 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
         <div className="srch__empty">
           <h2>按回车搜索「{query.trim()}」</h2>
         </div>
+      ) : !submitted ? (
+        /* 什么都没输过就先说「没有匹配」，等于一进门就说这页是空的。 */
+        <div className="srch__empty">
+          <h2>先输入要搜的内容</h2>
+          <p className="pg-note">{active?.remote ? '歌名、歌手、专辑都行，按回车开始' : '歌名、歌手、专辑都行'}</p>
+        </div>
       ) : (
         <>
           {/*
