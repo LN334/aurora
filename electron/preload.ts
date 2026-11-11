@@ -210,9 +210,6 @@ const api = {
     download: () => ipcRenderer.invoke('updates:download') as Promise<boolean>,
     /** Opens the release page in the system browser. */
     open: (url: string) => ipcRenderer.invoke('updates:open', url) as Promise<boolean>,
-    getAutoCheck: () => ipcRenderer.invoke('updates:getAutoCheck') as Promise<boolean>,
-    setAutoCheck: (enabled: boolean) =>
-      ipcRenderer.invoke('updates:setAutoCheck', enabled) as Promise<boolean>,
     getPrefs: () => ipcRenderer.invoke('updates:getPrefs') as Promise<UpdatePrefs>,
     setInterval: (interval: UpdateInterval) =>
       ipcRenderer.invoke('updates:setInterval', interval) as Promise<UpdatePrefs>,

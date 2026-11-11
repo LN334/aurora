@@ -196,8 +196,6 @@ interface DownloadsApi {
   /** Fetch the release the last check reported; progress arrives on `onStatus`. */
   download(): Promise<boolean>
   open(url: string): Promise<boolean>
-  getAutoCheck(): Promise<boolean>
-  setAutoCheck(enabled: boolean): Promise<boolean>
   getPrefs(): Promise<UpdatePrefs>
   setInterval(interval: UpdateInterval): Promise<UpdatePrefs>
   setAutoInstall(enabled: boolean): Promise<UpdatePrefs>

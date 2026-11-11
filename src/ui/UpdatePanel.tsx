@@ -6,15 +6,14 @@ import { Refresh } from './icons'
 /**
  * 设置页的更新面板。
  *
- * 状态从全应用共用的 store 读，而不是自己再查一遍：横幅与这里回答的是同一个
- * 问题，两处各存一份就会出现「横幅说下载完了，设置页还在让我下载」。
+ * 状态从全应用共用的 store 读，而不是自己再查一遍：自动下载与这里回答的是
+ * 同一个问题，两处各存一份就会出现「后面说下载完了，这里还在让我下载」。
  *
  * 下载放在应用内（安装包未签名，装之前一定会再问一次），替换运行中的程序仍然
  * 只能由人按——这里给的是按钮，不是自动执行。
  */
 export function UpdatePanel() {
   const [version, setVersion] = useState('—')
-  const [autoCheck, setAutoCheck] = useState(true)
   const result = useUpdate((state) => state.result)
   const busy = useUpdate((state) => state.busy)
   const check = useUpdate((state) => state.check)
@@ -23,12 +22,7 @@ export function UpdatePanel() {
 
   useEffect(() => {
     void bridge.info().then((info) => setVersion(info.version))
-    if (isNative) void bridge.updates.getAutoCheck().then(setAutoCheck)
   }, [])
-
-  const toggleAuto = async (enabled: boolean) => {
-    setAutoCheck(await bridge.updates.setAutoCheck(enabled))
-  }
 
   return (
     <section className="update">
@@ -85,23 +79,6 @@ export function UpdatePanel() {
         </div>
       ) : null}
 
-      {isNative ? (
-        <div className="update__row update__row--quiet">
-          <div>
-            <div className="update__label">每天自动检查一次</div>
-            <p className="update__hint">只是问一句有没有新版本；下不下、装不装看下面的开关。安装包未签名</p>
-          </div>
-          <button
-            className={`switch${autoCheck ? ' is-on' : ''}`}
-            role="switch"
-            aria-checked={autoCheck}
-            onClick={() => void toggleAuto(!autoCheck)}
-            aria-label="每天自动检查更新"
-          >
-            <span className="switch__dot" />
-          </button>
-        </div>
-      ) : null}
     </section>
   )
 }

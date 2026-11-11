@@ -165,8 +165,6 @@ const webFallback: AuroraApi = {
     }),
     download: async () => false,
     open: async () => false,
-    getAutoCheck: async () => false,
-    setAutoCheck: async () => false,
     getPrefs: async () => previewPrefs,
     setInterval: async (interval) => (previewPrefs = { ...previewPrefs, interval }),
     setAutoInstall: async (enabled) => (previewPrefs = { ...previewPrefs, autoInstall: enabled }),

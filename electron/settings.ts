@@ -60,7 +60,7 @@ export const LYRIC_SIZE_MIN = 18
 export const LYRIC_SIZE_MAX = 64
 
 export interface Settings {
-  /** Check GitHub Releases for a newer version at most once a day. */
+  /** 旧版字段：只用来把「关掉每天检查」的人迁到 updateInterval 的 manual。 */
   autoCheckUpdates: boolean
   /** How often to check for updates. `manual` means only on request. */
   updateInterval: UpdateInterval

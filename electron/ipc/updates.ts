@@ -6,7 +6,7 @@ import {
   openReleasePage,
   updatePrefs
 } from '../updates'
-import { loadSettings, saveSettings } from '../settings'
+import { saveSettings } from '../settings'
 
 /** Release checks, the interval/auto-install preferences, and installing. */
 export function registerUpdatesIpc(): void {
@@ -18,13 +18,6 @@ export function registerUpdatesIpc(): void {
   ipcMain.handle('updates:open', (_event, url: unknown) => {
     if (typeof url !== 'string') return false
     return openReleasePage(url).then(() => true)
-  })
-
-  ipcMain.handle('updates:getAutoCheck', () => loadSettings().autoCheckUpdates)
-
-  ipcMain.handle('updates:setAutoCheck', (_event, enabled: unknown) => {
-    saveSettings({ autoCheckUpdates: Boolean(enabled) })
-    return loadSettings().autoCheckUpdates
   })
 
   ipcMain.handle('updates:getPrefs', () => updatePrefs())
