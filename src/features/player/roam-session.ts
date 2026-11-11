@@ -48,8 +48,12 @@ const HIDE_LIMIT = 300
 const PLAYED_KEY = 'aurora.roam.played'
 const PLAYED_LIMIT = 200
 
-/** 剩下几首时开始要下一批：留出提前量，免得等到最后一首才开始要、中间断一口气。 */
-const AHEAD = 6
+/**
+ * 剩下几首时开始要下一批：留出提前量，免得等到最后一首才开始要、中间断一口气。
+ *
+ * 四首是按「一场大概五六分钟」估的：补批要几秒，切歌的人不会停在原地等它。
+ */
+const AHEAD = 4
 
 /**
  * 还剩多少秒时开始要下一批。
@@ -154,8 +158,13 @@ export function useRoamProgress(current: Track | null): RoamProgress {
   return roamProgress(tracks, current, keys)
 }
 
-/** 这一批补多少首：一趟的一半。多了慢，少了接不上。 */
-export const ROAM_MORE = Math.ceil(SLOTS.roam / 2)
+/**
+ * 这一批补多少首：一趟的三分之一。
+ *
+ * 原先补一半（十首），一次要给平台翻好几轮，回得慢、也更容易一次塞进来一大截。
+ * 少补一点、补得勤一点，接近原生客户端那条「切一首要几首」的流。
+ */
+const ROAM_MORE = Math.ceil(SLOTS.roam / 3)
 
 /**
  * 把循环换成「关」，原模式记着等退出时还原。
@@ -209,21 +218,46 @@ function commitRoam(queue: Track[], seed: Track | undefined): boolean {
 }
 
 /**
+ * 开趟时正在后台补池。
+ *
+ * 快池只有几首就开播了，补满这一趟要等网络。这段窗口里别让 refillIfLow 判「快见底」
+ * ——它一判就会立刻再要一批，一趟于是变成两批（实测 3 首 + 补的 + 再要的 ≈ 38 首）。
+ */
+let filling = false
+
+/**
  * 开播之后在后台把整池补进来。
  *
  * 队列已经放起来了，这里只往后接：正在放的这首不动，用户不会因为等池子多等一秒。
- * 要不到就算了——refillIfLow 之后还会按剩余量再要，不必在这里重试。
+ * 要不到就算了——补完之后会再看一眼剩多少，真不够再按正常判据要。
  */
 async function fillRoamPool(wanted: ProviderId[]): Promise<void> {
-  const full = await loadRoamPool(wanted).catch(() => null)
-  if (!full || full.tracks.length === 0) return
-  // 用户可能在这几百毫秒里退出了漫游，那就别再往空队列里塞。
-  const state = useRoam.getState()
-  if (state.tracks.length === 0) return
-  const extra = appendFresh(state.tracks, full.tracks, browsedOut())
-  if (extra.length === 0) return
-  useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...extra] }))
-  player.addToQueue(extra, 'end')
+  filling = true
+  try {
+    const full = await loadRoamPool(wanted).catch(() => null)
+    if (!full || full.freshTracks.length === 0) return
+    // 用户可能在这几百毫秒里退出了漫游，那就别再往空队列里塞。
+    const state = useRoam.getState()
+    if (state.tracks.length === 0) return
+    /*
+     * 补的是「这一趟该有的那几十首」，不是整个池子。
+     *
+     * 池子有两份：tracks 是「推的 + 我喜欢的 + 本机 + 最近听过」并起来的一整池
+     * （几百首，传它进来「我喜欢的」五百多首会一起落进队列，实测涨到 706）；
+     * freshTracks 是其中平台推过来、我还没收藏的那部分——也不能整份倒进来，
+     * 它跟着勾了几家、每家回多少走，实测能到一百三十多。这一趟的定长是
+     * SLOTS.roam，buildRoamQueue 就是拿 freshTracks 洗一遍切这个数；这里跟着它，
+     * 快池那几首之外再补十几首，一趟仍然是二十首。
+     */
+    const extra = appendFresh(state.tracks, buildRoamQueue(full), browsedOut())
+    if (extra.length === 0) return
+    useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...extra] }))
+    player.addToQueue(extra, 'end')
+  } finally {
+    filling = false
+    // 补完再看一眼：池子今天回得少的话，这会儿按正常判据接着要。
+    refillIfLow()
+  }
 }
 
 /**
@@ -284,12 +318,18 @@ export async function startRoam(seed?: Track): Promise<boolean> {
      */
     if (!chosen) {
       const quick = await loadRoamQuick(wanted)
-      if (
-        quick.length > 0 &&
-        commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined)
-      ) {
-        void fillRoamPool(wanted)
-        return true
+      if (quick.length > 0) {
+        /*
+         * 先立「正在补池」再换队列。commitRoam 里的 playQueue 会同步触发订阅，
+         * 那一刻队列只有快池那几首、看着就是「快见底」，不挡住它会立刻再要一批，
+         * 一趟于是变成两批（实测 3 首 → 18 首 → 37 首）。
+         */
+        filling = true
+        if (commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined)) {
+          void fillRoamPool(wanted)
+          return true
+        }
+        filling = false
       }
     }
     // 种子模式，或者快池一首都没要到：退回攒齐的老路。
@@ -326,28 +366,43 @@ export async function startRoam(seed?: Track): Promise<boolean> {
  * 正在放的这首不打断。要到的与手上的重复就说明平台今天翻到头了，记一句话，
  * 调用方自己决定过多久再试。
  */
-export async function pullRoamMore(): Promise<void> {
+async function pullRoamMore(): Promise<boolean> {
   const state = useRoam.getState()
-  if (state.pulling) return
+  if (state.pulling) return false
   const wanted = roamPlatforms()
   if (wanted.length === 0) {
     useRoam.setState({ pulling: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
-    return
+    return false
   }
   useRoam.setState({ pulling: true, error: '' })
+  let got = false
   try {
     const more = await loadRoamStream(ROAM_MORE, wanted)
     const fresh = appendFresh(useRoam.getState().tracks, more, browsedOut())
     if (fresh.length === 0) {
       useRoam.setState({ pulling: false, error: '平台这批和手上重复了，过一会儿再要' })
-      return
+    } else {
+      useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...fresh], pulling: false }))
+      player.addToQueue(fresh, 'end')
+      got = true
     }
-    useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...fresh], pulling: false }))
-    player.addToQueue(fresh, 'end')
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
     useRoam.setState({ pulling: false, error: '这批没要到：' + reason })
   }
+  if (got) {
+    /*
+     * 等这批的这几秒里用户可能又切掉好几首：十首还没落地就被吃掉一半。
+     * 所以补完再看一眼，还缺就接着要——「一直切歌就一直加歌」靠的就是这一下。
+     * 收敛得很快：每次至少补十首，而判据是剩六首，一轮就够；补不到时 got 为假，
+     * 转去下面的重试，不会在这里空转。
+     */
+    if (wantsMore()) void pullRoamMore()
+    return true
+  }
+  // 这一批没要到：断网、或平台今天翻到头。过一会儿再来，队列真走到尽头也由它接上。
+  scheduleRetry()
+  return false
 }
 
 let undoClock: ReturnType<typeof setTimeout> | null = null
@@ -462,27 +517,41 @@ export function endRoam(): void {
 
 let retry: ReturnType<typeof setTimeout> | null = null
 
-/** 队列快见底了就再要一批。失败也接着要，漫游不主动停止。 */
+/**
+ * 队列快见底了就再要一批。
+ *
+ * 这里只判「该不该要」；要完之后的事（还不够就接着补、补不到就稍后重试）交给
+ * pullRoamMore——两处补池（切歌时、补完复查时）因此走的是同一条路。
+ */
 function refillIfLow(): void {
   const roam = useRoam.getState()
   if (roam.tracks.length === 0) return
+  // 正在要的时候又被切了一首：那一批回来时会自己复查，不必叠着发两批。
+  if (roam.pulling) return
+  if (!wantsMore()) return
+  void pullRoamMore()
+}
+
+/** 还缺吗。首数到了就缺；首数没到但剩下的时长不够了（长曲之后常发生）也算缺。 */
+function wantsMore(): boolean {
+  // 开趟那几秒由 fillRoamPool 负责补满，这时判「快见底」只会把一趟叠成两批。
+  if (filling) return false
   const now = usePlayer.getState()
   const current = now.current()
-  if (!current || !isRoamTrack(current)) return
+  if (!current || !isRoamTrack(current)) return false
   const left = now.queue.length - now.index - 1
-  const leftSec = remainingSeconds(now.queue, now.index)
-  // 首数到了就补；首数没到但剩下的时长不够了（长曲之后常发生）也补。
   // 时长为 0 表示这一批都没给时长，这时只用首数判据，免得每切一首都要一次网络。
-  const soon = shouldPullMore(left, AHEAD) || (leftSec > 0 && leftSec < PULL_SECONDS)
-  if (!soon) return
-  void pullRoamMore().then(() => {
-    // 断网、平台重复推：先记一句话，过一会儿再来。队列真走到尽头也由这里的重试接着。
-    if (!useRoam.getState().error || retry) return
-    retry = setTimeout(() => {
-      retry = null
-      refillIfLow()
-    }, 8000)
-  })
+  const leftSec = remainingSeconds(now.queue, now.index)
+  return shouldPullMore(left, AHEAD) || (leftSec > 0 && leftSec < PULL_SECONDS)
+}
+
+/** 没要到就隔八秒再来。队列真走到尽头也由这里接着，漫游不主动停止。 */
+function scheduleRetry(): void {
+  if (retry) return
+  retry = setTimeout(() => {
+    retry = null
+    refillIfLow()
+  }, 8000)
 }
 
 /**

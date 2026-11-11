@@ -146,7 +146,12 @@ export async function loadRoamStream(
     })
   )
 
-  return mergeVersions(lists.flat(), sourceOrder())
+  /*
+   * 按 total 截住。per 是「每家至少问六首」，摊到十首时四家能回来两倍多（实测要
+   * 十首回来十九首）。补批是按量算时间的，多给的那部分只会堆在队列尾巴上，越堆
+   * 越长——漫游要的是源源不断，不是一份越来越厚的歌单。
+   */
+  return mergeVersions(lists.flat(), sourceOrder()).slice(0, total)
 }
 
 /** 够开播就走的那一批：每家只问一轮。 */
