@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aurora</title>
+    <!--
+      开屏的第一层：主进程先加载这一页，等它画出第一帧再把窗口显示出来，
+      然后才导航到真正的应用页（dist/index.html）。
+
+      为什么要有这一页：应用页要等 Vite 打完包的那一大坨 JS、装上首页那几十张
+      图和动态壁纸，才画得出第一个像素（实测 1.5 秒）。窗口在这段时间里只能显示
+      浏览器给的底色，用户看到的就是「先是一片深色，开屏动画才姗姗来迟」。
+      这一页只有内联 CSS 与两条 SVG，DOM 不到十个数得完，第一帧几乎立刻就有，
+      所以开屏一定先于主页出现。
+
+      它不加载 boot.js：那个脚本的职责是「等应用首帧后把开屏撤掉」，在这一页里
+      提前撤掉只会让窗口露出一片空白。撤场交给主进程的导航。
+    -->
+    <style>
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #0d1013;
+        -webkit-app-region: drag;
+      }
+
+      #boot-splash .boot-splash__glow {
+        position: absolute;
+        width: min(560px, 70vw);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 55%,
+          rgb(54 174 243 / 0.22) 0%,
+          rgb(143 92 240 / 0.12) 42%,
+          transparent 70%
+        );
+        animation: boot-breathe 2200ms ease-in-out 120ms both;
+        pointer-events: none;
+      }
+
+      #boot-splash .boot-splash__mark {
+        width: 46px;
+        height: 46px;
+        filter: drop-shadow(0 6px 22px rgb(54 174 243 / 0.28));
+      }
+
+      #boot-splash .boot-splash__leg {
+        stroke-dasharray: 19;
+        stroke-dashoffset: 19;
+        animation: boot-draw 620ms cubic-bezier(0.32, 0.72, 0.24, 1) both;
+      }
+
+      #boot-splash .boot-splash__leg--right {
+        animation-delay: 90ms;
+      }
+
+      #boot-splash .boot-splash__bar {
+        position: absolute;
+        margin-top: 118px;
+        width: 96px;
+        height: 2px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: rgb(var(--boot-line, 255 255 255) / 0.07);
+        animation: boot-fade 420ms ease 240ms both;
+      }
+
+      #boot-splash .boot-splash__bar::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 38%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, transparent, #36aef3, #8f5cf0, transparent);
+        animation: boot-sweep 1150ms cubic-bezier(0.45, 0, 0.25, 1) 260ms infinite;
+      }
+
+      @keyframes boot-draw { to { stroke-dashoffset: 0; } }
+      @keyframes boot-sweep { from { transform: translateX(-110%); } to { transform: translateX(370%); } }
+      @keyframes boot-fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes boot-breathe {
+        from { opacity: 0; transform: scale(0.92); }
+        45% { opacity: 1; }
+        to { opacity: 0.72; transform: scale(1.04); }
+      }
+
+      @media (prefers-color-scheme: light) {
+        #boot-splash { --boot-line: 0 0 0; background: #f4f6f9; }
+        #boot-splash .boot-splash__glow {
+          background: radial-gradient(
+            circle at 50% 55%,
+            rgb(54 174 243 / 0.16) 0%,
+            rgb(143 92 240 / 0.1) 42%,
+            transparent 70%
+          );
+        }
+        #boot-splash .boot-splash__mark { filter: drop-shadow(0 6px 22px rgb(54 174 243 / 0.18)); }
+      }
+
+      html[data-theme='light'] #boot-splash { --boot-line: 0 0 0; background: #f4f6f9; }
+      html[data-theme='dark'] #boot-splash { --boot-line: 255 255 255; background: #0d1013; }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash, #boot-splash * { animation: none !important; }
+        #boot-splash .boot-splash__leg { stroke-dashoffset: 0; }
+      }
+    </style>
+    <script>
+      // 主题只有这一个来源：与应用页同源的 localStorage。读不到就交给下面的媒体查询。
+      (function () {
+        try {
+          var choice = localStorage.getItem('aurora.theme') || 'system';
+          var light = choice === 'light' ||
+            (choice === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+          document.documentElement.dataset.theme = light ? 'light' : 'dark';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="boot-splash">
+      <div class="boot-splash__glow"></div>
+      <svg class="boot-splash__mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient
+            id="boot-splash-grad"
+            gradientUnits="userSpaceOnUse"
+            x1="3.6"
+            y1="2.6"
+            x2="20.4"
+            y2="21.4"
+          >
+            <stop offset="0" stop-color="#2ad9c8" />
+            <stop offset="0.42" stop-color="#36aef3" />
+            <stop offset="1" stop-color="#8f5cf0" />
+          </linearGradient>
+        </defs>
+        <g stroke="url(#boot-splash-grad)" stroke-width="3" stroke-linecap="round">
+          <path class="boot-splash__leg" d="M5.8 20.95 12 3.05" />
+          <path class="boot-splash__leg boot-splash__leg--right" d="M18.2 20.95 12 3.05" />
+        </g>
+      </svg>
+      <div class="boot-splash__bar"></div>
+    </div>
+  </body>
+</html>

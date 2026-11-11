@@ -23,9 +23,201 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file: aurora-media: aurora-remote: aurora-wallpaper:; media-src 'self' file: blob: aurora-media: aurora-remote: aurora-wallpaper:; font-src 'self' data: blob:; connect-src 'self' aurora-media: aurora-remote: aurora-wallpaper: ws://127.0.0.1:5173 http://127.0.0.1:5173"
     />
     <title>Aurora</title>
+    <!--
+      开场动画分两层。
+
+      第一层是 public/splash.html：主进程先加载它、显示窗口，隔一会儿才导航到这里。
+      它只有内联 CSS 和两条 SVG，第一帧几乎立刻就有。
+
+      第二层就是下面这段：同样一张画面，接着第一层继续盖住「应用页开始加载 → React
+      首帧」的空白，首帧一到由 public/boot.js 淡出。所以这里不再播入场动画（描边、
+      扫光都在第一层），只保留静态外观与退场过渡，导航前后看起来是同一幅画面。
+
+      CSP 的 style-src 已经允许 'unsafe-inline'；script-src 没有，所以点火脚本是
+      同源的 public/boot.js，不是内联 <script>。
+    -->
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        /*
+         * 品牌底：深色下与主进程给窗口设的 backgroundColor 同一个值，起步没有跳色。
+         * 浅色由下面的媒体查询换掉——开屏本身固定一套品牌色，但底色得跟着走，
+         * 不然浅色用户每次启动都被一块深色闪一下。
+         */
+        background: #0d1013;
+        /* 启动这一秒里窗口仍然能拖，虽然下面什么都没有。 */
+        -webkit-app-region: drag;
+        opacity: 1;
+        transform: scale(1);
+        transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1),
+          transform 560ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      #boot-splash.is-out {
+        opacity: 0;
+        transform: scale(1.015);
+        pointer-events: none;
+      }
+
+      #boot-splash .boot-splash__glow {
+        position: absolute;
+        width: min(560px, 70vw);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 55%,
+          rgb(54 174 243 / 0.22) 0%,
+          rgb(143 92 240 / 0.12) 42%,
+          transparent 70%
+        );
+        /*
+         * 呼吸与扫光继续演，描边入场不重播。
+         *
+         * 这一层接在第一层（public/splash.html）后面：那一层刚把两条腿画完，导航
+         * 到这里时标记已经是完整状态；光晕和进度条接着动，看起来是同一段加载，
+         * 而不是「画面冻住等应用」。
+         */
+        animation: boot-breathe 2200ms ease-in-out 120ms both;
+        pointer-events: none;
+      }
+
+      #boot-splash .boot-splash__mark {
+        width: 46px;
+        height: 46px;
+        filter: drop-shadow(0 6px 22px rgb(54 174 243 / 0.28));
+      }
+
+      #boot-splash .boot-splash__leg {
+        stroke-dasharray: 19;
+        stroke-dashoffset: 0;
+      }
+
+      #boot-splash .boot-splash__bar {
+        position: absolute;
+        margin-top: 118px;
+        width: 96px;
+        height: 2px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: rgb(var(--boot-line, 255 255 255) / 0.07);
+      }
+
+      #boot-splash .boot-splash__bar::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 38%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, transparent, #36aef3, #8f5cf0, transparent);
+        animation: boot-sweep 1150ms cubic-bezier(0.45, 0, 0.25, 1) 260ms infinite;
+      }
+
+      /*
+       * 浅色开屏。
+       *
+       * 两条路都要管：`prefers-color-scheme` 是首帧就能生效的那条（跟系统走的用户
+       * 不会看到深色底闪一下），`data-theme` 是 boot.js 读完设置后写的，管的是
+       * 「系统深色但用户手动选了浅色」。
+       */
+      @media (prefers-color-scheme: light) {
+        #boot-splash {
+          --boot-line: 0 0 0;
+          background: #f4f6f9;
+        }
+        #boot-splash .boot-splash__glow {
+          background: radial-gradient(
+            circle at 50% 55%,
+            rgb(54 174 243 / 0.16) 0%,
+            rgb(143 92 240 / 0.1) 42%,
+            transparent 70%
+          );
+        }
+        #boot-splash .boot-splash__mark {
+          filter: drop-shadow(0 6px 22px rgb(54 174 243 / 0.18));
+        }
+      }
+
+      html[data-theme='light'] #boot-splash {
+        --boot-line: 0 0 0;
+        background: #f4f6f9;
+      }
+
+      /* 系统深色 + 手动选深色：上面那条媒体查询不该把开屏翻成浅色。 */
+      html[data-theme='dark'] #boot-splash {
+        --boot-line: 255 255 255;
+        background: #0d1013;
+      }
+
+      @keyframes boot-sweep {
+        from {
+          transform: translateX(-110%);
+        }
+        to {
+          transform: translateX(370%);
+        }
+      }
+
+      @keyframes boot-breathe {
+        from {
+          opacity: 0;
+          transform: scale(0.92);
+        }
+        45% {
+          opacity: 1;
+        }
+        to {
+          opacity: 0.72;
+          transform: scale(1.04);
+        }
+      }
+
+      /* 关掉动态效果的人只看到标记本身。 */
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash,
+        #boot-splash * {
+          animation: none !important;
+        }
+        #boot-splash {
+          transition-duration: 1ms !important;
+        }
+      }
+    </style>
   </head>
   <body>
+    <!--
+      开场动画：盖住「窗口出现 → 首屏有内容」这一段。退场由 public/boot.js 收尾，
+      最短 820ms（让 A 峰画完），最长 2.6s（渲染层出错也不会把窗口锁死）。
+    -->
+    <div id="boot-splash">
+      <div class="boot-splash__glow"></div>
+      <svg class="boot-splash__mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient
+            id="boot-splash-grad"
+            gradientUnits="userSpaceOnUse"
+            x1="3.6"
+            y1="2.6"
+            x2="20.4"
+            y2="21.4"
+          >
+            <stop offset="0" stop-color="#2ad9c8" />
+            <stop offset="0.42" stop-color="#36aef3" />
+            <stop offset="1" stop-color="#8f5cf0" />
+          </linearGradient>
+        </defs>
+        <g stroke="url(#boot-splash-grad)" stroke-width="3" stroke-linecap="round">
+          <path class="boot-splash__leg" d="M5.8 20.95 12 3.05" />
+          <path class="boot-splash__leg boot-splash__leg--right" d="M18.2 20.95 12 3.05" />
+        </g>
+      </svg>
+      <div class="boot-splash__bar"></div>
+    </div>
     <div id="root"></div>
+    <script src="./boot.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
