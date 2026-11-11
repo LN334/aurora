@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { SLOTS } from '../features/online/slots'
-import { dailyLabel } from '../features/library/daily'
+import { dailyLabel } from '../features/library/daily-day'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { useLibrary } from '../features/library/store'
 import { player } from '../features/player/actions'
@@ -37,25 +37,47 @@ export function DailyPage({
     return out
   }, [recent])
 
-  const { tracks: platformDaily } = usePlatformDaily()
+  const { tracks: platformDaily, ready: platformDailyReady, online: dailyOnline } = usePlatformDaily()
   // 口味画像只影响排序；没有历史时退化成按日期挑。
   const taste = useTasteProfile()
 
   const daily = useMemo(() => {
-    // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
-    const base = tracks.length > 0 ? tracks : recentAll
+    /*
+     * 一家平台都问不了时不拿本机曲库充数，与首页那块同一套判断：
+     * 「每日推荐只有我电脑里的歌」不是推荐，是没登录。
+     */
+    const base = dailyOnline ? (tracks.length > 0 ? tracks : recentAll) : []
     // 和首页那块同一个函数、同一个槽位：卡片写多少首，这一页就是多少首。
     return dailyBatch(platformDaily, base, new Date(), SLOTS.daily, taste)
-  }, [tracks, recentAll, platformDaily, taste])
+  }, [tracks, recentAll, platformDaily, taste, dailyOnline])
+
+  // 平台登录态还没问出来时先别下结论，否则会先闪一句错话。
+  if (!platformDailyReady) {
+    return (
+      <div className="pg-empty">
+        <p>正在取今天的推荐…</p>
+      </div>
+    )
+  }
 
   if (daily.length === 0) {
     return (
       <div className="pg-empty">
-        <h2>今天还没有可推荐的</h2>
-        <p>等你往里放几张专辑，这里每天会换一批。</p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
-          去推荐页
-        </button>
+        <h2>{dailyOnline ? '今天还没有可推荐的' : '还没登录'}</h2>
+        <p>
+          {dailyOnline
+            ? '今天的推荐还没到，过会儿再来看看。'
+            : '登录一下，这儿每天都有新歌。'}
+        </p>
+        {dailyOnline ? (
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
+            去推荐页
+          </button>
+        ) : (
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+            去登录
+          </button>
+        )}
       </div>
     )
   }

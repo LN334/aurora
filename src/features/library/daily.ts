@@ -1,10 +1,11 @@
 import type { Track } from '../../types'
+import { dailyDay } from './daily-day.ts'
 import { tastefulDaily, type TasteProfile } from './taste.ts'
 
 /**
  * 每日推荐的那一批歌。
  *
- * 规则只有一条：同一天打开是同一批，第二天换掉。所以种子是日期本身，
+ * 规则只有一条：同一个批次里打开都是同一批，早上六点换掉。所以种子是批次日期，
  * 排序用种子加曲目 id 的哈希——不随机、不存状态，重开窗口也不会变。
  *
  * 现在池子是「本机曲库，没有就退到最近播放」。等网易云的每日推荐接口接上，
@@ -31,7 +32,7 @@ export function dailyTracks(
 ): Track[] {
   /* 有画像就按口味排；没有（新用户、刚清空历史）保持纯日期哈希。 */
   if (profile && profile.size > 0) return tastefulDaily(pool, profile, day, size)
-  const seed = day.toDateString()
+  const seed = dailyDay(day)
   return pool
     .map((track) => ({ track, rank: hash(seed + track.id) }))
     .sort((a, b) => a.rank - b.rank)
@@ -63,10 +64,6 @@ export function interleaveBySource(tracks: Track[]): Track[] {
     }
   }
   return out
-}
-
-export function dailyLabel(day = new Date()): string {
-  return `${day.getMonth() + 1} 月 ${day.getDate()} 日`
 }
 
 /**

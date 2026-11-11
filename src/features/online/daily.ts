@@ -7,6 +7,7 @@ import { mergeVersions } from './unify'
 import { sourceOrder } from '../settings/source-order'
 import { usePushPlatforms } from './push-platforms'
 import { DAILY_SIZE, dailyTracks, interleaveBySource, rotateBySeed } from '../library/daily'
+import { dailyDay } from '../library/daily-day.ts'
 import type { TasteProfile } from '../library/taste'
 import { trackKey } from './unify'
 
@@ -17,10 +18,13 @@ import { trackKey } from './unify'
  * uin 写死成 0，实际常常是空——空就不占位置）；酷狗的 `/recommend/songs` 游客
  * 也给 30 首。汽水的 feed 要 session，等账号体系稳定再接。
  *
- * 十分钟缓存一次：上游按账号限流，一天之内其实只该取一次，但用户可能同一会话
- * 里反复进出首页，缓存一层比每次重启都问一遍稳妥。
+ * 缓存跟着「批次日期」走：一个批次之内只问上游一次，翻来覆去进首页都用同一份。
+ * 批次日期见 dailyDay()——早上六点换批，跟各平台的日推对齐。
+ *
+ * 唯一的例外是空结果：某一家这次没回歌，三分钟后再试一次，别让一次抖动
+ * 把整天的日推钉死在空态。
  */
-const TTL = 10 * 60 * 1000
+const RETRY_EMPTY_MS = 3 * 60 * 1000
 
 /**
  * 缓存按「问了哪几家」分开存。
@@ -28,7 +32,15 @@ const TTL = 10 * 60 * 1000
  * 用户在设置里勾掉一家，首页那份就该少一家；漫游按当时的勾选现拉。两份若共用
  * 一格缓存，先后打开会互相顶掉，所以键是平台集合本身。
  */
-const caches = new Map<string, { at: number; tracks: Track[] }>()
+const caches = new Map<string, { day: string; at: number; tracks: Track[] }>()
+
+/** 这一家在当前批次里有没有可用的一份。 */
+function cachedDaily(key: string): Track[] | null {
+  const entry = caches.get(key)
+  if (!entry || entry.day !== dailyDay()) return null
+  if (entry.tracks.length === 0 && Date.now() - entry.at > RETRY_EMPTY_MS) return null
+  return entry.tracks
+}
 
 /**
  * 每家自己失败就自己空着，一个平台登不上不该让整块推荐变白。
@@ -37,8 +49,8 @@ const caches = new Map<string, { at: number; tracks: Track[] }>()
  */
 export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track[]> {
   const cacheKey = platforms ? [...platforms].sort().join(',') : '*'
-  const cached = caches.get(cacheKey)
-  if (cached && Date.now() - cached.at < TTL) return cached.tracks
+  const cached = cachedDaily(cacheKey)
+  if (cached) return cached
   const wanted = platforms ? new Set(platforms) : null
 
   const providers = listAvailableProviders().filter(
@@ -50,7 +62,7 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
    * 两天都拿到同一批的话首页就一模一样；挪过之后同一份数据在不同日子给出
    * 不同的首曲，用户能看出「今天换过了」，而当天之内怎么进出首页都不变。
    */
-  const daySeed = new Date().toDateString()
+  const daySeed = dailyDay()
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
@@ -72,7 +84,7 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
   )
 
   const tracks = mergeVersions(lists.flat(), sourceOrder())
-  caches.set(cacheKey, { at: Date.now(), tracks })
+  caches.set(cacheKey, { day: daySeed, at: Date.now(), tracks })
   return tracks
 }
 
@@ -82,7 +94,7 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
  * 问哪几家跟着设置里那份勾选走（roam-sources 是唯一真源）；勾选变了就重拉，
  * 缓存按集合分开，所以来回改不会拿到上一份的结果。
  */
-export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
+export function usePlatformDaily(): { tracks: Track[]; ready: boolean; online: boolean } {
   /*
    * 问哪几家看 push-platforms：勾着、并且登录着的那几家。还没问完时它给 null，
    * 这一支就先停在加载态——先画一版本机兜底、等平台落地再整组换掉，正是首页
@@ -91,7 +103,7 @@ export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
   const chosen = usePushPlatforms()
   const key = chosen ? chosen.slice().sort().join(',') : ''
   const blocked = chosen === null
-  const [tracks, setTracks] = useState<Track[]>(() => (chosen ? caches.get(key)?.tracks ?? [] : []))
+  const [tracks, setTracks] = useState<Track[]>(() => (chosen ? cachedDaily(key) ?? [] : []))
   /*
    * 首屏要判「这一份到底还来不来」。
    *
@@ -101,28 +113,55 @@ export function usePlatformDaily(): { tracks: Track[]; ready: boolean } {
    *
    * 有缓存（同一会话里进出过首页）就直接算落地：此时数组里的就是最终结果。
    */
-  const [ready, setReady] = useState(() => (chosen ? caches.has(key) : false))
+  const [ready, setReady] = useState(() => (chosen ? cachedDaily(key) !== null : false))
 
   useEffect(() => {
     if (!chosen) return
     let alive = true
-    setReady(caches.has(key))
-    void loadPlatformDaily(chosen)
-      .then((next) => {
-        if (!alive) return
-        setTracks(next)
-        setReady(true)
-      })
-      .catch(() => {
-        // 全挂了也算落地：调用方要的是「还要不要等」，不是「有没有拿到」。
-        if (alive) setReady(true)
-      })
+    const run = (): void => {
+      setReady(cachedDaily(key) !== null)
+      void loadPlatformDaily(chosen)
+        .then((next) => {
+          if (!alive) return
+          setTracks(next)
+          setReady(true)
+        })
+        .catch(() => {
+          // 全挂了也算落地：调用方要的是「还要不要等」，不是「有没有拿到」。
+          if (alive) setReady(true)
+        })
+    }
+    run()
+    /*
+     * 一直挂着首页的人也要在六点看到新一批。
+     *
+     * 批次日期一变就当作没有缓存：先回到加载态、清掉上一批，再重取一次。判据用
+     * dailyDay 而不是无条件刷——同一批次里这一分钟不会白问上游。
+     */
+    let batch = dailyDay()
+    const timer = window.setInterval(() => {
+      const now = dailyDay()
+      if (now === batch) return
+      batch = now
+      setTracks([])
+      setReady(false)
+      run()
+    }, 60 * 1000)
     return () => {
       alive = false
+      window.clearInterval(timer)
     }
   }, [chosen, key])
 
-  return blocked ? { tracks: [], ready: false } : { tracks, ready }
+  /*
+   * online 说的是「这一批里有没有平台的位置」。
+   *
+   * 一家都没登录时，调用方不该拿本机曲库把槽位补满——那画出来是「每日推荐只有
+   * 我电脑里的几首」，用户会以为推荐坏了，而真正缺的是一次登录。
+   */
+  return blocked
+    ? { tracks: [], ready: false, online: false }
+    : { tracks, ready, online: chosen.length > 0 }
 }
 
 /**

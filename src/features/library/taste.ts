@@ -8,6 +8,7 @@
  * 全程纯函数，测试在 tests/taste.test.ts。
  */
 import type { Track } from '../../types'
+import { dailyDay } from './daily-day.ts'
 
 export interface TasteProfile {
   /** 归一化后的主艺人 → 0..1，1 是听得最多的那个。 */
@@ -108,7 +109,7 @@ export function tastefulDaily(
   day = new Date(),
   size = 30
 ): Track[] {
-  const seed = day.toDateString()
+  const seed = dailyDay(day)
   const seen = new Set<string>()
   const ranked = pool
     .filter((track) => {

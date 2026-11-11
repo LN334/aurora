@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
 import { useTasteProfile } from '../features/library/taste-hooks'
+import { dailyLabel } from '../features/library/daily-day'
 import { likedTracks, useFavorites } from '../features/favorites/store'
 import { coverFor } from '../features/library/cover'
 import { artThumbFor, artworkFor } from '../features/library/source'
@@ -297,7 +298,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     [liked, platformLiked, order]
   )
 
-  const { tracks: platformDaily, ready: platformDailyReady } = usePlatformDaily()
+  const { tracks: platformDaily, ready: platformDailyReady, online: dailyOnline } = usePlatformDaily()
   // 口味画像只改排序：常听的人和他常去的平台排前面。
   const taste = useTasteProfile()
 
@@ -309,10 +310,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * SLOTS.daily 定死，关掉一家平台只换「谁填」，不会让这一块短一截。
    */
   const daily = useMemo(() => {
-    // 本机一首都没有时退到最近播放：对在线用户来说那也是「我的歌」。
-    const base = tracks.length > 0 ? tracks : recentAll
+    /*
+     * 一家平台都问不了（没登录、或勾选全关）时不拿本机曲库充数。
+     *
+     * 以前这里总是「本机一首都没有就退到最近播放」，于是没登录的机器上「今天听
+     * 什么」变成一台本地播放器随机挑一首，用户看到的是「日推放的是我电脑里的」。
+     * 缺的是登录，不是兜底，所以这一支交给下面那块空态去说。
+     */
+    const base = dailyOnline ? (tracks.length > 0 ? tracks : recentAll) : []
     return dailyBatch(platformDaily, base, new Date(), SLOTS.daily, taste)
-  }, [tracks, recentAll, platformDaily, taste])
+  }, [tracks, recentAll, platformDaily, taste, dailyOnline])
 
   /**
    * 右角那面封面墙要摊开的封面：今天这三十首全部。
@@ -472,7 +479,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
       {daily.length > 0 ? (
         <section className="rh-daily">
           <div className="rh-daily__text">
-            <span className="rh-daily__kicker">每日推荐 · {new Date().getMonth() + 1} 月 {new Date().getDate()} 日</span>
+            <span className="rh-daily__kicker">每日推荐 · {dailyLabel()}</span>
             <h2>今天听什么</h2>
             <div className="rh-daily__acts">
               <button
@@ -517,9 +524,39 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             }}
           />
         </section>
-      ) : !settled ? (
+      ) : !settled || !platformDailyReady ? (
         <section className="rh-daily is-sk" aria-hidden="true" />
-      ) : null}
+      ) : (
+        /*
+         * 空的时候不给一整块解释，只留一个入口。
+         *
+         * 以前这里直接不渲染，首页第一屏只剩问候和四张卡，像坏了；但写一句
+         * 「推荐来自你登录的平台」又是在教人 —— 用户读到的是一段产品说明，不是
+         * 一句该出现在首页的话。一行标题加一颗按钮就够了。
+         *
+         * 判据必须等 platformDailyReady：登录态还没问出来时 dailyOnline 是 false，
+         * 那一刻先显示「去登录」会闪错。
+         */
+        <section className="rh-daily rh-daily--off">
+          <div className="rh-daily__text">
+            <span className="rh-daily__kicker">
+              每日推荐 · {dailyLabel()}
+            </span>
+            <h2>今天听什么</h2>
+            <div className="rh-daily__acts">
+              {dailyOnline ? null : (
+                <button
+                  className="rh-btn rh-btn--main"
+                  type="button"
+                  onClick={() => onNavigate({ view: 'me' })}
+                >
+                  去登录
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {focus ? (
         <section className="rh-now">
