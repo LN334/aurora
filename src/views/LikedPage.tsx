@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { likedTracks, useFavorites } from '../features/favorites/store'
 import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
@@ -47,6 +47,17 @@ export function LikedPage({
     [liked, platformLiked, order]
   )
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
+
+  /* 网络慢的时候干等会让人以为卡死：八秒后给一句实话和一个重试。 */
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!platformLoading) {
+      setSlow(false)
+      return
+    }
+    const timer = window.setTimeout(() => setSlow(true), 8000)
+    return () => window.clearTimeout(timer)
+  }, [platformLoading])
   const spread = useMemo(() => {
     const out: Record<string, number> = {}
     for (const track of tracks) {
@@ -64,7 +75,21 @@ export function LikedPage({
   if (platformLoading && tracks.length === 0) {
     return (
       <div className="col">
-        <p className="pg-note">正在读取各平台的收藏…</p>
+        {slow ? (
+          /*
+           * 干等没有出路，人会以为卡死。八秒后换一句实话，并给一个再问一次的
+           * 按钮——它作废缓存后 hook 会重新读，不用重启应用。
+           */
+          <div className="pg-empty">
+            <h2>还在读各平台的收藏</h2>
+            <p>比平常慢。可以再问一次，也可以先去听本机的。</p>
+            <button className="rh-btn" type="button" onClick={() => invalidatePlatformLiked()}>
+              重新读取
+            </button>
+          </div>
+        ) : (
+          <p className="pg-note">正在读取各平台的收藏…</p>
+        )}
       </div>
     )
   }
