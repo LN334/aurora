@@ -1,8 +1,8 @@
 # Aurora 性能与后台占用 · 度量口径与基线（人读版）
 
-> 这份文件是**四名优化队友读口径的地方**，也是「优化前 vs 优化后」的对照锚点。
-> 数字本身由 `npm run perf` 自动生成到 [`docs/perf-report.md`](perf-report.md)（人读）与
-> [`docs/perf-report.json`](perf-report.json)（机器读），**每次运行都会覆盖**。
+> 这份文件是优化时读口径的地方，也是「优化前 vs 优化后」的对照锚点。
+> 数字本身由 `npm run perf` 自动生成到 [`docs/perf-report.md`](perf-report.md)（人读，随仓库更新）与
+> `docs/perf-report.json`（机器读，只在本地生成、不入库），**每次运行都会覆盖**。
 > 本文件不自动生成：它负责解释**这些数字是什么、不是什么、以及怎么换算**。
 >
 > 主进程侧的度量（模块加载成本、常驻内存）是另一套装置，见 [`docs/perf-main.md`](perf-main.md)。
