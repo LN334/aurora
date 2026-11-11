@@ -1274,6 +1274,43 @@
     margin: -56px 0 0 -56px;
   }
 }
+/*
+ * 1024 这一档还没到要改成上下排的程度，但标题只剩 155px 宽，36px 的五个字
+ * 会折成两行（79px 高）。缩到 28px 刚好占一行，卡片仍是左右并排的矮块。
+ */
+@media (max-width: 1120px) and (min-width: 1001px) {
+  .rh-daily__text h2 {
+    font-size: 28px;
+  }
+}
+
+/*
+ * 再窄一档就不再左右并排。
+ *
+ * 扇形墙是定宽的，左边那列文字没有自己的最小宽度：横排时它会被挤成一行一个
+ * 字——实测视口 900 时标题只有 35px 宽、198px 高，整块卡从 269px 被撑到 449px。
+ * 主窗口最窄 940（electron/main.ts:316 的 minWidth），所以这一档不是理论值，
+ * 把窗口拖到最小就会看到。
+ */
+@media (max-width: 1000px) {
+  .rh-daily {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s4);
+  }
+  .rh-daily__text {
+    align-self: flex-start;
+  }
+  .rh-daily__text h2 {
+    margin-bottom: 16px;
+    font-size: 30px;
+  }
+  .rh-disc {
+    width: 100%;
+    max-width: 500px;
+    margin-inline: auto;
+  }
+}
 
 /* 艺人 / 文件夹 / 歌单：一行一个的东西。行高与歌曲行对齐，读起来是同一张表。 */
 
@@ -1841,6 +1878,51 @@
 @media (max-width: 1280px) {
   .np__cover {
     width: min(100%, 320px);
+  }
+}
+/*
+ * 窄窗口下播放页改成上下叠。
+ *
+ * 原来左封面 38% 右歌词 1fr，视口 940（主窗口最窄）时歌词列只剩 306px 宽，
+ * 一行十来个字就得省略号，长句英文更是整句被切。改成封面缩到 128 横着排在
+ * 歌名左边、歌词独占整幅宽度：左栏从 300 高掉到 128，多出来的高度全给歌词。
+ */
+@media (max-width: 1120px) {
+  .np__grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 16px;
+    padding: 4px 0 6px;
+  }
+  .np__left {
+    display: grid;
+    /*
+     * 第一列必须写死宽度。用 auto 会按 max-content 撑开：封面那 400px 与
+     * 控制键那一排取最大，列宽算成 582px、第二列直接塌成 0，歌名就没了。
+     */
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 12px 18px;
+    align-items: center;
+    justify-items: start;
+    width: 100%;
+  }
+  /* 两级选择器压过文件末尾那条 width: min(100%, 400px, 46vh)。 */
+  .np__left .np__cover {
+    grid-row: 1 / span 2;
+    width: 128px;
+  }
+  .np__meta {
+    /* 让它占满右列，长歌名才有地方省略，而不是被内容宽挤成一小截。 */
+    justify-self: stretch;
+    text-align: left;
+  }
+  .np__right {
+    width: 100%;
+    max-height: none;
+    padding-left: 0;
+  }
+  .np__right::before {
+    display: none;
   }
 }
 
