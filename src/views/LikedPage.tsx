@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { likedTracks, useFavorites } from '../features/favorites/store'
-import { usePlatformLiked } from '../features/online/platform-liked'
+import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
 import { mergeVersions, sourcesOf } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
@@ -104,6 +104,18 @@ export function LikedPage({
         >
           <Shuffle size={13} />
           随机
+        </button>
+        {/*
+          * 平台那半边是十分钟缓存。在这个页面之外（手机 App、网页版）点了心，
+          * 或者想立刻确认刚点的这一下，就靠这颗按钮重读一次；不必重启应用。
+          */}
+        <button
+          className="rh-btn"
+          type="button"
+          onClick={() => invalidatePlatformLiked()}
+          title="重新读一次各平台的收藏"
+        >
+          刷新
         </button>
         </span>
       </header>

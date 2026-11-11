@@ -54,6 +54,31 @@ interface LikesState {
   seed(source: LikeSource, tracks: Track[]): void
 }
 
+/**
+ * 喜欢的结果变了：本机点了心，或者平台那边写成功了。
+ *
+ * 「我喜欢的」页有一份自己的平台缓存（`online/platform-liked.ts`，十分钟），它和
+ * 心形按钮读的不是同一份。不在这里说一声，那边就要等缓存过期或重启应用才更新。
+ */
+const changeListeners = new Set<() => void>()
+
+export function onLikesChanged(listener: () => void): () => void {
+  changeListeners.add(listener)
+  return () => {
+    changeListeners.delete(listener)
+  }
+}
+
+function notifyLikesChanged(): void {
+  for (const listener of changeListeners) {
+    try {
+      listener()
+    } catch {
+      // 一个订阅者出错不该让别人收不到。
+    }
+  }
+}
+
 const emptySlice = (state: LikeSourceState, error: string | null = null): LikeSourceSlice => ({
   tracks: [],
   state,
@@ -126,6 +151,7 @@ export const useLikes = create<LikesState>()((set, get) => ({
 
     if (source === 'local') {
       const liked = useFavorites.getState().toggle(track)
+      notifyLikesChanged()
       return { ok: true, liked }
     }
 
@@ -165,7 +191,10 @@ export const useLikes = create<LikesState>()((set, get) => ({
     } catch {
       written = false
     }
-    if (written) return { ok: true, liked: next }
+    if (written) {
+      notifyLikesChanged()
+      return { ok: true, liked: next }
+    }
 
     set((state) => ({
       sources: { ...state.sources, [source]: { ...(state.sources[source] ?? emptySlice('ready')), tracks: previous } }
