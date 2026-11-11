@@ -95,15 +95,20 @@ export function useSettingsPage(): SettingsPage {
     let cancelled = false
     void (async () => {
       try {
-        const [loaded, updatePrefs, usage] = await Promise.all([
+        const [loaded, updatePrefs] = await Promise.all([
           bridge.settings.getAll(),
-          bridge.updates.getPrefs(),
-          bridge.settings.getStorage()
+          bridge.updates.getPrefs()
         ])
         if (cancelled) return
         setSettings(loaded)
         setPrefs(updatePrefs)
-        setStorage(usage)
+        // 数据目录占用要递归扫一遍（本机 500 MB 约 1.1 秒），不能挡住这一页先出来
+        void bridge.settings
+          .getStorage()
+          .then((usage) => {
+            if (!cancelled) setStorage(usage)
+          })
+          .catch(() => {})
       } catch (problem) {
         if (!cancelled) setError(describe(problem))
       }

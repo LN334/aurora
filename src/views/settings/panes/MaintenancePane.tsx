@@ -50,8 +50,18 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
                 <span className="settings__number">{formatBytes(part.bytes)}</span>
               </Row>
             ))}
-            <Row label="合计" hint={`数据目录：${page.storage?.userData ?? '—'}`}>
+            <Row label="合计" hint="上面这几项加起来。">
               <span className="settings__number">{formatBytes(junk.totalBytes)}</span>
+            </Row>
+            <Row
+              label="整个数据目录"
+              hint={page.storage?.userData ?? '曲库、封面缓存、登录状态与日志都在这里。'}
+            >
+              <span className="settings__number">
+                {page.storage?.userDataBytes != null
+                  ? formatBytes(page.storage.userDataBytes)
+                  : '…'}
+              </span>
             </Row>
             {junk.cleanedBytes > 0 ? (
               <Row label="已清理">
