@@ -5,23 +5,19 @@ import type { UpdateResult } from '../../env'
 /**
  * 更新状态，全应用一份。
  *
- * 设置页原来自己拿一份（UpdatePanel 里的 useState），于是「有新版本」这件事
- * 只有打开设置页才看得见。横幅、设置页、下载进度现在读同一个 store：谁先
- * 知道都算数，也不会出现「设置页说在下载、主界面还让我下载」。
+ * 应用里不再有更新横幅：有新版本由 auto-install 自己下、空闲时自己装，
+ * 设置页读这里显示进度。同一份状态也给截图脚本一个推进口。
  */
 
 interface UpdateState {
   /** 最近一次检查或下载的状态；null 表示这次启动还没查过。 */
   result: UpdateResult | null
-  /** 用户关掉通知的那个版本。同一版本在本次启动内不再打扰。 */
-  dismissedVersion: string | null
   /** 检查或下载的请求在飞，按钮该转圈。 */
   busy: boolean
   check(): Promise<void>
   download(): Promise<void>
   install(): Promise<void>
   open(): Promise<void>
-  dismiss(): void
 }
 
 /** 每个窗口只接一次主进程的推送。 */
@@ -29,7 +25,6 @@ let bound = false
 
 export const useUpdate = create<UpdateState>()((set, get) => ({
   result: null,
-  dismissedVersion: null,
   busy: false,
 
   async check() {
@@ -64,14 +59,6 @@ export const useUpdate = create<UpdateState>()((set, get) => ({
     await bridge.updates.open(result.info.url)
   },
 
-  dismiss() {
-    const result = get().result
-    if (!result || result.state === 'current' || result.state === 'unconfigured' || result.state === 'error') {
-      set({ dismissedVersion: null })
-      return
-    }
-    set({ dismissedVersion: result.info.version })
-  }
 }))
 
 /**

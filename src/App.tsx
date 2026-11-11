@@ -12,13 +12,13 @@ import { LocalPage } from './views/LocalPage'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
 import { bindUpdateEvents } from './features/updates/store'
+import { armAutoInstall } from './features/updates/auto-install'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
 import { useOnboarded, setOnboarded } from './features/settings/onboarding'
 import { PlatformLoginDialogs } from './views/settings/panes/PlatformSignIn'
 import { ConfirmModal } from './views/ConfirmModal'
 import { usePresence } from './ui/presence'
-import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
@@ -382,6 +382,7 @@ export function App() {  if (!isNative) {
   // 更新状态由主进程推来（启动那次静默检查、下载进度、下载完成），这里把通道接上。
   useEffect(() => {
     bindUpdateEvents()
+  armAutoInstall()
   }, [])
 
   // 下载列表同样归主进程：面板关掉了任务也得继续跑。
@@ -1099,8 +1100,6 @@ export function App() {  if (!isNative) {
               ) : null}
             </div>
           </div>
-
-          <UpdateBar />
 
           {scanning ? (
             <div
