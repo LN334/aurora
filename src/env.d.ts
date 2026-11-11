@@ -118,8 +118,9 @@ export interface UpdatePrefs {
   /** Epoch ms of the last completed check, 0 when it has never run. */
   lastCheck: number
   /**
-   * Download new releases in the background. On by default; installing still
-   * waits for an explicit restart, since the installers are unsigned.
+   * Download new releases in the background and install them once the player is
+   * idle. On by default: the installers are unsigned, so the one guard left is
+   * "never restart while something is playing".
    */
   autoInstall: boolean
   /**

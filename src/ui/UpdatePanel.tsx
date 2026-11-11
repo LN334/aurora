@@ -89,7 +89,7 @@ export function UpdatePanel() {
         <div className="update__row update__row--quiet">
           <div>
             <div className="update__label">每天自动检查一次</div>
-            <p className="update__hint">发现新版本时会自动下载，换版本前仍需你点一次。安装包未签名</p>
+            <p className="update__hint">只是问一句有没有新版本；下不下、装不装看下面的开关。安装包未签名</p>
           </div>
           <button
             className={`switch${autoCheck ? ' is-on' : ''}`}
