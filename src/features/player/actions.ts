@@ -1,5 +1,6 @@
 import type { Track } from '../../types'
 import { engineHooks } from './engine'
+import { applyMode, modeOf, nextMode } from './mode'
 import { driver } from './driver'
 import { step } from './queue'
 import { isRestoringPrefs, usePlayer } from './store'
@@ -211,13 +212,18 @@ export const player = {
     driver.setVolume()
   },
 
-  toggleShuffle(): void {
-    usePlayer.getState().setShuffle(!usePlayer.getState().shuffle)
-  },
-
-  cycleRepeat(): void {
-    const { repeat } = usePlayer.getState()
-    usePlayer.getState().setRepeat(repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off')
+  /**
+   * 播放模式点一次走到下一档：顺序 → 列表循环 → 单曲循环 → 随机 → 顺序。
+   *
+   * 内核还是 shuffle + repeat 两个字段（漫游换队列、持久化、队列步进都读它们），
+   * 合并只发生在界面上。先改 shuffle 再改 repeat：setShuffle 会重排 order，
+   * 与 repeat 互不影响，这样写只是跟界面的顺序对齐。
+   */
+  cycleMode(): void {
+    const state = usePlayer.getState()
+    const next = applyMode(nextMode(modeOf(state.shuffle, state.repeat)))
+    if (next.shuffle !== state.shuffle) state.setShuffle(next.shuffle)
+    state.setRepeat(next.repeat)
   },
 
   setEqEnabled(enabled: boolean): void {

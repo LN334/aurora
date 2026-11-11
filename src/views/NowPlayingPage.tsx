@@ -8,6 +8,7 @@ import type { Lyrics } from '../features/lyrics/lrc'
 import { activeLineAt } from '../features/lyrics/lrc'
 import { splitLyricLine } from '../features/lyrics/line-parts'
 import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
+import { MODE_TEXT, modeOf } from '../features/player/mode'
 import { useProgressPosition } from '../features/player/Bar'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { artworkFor } from '../features/library/source'
@@ -20,6 +21,7 @@ import {
   Heart,
   Next,
   Note,
+  Order,
   Pause,
   Play,
   Prev,
@@ -265,6 +267,7 @@ export function NowPlayingPage({
   const muted = usePlayer((state) => state.muted)
   const shuffle = usePlayer((state) => state.shuffle)
   const repeat = usePlayer((state) => state.repeat)
+  const mode = modeOf(shuffle, repeat)
   const liked = track ? likedIds.has(track.id) : false
   /*
    * 这一首在不在当前这趟漫游里。用 trackKey 对而不是对象引用：队列里可能放的是
@@ -346,20 +349,27 @@ export function NowPlayingPage({
               <Heart size={18} />
             </button>
             {/*
-             * 漫游里这两颗没有事可做：整趟本来就从池子里随机挑，再挂一次
-             * 「随机播放」是把同一句话再说一遍；「列表循环 / 单曲循环」对一条
-             * 会自己续长的队列也说不清——漫游的循环就是一直往下走。普通队列
-             * 里它们照旧，那里才有「顺序重排」与「到底停不停」可谈。
+             * 漫游里播放模式没有可改的东西：整趟本来就从池子里随机挑、走到头
+             * 还会自己续，再挂一个模式键只是把同一件事说第二遍。普通队列里
+             * 它照旧，那里才有「顺序重排」与「到底停不停」可谈。
              */}
             {roam ? null : (
               <button
                 type="button"
-                className={`np__shuf${shuffle ? ' is-on' : ''}`}
-                onClick={() => player.toggleShuffle()}
-                title="随机播放"
-                aria-pressed={shuffle}
+                className={'np__mode' + (mode === 'order' ? '' : ' is-on')}
+                onClick={() => player.cycleMode()}
+                title={MODE_TEXT[mode].hint}
+                aria-label={MODE_TEXT[mode].label}
               >
-                <Shuffle size={17} />
+                {mode === 'shuffle' ? (
+                  <Shuffle size={17} />
+                ) : mode === 'one' ? (
+                  <RepeatOne size={17} />
+                ) : mode === 'loop' ? (
+                  <Repeat size={17} />
+                ) : (
+                  <Order size={17} />
+                )}
               </button>
             )}
             <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
@@ -376,16 +386,6 @@ export function NowPlayingPage({
             <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
               <Next size={20} />
             </button>
-            {roam ? null : (
-              <button
-                type="button"
-                className={`np__rep${repeat !== 'off' ? ' is-on' : ''}`}
-                onClick={() => player.cycleRepeat()}
-                title={repeat === 'one' ? '单曲循环' : repeat === 'all' ? '列表循环' : '不循环'}
-              >
-                {repeat === 'one' ? <RepeatOne size={17} /> : <Repeat size={17} />}
-              </button>
-            )}
             <button type="button" className="np__vol" onClick={() => player.toggleMute()} title={muted ? '取消静音' : '静音'}>
               {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
             </button>

@@ -43,6 +43,7 @@ import { loadInitialIndex, runScan } from './features/library/scan'
 import { groupAlbums, useLibrary } from './features/library/store'
 import { artworkFor } from './features/library/source'
 import { player } from './features/player/actions'
+import { modeOf } from './features/player/mode'
 import { driver } from './features/player/driver'
 import { loadProfilePlayerPrefs, usePlayer } from './features/player/store'
 import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
@@ -1127,8 +1128,7 @@ export function App() {  if (!isNative) {
           duration={duration}
           volume={volume}
           muted={muted}
-          shuffle={shuffle}
-          repeat={repeat}
+          mode={modeOf(shuffle, repeat)}
           eqOpen={eqOpen}
           desktopLyricsOpen={overlayStatus.open}
           queueLength={queueLength}
@@ -1138,8 +1138,7 @@ export function App() {  if (!isNative) {
           onSeekRatio={(ratio) => player.seekRatio(ratio)}
           onVolume={(next) => player.setVolume(next)}
           onToggleMute={() => player.toggleMute()}
-          onToggleShuffle={() => player.toggleShuffle()}
-          onCycleRepeat={() => player.cycleRepeat()}
+          onCycleMode={() => player.cycleMode()}
           onOpenNow={() => goShell({ view: 'nowplaying' })}
           onOpenStage={() => setStageOpen(true)}
           // The two side panels occupy the same slot, so opening one closes

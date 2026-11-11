@@ -1495,8 +1495,7 @@
 }
 
 .np__like,
-.np__shuf,
-.np__rep,
+.np__mode,
 .np__vol,
 .np__step {
   width: 36px;
@@ -1509,16 +1508,14 @@
   color: var(--text-mid);
 }
 .np__like:hover,
-.np__shuf:hover,
-.np__rep:hover,
+.np__mode:hover,
 .np__vol:hover,
 .np__step:hover {
   background: rgb(255 255 255 / 0.09);
   color: var(--text-hi);
 }
 .np__like.is-on,
-.np__shuf.is-on,
-.np__rep.is-on {
+.np__mode.is-on {
   color: var(--accent-strong);
 }
 

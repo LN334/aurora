@@ -1,4 +1,5 @@
-import type { RepeatMode, Track } from '../../types'
+import type { Track } from '../../types'
+import type { PlayMode } from '../../features/player/mode'
 import { useRoam } from '../../features/player/roam-session'
 import { DesktopLyrics, Expand, Queue, Sliders } from '../../ui/icons'
 import { ControlButton } from './ControlButton'
@@ -14,8 +15,7 @@ interface PlayerBarProps {
   duration: number
   volume: number
   muted: boolean
-  shuffle: boolean
-  repeat: RepeatMode
+  mode: PlayMode
   eqOpen: boolean
   desktopLyricsOpen: boolean
   queueLength: number
@@ -25,8 +25,7 @@ interface PlayerBarProps {
   onSeekRatio(ratio: number): void
   onVolume(volume: number): void
   onToggleMute(): void
-  onToggleShuffle(): void
-  onCycleRepeat(): void
+  onCycleMode(): void
   /** 点封面进「正在播放」；舞台是另一页，走它自己的键与按钮。 */
   onOpenNow(): void
   onOpenStage(): void
@@ -42,7 +41,7 @@ interface PlayerBarProps {
  *
  * - 左（TrackInfo）只读：封面、标题、艺人。点封面进沉浸模式。
  * - 中（Transport + Progress）只管播放：上一首 / 播放 / 下一首是主键，
- *   随机与循环分列两侧当模式键；下面一行是时间、进度、总时长。
+ *   左侧一颗键管「顺序 / 列表 / 单曲 / 随机」；下面一行是时间、进度、总时长。
  * - 右（视图键 + Volume）只管「看得见的东西」：桌面歌词、队列、均衡器、舞台，
  *   再加一条分隔线之后的音量。视图键与音量不是一个层级，靠这条线分开。
  *
@@ -56,8 +55,7 @@ export function PlayerBar({
   duration,
   volume,
   muted,
-  shuffle,
-  repeat,
+  mode,
   eqOpen,
   desktopLyricsOpen,
   queueLength,
@@ -67,15 +65,14 @@ export function PlayerBar({
   onSeekRatio,
   onVolume,
   onToggleMute,
-  onToggleShuffle,
-  onCycleRepeat,
+  onCycleMode,
   onOpenNow,
   onOpenStage,
   onToggleEq,
   onOpenQueue,
   onToggleDesktopLyrics
 }: PlayerBarProps) {
-  // 漫游里随机与循环没有可改的东西，底栏跟播放页一起把这两颗收起来。
+  // 漫游里播放模式没有可改的东西，底栏跟播放页一起把它收起来。
   const roaming = useRoam((state) => state.tracks.length > 0)
 
   return (
@@ -87,13 +84,11 @@ export function PlayerBar({
           playing={playing}
           loading={loading}
           disabled={!track}
-          shuffle={shuffle}
-          repeat={repeat}
+          mode={mode}
           onToggle={onToggle}
           onNext={onNext}
           onPrev={onPrev}
-          onToggleShuffle={onToggleShuffle}
-          onCycleRepeat={onCycleRepeat}
+          onCycleMode={onCycleMode}
           hideModes={roaming}
         />
         <Progress duration={duration} disabled={!track} onSeekRatio={onSeekRatio} />

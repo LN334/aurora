@@ -172,6 +172,16 @@ export const RepeatOne = (p: IconProps) => (
   </Svg>
 )
 
+/** 顺序播放：三条线往下排，右侧一个箭头收尾。与 Repeat 不同，它不闭环。 */
+export const Order = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 7h9.5" />
+    <path d="M5 12h6.5" />
+    <path d="M5 17h9.5" />
+    <path d="M17.5 9.5 20 12l-2.5 2.5" />
+  </Svg>
+)
+
 export const Volume = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 9.5h3L11 6v12l-4-3.5H4Z" />
