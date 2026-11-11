@@ -30,11 +30,26 @@ const MAX_SKIP_CHAIN = 6
 /** 已经为「没源」自动跳过几首。播到有源的歌、或用户自己点歌，就归零。 */
 let skipChain = 0
 
+/**
+ * 整条队列被换掉时先通知一声。
+ *
+ * 漫游据此结束自己那一趟：用户去点了一个歌单、一张专辑、或者「播放全部」，
+ * 意思就是「不漫游了」。不通知的话播放条还写着「漫游中」、队列面板还叫
+ * 「漫游 · 接下来」，而实际放的是那份歌单。
+ */
+let queueResetHook: (() => void) | null = null
+
+export function onQueueReset(hook: (() => void) | null): void {
+  queueResetHook = hook
+}
+
 /** Standard transport behaviour: back within 3s restarts rather than rewinds. */
 const PREV_RESTART_WINDOW = 3
 
 export const player = {
   playQueue(tracks: Track[], startAt = 0): void {
+    // 换了整条队列：漫游那一趟到此为止（漫游自己换队列时这个钩子会让开）。
+    queueResetHook?.()
     // 用户自己点的一趟：跳过链从零开始数。
     skipChain = 0
     usePlayer.getState().setQueue(tracks, startAt)

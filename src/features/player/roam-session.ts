@@ -3,7 +3,7 @@ import type { RepeatMode, Track } from '../../types'
 import type { ProviderId } from '../online/types'
 import { SLOTS } from '../online/slots'
 import { trackKey } from '../online/unify'
-import { player } from './actions'
+import { onQueueReset, player } from './actions'
 import {
   appendFresh,
   remainingSeconds,
@@ -180,6 +180,24 @@ function parkRepeat(): void {
 }
 
 /**
+ * 漫游自己在换队列。
+ *
+ * 走的是同一个 player.playQueue（换队列只有这一个口子），但要先举一下旗，
+ * 让「队列被替换就退出漫游」那条守卫让开——否则漫游刚装上的队列会把自己判成
+ * 「用户去点别的了」，转头把自己清掉。
+ */
+let roamSwitch = false
+
+function playRoamQueue(tracks: Track[], startAt: number): void {
+  roamSwitch = true
+  try {
+    player.playQueue(tracks, startAt)
+  } finally {
+    roamSwitch = false
+  }
+}
+
+/**
  * 把这一趟的队列装上并开播。
  *
  * 过滤全在这一处做，因为现在有两条来源：先到的快池、后来补齐的整池。两处各写一
@@ -213,7 +231,7 @@ function commitRoam(queue: Track[], seed: Track | undefined): boolean {
     error: ''
   })
   parkRepeat()
-  player.playQueue(tracks, 0)
+  playRoamQueue(tracks, 0)
   return true
 }
 
@@ -290,7 +308,7 @@ export async function startRoam(seed?: Track): Promise<boolean> {
     const heard = state.heard
     const at = state.tracks.findIndex((track) => !heard[trackKey(track)])
     parkRepeat()
-    player.playQueue(state.tracks, at >= 0 ? at : 0)
+    playRoamQueue(state.tracks, at >= 0 ? at : 0)
     return true
   }
 
@@ -553,6 +571,18 @@ function scheduleRetry(): void {
     refillIfLow()
   }, 8000)
 }
+
+/**
+ * 用户去听别的东西了：漫游结束。
+ *
+ * 判据只有一条——整条队列被换掉，而换的人不是漫游自己。循环模式在这里还原，
+ * 播放条与队列面板的漫游字样也跟着消失（它们读的是 useRoam.tracks）。
+ */
+onQueueReset(() => {
+  if (roamSwitch) return
+  if (useRoam.getState().tracks.length === 0) return
+  endRoam()
+})
 
 /**
  * 切歌就记一笔，顺便看一眼要不要补。
