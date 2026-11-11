@@ -2715,3 +2715,19 @@
   flex: none;
   white-space: nowrap;
 }
+
+/* 「接下来」翻到底之后的一条：它是一条动作，不是一行曲目，所以占满整宽。 */
+.queue-more {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+}
+.queue-more:hover {
+  background: rgb(255 255 255 / 0.09);
+  color: var(--text-hi);
+}

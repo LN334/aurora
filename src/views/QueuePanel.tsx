@@ -1,10 +1,16 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useFavorites } from '../features/favorites/store'
 import { usePlayer } from '../features/player/store'
+import { MODE_TEXT, modeOf } from '../features/player/mode'
+import type { Track } from '../types'
 import { useRoam } from '../features/player/roam-session'
 import { formatTime } from '../ui/format'
 import { ArtistName } from '../ui/NameRef'
 import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
 import { usePresence } from '../ui/presence'
+
+/** 「接下来」每页多少行。 */
+const PAGE = 120
 
 interface QueuePanelProps {
   open: boolean
@@ -14,7 +20,11 @@ interface QueuePanelProps {
 }
 
 interface RowProps {
+  /** 队列下标，跳转与删除都按它。 */
   trackIndex: number
+  /** 父层从 queue 里取好传进来：每行各自订阅一次 queue，长队列会白跑很多次渲染。 */
+  track: Track | null
+  liked: boolean
   label: string
   isCurrent: boolean
   playing: boolean
@@ -22,9 +32,7 @@ interface RowProps {
   onRemove(queueIndex: number): void
 }
 
-function QueueRow({ trackIndex, label, isCurrent, playing, onJump, onRemove }: RowProps) {
-  const track = usePlayer((s) => s.queue[trackIndex] ?? null) // eslint-disable-line
-  const liked = useFavorites((s) => (track ? s.liked.some((entry) => entry.id === track.id) : false))
+function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, onJump, onRemove }: RowProps) {
   if (!track) return null
 
   return (
@@ -65,9 +73,8 @@ function QueueRow({ trackIndex, label, isCurrent, playing, onJump, onRemove }: R
             <button
               className="queue-row__op"
               onClick={() => {
-                const state = usePlayer.getState()
-                const at = state.queue.findIndex((item) => item.id === track.id)
-                if (at >= 0 && at !== state.index) state.removeAt(at)
+                // 用行自己的队列下标：同一首可能在队列里出现两次，按 id 找会挪错那一行。
+                if (trackIndex !== usePlayer.getState().index) usePlayer.getState().removeAt(trackIndex)
                 usePlayer.getState().enqueue([track], 'next')
               }}
               title="设为下一首"
@@ -106,10 +113,25 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   // 漫游时这一份是「流的下半截」，不是用户排的队列：报总数会把它说成一份歌单。
   const roaming = useRoam((s) => s.tracks.length > 0)
   const order = usePlayer((s) => s.order)
+  /*
+   * 一次只建这么多行。队列长起来是几百首（漫游池、整张专辑连着排），
+   * 一次性铺进 DOM 会让抽屉打开那一下卡住；剩下的按需再长。
+   */
+  const [shown, setShown] = useState(PAGE)
+  const queue = usePlayer((s) => s.queue)
   const index = usePlayer((s) => s.index)
   const shuffle = usePlayer((s) => s.shuffle)
   const repeat = usePlayer((s) => s.repeat)
   const playing = usePlayer((s) => s.playing)
+  // 换了队列就把窗口收回第一页，别把上一份队列的「显示更多」带过来。
+  useEffect(() => {
+    setShown(PAGE)
+  }, [queueLength])
+  const mode = modeOf(shuffle, repeat)
+  // 喜欢状态一次算成集合传给行：每行各订阅一次 liked，长队列里每次点心
+  // 都会让整列重新求一遍 some()。
+  const likedEntries = useFavorites((s) => s.liked)
+  const likedIds = useMemo(() => new Set(likedEntries.map((entry) => entry.id)), [likedEntries])
   // 关闭时先留着，让抽屉滑出去再卸载。
   const { mounted, closing } = usePresence(open, 320)
 
@@ -117,6 +139,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
 
   const at = order.indexOf(index)
   const upcoming = at === -1 ? [] : order.slice(at + 1)
+  const visible = upcoming.slice(0, shown)
+  const rest = upcoming.length - visible.length
   const played = at === -1 ? [] : order.slice(0, at)
 
   const jump = (queueIndex: number) => {
@@ -139,9 +163,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
         <h2 className="panel__title">{roaming ? '漫游 · 接下来' : '播放队列'}</h2>
         {roaming ? null : (
           <span className="panel__count tnum">
-            {queueLength} 首
-            {shuffle ? '，随机顺序' : ''}
-            {repeat === 'one' ? '，单曲循环' : repeat === 'all' ? '，列表循环' : ''}
+            {queueLength} 首 · {MODE_TEXT[mode].tip}
           </span>
         )}
         <div className="queue-actions">
@@ -190,6 +212,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                 <ul className="queue-list">
                   <QueueRow
                     trackIndex={index}
+                    track={queue[index] ?? null}
+                    liked={likedIds.has(queue[index]?.id ?? '')}
                     label=""
                     isCurrent
                     playing={playing}
@@ -210,13 +234,15 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                 <p className="queue-group__empty">队列里没有别的曲目了</p>
               ) : (
                 <ul className="queue-list">
-                  {upcoming.map((queueIndex, position) => (
+                  {visible.map((queueIndex, position) => (
                     <QueueRow
                       // 用队列下标当身份，不用「第几行」：切歌时整个待播列表
                       // 会往上挪一位，按位置当 key 会让每一行都被卸载重建，
                       // 面板看起来就在抽搐。
                       key={queueIndex}
                       trackIndex={queueIndex}
+                      track={queue[queueIndex] ?? null}
+                      liked={likedIds.has(queue[queueIndex]?.id ?? '')}
                       label={String(position + 1)}
                       isCurrent={false}
                       playing={playing}
@@ -226,6 +252,11 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                   ))}
                 </ul>
               )}
+              {rest > 0 ? (
+                <button className="queue-more" onClick={() => setShown((n) => n + PAGE)}>
+                  还有 {rest} 首 · 显示更多
+                </button>
+              ) : null}
             </section>
 
             {/* Native disclosure: the played list is reference material, so it
@@ -241,6 +272,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                     <QueueRow
                       key={queueIndex}
                       trackIndex={queueIndex}
+                      track={queue[queueIndex] ?? null}
+                      liked={likedIds.has(queue[queueIndex]?.id ?? '')}
                       label="·"
                       isCurrent={false}
                       playing={false}
