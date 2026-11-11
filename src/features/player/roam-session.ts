@@ -14,6 +14,9 @@ import {
 } from './roam-pure'
 import { buildRoamQueue, loadRoamPool, loadRoamQuick, loadRoamStream, loadSeedTracks } from './roam'
 import { roamPlatforms } from './roam-sources'
+import { listAvailableProviders } from '../online/registry'
+import { useOnlineStore } from '../online/store'
+import { readPushSignedOnly } from '../settings/push-signed'
 import { usePlayer } from './store'
 
 /**
@@ -103,6 +106,13 @@ interface RoamState {
   /** 要不到时的一句话，显示在左栏按钮下面。 */
   error: string
   /**
+   * 这一趟没开起来，缺的是一个登录账号。
+   *
+   * 与 error 分开：error 是「试了但不行」的一句话，用一行提示就够了；没登录是
+   * 「这条路要你先做一件事」，得摆一个能点的对话框，让人当场决定去不去登录。
+   */
+  needSignIn: boolean
+  /**
    * 进这一趟时被换掉的循环模式。
    *
    * 漫游不重复，循环必须关掉；而播放页与底栏在漫游里都不给循环那颗键，所以
@@ -139,10 +149,30 @@ export const useRoam = create<RoamState>()(() => ({
   busy: false,
   pulling: false,
   error: '',
+  needSignIn: false,
   parkedRepeat: null,
   dropped: null,
   seed: null
 }))
+
+/**
+ * 勾着的这几家里，有几家已经登录。
+ *
+ * 私人漫游与每日推荐都要账号；未登录时上游要么回空、要么回游客榜单（能看见、
+ * 点了放不出来）。这个判断决定两件事：开趟前要不要直接劝登录、要不到歌时该给
+ * 哪一句原因。
+ *
+ * 先 init 再数：没 init 过时 account 是空的，会把登录着的账号也当成没登录。
+ * init 是单飞且幂等的，重复调用不额外发请求。
+ */
+async function signedCount(ids: ProviderId[]): Promise<number> {
+  const wanted = new Set<string>(ids)
+  const list = listAvailableProviders().filter((provider) => wanted.has(provider.id))
+  await Promise.all(
+    list.map((provider) => useOnlineStore(provider.id).getState().init().catch(() => {}))
+  )
+  return list.filter((provider) => Boolean(useOnlineStore(provider.id).getState().account)).length
+}
 
 /** 当前这首在不在这趟里。不在就不该显示漫游那套东西。 */
 function isRoamTrack(track: Track | null): boolean {
@@ -322,6 +352,17 @@ export async function startRoam(seed?: Track): Promise<boolean> {
     useRoam.setState({ busy: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
     return false
   }
+  /*
+   * 勾着、但一家都没登录：先让人去登录，不要装作能推。
+   *
+   * 未登录时有的平台会回游客榜单：歌看得见，点开取流却回「需要登录」，这一趟
+   * 就变成连续跳歌加一句报错。缺的是一次登录，不是一次重试。
+   * 设置里关掉「只用我登录了的平台」的人例外：他明确接受公开榜单。
+   */
+  if (readPushSignedOnly() && (await signedCount(wanted)) === 0) {
+    useRoam.setState({ busy: false, error: '', needSignIn: true })
+    return false
+  }
 
   useRoam.setState({ busy: true, error: '' })
   try {
@@ -366,7 +407,20 @@ export async function startRoam(seed?: Track): Promise<boolean> {
       chosen
     )
     if (!commitRoam(queue, chosen)) {
-      useRoam.setState({ busy: false, error: '这几家今天还没推过来，换几家或过会儿再试' })
+      /*
+       * 分两种原因：真没登录，还是今天真没推。
+       *
+       * 未登录时上游的私人漫游与每日推荐都回空，和「今天这批推完了」长得一模一样。
+       * 这时劝「换几家或过会儿再试」是错的方向——缺的是一次登录。
+       * 设置里关掉「只用我登录了的平台」的人例外：他接受公开榜单，那就是真没推。
+       */
+      const signed = !readPushSignedOnly() || (await signedCount(wanted)) > 0
+      useRoam.setState({
+        busy: false,
+        error: signed
+          ? '这几家今天还没推过来，换几家或过会儿再试'
+          : '这几家今天都没回歌，登录一下或过会儿再来'
+      })
       return false
     }
     return true

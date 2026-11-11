@@ -46,6 +46,11 @@ export function usePushSignedOnly(): boolean {
   return useSyncExternalStore(subscribe, read, read)
 }
 
+/** 给不在组件里的调用方用：漫游要不到歌时，判断「该不该劝他登录」。 */
+export function readPushSignedOnly(): boolean {
+  return read()
+}
+
 export function setPushSignedOnly(on: boolean): void {
   const raw = on ? '1' : '0'
   try {

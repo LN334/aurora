@@ -11,6 +11,7 @@ export function ConfirmModal({
   title,
   body,
   confirmText = '确定',
+  cancelText = '取消',
   danger = false,
   onCancel,
   onConfirm
@@ -18,6 +19,7 @@ export function ConfirmModal({
   title: string
   body?: string
   confirmText?: string
+  cancelText?: string
   danger?: boolean
   onCancel(): void
   onConfirm(): void
@@ -54,7 +56,7 @@ export function ConfirmModal({
         {body ? <p className="nm__note">{body}</p> : null}
         <div className="nm__acts">
           <button className="rh-btn" type="button" onClick={cancel}>
-            取消
+            {cancelText}
           </button>
           <button
             className={danger ? 'rh-btn rh-btn--danger' : 'rh-btn rh-btn--main'}

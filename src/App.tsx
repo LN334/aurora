@@ -16,6 +16,7 @@ import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/
 import { DownloadsDock } from './ui/DownloadsDock'
 import { useOnboarded, setOnboarded } from './features/settings/onboarding'
 import { PlatformLoginDialogs } from './views/settings/panes/PlatformSignIn'
+import { ConfirmModal } from './views/ConfirmModal'
 import { usePresence } from './ui/presence'
 import { UpdateBar } from './ui/UpdateBar'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
@@ -186,6 +187,8 @@ export function App() {  if (!isNative) {
    */
   const flash = useFlash((state) => state.message)
   const setFlash = useFlash((state) => state.show)
+  /** 漫游需要账号：这不是一句提示，是一件要人当场决定的事，所以摆对话框而不是 flash。 */
+  const needSignIn = useRoam((state) => state.needSignIn)
   /** The open per-track actions menu, if any. */
   const [trackMenu, setTrackMenu] = useState<TrackMenuRequest | null>(null)
   /*
@@ -355,6 +358,8 @@ export function App() {  if (!isNative) {
     void startRoam(seed).then((ok) => {
       if (!ok) {
         // 点了没反应比报错更糟：要不到时把原因说出来。
+        // 缺登录不走这条路，它由对话框接管（见下面的 needSignIn）。
+        if (useRoam.getState().needSignIn) return
         setFlash(useRoam.getState().error || '这一趟没要到歌')
         return
       }
@@ -1108,6 +1113,19 @@ export function App() {  if (!isNative) {
             </div>
           ) : null}
 
+          {needSignIn ? (
+            <ConfirmModal
+              title="漫游需要登录"
+              body="漫游按你的口味往下推，得先登录一个平台账号。"
+              cancelText="以后再说"
+              confirmText="去登录"
+              onCancel={() => useRoam.setState({ needSignIn: false })}
+              onConfirm={() => {
+                useRoam.setState({ needSignIn: false })
+                goShell({ view: 'me' })
+              }}
+            />
+          ) : null}
           {flash ? (
             <div className="flash" role="status">
               <span>{flash}</span>
