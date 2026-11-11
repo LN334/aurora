@@ -5,7 +5,7 @@
  * 用法:
  *   node scripts/clean.mjs                    构建产物 + 巡检/探针截图与日志
  *   node scripts/clean.mjs --dry              只报会删什么、占多少
- *   node scripts/clean.mjs --releases         release/ release2/ release-dir/
+ *   node scripts/clean.mjs --releases         release* 目录（安装包产物）
  *   node scripts/clean.mjs --probes           .probe-profile/ 与根目录 .probe-* 产物
  *   node scripts/clean.mjs --refs             .refs/（抓下来的参考仓库源码）
  *   node scripts/clean.mjs --all              以上全部
@@ -30,7 +30,18 @@ const targets = [
 ]
 
 if (withReleases) {
-  for (const name of ['release', 'release2', 'release-dir']) targets.push({ name, why: '安装包产物' })
+  // 除了 release/，electron-builder 也可能被 -c.directories.output 指到 release-xxx/，一并认。
+  for (const entry of fs.readdirSync(root)) {
+    if (!entry.startsWith('release')) continue
+    let stat
+    try {
+      stat = fs.statSync(path.join(root, entry))
+    } catch {
+      continue
+    }
+    if (!stat.isDirectory()) continue
+    targets.push({ name: entry, why: '安装包产物' })
+  }
 }
 if (withProbes) {
   targets.push({ name: '.probe-profile', why: '探针用的账号副本' })
