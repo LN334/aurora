@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
 import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
 import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features/settings/row-density'
+import { THEMES, useTheme, writeTheme } from '../../../features/settings/theme'
+import { BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
 import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
@@ -35,6 +37,9 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const refreshWallpaper = useWallpaper((state) => state.refresh)
   const setWallpaperProperty = useWallpaper((state) => state.setProperty)
   const resetWallpaperProperties = useWallpaper((state) => state.resetProperties)
+  const backdrop = useBackdrop()
+  const [blurDraft, setBlurDraft] = useState<number | null>(null)
+  const backdropBlur = blurDraft ?? backdrop.blur
   const { desktopLyrics } = page.settings
 
   /*
@@ -55,6 +60,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
   const accentFromArt = useAccentFromArt()
   const density = useRowDensity()
+  const theme = useTheme()
 
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
@@ -88,6 +94,65 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
   return (
     <Rows>
+      <Row
+        label="主题"
+        hint="跟随系统会随 Windows 的明暗设置切换；手动选了就一直用那一套。"
+      >
+        <div className="seg">
+          {THEMES.map((item) => (
+            <button
+              key={item.id}
+              className={theme.id === item.id ? 'is-active' : ''}
+              onClick={() => writeTheme(item.id)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      <Row label="背景" hint="磨砂会给壁纸垫一层雾，字更清楚；透出则壁纸原样铺满。">
+        <div className="seg">
+          <button
+            className={backdrop.mode === 'frosted' ? 'is-active' : ''}
+            onClick={() => writeBackdrop({ ...backdrop, mode: 'frosted' })}
+          >
+            磨砂
+          </button>
+          <button
+            className={backdrop.mode === 'clear' ? 'is-active' : ''}
+            onClick={() => writeBackdrop({ ...backdrop, mode: 'clear' })}
+          >
+            透出
+          </button>
+        </div>
+      </Row>
+
+      {backdrop.mode === 'frosted' ? (
+        <Row label="磨砂程度" hint="0 只铺一层淡底不糊，越大壁纸越模糊。松手就生效。">
+          <div className="settings__slider">
+            <input
+              type="range"
+              min={BLUR_MIN}
+              max={BLUR_MAX}
+              step={1}
+              value={backdropBlur}
+              aria-label="磨砂程度"
+              onChange={(event) => setBlurDraft(Number(event.target.value))}
+              onPointerUp={() => {
+                writeBackdrop({ ...backdrop, blur: backdropBlur })
+                setBlurDraft(null)
+              }}
+              onKeyUp={() => {
+                writeBackdrop({ ...backdrop, blur: backdropBlur })
+                setBlurDraft(null)
+              }}
+            />
+            <span className="settings__number">{backdropBlur}px</span>
+          </div>
+        </Row>
+      ) : null}
+
       <Row
         label="界面跟着封面取色"
         hint="关掉后界面只用一套冷灰。开了壁纸、背景本身很花时，关掉更清爽。"

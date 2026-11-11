@@ -61,9 +61,9 @@
   gap: 18px;
   flex-wrap: wrap;
   padding: 20px 22px;
-  border: 1px solid rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-radius: 16px;
-  background: rgb(10 12 16 / 0.62);
+  background: rgb(var(--plane-rgb) / 0.62);
 }
 .acct2-avatar {
   flex: none;
@@ -73,8 +73,8 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.08);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.08);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   font-size: 24px;
   color: var(--text-hi);
   cursor: pointer;
@@ -126,8 +126,8 @@
   font-size: 18px;
   color: var(--text-hi);
   border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(var(--tint-rgb) / 0.18);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 .acct2-acts {
   margin-left: auto;
@@ -142,7 +142,7 @@
   gap: 8px;
   margin-top: 4px;
   padding-top: 14px;
-  border-top: 1px solid rgb(255 255 255 / 0.07);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
 }
 .acct2-chip {
   display: inline-flex;
@@ -151,7 +151,7 @@
   height: 30px;
   padding: 0 12px 0 8px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.09);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
   background: transparent;
   color: var(--text-mid);
   font-size: var(--fs-meta);
@@ -163,8 +163,8 @@
     color var(--dur-1) var(--ease-out);
 }
 .acct2-chip.is-on {
-  border-color: rgb(255 255 255 / 0.22);
-  background: rgb(255 255 255 / 0.1);
+  border-color: rgb(var(--tint-rgb) / 0.22);
+  background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
 }
 .acct2-chip i {
@@ -175,7 +175,7 @@
   place-items: center;
   font-style: normal;
   font-size: 10px;
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 .acct2-new {
   flex-basis: 100%;
@@ -183,15 +183,15 @@
   gap: 8px;
   align-items: center;
   padding-top: 14px;
-  border-top: 1px solid rgb(255 255 255 / 0.07);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
 }
 .acct2-new input {
   flex: 0 1 320px;
   height: 34px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(var(--tint-rgb) / 0.16);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
 }
 
@@ -233,14 +233,14 @@
   gap: 10px;
   min-width: 0;
   padding: 16px 18px 18px;
-  border: 1px solid rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-radius: 14px;
-  background: rgb(10 12 16 / 0.58);
+  background: rgb(var(--plane-rgb) / 0.58);
   /* 登录成功后卡片边线变亮，让它淡进来而不是闪一下。 */
   transition: border-color var(--dur-2) var(--ease-out);
 }
 .acct2-pcard.is-on {
-  border-color: rgb(255 255 255 / 0.15);
+  border-color: rgb(var(--tint-rgb) / 0.15);
 }
 .acct2-pcard__top {
   display: flex;
@@ -253,7 +253,7 @@
   height: 9px;
   border-radius: 50%;
   flex: none;
-  background: rgb(255 255 255 / 0.4);
+  background: rgb(var(--tint-rgb) / 0.4);
 }
 .acct2-dot--local { background: #e0926a; }
 .acct2-dot--netease { background: #d9524e; }
@@ -273,7 +273,7 @@
   flex: none;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
   color: var(--text-low);
   font-size: 11px;
   transition:
@@ -307,7 +307,7 @@
 .acct2-tag {
   padding: 2px 7px;
   border-radius: 6px;
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-mid);
   font-size: 11px;
 }
@@ -346,9 +346,9 @@
   gap: 12px;
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
   border-radius: 10px;
-  background: rgb(10 12 16 / 0.5);
+  background: rgb(var(--plane-rgb) / 0.5);
 }
 .acct2-folder__icon {
   flex: none;
@@ -357,7 +357,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: rgb(255 255 255 / 0.07);
+  background: rgb(var(--tint-rgb) / 0.07);
   color: var(--text-mid);
 }
 .acct2-folder__text {

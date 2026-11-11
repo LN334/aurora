@@ -3,17 +3,30 @@
    Concept: the shell carries no colour of its own. Every chromatic value in the
    UI is derived at runtime from the artwork of the track that is playing.
    Nothing playing -> a fully desaturated interface.
+
+   两套配色：深色（默认，--ink 从深到浅）与浅色（--ink 从浅到深）。
+   组件只认令牌，不认深浅，所以切换主题时 CSS 一行都不用改。
    ========================================================================== */
 
 :root {
-  /* --- ink: a cool graphite ramp, deliberately not a tinted near-black ----- */
-  --ink-1000: #080a0c;
-  --ink-900: #0d1013;
-  --ink-850: #11151a;
-  --ink-800: #14181d;
-  --ink-700: #1b2027;
-  --ink-600: #262c35;
-  --ink-500: #39414d;
+  /* --- ink: a cool graphite ramp, deliberately not a tinted near-black -----
+   * 同时给出 rgb 三元组：带透明度的地方（.list hover、遮罩、壁纸模式的三块平面）
+   * 需要 `rgb(var(--ink-800-rgb) / 0.6)` 这种写法，直接写 var(--ink-800) 拼不进去。 */
+  --ink-1000-rgb: 8 10 12;
+  --ink-900-rgb: 13 16 19;
+  --ink-850-rgb: 17 21 26;
+  --ink-800-rgb: 20 24 29;
+  --ink-700-rgb: 27 32 39;
+  --ink-600-rgb: 38 44 53;
+  --ink-500-rgb: 57 65 77;
+
+  --ink-1000: rgb(var(--ink-1000-rgb));
+  --ink-900: rgb(var(--ink-900-rgb));
+  --ink-850: rgb(var(--ink-850-rgb));
+  --ink-800: rgb(var(--ink-800-rgb));
+  --ink-700: rgb(var(--ink-700-rgb));
+  --ink-600: rgb(var(--ink-600-rgb));
+  --ink-500: rgb(var(--ink-500-rgb));
 
   /* --- text: three stops, no more ----------------------------------------- */
   --text-hi: #e8ebf0;
@@ -26,6 +39,16 @@
   --accent: #7d8899;
   --accent-strong: #9aa5b5;
   --accent-rgb: 125 136 153; /* space-separated for rgb(... / a) usage */
+
+  /* --- 叠层与阴影 ---------------------------------------------------------
+   * 深色界面往白里提亮、阴影用纯黑；浅色界面反过来。所有玻璃底、发丝线、
+   * 悬停高亮、下拉遮罩都写 `rgb(var(--tint-rgb) / a)`，换主题时 a 不用动。 */
+  --tint-rgb: 255 255 255;
+  --shade-rgb: 0 0 0;
+  /* 盖在封面 / 壁纸上的那层雾：深色时压黑，浅色时提白。 */
+  --scrim-rgb: 8 10 12;
+  /* 壁纸模式与悬浮面板的实色底。和 ink 分开：ink 是「页面」，这块是「压在图上的板」。 */
+  --plane-rgb: 13 16 19;
 
   /* --- feedback: reserved for destructive things only --------------------- */
   --danger: #d4574f;
@@ -55,7 +78,7 @@
 
   /* --- separators: hairlines, not borders --------------------------------- */
   --line: 1px solid var(--ink-600);
-  --line-soft: 1px solid rgb(255 255 255 / 0.055);
+  --line-soft: 1px solid rgb(var(--tint-rgb) / 0.055);
 
   /* --- type: Segoe UI Variable is optical-size aware and ships with Win 11 - */
   --font-ui: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system,
@@ -90,6 +113,44 @@
   --tint-ms: 620ms;
 
   color-scheme: dark;
+}
+
+/* =============================================================================
+   浅色主题（设置 → 外观与桌面 → 主题）
+
+   不是把深色调亮，是把同一条灰阶翻过来：ink-1000 始终是「最远的那层底」，
+   深色下最深、浅色下最浅；ink-700 始终是「浮起来的那层面」，深色下比页面亮，
+   浅色下是纯白。所以组件一条规则都不用改。
+
+   封面取色（--accent）在浅色底上会偏淡，另给一个 --accent-ink 供纯文字使用：
+   把取到的色往墨色里压一档，描边与色块仍用原色。
+   ========================================================================== */
+:root[data-theme='light'] {
+  --ink-1000-rgb: 250 251 253;
+  --ink-900-rgb: 244 246 249;
+  --ink-850-rgb: 238 241 245;
+  --ink-800-rgb: 232 236 242;
+  --ink-700-rgb: 255 255 255;
+  --ink-600-rgb: 214 220 229;
+  --ink-500-rgb: 184 192 203;
+
+  --text-hi: #171b21;
+  --text-mid: #545d6a;
+  --text-low: #737d8a;
+
+  --accent-ink: color-mix(in oklab, var(--accent) 66%, #0b0f14);
+
+  --tint-rgb: 0 0 0;
+  --shade-rgb: 26 32 41;
+  --scrim-rgb: 245 247 250;
+  --plane-rgb: 252 253 255;
+
+  color-scheme: light;
+}
+
+/* 深色主题下没有「压暗版 accent」，让引用它的地方退回原色。 */
+:root {
+  --accent-ink: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

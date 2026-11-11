@@ -68,7 +68,7 @@
    * rather than on the overlay: this layer is purely decorative, so a frozen
    * animation costs a visual nicety, never legibility or opacity.
    */
-  mask-image: radial-gradient(120% 95% at 50% 46%, #000 42%, rgb(0 0 0 / 0.55) 100%);
+  mask-image: radial-gradient(120% 95% at 50% 46%, #000 42%, rgb(var(--shade-rgb) / 0.55) 100%);
   animation: viz-in 520ms var(--ease-out) both;
 }
 
@@ -124,12 +124,12 @@
   padding: 0 var(--s3) 0 var(--s2);
   border-radius: var(--r-control);
   color: var(--text-mid);
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(var(--tint-rgb) / 0.04);
   transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
 .stage__back:hover {
   color: var(--text-hi);
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
 }
 .stage__back span {
   font-size: var(--fs-meta);
@@ -280,7 +280,7 @@
   white-space: normal;
   max-height: 2.4em;
   /* The playing line is lit by the album's own colour. */
-  text-shadow: 0 0 42px rgb(var(--accent-rgb) / 0.5), 0 2px 20px rgb(0 0 0 / 0.55);
+  text-shadow: 0 0 42px rgb(var(--accent-rgb) / 0.5), 0 2px 20px rgb(var(--shade-rgb) / 0.55);
 }
 
 /* Not yet started: the centre slot holds the upcoming line at reduced weight,
@@ -309,8 +309,8 @@
   border-radius: var(--r-panel);
   overflow: hidden;
   color: var(--text-low);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.45);
+  background: rgb(var(--tint-rgb) / 0.05);
+  box-shadow: 0 24px 64px rgb(var(--shade-rgb) / 0.45);
 }
 .stage__cover img {
   display: block;
@@ -338,18 +338,18 @@
 .stage__nolyrics code {
   font-family: var(--font-ui);
   color: var(--text-mid);
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
 .stage__nolyrics-action {
   margin: var(--s5) 0 var(--s3);
-  background: rgb(255 255 255 / 0.09);
-  border-color: rgb(255 255 255 / 0.16);
+  background: rgb(var(--tint-rgb) / 0.09);
+  border-color: rgb(var(--tint-rgb) / 0.16);
 }
 .stage__nolyrics-action:hover {
-  background: rgb(255 255 255 / 0.16);
+  background: rgb(var(--tint-rgb) / 0.16);
 }
 
 /* --- bottom bar ---------------------------------------------------------- */
@@ -376,12 +376,12 @@
   flex: none;
   border-radius: 999px;
   color: var(--text-mid);
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
 }
 .stage__ctrl:hover:not(:disabled) {
   color: var(--text-hi);
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 .stage__ctrl:disabled {
   color: var(--text-low);
@@ -438,7 +438,7 @@
 .stage__vol input[type='range']::-webkit-slider-runnable-track {
   height: 2px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.18);
+  background: rgb(var(--tint-rgb) / 0.18);
 }
 .stage__vol input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -481,14 +481,14 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
+  box-shadow: 0 10px 28px rgb(var(--shade-rgb) / 0.45);
   /* 从底栏这个方向浮上来，出现本身就把视线带过去。 */
   animation: back-live-in var(--dur-3) var(--ease-out);
   transition: translate 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
 }
 .stage__back-live:hover {
   translate: 0 -2px;
-  box-shadow: 0 14px 34px rgb(0 0 0 / 0.55);
+  box-shadow: 0 14px 34px rgb(var(--shade-rgb) / 0.55);
 }
 @keyframes back-live-in {
   from {
@@ -531,7 +531,7 @@
   position: absolute;
   inset: 50% 0 auto 0;
   height: 1.5px;
-  background: rgb(255 255 255 / 0.13);
+  background: rgb(var(--tint-rgb) / 0.13);
   border-radius: 999px;
 }
 .stage__track-fill {
@@ -571,10 +571,10 @@
     ),
     linear-gradient(
       180deg,
-      rgb(6 8 10 / 0.6) 0%,
-      rgb(6 8 10 / 0.16) 32%,
-      rgb(6 8 10 / 0.22) 66%,
-      rgb(6 8 10 / 0.7) 100%
+      rgb(var(--scrim-rgb) / 0.6) 0%,
+      rgb(var(--scrim-rgb) / 0.16) 32%,
+      rgb(var(--scrim-rgb) / 0.22) 66%,
+      rgb(var(--scrim-rgb) / 0.7) 100%
     );
 }
 
@@ -590,7 +590,7 @@
    它的光晕由正在唱的那一行单独负责，叠上去会糊。 */
 .stage--wallpaper .stage__top,
 .stage--wallpaper .stage__bottom {
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 3px rgb(var(--shade-rgb) / 0.5);
 }
 
 /*

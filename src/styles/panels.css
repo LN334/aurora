@@ -89,16 +89,16 @@
   display: flex;
   flex-direction: column;
   /* 和播放条同一块玻璃：抽屉浮在内容之上，底下的封面要隐约透出来。 */
-  background: rgb(14 17 21 / 0.7);
+  background: rgb(var(--ink-850-rgb) / 0.7);
   /* 和播放条同一块玻璃，同样为了折射把模糊压到 10px（理由见 app.css 的 .player）。 */
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
   -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
-  border-left: 1px solid rgb(255 255 255 / 0.09);
+  border-left: 1px solid rgb(var(--tint-rgb) / 0.09);
   box-shadow:
-    -24px 0 60px rgb(0 0 0 / 0.5),
-    inset 1px 0 0 rgb(255 255 255 / 0.14),
-    inset 4px 0 12px -6px rgb(255 255 255 / 0.12),
-    inset 0 0 0 1px rgb(0 0 0 / 0.16);
+    -24px 0 60px rgb(var(--shade-rgb) / 0.5),
+    inset 1px 0 0 rgb(var(--tint-rgb) / 0.14),
+    inset 4px 0 12px -6px rgb(var(--tint-rgb) / 0.12),
+    inset 0 0 0 1px rgb(var(--shade-rgb) / 0.16);
   /* 抽屉从右侧滑进来：以前是「一帧出现在终点」，关掉再打开像被硬塞进来。
      用独立的 translate 而不是 transform：app.css 那边记过这个坑——动画
      fill-mode 为 both 时 transform 的矩阵会一直留在计算样式里，把容器变成
@@ -252,7 +252,7 @@
   transition: background var(--dur-1) var(--ease-out);
 }
 .queue-row:hover {
-  background: rgb(255 255 255 / 0.055);
+  background: rgb(var(--tint-rgb) / 0.055);
 }
 /* 当前行用左竖条 + 一层淡主色钉住位置：长队列里滚着滚着就找不到播放到哪了。 */
 .queue-row.is-current {
@@ -290,7 +290,7 @@
   transition: background 100ms var(--ease-out), color 100ms var(--ease-out);
 }
 .queue-row__op:hover {
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
 }
 .queue-row__op.is-on {
@@ -450,7 +450,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.1);
 }
 
 .band__fill {
@@ -471,7 +471,7 @@
   translate: -50% 50%;
   border-radius: 3px;
   background: var(--text-hi);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+  box-shadow: 0 1px 3px rgb(var(--shade-rgb) / 0.55);
 }
 
 .band__value {
@@ -496,14 +496,14 @@
   margin: 6px var(--s4) 0;
   padding: 14px 0 8px;
   border-radius: 14px;
-  background: rgb(255 255 255 / 0.022);
+  background: rgb(var(--tint-rgb) / 0.022);
 }
 .panel__foot {
   margin-top: auto;
 }
 .band__rail {
   width: 3px;
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
 }
 .band__fill {
   width: 3px;
@@ -514,11 +514,11 @@
   height: 14px;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6), 0 0 0 3px rgb(var(--accent-rgb) / 0.18);
+  box-shadow: 0 1px 4px rgb(var(--shade-rgb) / 0.6), 0 0 0 3px rgb(var(--accent-rgb) / 0.18);
   transition: box-shadow 160ms var(--ease-out), scale 160ms var(--ease-out);
 }
 .band__track:hover .band__knob {
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6), 0 0 0 5px rgb(var(--accent-rgb) / 0.26);
+  box-shadow: 0 1px 4px rgb(var(--shade-rgb) / 0.6), 0 0 0 5px rgb(var(--accent-rgb) / 0.26);
 }
 .band__track {
   min-height: 0;
@@ -533,9 +533,9 @@
 .panel__bands {
   margin: auto var(--s4);
   background:
-    linear-gradient(rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.05)) left top / 100% 1px no-repeat,
-    linear-gradient(rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.05)) left bottom / 100% 1px no-repeat,
-    rgb(255 255 255 / 0.022);
+    linear-gradient(rgb(var(--tint-rgb) / 0.05), rgb(var(--tint-rgb) / 0.05)) left top / 100% 1px no-repeat,
+    linear-gradient(rgb(var(--tint-rgb) / 0.05), rgb(var(--tint-rgb) / 0.05)) left bottom / 100% 1px no-repeat,
+    rgb(var(--tint-rgb) / 0.022);
 }
 
 
@@ -550,8 +550,8 @@
   margin: 10px var(--s4) 0;
   padding: var(--s3) var(--s3) var(--s4);
   border-radius: 12px;
-  background: rgb(0 0 0 / 0.16);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  background: rgb(var(--shade-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.06);
 }
 
 .adebug__head {
@@ -577,7 +577,7 @@
   width: 100%;
   height: 86px;
   border-radius: 8px;
-  background: rgb(0 0 0 / 0.24);
+  background: rgb(var(--shade-rgb) / 0.24);
 }
 
 .adebug__meters {

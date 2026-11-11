@@ -9,21 +9,18 @@
 .player {
   grid-area: player;
   /*
-   * 悬浮而不是贴边。
-   *
-   * 液态玻璃得有一圈完整的边才成立：贴底的通栏只有上、左、右三条边，四角还是
-   * 直角，折射只在上缘一线露一点头。四周留出缝、四角收成圆的之后，这块东西才
-   * 从「一条被截断的横条」变成「一块浮在内容上的玻璃」——四角与四边都在弯折。
+   * 仍然悬浮（四角都在弯折，玻璃才成立），但四周那圈缝不再露壁纸原图：
+   * 播放条那一行由 .shell::after 铺上与内容区同一块底，缝里透出来的是同一层
+   * 半透明玻璃。用户的原话是「上下背景要一致」，不是「贴边」。
    */
   margin: 4px 16px 12px;
   border-radius: 16px;
+  padding: 0 var(--s3);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 2.4fr) minmax(0, 1fr);
   grid-template-areas: 'info core side';
   align-items: center;
   gap: var(--s4);
-  /* 已经自己留了 16px 外边距，内边距就不必再留一份 */
-  padding: 0 var(--s3);
   /*
    * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
    * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
@@ -35,13 +32,13 @@
    *   - 顶部一条极淡的提亮，和下面的 inset 高光接上；
    *   - 底部一条压暗，让玻璃下缘「沉」下去，不再是一条被截断的横条。
    */
-  background-color: rgb(10 13 17 / 0.78);
+  background-color: rgb(var(--plane-rgb) / 0.78);
   background-image: linear-gradient(
     180deg,
-    rgb(255 255 255 / 0.05),
+    rgb(var(--tint-rgb) / 0.05),
     transparent 34%,
     transparent 68%,
-    rgb(0 0 0 / 0.2)
+    rgb(var(--shade-rgb) / 0.2)
   );
   /*
    * --refract 是 Refraction 挂上来的位移滤镜（液态玻璃的折射圈）。没有它时
@@ -54,7 +51,12 @@
    */
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
   -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
-  border-top: 1px solid rgb(255 255 255 / 0.1);
+  /*
+   * 不画上边线。悬浮的玻璃四周都不该有实线：这条 1px 白线在浅色底上会读成
+   * 「播放条外面还套了一个框」，跟下面那圈 inset 描边一起，就是用户说的
+   * 「一个横框一个内框」。边界交给圆角、模糊与阴影，不交给线。
+   */
+  border: 0;
   /* One shadow in the whole app: the bar floats above the library. */
   /*
    * 三条 inset 是「玻璃厚度」的来源，折射位移在深色氛围背景上其实很难看出来
@@ -69,10 +71,9 @@
    * 玻璃的倒角」。
    */
   box-shadow:
-    0 10px 30px -6px rgb(0 0 0 / 0.45),
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 3px 10px -4px rgb(255 255 255 / 0.14),
-    inset 0 0 0 1px rgb(255 255 255 / 0.09);
+    0 10px 30px -6px rgb(var(--shade-rgb) / 0.45),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.16),
+    inset 0 3px 10px -4px rgb(var(--tint-rgb) / 0.12);
 }
 
 /* --- 左：在放什么 --------------------------------------------------------- */
@@ -236,7 +237,7 @@
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .pb-btn:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
 }
 .pb-btn:focus-visible {
@@ -339,7 +340,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  border: 2px solid rgb(0 0 0 / 0.2);
+  border: 2px solid rgb(var(--shade-rgb) / 0.2);
   border-top-color: var(--ink-1000);
   animation: spin 720ms linear infinite;
 }
@@ -393,7 +394,7 @@
   width: 1px;
   height: 18px;
   margin: 0 6px;
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 
 .pb-vol {

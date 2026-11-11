@@ -62,7 +62,7 @@
   border-radius: var(--r-panel);
   background: var(--ink-800);
   border: 1px solid var(--ink-600);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  box-shadow: 0 12px 32px rgb(var(--shade-rgb) / 0.45);
 }
 .online__quality-menu button {
   display: flex;
@@ -336,39 +336,39 @@
  * 说明文字本来靠深底兜着，底变浅之后补一点文字阴影。
  */
 .shell.has-wallpaper .online__account {
-  background: rgb(255 255 255 / 0.07);
-  border-color: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.07);
+  border-color: rgb(var(--tint-rgb) / 0.1);
 }
 .shell.has-wallpaper .online__avatar {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 .shell.has-wallpaper .online__collection,
 .shell.has-wallpaper .online__quality-btn {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
 }
 .shell.has-wallpaper .online__collection:hover,
 .shell.has-wallpaper .online__quality-btn:hover {
-  background: rgb(255 255 255 / 0.14);
+  background: rgb(var(--tint-rgb) / 0.14);
 }
 .shell.has-wallpaper .online__collection.is-active {
-  background: rgb(255 255 255 / 0.16);
+  background: rgb(var(--tint-rgb) / 0.16);
 }
 .shell.has-wallpaper .online__hint,
 .shell.has-wallpaper .online__welcome-note,
 .shell.has-wallpaper .online__warn,
 .shell.has-wallpaper .online__fail-text {
   color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
 }
 .shell.has-wallpaper .online__fail {
-  background: rgb(8 10 12 / 0.42);
+  background: rgb(var(--scrim-rgb) / 0.42);
 }
 
 /* 说明段落同理：提亮到能读，阴影加厚一点。 */
 .shell.has-wallpaper .online__welcome-note,
 .shell.has-wallpaper .online__hint {
   color: rgb(206 213 222);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.6);
 }
 
 /*
@@ -378,11 +378,11 @@
  * 又读不了。折中：只给这几段文字自己垫一块很薄的黑底，壁纸在它们周围照旧。
  */
 .shell.has-wallpaper .online__hint {
-  background: rgb(8 10 12 / 0.5);
+  background: rgb(var(--scrim-rgb) / 0.5);
   padding: var(--s3) var(--s4);
   border-radius: var(--r-panel);
   color: rgb(216 222 230);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
 }
 .shell.has-wallpaper .online__quality-note,
 .shell.has-wallpaper .online__account-note {
@@ -403,10 +403,10 @@
   max-width: 72ch;
   padding: var(--s3) var(--s4);
   border-radius: var(--r-panel);
-  background: rgb(8 10 12 / 0.46);
+  background: rgb(var(--scrim-rgb) / 0.46);
   color: rgb(216 222 230);
   border: 0;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
 }
 
 /* 栏目按钮上的「需登录」小字：壁纸模式下 --text-low 几乎看不见。 */

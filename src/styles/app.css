@@ -165,8 +165,8 @@ input::placeholder {
   pointer-events: none;
   background-image: linear-gradient(
       180deg,
-      rgb(8 10 12 / 0.66) 0%,
-      rgb(8 10 12 / 0.84) 100%
+      rgb(var(--scrim-rgb) / 0.66) 0%,
+      rgb(var(--scrim-rgb) / 0.84) 100%
     ),
     var(--backdrop-url);
   background-position: center;
@@ -258,7 +258,7 @@ input::placeholder {
   transform: translateX(-50%);
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgb(8 10 12 / 0.94);
+  background: rgb(var(--scrim-rgb) / 0.94);
   color: var(--text-hi);
   font-size: var(--fs-micro);
   letter-spacing: 0.02em;
@@ -307,9 +307,9 @@ input::placeholder {
   height: 32px;
   padding: 0 var(--s2) 0 11px;
   border-radius: var(--r-panel);
-  background: rgb(255 255 255 / 0.055);
-  border: 1px solid rgb(255 255 255 / 0.07);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.055);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   -webkit-app-region: no-drag;
   transition:
@@ -318,15 +318,15 @@ input::placeholder {
     box-shadow 140ms var(--ease-out);
 }
 .search:hover {
-  background: rgb(255 255 255 / 0.075);
+  background: rgb(var(--tint-rgb) / 0.075);
 }
 .search:focus-within {
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
   border-color: rgb(var(--accent-rgb) / 0.62);
   box-shadow:
     0 0 0 3px rgb(var(--accent-rgb) / 0.16),
-    0 8px 24px rgb(0 0 0 / 0.28),
-    inset 0 1px 0 rgb(255 255 255 / 0.07);
+    0 8px 24px rgb(var(--shade-rgb) / 0.28),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.07);
 }
 .search svg {
   flex: none;
@@ -360,13 +360,13 @@ input::placeholder {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-mid);
   cursor: pointer;
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .search__clear:hover {
-  background: rgb(255 255 255 / 0.17);
+  background: rgb(var(--tint-rgb) / 0.17);
   color: var(--text-hi);
 }
 .search kbd {
@@ -376,9 +376,9 @@ input::placeholder {
   height: 20px;
   padding: 0 6px;
   border-radius: 4px;
-  border: 1px solid rgb(255 255 255 / 0.09);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  background: rgb(var(--tint-rgb) / 0.05);
+  box-shadow: 0 1px 0 rgb(var(--shade-rgb) / 0.25);
   font-family: var(--font-ui);
   font-size: var(--fs-micro);
   letter-spacing: 0.02em;
@@ -414,7 +414,7 @@ input::placeholder {
   transition: background 130ms var(--ease-out);
 }
 .titlebar__brand:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 
 /* --- left rail ----------------------------------------------------------- */
@@ -483,7 +483,7 @@ input::placeholder {
  * 找一条 2px 的标记。整行亮起来，「我在哪一页」不需要凑近看。
  */
 .rail-item.is-active {
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
 }
 .rail-item svg {
@@ -526,7 +526,7 @@ input::placeholder {
   margin-left: -2px;
   border-radius: 50%;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-mid);
 }
 .rail-item__avatar img {
@@ -725,13 +725,13 @@ input::placeholder {
   padding: 0 13px 0 11px;
   gap: 7px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.055);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--tint-rgb) / 0.055);
   color: color-mix(in oklab, var(--text-hi) 88%, transparent);
   font-size: 12.5px;
   letter-spacing: 0.01em;
   backdrop-filter: blur(10px) saturate(1.2);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
   transition:
     background var(--dur-1) var(--ease-out),
     border-color var(--dur-1) var(--ease-out),
@@ -743,8 +743,8 @@ input::placeholder {
   transition: color var(--dur-1) var(--ease-out);
 }
 .np-act:hover {
-  background: rgb(255 255 255 / 0.1);
-  border-color: rgb(255 255 255 / 0.16);
+  background: rgb(var(--tint-rgb) / 0.1);
+  border-color: rgb(var(--tint-rgb) / 0.16);
   color: var(--text-hi);
 }
 .np-act:hover svg {
@@ -761,7 +761,7 @@ input::placeholder {
 .np-act--stage:hover {
   border-color: rgb(var(--accent-rgb) / 0.45);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.08),
     0 0 0 3px rgb(var(--accent-rgb) / 0.08);
 }
 
@@ -780,7 +780,7 @@ input::placeholder {
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  border: 2px solid rgb(0 0 0 / 0.22);
+  border: 2px solid rgb(var(--shade-rgb) / 0.22);
   border-top-color: var(--ink-1000);
   animation: spin 720ms linear infinite;
 }
@@ -939,7 +939,7 @@ input::placeholder {
   border-radius: var(--r-art);
   overflow: hidden;
   background: var(--ink-800);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.4);
 }
 /* Fills the cover and takes the "open" click; the play disc floats above it. */
 .card__art-open {
@@ -972,7 +972,7 @@ input::placeholder {
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  background: rgb(10 12 16 / 0.72);
+  background: rgb(var(--plane-rgb) / 0.72);
   color: var(--text-hi);
   backdrop-filter: blur(8px);
   opacity: 0;
@@ -1042,8 +1042,8 @@ input::placeholder {
   padding: var(--s1);
   border-radius: var(--r-panel);
   background: var(--ink-800);
-  border: 1px solid rgb(255 255 255 / 0.09);
-  box-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  box-shadow: 0 14px 40px rgb(var(--shade-rgb) / 0.55);
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(10px) saturate(1.2);
   /* 从左上角那一点弹出来，给人的印象才是「从这一行长出来的」，而不是凭空出现。 */
   transform-origin: top left;
@@ -1109,7 +1109,7 @@ input::placeholder {
 .menu__sep {
   height: 1px;
   margin: var(--s1) var(--s2);
-  background: rgb(255 255 255 / 0.07);
+  background: rgb(var(--tint-rgb) / 0.07);
 }
 
 .menu__label {
@@ -1150,7 +1150,7 @@ input::placeholder {
   border-radius: var(--r-art);
   overflow: hidden;
   background: var(--ink-800);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.45);
+  box-shadow: 0 8px 28px rgb(var(--shade-rgb) / 0.45);
 }
 .album__art img {
   width: 100%;
@@ -1241,7 +1241,7 @@ input::placeholder {
    * 这里让列表裸在壁纸上，靠行悬停、当前行的 accent 竖条和文字阴影
    * 保持可读性。网易云桌面端与 Spotify 的列表都是这个做法。
    */
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.4);
   /* 序号 / 封面 / 两行文字 / 专辑 / 时长 / 两颗按钮 */
   /* 标题列固定上限，剩下的宽度全给专辑。否则宽屏上标题列会一路撑到屏幕
      中间，专辑名被推到离标题几百像素之外，整行看着是散的。 */
@@ -1281,17 +1281,17 @@ input::placeholder {
 }
 
 .trk:hover {
-  background: rgb(9 12 16 / 0.42);
+  background: rgb(var(--plane-rgb) / 0.42);
 }
 /* 按下比悬停再深一档：点整行切歌是最常做的动作，得有一声回话。 */
 .trk:active {
-  background: rgb(9 12 16 / 0.58);
+  background: rgb(var(--plane-rgb) / 0.58);
 }
 
 /* 正在播的那一行：左侧一根 accent 竖条 + 一层几乎看不出的底，标题与封面跟着亮。 */
 .trk.is-current {
   color: var(--text-hi);
-  background: rgb(9 12 16 / 0.4);
+  background: rgb(var(--plane-rgb) / 0.4);
 }
 .trk.is-current::before {
   content: '';
@@ -1336,7 +1336,7 @@ input::placeholder {
   border-radius: 6px;
   overflow: hidden;
   background: var(--ink-700);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  box-shadow: 0 1px 3px rgb(var(--shade-rgb) / 0.35);
 }
 .trk__art img {
   display: block;
@@ -1345,7 +1345,7 @@ input::placeholder {
   object-fit: cover;
 }
 .trk.is-current .trk__art {
-  box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgb(0 0 0 / 0.35);
+  box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgb(var(--shade-rgb) / 0.35);
 }
 
 .trk__main {
@@ -1437,7 +1437,7 @@ input::placeholder {
 .name-ref:focus-visible {
   outline: none;
   border-radius: 3px;
-  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.2);
+  box-shadow: 0 0 0 2px rgb(var(--tint-rgb) / 0.2);
 }
 .name-sep {
   margin: 0 4px;
@@ -1554,7 +1554,7 @@ input::placeholder {
   letter-spacing: 0.04em;
   line-height: 1.5;
   color: var(--text-low);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 3px;
   padding: 0 4px;
 }
@@ -1565,7 +1565,7 @@ input::placeholder {
   gap: 3px;
   padding-left: 3px;
   background: none;
-  border-color: rgb(255 255 255 / 0.09);
+  border-color: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-low);
 }
 /*
@@ -1597,7 +1597,7 @@ input::placeholder {
   color: var(--text-hi);
 }
 .badge.trk__src--local {
-  border-color: rgb(255 255 255 / 0.14);
+  border-color: rgb(var(--tint-rgb) / 0.14);
   color: var(--text-mid);
 }
 
@@ -1705,20 +1705,20 @@ input::placeholder {
   --veil: calc(0.82 - 0.6 * var(--wp-level, 0.62));
   background: linear-gradient(
       180deg,
-      rgb(8 10 12 / calc(var(--veil) * 0.85)),
-      rgb(8 10 12 / var(--veil))
+      rgb(var(--scrim-rgb) / calc(var(--veil) * 0.85)),
+      rgb(var(--scrim-rgb) / var(--veil))
     ),
     radial-gradient(
       120% 90% at 50% 0%,
-      rgb(8 10 12 / calc(var(--veil) * 0.2)),
-      rgb(8 10 12 / calc(var(--veil) * 0.7))
+      rgb(var(--scrim-rgb) / calc(var(--veil) * 0.2)),
+      rgb(var(--scrim-rgb) / calc(var(--veil) * 0.7))
     );
 }
 
 /* Same reasoning as the artwork scrim: users who asked for contrast get a flat veil. */
 @media (prefers-contrast: more) {
   .wallpaper__veil {
-    background: #080a0ce6;
+    background: rgb(var(--scrim-rgb) / 0.9);
   }
 }
 
@@ -1738,17 +1738,17 @@ input::placeholder {
  * this feature must not have.
  */
 .shell.has-wallpaper > .rail {
-  background: rgb(17 21 26 / calc(0.82 - 0.54 * var(--wp-level, 0.62)));
+  background: rgb(var(--ink-850-rgb) / calc(0.82 - 0.54 * var(--wp-level, 0.62)));
 }
 
 .shell.has-wallpaper > .main {
-  background: rgb(13 16 19 / calc(0.84 - 0.56 * var(--wp-level, 0.62)));
+  background: rgb(var(--ink-900-rgb) / calc(0.84 - 0.56 * var(--wp-level, 0.62)));
 }
 
 .shell.has-wallpaper > .player {
   /* 只换颜色、不动 background-image：播放条自带的三层渐变（顶部提亮 / 底部压暗）
      得留着，用 background 简写会把它们一起冲掉，整条退化成一块单色板。 */
-  background-color: rgb(14 17 21 / calc(0.52 - 0.22 * var(--wp-level, 0.62)));
+  background-color: rgb(var(--ink-850-rgb) / calc(0.52 - 0.22 * var(--wp-level, 0.62)));
 }
 
 /* The WebGL canvas has to fill the host box; the engine sizes in device pixels. */
@@ -1851,8 +1851,8 @@ input::placeholder {
 .shell.has-wallpaper > .titlebar,
 .shell.has-wallpaper > .rail,
 .shell.has-wallpaper > .main {
-  background: rgb(8 10 12 / calc(0.52 - 0.3 * var(--wp-level, 0.62)));
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+  background: rgb(var(--scrim-rgb) / calc(0.52 - 0.3 * var(--wp-level, 0.62)));
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.45);
 }
 
 /*
@@ -1860,8 +1860,8 @@ input::placeholder {
  * 壁纸被 blur 糊成一片颜色，字照样清楚，面板本身仍然是块能看见壁纸的玻璃。
  */
 .shell.has-wallpaper > .player {
-  background-color: rgb(8 10 12 / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  background-color: rgb(var(--scrim-rgb) / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
 }
 
 /* 壁纸自己的遮罩几乎全撤掉，只留一层很薄的统一压暗，避免亮部吃掉白字。 */
@@ -1871,10 +1871,10 @@ input::placeholder {
 
 /* 壁纸压上来以后发丝线会显得很硬，换成一层几乎看不见的白线。 */
 .shell.has-wallpaper > .titlebar {
-  border-bottom-color: rgb(255 255 255 / 0.06);
+  border-bottom-color: rgb(var(--tint-rgb) / 0.06);
 }
 .shell.has-wallpaper > .rail {
-  border-right-color: rgb(255 255 255 / 0.06);
+  border-right-color: rgb(var(--tint-rgb) / 0.06);
 }
 
 /*
@@ -1886,33 +1886,33 @@ input::placeholder {
  * 过去，文字靠更淡的底色和已有的阴影站住。
  */
 .shell.has-wallpaper .tracks__head {
-  background: rgb(10 13 17 / 0.55);
+  background: rgb(var(--plane-rgb) / 0.55);
 }
 .shell.has-wallpaper .trk:hover {
-  background: rgb(255 255 255 / 0.07);
+  background: rgb(var(--tint-rgb) / 0.07);
 }
 .shell.has-wallpaper .trk__more:hover {
-  background: rgb(255 255 255 / 0.14);
+  background: rgb(var(--tint-rgb) / 0.14);
 }
 .shell.has-wallpaper .trk.is-current {
   background: rgb(var(--accent-rgb) / 0.12);
 }
 .shell.has-wallpaper .row:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 .shell.has-wallpaper .settings__notice {
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(var(--tint-rgb) / 0.04);
 }
 
 /* 分段控件与提示块同理：壁纸模式下不能是实心黑。 */
 .shell.has-wallpaper .seg {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
 }
 .shell.has-wallpaper .seg button.is-active {
-  background: rgb(255 255 255 / 0.18);
+  background: rgb(var(--tint-rgb) / 0.18);
 }
 .shell.has-wallpaper .notice {
-  background: rgb(8 10 12 / 0.32);
+  background: rgb(var(--scrim-rgb) / 0.32);
   color: var(--text-mid);
 }
 
@@ -1927,16 +1927,16 @@ input::placeholder {
   color: rgb(198 206 216);
 }
 .shell.has-wallpaper .tracks {
-  background: rgb(8 10 12 / 0.14);
+  background: rgb(var(--scrim-rgb) / 0.14);
 }
 .shell.has-wallpaper .notice {
-  background: rgb(8 10 12 / 0.46);
+  background: rgb(var(--scrim-rgb) / 0.46);
   color: rgb(214 220 228);
 }
 .shell.has-wallpaper .notice,
 .shell.has-wallpaper .trk__muted,
 .shell.has-wallpaper .card__meta {
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
 }
 
 /*
@@ -1976,16 +1976,123 @@ input::placeholder {
 .shell.has-wallpaper .set-part__en,
 .shell.has-wallpaper .set-keygroup__title {
   color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
 }
 
 .shell.has-wallpaper .accounts__heading {
   color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
 }
 .shell.has-wallpaper .accounts__hint {
   color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
+}
+/* =============================================================================
+   浅色 + 壁纸
+
+   深色那套是「几乎透明的深色玻璃压在图上看白字」。浅色底上照搬会反过来：
+   一层灰白雾把壁纸糊成灰板，白字也跟着糊掉——整屏发白、没有任何一层立得住。
+   浅色要的是相反的方向：更实的白玻璃、更轻的雾、深色的字。
+   ========================================================================== */
+:root[data-theme='light'] .shell.has-wallpaper {
+  --text-hi: #10141a;
+  --text-mid: #3d4653;
+  --text-low: #5d6673;
+}
+
+/*
+ * 四块面（标题栏、左栏、内容区、播放条）在浅色下必须用同一档白度。
+ *
+ * 深色是「几乎透明的深色玻璃压在图上看白字」，浅色照搬会反过来：灰白雾把壁纸
+ * 糊成灰板、白字也跟着糊掉。但也不能靠堆白度解决——白压到七成，壁纸就没了。
+ * 这里取的 0.46 与深色那三块的 0.48 同一量级：壁纸透得出来，字靠深色与模糊站稳。
+ *
+ * 播放条故意不再单独调低：深色下它比主平面更透（0.38 对 0.48），浅色下这点差
+ * 会被读成「底下那块是空的」，看起来像少画了一层。
+ */
+:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
+:root[data-theme='light'] .shell.has-wallpaper > .rail,
+:root[data-theme='light'] .shell.has-wallpaper > .main,
+:root[data-theme='light'] .shell.has-wallpaper > .player {
+  background: rgb(var(--plane-rgb) / calc(0.4 - 0.12 * var(--wp-level, 0.62)));
+  text-shadow: none;
+}
+
+/*
+ * 播放条那一行。
+ *
+ * 播放条是浮起来的，四周留了缝；缝里原本直接露壁纸原图，而紧邻的内容区是
+ * 一层半透明玻璃——同一屏上出现「玻璃 / 原图」两种底，读起来就是「播放条外面
+ * 还有一块透明的」。这里给整行补上与内容区同一档的底，缝里便是同一块玻璃的
+ * 延续。整行铺而不是只铺缝：播放条自己也是半透明的，底下有这层才和上面同色。
+ */
+.shell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--player-h);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.shell.has-wallpaper::after {
+  background: rgb(var(--scrim-rgb) / calc(0.52 - 0.3 * var(--wp-level, 0.62)));
+}
+
+/* 沉浸播放页把播放条那一行收成 0，这层底也得跟着收，否则底部会多一条玻璃。 */
+.shell.is-nowplaying::after {
+  height: 0;
+}
+
+:root[data-theme='light'] .shell.has-wallpaper::after {
+  background: rgb(var(--plane-rgb) / calc(0.4 - 0.12 * var(--wp-level, 0.62)));
+}
+
+/* 白雾是把壁纸压成灰板的主因，浅色下只留一层几乎看不见的匀光。 */
+:root[data-theme='light'] .shell.has-wallpaper .wallpaper__veil {
+  --veil: calc(0.06 - 0.04 * var(--wp-level, 0.62));
+}
+
+/* 下面这些「提亮 + 加阴影」的补丁都是为深色写的：浅色底上阴影会把字糊成一团。 */
+:root[data-theme='light'] .shell.has-wallpaper .trk__muted,
+:root[data-theme='light'] .shell.has-wallpaper .tracks__idx,
+:root[data-theme='light'] .shell.has-wallpaper .tracks__time,
+:root[data-theme='light'] .shell.has-wallpaper .card__meta,
+:root[data-theme='light'] .shell.has-wallpaper .notice,
+:root[data-theme='light'] .shell.has-wallpaper .set-sub__title,
+:root[data-theme='light'] .shell.has-wallpaper .set-sub__hint,
+:root[data-theme='light'] .shell.has-wallpaper .set-part__en,
+:root[data-theme='light'] .shell.has-wallpaper .set-keygroup__title,
+:root[data-theme='light'] .shell.has-wallpaper .accounts__heading,
+:root[data-theme='light'] .shell.has-wallpaper .accounts__hint {
+  color: var(--text-mid);
+  text-shadow: none;
+}
+
+/* 表头压在内容区那块玻璃上，白度要跟着一起降，不然它会浮成一张实心白条。 */
+:root[data-theme='light'] .shell.has-wallpaper .tracks__head {
+  background: rgb(var(--plane-rgb) / calc(0.6 - 0.18 * var(--wp-level, 0.62)));
+}
+
+/*
+ * 浅色下播放条与内容区必须是同一块玻璃。
+ *
+ * 深色那套靠三层 inset（顶缘高光、亮晕、最外一道白线）与底部压暗渐变堆出
+ * 「厚度」；到了浅色底上，白高光变成白边、压暗变成灰边，播放条就显得比上面
+ * 实一大截——用户的原话是「播放栏和上面区别还是很大」。这里把厚度层压到几乎
+ * 看不见，只留一点上缘提亮，让两块玻璃接在同一档白度上。
+ */
+:root[data-theme='light'] .player {
+  background-image: linear-gradient(
+    180deg,
+    rgb(var(--tint-rgb) / 0.03),
+    transparent 34%,
+    transparent 72%,
+    rgb(var(--shade-rgb) / 0.05)
+  );
+  box-shadow: 0 8px 24px -10px rgb(var(--shade-rgb) / 0.16);
 }
 
 /* ---- 壁纸起来的过程 ----
@@ -2147,8 +2254,8 @@ html.is-resizing {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(14 17 22 / 0.8);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--plane-rgb) / 0.8);
   /* 圆钮直径只有 40，模糊再大就把边缘那点弯折吃干净了，6px 是能共存的上限。 */
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(6px);
   color: var(--text-mid);
@@ -2157,7 +2264,7 @@ html.is-resizing {
 }
 .tracks__tool:hover {
   color: var(--text-hi);
-  background: rgb(26 30 38 / 0.92);
+  background: rgb(var(--plane-rgb) / 0.92);
 }
 .tracks__tool:disabled {
   opacity: 0.4;
@@ -2219,7 +2326,7 @@ html.is-resizing {
   /* 半径按元素大小给：把同一团光摊到 1140px 的大卡上会变成整块提亮，就没了方向 */
   background: radial-gradient(
     circle var(--glow-r, 170px) at var(--mx, 50%) var(--my, 0%),
-    rgb(255 255 255 / 0.15),
+    rgb(var(--tint-rgb) / 0.15),
     transparent 70%
   );
   opacity: 0;
@@ -2242,4 +2349,172 @@ html.is-resizing {
   .tracks__tool::after {
     transition: none;
   }
+}
+
+/* ------------------------------------------------------------------------
+ * 背景处理：磨砂 / 透出，磨砂程度可调。
+ *
+ * 变量来自 src/features/settings/backdrop.ts：
+ *   --ui-veil  1 = 垫底、0 = 全透明（壁纸原样）
+ *   --ui-blur  磨砂半径，透出模式恒为 0
+ * 这里只做覆盖，原规则留着当没装变量时的默认值。
+ * --------------------------------------------------------------------- */
+.shell.has-wallpaper > .titlebar,
+.shell.has-wallpaper > .rail,
+.shell.has-wallpaper > .main {
+  background: rgb(var(--scrim-rgb) / calc((0.52 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
+}
+
+.shell.has-wallpaper > .player {
+  background-color: rgb(var(--scrim-rgb) / calc((0.26 - 0.1 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+}
+
+.shell.has-wallpaper::after {
+  background: rgb(var(--scrim-rgb) / calc((0.52 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
+}
+
+.shell.has-wallpaper .wallpaper__veil {
+  --veil: calc((0.4 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
+}
+
+:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
+:root[data-theme='light'] .shell.has-wallpaper > .rail,
+:root[data-theme='light'] .shell.has-wallpaper > .main,
+:root[data-theme='light'] .shell.has-wallpaper > .player {
+  background: rgb(var(--plane-rgb) / calc((0.4 - 0.12 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+}
+
+:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
+:root[data-theme='light'] .shell.has-wallpaper > .rail,
+:root[data-theme='light'] .shell.has-wallpaper > .main {
+  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper::after {
+  background: rgb(var(--plane-rgb) / calc((0.4 - 0.12 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .wallpaper__veil {
+  --veil: calc((0.06 - 0.04 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
+}
+
+/* 透出模式下播放条也不要自带的两层渐变，否则它仍是「一块玻璃」压在图上。 */
+:root[data-backdrop='clear'] .shell.has-wallpaper > .player {
+  background-image: none;
+}
+
+/* ------------------------------------------------------------------------
+ * 浅色的层次。
+ *
+ * 深色卡片靠「白叠白」提亮就够了；浅色照搬会变成「白纸贴白纸」，卡片边界消失
+ * （用户原话：浅色模式卡片边界不明显，不如深色好看）。这里改成两级：
+ *   底（titlebar/rail/main/播放条那一行）压到很淡，卡片用实白浮起来。
+ * 白卡 + 一点阴影 + 一圈发丝线，边界就与深色那层「提亮」对等。
+ * --------------------------------------------------------------------- */
+:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
+:root[data-theme='light'] .shell.has-wallpaper > .rail,
+:root[data-theme='light'] .shell.has-wallpaper > .main {
+  background: rgb(var(--plane-rgb) / calc((0.22 - 0.06 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+}
+
+/*
+ * 播放条那一行用左栏的浓度，不用内容区的。
+ *
+ * 底部这一行横穿整个窗口：左边接着左栏、右边接着内容区，取中间任何一档都会在
+ * 一侧留下台阶。取左栏那一档，左栏就像一路铺到窗口底；播放条自己再白一点点，
+ * 浮在上面。
+ *
+ * 用户的原话是「左栏和下面播放条这里太割裂了」。
+ */
+:root[data-theme='light'] .shell.has-wallpaper::after {
+  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+}
+
+:root[data-theme='light'] .shell.has-wallpaper > .player {
+  background: rgb(var(--plane-rgb) / 0.56);
+  box-shadow: 0 2px 6px -2px rgb(var(--shade-rgb) / 0.14), 0 10px 30px -12px rgb(var(--shade-rgb) / 0.18),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07), inset 0 1px 0 rgb(var(--plane-rgb) / 0.6);
+}
+
+/* 卡片：实白 + 一圈发丝线 + 极轻的投影。 */
+/*
+ * 只改「有容器语义」的那几个：推荐歌单的卡片是封面直接落在地上，加白底反而笨；
+ * 专辑横条与队列行同理，靠悬停那一下才亮。
+ */
+:root[data-theme='light'] .rh-daily,
+:root[data-theme='light'] .rh-now,
+:root[data-theme='light'] .rh-sc,
+:root[data-theme='light'] .panel,
+:root[data-theme='light'] .settings__body {
+  background-color: rgb(var(--plane-rgb) / 0.5);
+  box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.05), 0 6px 18px -10px rgb(var(--shade-rgb) / 0.12),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
+}
+
+/* 行悬停：白卡上压一层淡灰，反馈强度与深色那边对齐。 */
+:root[data-theme='light'] .trk:hover,
+:root[data-theme='light'] .rh-alb-row:hover,
+:root[data-theme='light'] .queue-row:hover {
+  background: rgb(var(--tint-rgb) / 0.045);
+}
+
+:root[data-theme='light'] .rh-sc:hover {
+  background-color: rgb(var(--plane-rgb) / 0.7);
+}
+
+/* 透出模式没有模糊帮忙压噪声，正文加一层极淡的白晕把字从图上托起来。 */
+:root[data-theme='light'][data-backdrop='clear'] .shell.has-wallpaper .main {
+  text-shadow: 0 1px 0 rgb(var(--plane-rgb) / 0.5);
+}
+
+/* ------------------------------------------------------------------------
+ * 左栏。
+ *
+ * 浅色下它原本和内容区同色，就是一整片蓝玻璃：数字与「库」都淡，左右也不分家。
+ * 这里让它成为一块比内容区更实的板——深色那边靠白线分界就够了，浅色需要真的
+ * 有一点明度差，眼睛才知道「这一竖条是导航，不是内容」。
+ * --------------------------------------------------------------------- */
+:root[data-theme='light'] .shell.has-wallpaper > .rail {
+  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+  border-right-color: rgb(var(--tint-rgb) / 0.08);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .rail__caption,
+:root[data-theme='light'] .shell.has-wallpaper .rail-item__count {
+  color: var(--text-mid);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .rail-item:hover {
+  background: rgb(var(--plane-rgb) / 0.6);
+}
+
+/* 浅色壁纸下的顶栏与搜索框：它们原本靠 5% 白提亮，浅色下等于没画。 */
+:root[data-theme='light'] .shell.has-wallpaper > .titlebar {
+  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
+  border-bottom-color: rgb(var(--tint-rgb) / 0.08);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .search {
+  background: rgb(var(--plane-rgb) / 0.66);
+  border-color: rgb(var(--tint-rgb) / 0.1);
+  box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.05), inset 0 0 0 1px rgb(var(--plane-rgb) / 0.4);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .search svg,
+:root[data-theme='light'] .shell.has-wallpaper .search input::placeholder,
+:root[data-theme='light'] .shell.has-wallpaper .rh-more {
+  color: var(--text-mid);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .search kbd {
+  background: rgb(var(--tint-rgb) / 0.05);
+  border-color: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-mid);
+}
+
+:root[data-theme='light'] .shell.has-wallpaper .rh-more:hover {
+  color: var(--text-hi);
 }

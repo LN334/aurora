@@ -225,7 +225,7 @@
 .rh__top {
   padding-left: 10px;
   margin-left: 10px;
-  border-left: 1px solid rgb(255 255 255 / 0.13);
+  border-left: 1px solid rgb(var(--tint-rgb) / 0.13);
   color: var(--text-low);
 }
 
@@ -239,13 +239,13 @@
   padding: 0 var(--s4);
   border-radius: 999px;
   border: var(--line-soft);
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
   font-size: var(--fs-body);
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .rh-btn:hover {
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.1);
 }
 .rh-btn--main {
   background: var(--accent);
@@ -278,8 +278,8 @@
   min-height: 88px;
   padding: 11px 18px;
   border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.09);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  background: rgb(var(--tint-rgb) / 0.05);
   /*
    * 薄玻璃是液态玻璃唯一能读出来的地方：底色只有 5% 白，背后的壁纸清清楚楚，
    * 边缘那圈位移才看得见。所以模糊被压到 8px —— 播放条不敢这么压，它背后是
@@ -287,13 +287,13 @@
    */
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(8px) saturate(1.25);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 0 0 1px rgb(0 0 0 / 0.05);
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.12),
+    inset 0 0 0 1px rgb(var(--shade-rgb) / 0.05);
   text-align: left;
   transition: background 140ms var(--ease-out);
 }
 .rh-sc:hover {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 
 .rh-sc__icon {
@@ -377,14 +377,14 @@
   min-width: 0;
   padding: 5px 9px;
   border-radius: 7px;
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
   font-size: var(--fs-micro);
   color: var(--text-mid);
   white-space: nowrap;
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .rh-sc__links button:hover {
-  background: rgb(255 255 255 / 0.13);
+  background: rgb(var(--tint-rgb) / 0.13);
   color: var(--text-hi);
 }
 .rh-sc__links button > svg {
@@ -482,10 +482,10 @@
   aspect-ratio: 1;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.05);
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
+  border: 1px solid rgb(var(--tint-rgb) / 0.05);
+  background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.035));
   color: var(--text-mid);
-  box-shadow: 0 8px 20px rgb(0 0 0 / 0.32);
+  box-shadow: 0 8px 20px rgb(var(--shade-rgb) / 0.32);
   transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
 .rh-card__art img {
@@ -495,7 +495,7 @@
 }
 .rh-card:hover .rh-card__art {
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgb(0 0 0 / 0.4);
+  box-shadow: 0 12px 26px rgb(var(--shade-rgb) / 0.4);
 }
 
 .rh-card__title {
@@ -540,7 +540,7 @@
 .rh-now.is-sk .rh-now__title,
 .rh-now.is-sk .rh-now__sub {
   color: transparent;
-  background-image: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08));
+  background-image: linear-gradient(rgb(var(--tint-rgb) / 0.08), rgb(var(--tint-rgb) / 0.08));
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 70% 10px;
@@ -595,10 +595,10 @@
   aspect-ratio: 1;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.07);
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
+  background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.035));
   color: var(--text-mid);
-  box-shadow: 0 14px 30px rgb(0 0 0 / 0.36);
+  box-shadow: 0 14px 30px rgb(var(--shade-rgb) / 0.36);
   transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
 }
 .rh-fresh__lead-art img {
@@ -608,7 +608,7 @@
 }
 .rh-fresh__lead:hover .rh-fresh__lead-art {
   transform: translateY(-3px);
-  box-shadow: 0 20px 40px rgb(0 0 0 / 0.46);
+  box-shadow: 0 20px 40px rgb(var(--shade-rgb) / 0.46);
 }
 .rh-fresh__lead-play {
   position: absolute;
@@ -619,7 +619,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: rgb(10 12 16 / 0.62);
+  background: rgb(var(--plane-rgb) / 0.62);
   color: #fff;
 }
 /*
@@ -690,7 +690,7 @@
 }
 .rh-fresh__list::-webkit-scrollbar-thumb {
   border-radius: 2px;
-  background: rgb(255 255 255 / 0.16);
+  background: rgb(var(--tint-rgb) / 0.16);
 }
 .rh-fresh__list::-webkit-scrollbar-track {
   background: transparent;
@@ -712,7 +712,7 @@
   transition: background 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
 }
 .rh-fresh__row:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 .rh-fresh__row-idx {
   font-size: var(--fs-micro);
@@ -727,7 +727,7 @@
   height: 34px;
   border-radius: 7px;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.07);
+  background: rgb(var(--tint-rgb) / 0.07);
   color: var(--text-mid);
 }
 .rh-fresh__row-art img {
@@ -763,7 +763,7 @@
 }
 /* 左边正在显示的那首：行底提亮、左缘一道主色、序号跟着变色，鼠标扫过能看出联动。 */
 .rh-fresh__row.is-lead {
-  background: rgb(255 255 255 / 0.055);
+  background: rgb(var(--tint-rgb) / 0.055);
   box-shadow: inset 2px 0 0 rgb(var(--accent-rgb) / 0.72);
 }
 .rh-fresh__row.is-lead .rh-fresh__row-idx {
@@ -780,7 +780,7 @@
 .rh-fresh__row.is-sk .rh-fresh__row-title,
 .rh-fresh__row.is-sk .rh-fresh__row-sub {
   color: transparent;
-  background-image: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08));
+  background-image: linear-gradient(rgb(var(--tint-rgb) / 0.08), rgb(var(--tint-rgb) / 0.08));
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 70% 10px;
@@ -813,9 +813,9 @@
   height: 186px;
   border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.03));
-  border: 1px solid rgb(255 255 255 / 0.08);
-  box-shadow: 0 12px 36px rgb(0 0 0 / 0.46);
+  background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.03));
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  box-shadow: 0 12px 36px rgb(var(--shade-rgb) / 0.46);
   color: var(--text-mid);
 }
 .dp__art img {
@@ -874,11 +874,11 @@
   letter-spacing: inherit;
 }
 .dp__input:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 .dp__input:focus {
   outline: none;
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
 }
 
 .dp__m {
@@ -938,15 +938,15 @@
   padding: 0 17px;
   border-radius: 9px;
   border: 1px solid var(--line-soft);
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
   font-size: 12.5px;
   white-space: nowrap;
   transition: background 130ms var(--ease-out), border-color 130ms var(--ease-out);
 }
 .dbtn:hover {
-  background: rgb(255 255 255 / 0.09);
-  border-color: rgb(255 255 255 / 0.14);
+  background: rgb(var(--tint-rgb) / 0.09);
+  border-color: rgb(var(--tint-rgb) / 0.14);
 }
 .dbtn:disabled {
   opacity: 0.42;
@@ -1027,7 +1027,7 @@
   transition: background 160ms var(--ease-out);
 }
 .rh-alb-row:hover {
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 
 .rh-alb-row__art {
@@ -1036,10 +1036,10 @@
   aspect-ratio: 1;
   border-radius: 9px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.06);
-  background: linear-gradient(150deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035));
+  border: 1px solid rgb(var(--tint-rgb) / 0.06);
+  background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.035));
   color: var(--text-mid);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 0.3);
+  box-shadow: 0 6px 16px rgb(var(--shade-rgb) / 0.3);
 }
 .rh-alb-row__art img {
   width: 100%;
@@ -1092,14 +1092,14 @@
   gap: var(--s6);
   padding: var(--s5) var(--s6);
   border-radius: 14px;
-  border: 1px solid rgb(255 255 255 / 0.085);
+  border: 1px solid rgb(var(--tint-rgb) / 0.085);
   background:
-    radial-gradient(120% 140% at 88% 12%, rgb(255 255 255 / 0.1), transparent 58%),
-    rgb(255 255 255 / 0.05);
+    radial-gradient(120% 140% at 88% 12%, rgb(var(--tint-rgb) / 0.1), transparent 58%),
+    rgb(var(--tint-rgb) / 0.05);
   backdrop-filter: var(--glass-refract, var(--refract, )) blur(8px) saturate(1.2);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.13),
-    inset 0 0 0 1px rgb(0 0 0 / 0.05);
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.13),
+    inset 0 0 0 1px rgb(var(--shade-rgb) / 0.05);
   overflow: hidden;
 }
 
@@ -1191,9 +1191,9 @@
   margin: -64px 0 0 -64px;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
   /* 1px 实描边是关键：两张卡斜着叠在一起时，光靠投影分不出谁压谁 */
-  box-shadow: 0 0 0 1px rgb(8 10 14 / 0.42), 0 16px 30px rgb(0 0 0 / 0.46);
+  box-shadow: 0 0 0 1px rgb(var(--scrim-rgb) / 0.42), 0 16px 30px rgb(var(--shade-rgb) / 0.46);
   /* 转轴偏下：扇面像「靠」在架子上，而不是原地打转；72% 兼顾缩放时的上下浮动 */
   transform-origin: 50% 64%;
   will-change: transform;
@@ -1214,7 +1214,7 @@
   box-shadow:
     0 0 0 1px rgb(var(--accent-rgb) / 0.3),
     0 0 26px rgb(var(--accent-rgb) / 0.18),
-    0 26px 52px rgb(0 0 0 / 0.6);
+    0 26px 52px rgb(var(--shade-rgb) / 0.6);
 }
 .rh-disc__tile img {
   width: 100%;
@@ -1228,7 +1228,7 @@
   display: grid;
   place-items: center;
   color: rgb(255 255 255 / 0.92);
-  background: radial-gradient(70% 70% at 50% 50%, rgb(8 10 13 / 0.36), transparent 74%);
+  background: radial-gradient(70% 70% at 50% 50%, rgb(var(--scrim-rgb) / 0.36), transparent 74%);
   opacity: 0;
   transition: opacity 160ms var(--ease-out);
 }
@@ -1321,7 +1321,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgb(8 10 13 / 0.42);
+  background: rgb(var(--scrim-rgb) / 0.42);
   color: var(--text-hi);
   backdrop-filter: blur(6px);
 }
@@ -1331,7 +1331,7 @@
 }
 
 .rh-card__art--add {
-  border: 1px dashed rgb(255 255 255 / 0.16);
+  border: 1px dashed rgb(var(--tint-rgb) / 0.16);
   background: none;
   color: var(--text-low);
 }
@@ -1350,8 +1350,8 @@
   gap: var(--s4);
   padding: var(--s2) var(--s4);
   border-radius: 12px;
-  border: 1px solid rgb(255 255 255 / 0.08);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  background: rgb(var(--tint-rgb) / 0.05);
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
@@ -1363,7 +1363,7 @@
   height: 52px;
   border-radius: 8px;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-low);
 }
 .rh-now__art img {
@@ -1450,11 +1450,11 @@
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-mid);
 }
 .np__back:hover {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
   color: var(--text-hi);
 }
 
@@ -1482,10 +1482,10 @@
   aspect-ratio: 1;
   border-radius: 14px;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(var(--tint-rgb) / 0.04);
   box-shadow:
-    0 28px 60px -18px rgb(0 0 0 / 0.62),
-    0 0 0 1px rgb(255 255 255 / 0.07);
+    0 28px 60px -18px rgb(var(--shade-rgb) / 0.62),
+    0 0 0 1px rgb(var(--tint-rgb) / 0.07);
 }
 .np__cover img {
   width: 100%;
@@ -1548,7 +1548,7 @@
 .np__mode:hover,
 .np__vol:hover,
 .np__step:hover {
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
 }
 .np__like.is-on,
@@ -1566,7 +1566,7 @@
   margin: 0 6px;
   background: var(--text-hi);
   color: #10131a;
-  box-shadow: 0 10px 26px -10px rgb(0 0 0 / 0.7);
+  box-shadow: 0 10px 26px -10px rgb(var(--shade-rgb) / 0.7);
 }
 .np__play:hover {
   transform: scale(1.04);
@@ -1730,7 +1730,7 @@
   flex: 1 1 auto;
   height: 4px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.13);
+  background: rgb(var(--tint-rgb) / 0.13);
   cursor: pointer;
 }
 .np__track-fill {
@@ -1802,7 +1802,7 @@
   transform: translate(-50%, 6px);
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgb(0 0 0 / 0.55);
+  background: rgb(var(--shade-rgb) / 0.55);
   color: #fff;
   font-size: 11.5px;
   letter-spacing: 0.02em;
@@ -1846,7 +1846,7 @@
   margin-right: 8px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-low);
   font-size: 10.5px;
   vertical-align: 1px;
@@ -1970,8 +1970,8 @@
   background: linear-gradient(
     to bottom,
     transparent,
-    rgb(255 255 255 / 0.13) 22%,
-    rgb(255 255 255 / 0.13) 78%,
+    rgb(var(--tint-rgb) / 0.13) 22%,
+    rgb(var(--tint-rgb) / 0.13) 78%,
     transparent
   );
 }
@@ -2030,7 +2030,7 @@
   font-size: 13px;
   letter-spacing: 0.04em;
   color: #fff;
-  background: rgb(8 10 14 / 0.52);
+  background: rgb(var(--scrim-rgb) / 0.52);
   opacity: 0;
   transition: opacity 0.18s ease;
 }
@@ -2226,14 +2226,14 @@
   gap: 7px;
   padding: 7px 15px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--tint-rgb) / 0.04);
   font-size: 13px;
   color: var(--text-mid);
   transition: background 140ms var(--ease-out), color 140ms var(--ease-out);
 }
 .srch-chip:hover {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
 }
 .srch-chip.is-on {
@@ -2306,8 +2306,8 @@
   gap: 14px;
   padding: 13px 16px;
   border-radius: 10px;
-  border: 1px solid rgb(255 255 255 / 0.06);
-  background: rgb(255 255 255 / 0.035);
+  border: 1px solid rgb(var(--tint-rgb) / 0.06);
+  background: rgb(var(--tint-rgb) / 0.035);
 }
 .src-row__icon {
   display: grid;
@@ -2316,7 +2316,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 0.06);
+  background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-mid);
 }
 .src-row__body {
@@ -2358,7 +2358,7 @@
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgb(4 6 9 / 0.62);
+  background: rgb(var(--scrim-rgb) / 0.62);
   backdrop-filter: blur(6px);
   /* 遮罩淡进来，不是一刀切黑：底下那页在 200ms 里退场，弹窗才不像砸上来的。 */
   animation: nmScrimIn var(--dur-2) var(--ease-out) both;
@@ -2374,9 +2374,9 @@
   width: min(420px, calc(100vw - 48px));
   padding: 22px 24px 18px;
   border-radius: 14px;
-  border: 1px solid rgb(255 255 255 / 0.08);
-  background: rgb(18 21 27 / 0.96);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.55);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  background: rgb(var(--plane-rgb) / 0.96);
+  box-shadow: 0 24px 64px rgb(var(--shade-rgb) / 0.55);
   animation: nmPopIn var(--dur-3) var(--ease-spring) both;
 }
 .nm__title {
@@ -2396,9 +2396,9 @@
   width: 100%;
   margin-top: 8px;
   padding: 9px 11px;
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 9px;
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
   font: inherit;
   font-size: 13.5px;
@@ -2509,7 +2509,7 @@
   gap: 6px;
   margin: 0 0 18px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.06);
 }
 .ol-tab {
   padding: 5px 12px;
@@ -2522,12 +2522,12 @@
   cursor: pointer;
 }
 .ol-tab:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
 }
 .ol-tab.is-on {
-  border-color: rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.09);
+  border-color: rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
 }
 
@@ -2554,8 +2554,8 @@
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 10px;
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 0.32);
+  background: rgb(var(--tint-rgb) / 0.05);
+  box-shadow: 0 10px 26px rgb(var(--shade-rgb) / 0.32);
   color: var(--text-low);
 }
 .ol-alb__art img {
@@ -2564,7 +2564,7 @@
   object-fit: cover;
 }
 .ol-alb:hover .ol-alb__art {
-  box-shadow: 0 14px 34px rgb(0 0 0 / 0.45);
+  box-shadow: 0 14px 34px rgb(var(--shade-rgb) / 0.45);
 }
 .ol-alb__name {
   overflow: hidden;
@@ -2610,7 +2610,7 @@
   bottom: 9px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgb(10 12 16 / 0.68);
+  background: rgb(var(--plane-rgb) / 0.68);
   color: var(--text-hi);
   font-size: 11px;
   line-height: 16px;
@@ -2759,15 +2759,15 @@
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   cursor: pointer;
   transition: background 160ms, color 160ms;
 }
 .rh-nav:hover {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(var(--tint-rgb) / 0.12);
   color: var(--text-hi);
 }
 
@@ -2783,8 +2783,8 @@
   gap: var(--s4);
   padding: var(--s4) var(--s5);
   border-radius: 14px;
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+  background: rgb(var(--tint-rgb) / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
 }
 
 .rh-hidden p {
@@ -2805,11 +2805,26 @@
   padding: 8px;
   border: 0;
   border-radius: 8px;
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   font-size: var(--fs-meta);
 }
 .queue-more:hover {
-  background: rgb(255 255 255 / 0.09);
+  background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
 }
+
+/*
+ * 每日推荐空着的时候。
+ *
+ * 空态不是「这块先不画」：没登录的人打开首页，第一屏只剩问候与四张卡，看起来
+ * 像坏了。这里说清楚是「一家平台都没登录」还是「今天这几家还没推过来」。
+ */
+.rh-daily--off {
+  min-height: 190px;
+}
+
+.rh-daily--off .rh-daily__text {
+  justify-content: center;
+}
+

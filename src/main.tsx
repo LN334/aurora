@@ -29,6 +29,8 @@ import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
 import { applyRowDensity, readRowDensity } from './features/settings/row-density'
 import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
+import { applyTheme, readTheme } from './features/settings/theme'
+import { applyBackdrop, readBackdrop } from './features/settings/backdrop'
 
 /*
  * Establish the profile before anything renders.
@@ -43,6 +45,10 @@ import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
 applyReduceMotion(readReduceMotion())
 applyLyricSize(readLyricSize())
 applyRowDensity(readRowDensity())
+/* public/boot.js 已经在首帧前落过一次；这里补一次，兜住「系统在这之间翻了」。 */
+applyTheme(readTheme())
+/* 背景垫底与磨砂半径，同样只落一次，之后由设置页改。 */
+applyBackdrop(readBackdrop())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
 /*
@@ -82,5 +88,16 @@ createRoot(container).render(<App />)
 console.log('[boot] render dispatched', Math.round(performance.now()))
 // 双 rAF：第一个回调在下一帧绘制前，第二个在那一帧已经上屏之后。
 requestAnimationFrame(() => {
-  requestAnimationFrame(() => console.log('[boot] first frame painted', Math.round(performance.now())))
+  requestAnimationFrame(() => {
+    console.log('[boot] first frame painted', Math.round(performance.now()))
+    /*
+     * 开场动画退场。
+     *
+     * 只等首帧，不等数据：再等下去，首屏就绪要两秒多，开场动画会把「打开慢」
+     * 从看不见变成看得见——盖着不动比骨架更难受。首帧之后交给骨架接力，
+     * 视觉上是一段连续的「正在来」。最短停留与最长兜底由 public/boot.js 管，
+     * 这里只负责说「可以走了」。
+     */
+    ;(window as unknown as { __auroraBootDone?: () => void }).__auroraBootDone?.()
+  })
 })

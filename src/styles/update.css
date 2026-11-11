@@ -114,7 +114,7 @@
   gap: var(--s4);
   padding: var(--s3) var(--s5);
   /* 与播放条同一套亚克力：压在壁纸上，但不把壁纸糊死。 */
-  background: rgb(14 17 21 / 0.72);
+  background: rgb(var(--ink-850-rgb) / 0.72);
   backdrop-filter: blur(18px) saturate(1.35);
   -webkit-backdrop-filter: blur(18px) saturate(1.35);
   border-bottom: 1px solid rgb(var(--accent-rgb) / 0.3);
@@ -124,7 +124,7 @@
 
 /* 下载中再透一点：已经在做事了，不需要一直喊。 */
 .updatebar.is-downloading {
-  background: rgb(14 17 21 / 0.62);
+  background: rgb(var(--ink-850-rgb) / 0.62);
 }
 
 .updatebar__text {
@@ -170,7 +170,7 @@
   bottom: -1px;
   height: 2px;
   overflow: hidden;
-  background: rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.1);
 }
 
 .updatebar__fill {
