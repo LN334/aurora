@@ -161,8 +161,8 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 首页这一格以前只数本机收藏，于是左边栏点进「我喜欢的音乐」有 626 首，
    * 首页却写 0 首——同一件事两个数，谁都不敢信。
    */
-  const { tracks: platformLiked } = usePlatformLiked()
-  const { cards: accountCards } = useAccountPlaylists()
+  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked()
+  const { cards: accountCards, loading: cardsLoading } = useAccountPlaylists()
   const collectedPlaylists = useMemo(() => collectedOnly(accountCards), [accountCards])
   const collectedAlbums = useCollectedAlbums()
 
@@ -427,6 +427,15 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [])
 
   /*
+   * 上面那几格的数字要等数据真的回来再写。
+   *
+   * 只等 settled 不够：1.6 秒是个按体感定的窗，平台数据常比它慢，于是先画出
+   * 「0 首」「0 个」「0 张」，两三秒后再跳成真数——用户看到的是「刚才明明是 0」。
+   * 未就绪就写一个破折号，跳变消失，字也不闪。
+   */
+  const countsReady = settled && !likedLoading && !cardsLoading
+
+  /*
    * 三张预览图等平台那一份落地再画。
    *
    * 平台推荐还没回来时 daily 先用本机曲库补齐，于是这三张会先画一次；几百毫秒后
@@ -565,21 +574,21 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           icon={<Heart size={16} />}
           art={thumbOf(likedAll[0])}
           label="我喜欢的音乐"
-          count={settled ? likedAll.length + ' 首' : '—'}
+          count={countsReady ? likedAll.length + ' 首' : '—'}
           onClick={() => onNavigate({ view: 'liked' })}
         />
         <Shortcut
           icon={<Play size={16} />}
           art={thumbOf(recentTracks[0])}
           label="最近播放"
-          count={settled ? recent.length + ' 首' : '—'}
+          count={countsReady ? recent.length + ' 首' : '—'}
           onClick={() => onNavigate({ view: 'recent' })}
         />
         <Shortcut
           icon={<List size={16} />}
           art={mineArt}
           label="歌单"
-          count={settled ? accountCards.length + ' 个' : '—'}
+          count={countsReady ? accountCards.length + ' 个' : '—'}
           onClick={() => onNavigate({ view: 'playlists' })}
         />
         {/*
@@ -596,7 +605,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             <span className="rh-sc__text">
               <b>我的收藏</b>
               <span>
-                {settled
+                {countsReady
                   ? collectedPlaylists.length + ' 张歌单 · ' + collectedAlbums.length + ' 张专辑'
                   : '—'}
               </span>
