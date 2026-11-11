@@ -1,6 +1,6 @@
 # Aurora
 
-A desktop music player for Windows. It ships no music: it reads your own folders, and connects to your NetEase Cloud Music, QQ Music, KuGou and Qishui accounts. A track that exists on several platforms takes one row, and playback picks a source in the order you set. Window colours follow the cover that's playing.
+A desktop music client for Windows that ships no music: the library comes from your NetEase Cloud Music, QQ Music, KuGou and Qishui accounts plus your own folders. A track that exists on several platforms takes one row, and playback picks a source in the order you set. The home screen is a wall of covers you can spin; "Roam" drops you into a stream that never runs out — play one, get another, no total in sight. Window colours follow the cover that's playing.
 
 [中文](README.md) · [Download](https://github.com/LN334/aurora/releases/latest) · [Issues](https://github.com/LN334/aurora/issues)
 
@@ -12,13 +12,17 @@ A desktop music player for Windows. It ships no music: it reads your own folders
 
 ## Features
 
+- One library: NetEase Cloud Music, QQ Music, KuGou and Qishui, plus your own folders. Search and free tracks work signed out; daily recommendations and liked songs need an account
+- One row per track across platforms; playback picks the first source that can play it, in your order
+- Daily 30: a batch from each platform you enabled, interleaved by source, fixed for the day
+- Roam: a stream that keeps refilling as you skip, no total displayed, and it ends itself the moment you open a playlist
+- Cover wall: today's batch laid out as a wall you can turn with the wheel or by dragging; click the centre card to play from there
+- Recommended playlists / albums / new songs: four platforms mixed, each with its own "shuffle batch"
 - Local files: folder scanning, tags and embedded covers, 14 audio formats
-- Four online platforms: NetEase Cloud Music, QQ Music, KuGou, Qishui. Search and free tracks work signed out; daily recommendations and liked songs need an account
-- One row per track across platforms; playback picks whichever source can play it, in the order you set
 - Online tracks can be saved to disk
-- Full-screen lyrics page, coloured from the current cover
+- Full-screen lyrics coloured from the cover; scrollable, translations on their own line
 - Desktop lyrics: a transparent always-on-top window that can be locked to click through
-- Play queue, 10-band equaliser, crossfade, ReplayGain
+- Queue, 10-band equaliser, crossfade, ReplayGain
 - With Wallpaper Engine installed, workshop wallpapers can run behind the UI: scene, video, web and image
 - Tray icon, taskbar thumbnail buttons, Windows media controls and hardware media keys
 
@@ -83,9 +87,10 @@ One column on the left:
 
 | Position | Items |
 | --- | --- |
-| Top | Recommended, Roam |
-| Mine | Liked music, Recently played, Playlists, Saved playlists, Saved albums, Local music |
-| Bottom | Settings, Mine, Collapse sidebar |
+| Top | Now, Roam |
+| Mine | Liked, Recently played |
+| Library | Playlists, Albums, Artists, Local |
+| Bottom | Settings, current account, Collapse sidebar |
 
 Platforms don't get their own top-level entry. All four plus local files live in one library.
 
@@ -93,15 +98,31 @@ There's exactly one search box, in the title bar; `Ctrl K` focuses it. Enter ope
 
 "Mine" at the bottom of the sidebar opens the account page: local profiles, the online account each profile is bound to, and local music folders.
 
-### Recommended
+### Home
 
-The app opens here. A greeting and today's listening time, then the track you last played, then four tiles into liked music, recently played, playlists and saved items.
+The app opens here. A greeting and today's listening time come first.
 
-Below that is "what to play today": 30 tracks picked from what you've been listening to, keyed to the date, a new batch tomorrow.
+Right below is "what to play today": the date, a title and two entries (start playing, all 30) on the left, and on the right that batch laid out as a cover wall — spin it with the wheel or drag it, let go and a spring settles it on a card, and the label under the centre one names where you are. Click the centre card to play from that track. Those 30 come from each platform you enabled, interleaved by source, topped up from your own library when a platform comes back short; they stay put for the day and change the next.
 
-Then recommended playlists (mixed across platforms, shufflable), curated playlists (horizontal), new releases, and recently played.
+Then the track you last played, four tiles into liked / recently played / playlists / saved items, and three recommendation blocks, each with its own "shuffle batch":
+
+- **Recommended playlists**: mixed across platforms, two rows of six, interleaved by source so the platform with the biggest pool cannot fill a row.
+- **Recommended albums**: one horizontal strip of 12, paged with the arrows. Deliberately not another cover wall — the playlists above already are three rows of squares, and two same-shaped walls side by side read as one block. A small square on the left, album and artist on the right; four visible, the rest off to the side. Sources are NetEase's new-album chart plus albums pulled out of the QQ and KuGou new-song charts; the same album merges into one card, with its platforms after the artist.
+- **New songs**: a lead card on the left and a compact list on the right, scrolling further down. The page already has four cover walls above it, so this one splits into two columns and changes the rhythm.
+
+"Shuffle batch" really asks the platforms again: NetEase's chart pages forward, the QQ and KuGou charts have no page number so the fetch is repeated and the returned pool is rotated — clicking twice will not give you the same screen.
+
+At the bottom, recently played: the last eight covers with a relative timestamp.
 
 Listening history stays on disk: daily totals, the last 60 entries, with repeats within three minutes counted once. It's flushed on pause, track change and window close; scrubbing the progress bar doesn't count.
+
+### Roam
+
+"Roam" in the sidebar skips playlists: it pulls a batch across the platforms and starts playing, then refills as you go — skip one, get another, keep skipping and it keeps adding.
+
+The rail only ever says "roaming · N heard", never a total — a total would make a stream look like a playlist. Two actions live there: "not this again" drops the track from this run, "end roam" hides the rail while the queue and the current track keep going.
+
+The queue panel renames itself to "roam · up next". The play-mode button hides for the run; opening a playlist or an album ends roam and puts the play mode back to whatever it was before.
 
 ### Mine
 
@@ -113,14 +134,16 @@ Local music reads files off the disk. Scanning reads tags, embedded covers and a
 
 ### Playback
 
-The bar at the bottom has cover, title, artist, progress, previous / play / next, then shuffle, repeat, queue, equaliser, desktop lyrics and volume. The volume slider takes the mouse wheel in 5% steps; dragging it to 0 and then unmuting returns to 60% instead of staying silent.
+The bar at the bottom has cover, title, artist, progress, play mode, previous / play / next, then queue, equaliser, desktop lyrics and volume. The volume slider takes the mouse wheel in 5% steps; dragging it to 0 and then unmuting returns to 60% instead of staying silent.
 
-Clicking the cover opens the full-screen lyrics page: the current line large, neighbouring lines fading with distance. With no lyrics it shows the cover and title and offers an online lookup.
+Play mode is one button cycling four states: in order → repeat all → repeat one → shuffle. Shuffle reorders the whole queue, and the queue panel lists it in that order.
+
+Clicking the cover opens the full-screen lyrics page: the current line large, neighbouring lines fading with distance, the original on one line and its translation underneath in small type. You can scroll the lyrics; a few seconds after you stop, it slides back to the line being sung. With no lyrics it shows the cover and title and offers an online lookup.
 
 - 10-band equaliser with 5 presets; double-clicking a slider resets it
 - Crossfade with adjustable overlap
 - ReplayGain normalisation with peak limiting, so nothing clips
-- Queue panel in real playback order; click to jump, remove what you don't want
+- Queue panel in real playback order; click to jump, remove what you don't want. Its header says which play mode the batch is in
 - "Play next" lives in the context menu and the `⋯` menu on each row
 
 ### Desktop lyrics
