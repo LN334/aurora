@@ -2283,7 +2283,6 @@ html.is-resizing {
 :root .shell.has-wallpaper .rh-daily,
 :root .shell.has-wallpaper .rh-now,
 :root .shell.has-wallpaper .rh-sc,
-:root .shell.has-wallpaper .rh-quick,
 :root .shell.has-wallpaper .rh-card,
 :root .shell.has-wallpaper .panel {
   background-color: rgb(255 255 255 / 0.4);
@@ -2297,7 +2296,6 @@ html.is-resizing {
 :root[data-theme='dark'] .shell.has-wallpaper .rh-daily,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-now,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-sc,
-:root[data-theme='dark'] .shell.has-wallpaper .rh-quick,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-card,
 :root[data-theme='dark'] .shell.has-wallpaper .panel {
   background-color: rgb(255 255 255 / 0.05);
