@@ -2283,7 +2283,6 @@ html.is-resizing {
 :root .shell.has-wallpaper .rh-daily,
 :root .shell.has-wallpaper .rh-now,
 :root .shell.has-wallpaper .rh-sc,
-:root .shell.has-wallpaper .rh-card,
 :root .shell.has-wallpaper .panel {
   background-color: rgb(255 255 255 / 0.4);
   box-shadow:
@@ -2296,23 +2295,8 @@ html.is-resizing {
 :root[data-theme='dark'] .shell.has-wallpaper .rh-daily,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-now,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-sc,
-:root[data-theme='dark'] .shell.has-wallpaper .rh-card,
 :root[data-theme='dark'] .shell.has-wallpaper .panel {
   background-color: rgb(255 255 255 / 0.05);
-}
-/*
- * 封面式卡片（歌单、专辑）不垫薄片。
- *
- * 它靠封面本身分块，再垫一层底，封面下方那一截文字区就会多出一条浅色带，
- * 看着像每张卡底下多了一条底栏。首页的推荐歌单用的是同一个类，一起收干净。
- */
-:root .shell.has-wallpaper .pl-card {
-  background-color: transparent;
-  box-shadow: none;
-}
-
-:root[data-theme='dark'] .shell.has-wallpaper .pl-card {
-  background-color: transparent;
 }
 
 /* 设置页不另铺一块底：整窗口已经是玻璃，再垫一层就又是「白纸框」。 */
