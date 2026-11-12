@@ -2228,16 +2228,22 @@ html.is-resizing {
   text-shadow: none;
 }
 
-/* 播放条是控制面，比主区再实一点；它自带的三层渐变留着，所以只改颜色。 */
+/*
+ * 播放条和主区是同一块玻璃。
+ *
+ * 之前让它比主区再实 0.08 个白、加圆角与投影，结果是底栏看起来像另一块板子
+ * 贴在窗口上。现在颜色、模糊、透明度全部对齐，只用一条上边的发丝线分界。
+ */
 :root .shell.has-wallpaper > .player {
-  background-color: rgb(var(--plane-rgb) / calc(var(--wp-glass) + 0.08));
+  background-color: rgb(var(--plane-rgb) / var(--wp-glass));
   backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
   text-shadow: none;
 }
 
 /* 播放条下方那条缝跟主区同一块玻璃，否则底部会多出一条露壁纸的带。 */
+/* 播放条浮在内容之上以后，底下这一层不再需要：底由主区那一块玻璃一直铺到底。 */
 :root .shell.has-wallpaper::after {
-  background: rgb(var(--plane-rgb) / var(--wp-glass));
+  display: none;
 }
 
 /* 壁纸不再压暗：对比度交给上面那层玻璃，图本身保持原样。 */
@@ -2267,13 +2273,39 @@ html.is-resizing {
   overflow: hidden;
 }
 
-/* 玻璃内部的容器不再有自己的底：只留悬停与选中那一下。 */
+/*
+ * 玻璃里面还要有「片」。
+ *
+ * 全部透明会让卡片和背景连成一片，眼睛找不到区块边界——第一版就是这么翻的。
+ * 玻璃叠玻璃的正确做法是提亮而不是再糊一次：卡片只加一层很薄的白、一圈细描边，
+ * 一点向下的软影，不再挂 backdrop-filter（否则每块都要重新采样背景，又慢又糊）。
+ */
 :root .shell.has-wallpaper .rh-daily,
 :root .shell.has-wallpaper .rh-now,
 :root .shell.has-wallpaper .rh-sc,
-:root .shell.has-wallpaper .panel,
+:root .shell.has-wallpaper .rh-quick,
+:root .shell.has-wallpaper .rh-card,
+:root .shell.has-wallpaper .panel {
+  background-color: rgb(255 255 255 / 0.4);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.16),
+    0 2px 12px -10px rgb(var(--shade-rgb) / 0.45);
+  backdrop-filter: none;
+}
+
+:root[data-theme='dark'] .shell.has-wallpaper .rh-daily,
+:root[data-theme='dark'] .shell.has-wallpaper .rh-now,
+:root[data-theme='dark'] .shell.has-wallpaper .rh-sc,
+:root[data-theme='dark'] .shell.has-wallpaper .rh-quick,
+:root[data-theme='dark'] .shell.has-wallpaper .rh-card,
+:root[data-theme='dark'] .shell.has-wallpaper .panel {
+  background-color: rgb(255 255 255 / 0.05);
+}
+
+/* 设置页不另铺一块底：整窗口已经是玻璃，再垫一层就又是「白纸框」。 */
 :root .shell.has-wallpaper .settings__body {
-  background-color: transparent;
+  background: none;
   box-shadow: none;
   backdrop-filter: none;
 }
@@ -2296,11 +2328,42 @@ html.is-resizing {
   box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
 }
 
+/*
+ * 播放条是一块浮起来的弹窗，但材质与整窗口那一块完全相同。
+ *
+ * 之前两次都不对：把它做得比主区白一档，像另一块板子贴在窗口下沿；把它清成
+ * 透明贴底，又变回一条没有形体的横带。要的是「同一块玻璃上浮起一片」——
+ * 颜色、透明度、模糊全部取和主区一样的值，只靠四周留缝、圆角和那一道投影
+ * 说明它在内容之上。它自带的 0.78 底与上下渐变必须先清掉，否则永远比主区白。
+ */
+/*
+ * 播放条是浮在内容上的一块弹窗。
+ *
+ * 关键在布局：底栏那一行收成 0，主区的玻璃一直铺到窗口底，播放条再绝对定位
+ * 浮上去。之前它是 grid 的第三行，于是「播放条那块玻璃」和「主区那块玻璃」
+ * 天生是两张面，交界处怎么调都会有一条线——那不是描边的错，是两层底拼在一起。
+ * 现在只有一块底，播放条是它上面浮着的一片。
+ */
+:root .shell.has-wallpaper {
+  grid-template-rows: var(--titlebar-h) 1fr 0;
+}
+:root .shell.has-wallpaper > .main {
+  /* 给浮起来的播放条让出位置，否则最后一排卡片会压在它底下。 */
+  padding-bottom: calc(var(--player-h) + 18px);
+}
 :root .shell.has-wallpaper > .player {
-  border-radius: 14px;
-  box-shadow:
-    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07),
-    inset 0 1px 0 rgb(var(--tint-rgb) / 0.3),
-    0 -1px 0 rgb(var(--tint-rgb) / 0.06),
-    0 10px 28px -12px rgb(var(--shade-rgb) / 0.35);
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  z-index: 3;
+  height: var(--player-h);
+  margin: 0;
+  border-radius: 16px;
+  background-color: rgb(var(--plane-rgb) / var(--wp-glass));
+  background-image: none;
+  backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+  -webkit-backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+  /* 一条线都不要：分界交给投影和圆角。 */
+  box-shadow: 0 14px 36px -16px rgb(var(--shade-rgb) / 0.5);
 }
