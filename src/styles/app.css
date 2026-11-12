@@ -2265,7 +2265,13 @@ html.is-resizing {
  * 被模糊成柔和色块，界面是浮在它上面的一层玻璃，而不是「压在壁纸上的白纸」。
  */
 :root .shell.has-wallpaper {
-  border-radius: 16px;
+  /*
+   * 圆角交给 Windows 自己画。
+   *
+   * 这里原来还有 border-radius: 16px：DWM 已经按 8px 把窗口裁圆了，页面再裁一次
+   * 16px，两圈之间那 8px 环就露出窗口底色（#0d1013），四个角上各留一块黑三角。
+   * 页面不再自己裁圆角，内容铺到窗口边，四角由 DWM 裁出来，底下是桌面而不是黑。
+   */
   box-shadow:
     inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07),
     inset 0 1px 0 rgb(var(--tint-rgb) / 0.35),
