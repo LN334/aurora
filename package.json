@@ -68,9 +68,10 @@
       "repo": "aurora"
     },
     "nsis": {
+      "include": "build/installer-custom.nsh",
       "oneClick": true,
       "perMachine": false,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "Aurora",
       "deleteAppDataOnUninstall": false,
