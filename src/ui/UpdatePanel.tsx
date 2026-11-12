@@ -6,15 +6,18 @@ import { Refresh } from './icons'
 /**
  * 设置页的更新面板。
  *
- * 三步分开、各自一个动作，谁都不替下一步做主：
- * 1. 检查更新——只是问一句，不下载、不安装；
+ * 这一屏是手动那条路：
+ * 1. 检查更新——只问 GitHub 一句，不下载、不安装；
  * 2. 下载——把文件取回来，进度显示在下面；
- * 3. 重启并安装——由人按。收窗口不装，退出也不装（见 electron/main.ts 与
- *    electron/updates.ts 的 autoInstallOnAppQuit），安装包未签名，替用户做这个
- *    决定没有回退的路。
+ * 3. 重启并安装——由人按。
  *
- * 状态从全应用共用的 store 读，而不是自己再查一遍：自动下载与这里回答的是
- * 同一个问题，两处各存一份就会出现「后面说下载完了，这里还在让我下载」。
+ * 自动那条路不经过这里的按钮：主进程按设置的频率自己查、自己下，下好之后
+ * 由 src/features/updates/auto-restart.ts 在没放歌时装上并重启。两条路共用下面
+ * 的状态，因为它们回答的是同一个问题（有没有新版、下到哪了），各存一份就会
+ * 出现「后面说下载完了，这里还在让我下载」。
+ *
+ * 唯一由这里决定的是「现在装」：自动那条可能还在等一首歌放完，用户想立刻装
+ * 时按这个按钮就行。
  */
 export function UpdatePanel() {
   const [version, setVersion] = useState('—')
@@ -61,15 +64,11 @@ export function UpdatePanel() {
                 <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
                   下载 {result.info.version}
                 </button>
-                <span className="update__hint">只下载，不会自己装。最后一步永远等你按。</span>
               </div>
             </>
           ) : result.state === 'downloading' ? (
             <>
               <p>正在下载 {Math.round(result.percent)}%</p>
-              <span className="update__hint">
-                下好之后由你决定什么时候装。这会儿退出应用，这份下载要重来。
-              </span>
             </>
           ) : result.state === 'ready' ? (
             <>
@@ -80,9 +79,6 @@ export function UpdatePanel() {
                 <button className="btn btn--accent" onClick={() => void install()}>
                   重启并安装
                 </button>
-                <span className="update__hint">
-                  点了会关掉应用，装完自动回来。先不装也行，但重新打开应用后要重新下载。
-                </span>
               </div>
             </>
           ) : result.state === 'installing' ? (

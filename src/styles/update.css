@@ -40,13 +40,6 @@
   color: var(--text-hi);
 }
 
-.update__hint {
-  margin: var(--s1) 0 0;
-  max-width: 60ch;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-}
-
 .update__result {
   display: flex;
   flex-direction: column;

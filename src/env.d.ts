@@ -100,9 +100,9 @@ export interface UpdateInfo {
  * a fresh clone has placeholder publish settings and must say so rather than
  * claim it is up to date.
  *
- * The three `install*` states only ever appear when the user has explicitly
- * turned on automatic installation; the default flow still stops at
- * `available` and hands the download to their browser.
+ * `origin` on `ready` says which path produced the file: the automatic one may
+ * be installed once nothing is playing, a manual download always waits for the
+ * button.
  */
 export type UpdateResult =
   | { state: 'current'; current: string; checkedAt: number }
@@ -110,7 +110,7 @@ export type UpdateResult =
   | { state: 'unconfigured'; current: string; message: string }
   | { state: 'error'; current: string; checkedAt: number; message: string }
   | { state: 'downloading'; current: string; info: UpdateInfo; percent: number; transferred: number; total: number }
-  | { state: 'ready'; current: string; info: UpdateInfo }
+  | { state: 'ready'; current: string; info: UpdateInfo; origin: 'auto' | 'manual' }
   | { state: 'installing'; current: string; info: UpdateInfo }
 
 /** How often the background check runs. `manual` means "only when I ask". */

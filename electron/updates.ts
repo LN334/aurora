@@ -15,16 +15,19 @@ export type { UpdateInterval }
 /**
  * Update checking against GitHub Releases.
  *
- * Two decisions are deliberately separate:
+ * Two paths, one source of truth for "is there a newer version" - the GitHub
+ * check below - so the news and the binary can never disagree.
  *
- * - Fetching the file can be automatic (on by default). It costs bandwidth,
- *   not trust: nothing about the running app changes.
- * - Replacing the running app always asks. The builds are unsigned, so there is
- *   no signature to verify before swapping the executable; the user presses
- *   restart, and the release page stays the fallback when a download fails.
+ * - Manual: check, then download, then install. Every step is a user action.
+ *   Nothing in this module starts one of them on its own.
+ * - Automatic: the scheduled check downloads by itself, and
+ *   `src/features/updates/auto-restart.ts` installs once nothing is playing.
+ *   Every result this module pushes carries `origin`, so the renderer can tell
+ *   the two downloads apart and never auto-install a file the user fetched by
+ *   hand.
  *
- * Both halves share one source of truth for "is there a newer version" - the
- * GitHub check below - so the news and the binary can never disagree.
+ * Installation is still never decided here: `autoInstallOnAppQuit` stays off,
+ * and quitting does not replace the running build.
  */
 
 /** Mirrors the `UpdatePrefs` block in `src/env.d.ts`. */
@@ -77,8 +80,8 @@ export interface UpdateInfo {
 /**
  * Mirrors the `UpdateResult` union in `src/env.d.ts`.
  *
- * The three `install*` states only ever appear when the user has switched
- * automatic installation on; without it the flow still stops at `available`.
+ * `origin` on `ready` says which path produced the file. Only `'auto'` may be
+ * installed without a press; a manual download always waits for the button.
  */
 export type UpdateResult =
   | { state: 'current'; current: string; checkedAt: number }
@@ -93,7 +96,7 @@ export type UpdateResult =
       transferred: number
       total: number
     }
-  | { state: 'ready'; current: string; info: UpdateInfo }
+  | { state: 'ready'; current: string; info: UpdateInfo; origin: 'auto' | 'manual' }
   | { state: 'installing'; current: string; info: UpdateInfo }
 
 const REQUEST_TIMEOUT_MS = 9000
@@ -251,7 +254,7 @@ export async function autoCheck(onResult: (result: UpdateResult) => void): Promi
     onResult(result)
     // The settings page shows progress, so it needs the same news the toast got.
     broadcast(result)
-    if (shouldAutoDownload(result)) void downloadInBackground(result)
+    if (shouldAutoDownload(result)) void downloadInBackground(result, 'auto')
   } finally {
     checkInFlight = false
   }
@@ -385,7 +388,10 @@ let installing = false
 /** Downloaded but not yet installed. Cleared when the installer runs. */
 let readyVersion: string | null = null
 
- async function downloadInBackground(result: UpdateResult): Promise<void> {
+ async function downloadInBackground(
+  result: UpdateResult,
+  origin: 'auto' | 'manual'
+): Promise<void> {
   if (installing || result.state !== 'available') return
   // Narrowed once, so the progress callback and the failure path below cannot
   // lose track of which member of the union they are working with.
@@ -432,7 +438,7 @@ let readyVersion: string | null = null
 
     updater.on('update-downloaded', () => {
       readyVersion = pending.info.version
-      broadcast({ state: 'ready', current: pending.current, info: pending.info })
+      broadcast({ state: 'ready', current: pending.current, info: pending.info, origin })
     })
 
     updater.on('download-progress', (progress) => {
@@ -449,7 +455,7 @@ let readyVersion: string | null = null
     await updater.checkForUpdates()
     await updater.downloadUpdate()
     readyVersion = pending.info.version
-    broadcast({ state: 'ready', current: pending.current, info: pending.info })
+    broadcast({ state: 'ready', current: pending.current, info: pending.info, origin })
   } catch (error) {
     // Failing to download must not look like failing to check: the user still
     // has a release page they can open by hand.
@@ -482,7 +488,7 @@ export async function downloadAvailable(): Promise<boolean> {
   const pending = pendingRelease
   if (!pending) return false
 
-  void downloadInBackground(pending)
+  void downloadInBackground(pending, 'manual')
   return true
 }
 

@@ -17,8 +17,7 @@ import {
 /**
  * 04 更新与关于。
  *
- * 检查与下载都是主进程的事，这里保留三个入口：检查频率、新版本自动下载、以及
- * UpdatePanel 自己的「检查更新」按钮与结果。版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
+ * 两条路：手动那条每一步都要按；自动那条按下面的频率自己查、下、换好。版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
  * 数据与缓存搬到了 05 清理与维护，因为那里还有释放内存，两件事该放在一起。
  */
 export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
@@ -26,14 +25,14 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
   return (
     <>
-      <Sub title="更新" hint="安装包未签名。新版本可以在应用里下好，装之前一定会问你。">
+      <Sub title="更新">
         <UpdatePanel />
         <Rows>
           <Row
             label="检查频率"
             hint={
               updateInterval === 'manual'
-                ? '不自动检查，只有你点「检查更新」时才联网'
+                ? undefined
                 : `上次检查：${formatCheckedAt(page.prefs.lastCheck)}`
             }
           >
@@ -57,17 +56,12 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             </div>
           </Row>
           <Row
-            label="发现新版本时自动下载"
-            hint={
-              page.prefs.autoInstallAvailable
-                ? '后台下好，不打断你在做的事。装永远等你点「重启并安装」：收窗口不装，退出也不装。'
-                : '装好的应用里才能用；开发模式只能手动下载。'
-            }
+            label="自动更新"
           >
             <Toggle
               checked={page.prefs.autoInstall}
               disabled={page.busy || !page.prefs.autoInstallAvailable}
-              label="发现新版本时自动下载"
+              label="自动更新"
               onChange={(next) => void page.setAutoInstall(next)}
             />
           </Row>

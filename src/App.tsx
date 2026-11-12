@@ -12,6 +12,7 @@ import { LocalPage } from './views/LocalPage'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
 import { bindUpdateEvents } from './features/updates/store'
+import { armAutoRestart } from './features/updates/auto-restart'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
 import { useOnboarded, setOnboarded } from './features/settings/onboarding'
@@ -381,6 +382,7 @@ export function App() {  if (!isNative) {
   // 更新状态由主进程推来（启动那次静默检查、下载进度、下载完成），这里把通道接上。
   useEffect(() => {
     bindUpdateEvents()
+    armAutoRestart()
   }, [])
 
   // 下载列表同样归主进程：面板关掉了任务也得继续跑。
