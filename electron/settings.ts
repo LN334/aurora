@@ -67,13 +67,14 @@ export interface Settings {
   /** Epoch ms of the last completed update check. */
   lastUpdateCheck: number
   /**
-   * Download updates in the background instead of waiting to be asked.
+   * Update in the background instead of waiting to be asked.
    *
-   * Off by default: checking for a release is one deliberate click, and a
-   * hundred megabytes arriving without that click is not what most people
-   * expect from a player. The flag only covers the download - installing is
-   * always a separate press - because the installers are unsigned and the app
-   * cannot verify what it runs.
+   * On by default, and it covers the whole sequence: the daily check finds a
+   * release, the file is fetched, and once nothing is playing the new build is
+   * installed and the app comes back on it. The one thing this flag never
+   * touches is the manual 「检查更新」 button - that press only asks GitHub a
+   * question, because "check" and "replace my running app" are two different
+   * decisions. Turning it off makes every step manual.
    */
   autoInstallUpdates: boolean
   /**
@@ -132,7 +133,7 @@ const DEFAULTS: Settings = {
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
-  autoInstallUpdates: false,
+  autoInstallUpdates: true,
   desktopLyricsSize: 34,
   onlineLyrics: false,
   closeToTray: true,
