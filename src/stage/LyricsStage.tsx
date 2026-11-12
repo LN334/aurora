@@ -13,6 +13,7 @@ import { player } from '../features/player/actions'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Visualizer } from './Visualizer'
 import { chooseEntry } from '../features/wallpaper/pure'
+import { StageParticles } from './StageParticles'
 import { useWallpaper } from '../features/wallpaper/store'
 
 /** Lines shown above and below the active one. Fixed, so centring is exact. */
@@ -454,6 +455,7 @@ export function LyricsStage({
       }
     >
       {wallpaper ? null : <Visualizer getSpectrum={getSpectrum} palette={palette} />}
+      <StageParticles palette={palette} />
 
       <header className="stage__top">
         <button className="stage__back" onClick={onClose} aria-label="退出沉浸模式">

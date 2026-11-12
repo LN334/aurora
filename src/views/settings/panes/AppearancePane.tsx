@@ -5,6 +5,7 @@ import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features
 import { THEMES, useTheme, writeTheme } from '../../../features/settings/theme'
 import { BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
 import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
+import { setStageParticles, useStageParticles } from '../../../features/settings/stage-particles'
 import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
 import { useOverlayStatus } from '../../../features/overlay/status'
@@ -61,6 +62,14 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const accentFromArt = useAccentFromArt()
   const density = useRowDensity()
   const theme = useTheme()
+  const particles = useStageParticles()
+  /* 三个滑块共用一个草稿：拖动时只改这一份，松手才落盘。 */
+  const [moteDraft, setMoteDraft] = useState<{ density: number; speed: number; size: number } | null>(null)
+  const mote = moteDraft ?? { density: particles.density, speed: particles.speed, size: particles.size }
+  const commitMote = (next: { density: number; speed: number; size: number }): void => {
+    setStageParticles(next)
+    setMoteDraft(null)
+  }
 
   /*
    * 应用图标。预览走 data URL：主进程只回一张 256 的 PNG，渲染层不需要知道
@@ -316,6 +325,73 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
+      <Sub title="舞台粒子" hint="全屏歌词页上那层慢慢上浮的光点，颜色跟着封面走。">
+        <Row label="粒子" hint="关掉后舞台只剩背景和歌词。">
+          <Toggle
+            checked={particles.enabled}
+            label="舞台粒子"
+            onChange={(next) => setStageParticles({ enabled: next })}
+          />
+        </Row>
+        {particles.enabled ? (
+          <>
+            <Row label="多少" hint="越多越热闹；太少就看不出在飘。">
+              <div className="settings__slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(mote.density * 100)}
+                  aria-label="粒子数量"
+                  onChange={(event) =>
+                    setMoteDraft({ ...mote, density: Number(event.target.value) / 100 })
+                  }
+                  onPointerUp={() => commitMote(mote)}
+                  onKeyUp={() => commitMote(mote)}
+                />
+                <span className="settings__number">{Math.round(mote.density * 100)}%</span>
+              </div>
+            </Row>
+            <Row label="快慢" hint="上浮的节奏；慢一点更像呼吸。">
+              <div className="settings__slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(mote.speed * 100)}
+                  aria-label="粒子速度"
+                  onChange={(event) =>
+                    setMoteDraft({ ...mote, speed: Number(event.target.value) / 100 })
+                  }
+                  onPointerUp={() => commitMote(mote)}
+                  onKeyUp={() => commitMote(mote)}
+                />
+                <span className="settings__number">{Math.round(mote.speed * 100)}%</span>
+              </div>
+            </Row>
+            <Row label="大小" hint="光点本身的大小，和数量互不影响。">
+              <div className="settings__slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(mote.size * 100)}
+                  aria-label="粒子大小"
+                  onChange={(event) =>
+                    setMoteDraft({ ...mote, size: Number(event.target.value) / 100 })
+                  }
+                  onPointerUp={() => commitMote(mote)}
+                  onKeyUp={() => commitMote(mote)}
+                />
+                <span className="settings__number">{Math.round(mote.size * 100)}%</span>
+              </div>
+            </Row>
+          </>
+        ) : null}
+      </Sub>
       <Row label="列表行密度" hint="歌单、搜索结果、队列里每一行的高度。">
         <div className="seg">
           {ROW_DENSITIES.map((item) => (

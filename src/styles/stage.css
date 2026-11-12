@@ -78,7 +78,7 @@
   }
 }
 
-.stage > *:not(.viz):not(.wallpaper) {
+.stage > *:not(.viz):not(.wallpaper):not(.stage__particles) {
   position: relative;
   z-index: 1;
 }
@@ -103,6 +103,20 @@
   .stage.is-closing {
     animation: none;
   }
+}
+
+
+/*
+ * 光尘：自绘的一层，不参与布局也不吃指针。
+ *
+ * z-index 留在 auto 而不是提到内容那一层：它要压住极光带，但不能盖住歌词。
+ */
+.stage__particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 /* --- top bar ------------------------------------------------------------- */
