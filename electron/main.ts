@@ -828,13 +828,21 @@ if (!app.requestSingleInstanceLock()) {
      */
     registerQishuiIpc()
 
-    // One quiet check a day. It only ever reports; nothing is downloaded or
-    // applied without the user going to the release page themselves.
-    void autoCheck((result: UpdateResult) => {
+    const announceUpdate = (result: UpdateResult): void => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('updates:available', result)
       }
-    })
+    }
+    void autoCheck(announceUpdate)
+    /*
+     * 只在启动时查一次，等于「一直挂着不重启就永远查不到新版」。半小时问一次
+     * `autoCheck`，它自己按设置里的间隔（手动 / 每天 / 每周）决定要不要真发请求，
+     * 所以这里不会把 GitHub 当靶子。
+     */
+    const updateTimer = setInterval(() => {
+      void autoCheck(announceUpdate)
+    }, 30 * 60 * 1000)
+    app.on('before-quit', () => clearInterval(updateTimer))
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

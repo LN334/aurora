@@ -60,7 +60,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             label="新版本自动下载并安装"
             hint={
               page.prefs.autoInstallAvailable
-                ? '发现新版本就在后台下好，没在放歌时会自己换过去；正在听就等这一轮停下来。'
+                ? '发现新版本就在后台下好，装的时候不弹安装向导；没在放歌时会自己换过去，正在听就等这一轮停下来，或者下次退出应用时换上。'
                 : '装好的应用里才能用。开发模式只能手动下载。'
             }
           >

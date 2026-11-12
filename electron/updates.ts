@@ -316,7 +316,7 @@ interface AutoUpdaterLike {
   setFeedURL(options: FeedOptions): void
   checkForUpdates(): Promise<unknown>
   downloadUpdate(): Promise<unknown>
-  quitAndInstall(): void
+  quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void
 }
 
 /**
@@ -411,7 +411,7 @@ let installing = false
      * automatic without taking that decision away.
      */
     updater.autoDownload = false
-    updater.autoInstallOnAppQuit = false
+    updater.autoInstallOnAppQuit = appSettings().autoInstallUpdates
 
     // Tells the banner to switch to its progress form before the first chunk.
     broadcast({
@@ -488,7 +488,7 @@ export async function installPendingUpdate(): Promise<boolean> {
     if (pending) {
       broadcast({ state: 'installing', current: pending.current, info: pending.info })
     }
-    updater.quitAndInstall()
+    updater.quitAndInstall(true, true)
     return true
   } catch (error) {
     console.error('[aurora] could not start the installer', error)
