@@ -64,7 +64,7 @@ function subscribe(listener: () => void): () => void {
  * 时候一直把整块推荐挂空，用户看到的就不是「那一家没登录」，而是「推荐坏了」。
  * 问不出来不等于不能用，放行比挂住好。
  */
-const GIVE_UP_MS = 3000
+const GIVE_UP_MS = 1800
 
 /**
  * 推送位该问的平台。

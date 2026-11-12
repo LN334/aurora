@@ -242,7 +242,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 不同步，于是首页先长出一排歌单，专辑再补上来。现在两块都等到位才放行，
    * 中间只留占位格，用户看到的是「一次出来」，而不是「一张一张填」。
    */
-  const cardsReady = playlistsReady && albumsReady
+  const [cardsLate, setCardsLate] = useState(false)
+  /*
+     * 两排等齐再画，但不能无限等：某一家接口挂住不返回时，首屏会一直停在
+     * 骨架格上，看起来就是「首页加载没完」。六秒到点就用手上已有的画。
+     */
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCardsLate(true), 6000)
+    return () => window.clearTimeout(timer)
+  }, [])
+  const cardsReady = (playlistsReady && albumsReady) || cardsLate
 
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。

@@ -48,7 +48,7 @@
         el.classList.add('is-out')
         window.setTimeout(function () {
           if (el.parentNode) el.parentNode.removeChild(el)
-        }, 640)
+        }, 420)
       },
       wait > 0 ? wait : 0
     )
