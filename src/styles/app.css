@@ -2300,6 +2300,20 @@ html.is-resizing {
 :root[data-theme='dark'] .shell.has-wallpaper .panel {
   background-color: rgb(255 255 255 / 0.05);
 }
+/*
+ * 封面式卡片（歌单、专辑）不垫薄片。
+ *
+ * 它靠封面本身分块，再垫一层底，封面下方那一截文字区就会多出一条浅色带，
+ * 看着像每张卡底下多了一条底栏。首页的推荐歌单用的是同一个类，一起收干净。
+ */
+:root .shell.has-wallpaper .pl-card {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+:root[data-theme='dark'] .shell.has-wallpaper .pl-card {
+  background-color: transparent;
+}
 
 /* 设置页不另铺一块底：整窗口已经是玻璃，再垫一层就又是「白纸框」。 */
 :root .shell.has-wallpaper .settings__body {
@@ -2351,7 +2365,8 @@ html.is-resizing {
 }
 :root .shell.has-wallpaper > .player {
   position: absolute;
-  left: 14px;
+  /* 浮在主区上方，不能压住左栏：左边界跟着栏宽走。 */
+  left: calc(var(--rail-w) + 14px);
   right: 14px;
   bottom: 12px;
   z-index: 3;
@@ -2364,4 +2379,9 @@ html.is-resizing {
   -webkit-backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
   /* 一条线都不要：分界交给投影和圆角。 */
   box-shadow: 0 14px 36px -16px rgb(var(--shade-rgb) / 0.5);
+}
+
+:root .shell.has-wallpaper.is-collapsed > .player {
+  /* 左栏收起后只剩一条窄边，播放条跟着一起让开。 */
+  left: calc(var(--rail-w-collapsed) + 14px);
 }
