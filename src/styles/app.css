@@ -1863,119 +1863,6 @@ input::placeholder {
 /* --- 音乐库 -------------------------------------------------------------- */
 
 
-/*
- * 壁纸模式下界面是一层很淡的暗底，壁纸本身保持清晰。
- *
- * 这块被推翻过三次，结论写在前面：不要模糊、不要提亮、不要把面板压黑。
- * 模糊会把壁纸糊成一块脏色，压黑会把它整个挡住 —— 用户的原话是「把壁纸挡住了」。
- * 所以现在壁纸原样铺满，四块区域只盖一层薄暗色兜住文字；文字再用很轻的阴影补。
- *
- * alpha 试过 0.23：壁纸是透了，但平台页那几段说明文字直接糊在图上，用户说
- * 「看不清了现在」。现在停在 0.37（level .5），是「看得见壁纸」和「读得清字」
- * 之间能同时成立的那一档 —— 再往下文字就没了，再往上壁纸就没了。
- */
-.shell.has-wallpaper > .titlebar,
-.shell.has-wallpaper > .rail,
-.shell.has-wallpaper > .main {
-  background: rgb(var(--scrim-rgb) / calc(0.52 - 0.3 * var(--wp-level, 0.62)));
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.45);
-}
-
-/*
- * 播放条上有要看清的小字，所以比主区只实一点点——透明度靠模糊补回来：底下的
- * 壁纸被 blur 糊成一片颜色，字照样清楚，面板本身仍然是块能看见壁纸的玻璃。
- */
-.shell.has-wallpaper > .player {
-  background-color: rgb(var(--scrim-rgb) / calc(0.26 - 0.1 * var(--wp-level, 0.62)));
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
-}
-
-/* 壁纸自己的遮罩几乎全撤掉，只留一层很薄的统一压暗，避免亮部吃掉白字。 */
-.window-bg.has-wallpaper .wallpaper__veil {
-  --veil: calc(0.4 - 0.3 * var(--wp-level, 0.62));
-}
-
-/* 壁纸压上来以后发丝线会显得很硬，换成一层几乎看不见的白线。 */
-.shell.has-wallpaper > .titlebar {
-  border-bottom-color: rgb(var(--tint-rgb) / 0.06);
-}
-.shell.has-wallpaper > .rail {
-  border-right-color: rgb(var(--tint-rgb) / 0.06);
-}
-
-/*
- * 壁纸模式下，列表里凡是用不透明纯黑画出来的小块都要换掉。
- *
- * 大面板已经调成很淡的一层，但这些小块还是实心的 var(--ink-850/900)：
- * 表头一条黑带、鼠标经过的一行一条黑带 —— 在壁纸上看起来像被抠掉的两块，
- * 也就是用户说的「有些地方太黑了」。这里统一换成半透明的白/黑，壁纸能透
- * 过去，文字靠更淡的底色和已有的阴影站住。
- */
-.shell.has-wallpaper .tracks__head {
-  background: rgb(var(--plane-rgb) / 0.55);
-}
-.shell.has-wallpaper .trk:hover {
-  background: rgb(var(--tint-rgb) / 0.07);
-}
-.shell.has-wallpaper .trk__more:hover {
-  background: rgb(var(--tint-rgb) / 0.14);
-}
-.shell.has-wallpaper .trk.is-current {
-  background: rgb(var(--accent-rgb) / 0.12);
-}
-.shell.has-wallpaper .row:hover {
-  background: rgb(var(--tint-rgb) / 0.06);
-}
-.shell.has-wallpaper .settings__notice {
-  background: rgb(var(--tint-rgb) / 0.04);
-}
-
-/* 分段控件与提示块同理：壁纸模式下不能是实心黑。 */
-.shell.has-wallpaper .seg {
-  background: rgb(var(--tint-rgb) / 0.08);
-}
-.shell.has-wallpaper .seg button.is-active {
-  background: rgb(var(--tint-rgb) / 0.18);
-}
-.shell.has-wallpaper .notice {
-  background: rgb(var(--scrim-rgb) / 0.32);
-  color: var(--text-mid);
-}
-
-/*
- * 壁纸模式下最要命的一条：这些次要文字用的是 --text-low（给纯黑底设计的灰），
- * 压到浅色壁纸上就没了。这里只把「壁纸模式」下需要读的字提亮，不动全局 token。
- */
-.shell.has-wallpaper .trk__muted,
-.shell.has-wallpaper .tracks__idx,
-.shell.has-wallpaper .tracks__time,
-.shell.has-wallpaper .card__meta {
-  color: rgb(198 206 216);
-}
-.shell.has-wallpaper .tracks {
-  background: rgb(var(--scrim-rgb) / 0.14);
-}
-.shell.has-wallpaper .notice {
-  background: rgb(var(--scrim-rgb) / 0.46);
-  color: rgb(214 220 228);
-}
-.shell.has-wallpaper .notice,
-.shell.has-wallpaper .trk__muted,
-.shell.has-wallpaper .card__meta {
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
-}
-
-/*
- * 壁纸模式的可读性总闸：一切小字都吃 tokens 里的 --text-hi/mid/low，
- * 那就是给纯黑底选的（--text-low #5f6875 压在花壁纸上等于隐形）。
- * 与其逐类打补丁，不如在壁纸模式下把这三个值整体提亮——层级关系不变，
- * 只是把整条灰阶往上抬。
- */
-.shell.has-wallpaper {
-  --text-hi: #f5f8fc;
-  --text-mid: #ccd6e2;
-  --text-low: #aeb9c8;
-}
 
 
 /* ---- 动态效果关闭（设置 → 外观与桌面 → 动态效果）----
@@ -1992,27 +1879,6 @@ input::placeholder {
 }
 
 
-/* ---- 壁纸模式下的设置页小标 ----
- * 「本地档案」「网易云账号」「任何页面」这些是 11px 的低对比小标，为纯黑底设计的
- * --text-low 压在壁纸的浅色块上会整片消失。整条灰阶上抬（.shell.has-wallpaper 的
- * --text-low）解决了大半，小标还需要走到 mid 一档才立得住。
- */
-.shell.has-wallpaper .set-sub__title,
-.shell.has-wallpaper .set-sub__hint,
-.shell.has-wallpaper .set-part__en,
-.shell.has-wallpaper .set-keygroup__title {
-  color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
-}
-
-.shell.has-wallpaper .accounts__heading {
-  color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.55);
-}
-.shell.has-wallpaper .accounts__hint {
-  color: var(--text-mid);
-  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.5);
-}
 /* =============================================================================
    浅色 + 壁纸
 
@@ -2020,38 +1886,6 @@ input::placeholder {
    一层灰白雾把壁纸糊成灰板，白字也跟着糊掉——整屏发白、没有任何一层立得住。
    浅色要的是相反的方向：更实的白玻璃、更轻的雾、深色的字。
    ========================================================================== */
-:root[data-theme='light'] .shell.has-wallpaper {
-  --text-hi: #10141a;
-  --text-mid: #3d4653;
-  --text-low: #5d6673;
-}
-
-/*
- * 四块面（标题栏、左栏、内容区、播放条）在浅色下必须用同一档白度。
- *
- * 深色是「几乎透明的深色玻璃压在图上看白字」，浅色照搬会反过来：灰白雾把壁纸
- * 糊成灰板、白字也跟着糊掉。但也不能靠堆白度解决——白压到七成，壁纸就没了。
- * 这里取的 0.46 与深色那三块的 0.48 同一量级：壁纸透得出来，字靠深色与模糊站稳。
- *
- * 播放条故意不再单独调低：深色下它比主平面更透（0.38 对 0.48），浅色下这点差
- * 会被读成「底下那块是空的」，看起来像少画了一层。
- */
-:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
-:root[data-theme='light'] .shell.has-wallpaper > .rail,
-:root[data-theme='light'] .shell.has-wallpaper > .main,
-:root[data-theme='light'] .shell.has-wallpaper > .player {
-  background: rgb(var(--plane-rgb) / calc(0.4 - 0.12 * var(--wp-level, 0.62)));
-  text-shadow: none;
-}
-
-/*
- * 播放条那一行。
- *
- * 播放条是浮起来的，四周留了缝；缝里原本直接露壁纸原图，而紧邻的内容区是
- * 一层半透明玻璃——同一屏上出现「玻璃 / 原图」两种底，读起来就是「播放条外面
- * 还有一块透明的」。这里给整行补上与内容区同一档的底，缝里便是同一块玻璃的
- * 延续。整行铺而不是只铺缝：播放条自己也是半透明的，底下有这层才和上面同色。
- */
 .shell::after {
   content: '';
   position: absolute;
@@ -2106,35 +1940,6 @@ input::placeholder {
  * 浅色下播放条与内容区必须是同一块玻璃。
  *
  * 深色那套靠三层 inset（顶缘高光、亮晕、最外一道白线）与底部压暗渐变堆出
- * 「厚度」；到了浅色底上，白高光变成白边、压暗变成灰边，播放条就显得比上面
- * 实一大截——用户的原话是「播放栏和上面区别还是很大」。这里把厚度层压到几乎
- * 看不见，只留一点上缘提亮，让两块玻璃接在同一档白度上。
- */
-:root[data-theme='light'] .player {
-  background-image: linear-gradient(
-    180deg,
-    rgb(var(--tint-rgb) / 0.03),
-    transparent 34%,
-    transparent 72%,
-    rgb(var(--shade-rgb) / 0.05)
-  );
-  box-shadow: 0 8px 24px -10px rgb(var(--shade-rgb) / 0.16);
-}
-
-/* ---- 壁纸起来的过程 ----
-   场景挂载要解码 pkg、编译着色器，几百毫秒里画布是空的。让它先透明、就绪后
-   淡入，启动时看到的是深色界面而不是「黑屏等壁纸」，换壁纸也不会有闪跳。 */
-.wallpaper {
-  opacity: 0;
-  transition: opacity 480ms var(--ease-out);
-}
-
-.wallpaper.is-ready {
-  opacity: 1;
-}
-
-
-
 /* ==========================================================================
    滚动条槽位恒定
 
@@ -2377,93 +2182,6 @@ html.is-resizing {
   }
 }
 
-/* ------------------------------------------------------------------------
- * 背景处理：磨砂 / 透出，磨砂程度可调。
- *
- * 变量来自 src/features/settings/backdrop.ts：
- *   --ui-veil  1 = 垫底、0 = 全透明（壁纸原样）
- *   --ui-blur  磨砂半径，透出模式恒为 0
- * 这里只做覆盖，原规则留着当没装变量时的默认值。
- * --------------------------------------------------------------------- */
-.shell.has-wallpaper > .titlebar,
-.shell.has-wallpaper > .rail,
-.shell.has-wallpaper > .main {
-  background: rgb(var(--scrim-rgb) / calc((0.52 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
-}
-
-.shell.has-wallpaper > .player {
-  background-color: rgb(var(--scrim-rgb) / calc((0.26 - 0.1 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-}
-
-.shell.has-wallpaper::after {
-  background: rgb(var(--scrim-rgb) / calc((0.52 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
-}
-
-.window-bg.has-wallpaper .wallpaper__veil {
-  --veil: calc((0.4 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
-}
-
-:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
-:root[data-theme='light'] .shell.has-wallpaper > .rail,
-:root[data-theme='light'] .shell.has-wallpaper > .main,
-:root[data-theme='light'] .shell.has-wallpaper > .player {
-  background: rgb(var(--plane-rgb) / calc((0.4 - 0.12 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-}
-
-:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
-:root[data-theme='light'] .shell.has-wallpaper > .rail,
-:root[data-theme='light'] .shell.has-wallpaper > .main {
-  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
-}
-
-:root[data-theme='light'] .shell.has-wallpaper::after {
-  background: rgb(var(--plane-rgb) / calc((0.4 - 0.12 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-  backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
-}
-
-:root[data-theme='light'] .window-bg.has-wallpaper .wallpaper__veil {
-  --veil: calc((0.06 - 0.04 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
-}
-
-/* 透出模式下播放条也不要自带的两层渐变，否则它仍是「一块玻璃」压在图上。 */
-:root[data-backdrop='clear'] .shell.has-wallpaper > .player {
-  background-image: none;
-}
-
-/* ------------------------------------------------------------------------
- * 浅色的层次。
- *
- * 深色卡片靠「白叠白」提亮就够了；浅色照搬会变成「白纸贴白纸」，卡片边界消失
- * （用户原话：浅色模式卡片边界不明显，不如深色好看）。这里改成两级：
- *   底（titlebar/rail/main/播放条那一行）压到很淡，卡片用实白浮起来。
- * 白卡 + 一点阴影 + 一圈发丝线，边界就与深色那层「提亮」对等。
- * --------------------------------------------------------------------- */
-:root[data-theme='light'] .shell.has-wallpaper > .titlebar,
-:root[data-theme='light'] .shell.has-wallpaper > .rail,
-:root[data-theme='light'] .shell.has-wallpaper > .main {
-  background: rgb(var(--plane-rgb) / calc((0.22 - 0.06 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-}
-
-/*
- * 播放条那一行用左栏的浓度，不用内容区的。
- *
- * 底部这一行横穿整个窗口：左边接着左栏、右边接着内容区，取中间任何一档都会在
- * 一侧留下台阶。取左栏那一档，左栏就像一路铺到窗口底；播放条自己再白一点点，
- * 浮在上面。
- *
- * 用户的原话是「左栏和下面播放条这里太割裂了」。
- */
-:root[data-theme='light'] .shell.has-wallpaper::after {
-  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-}
-
-:root[data-theme='light'] .shell.has-wallpaper > .player {
-  background: rgb(var(--plane-rgb) / 0.56);
-  box-shadow: 0 2px 6px -2px rgb(var(--shade-rgb) / 0.14), 0 10px 30px -12px rgb(var(--shade-rgb) / 0.18),
-    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07), inset 0 1px 0 rgb(var(--plane-rgb) / 0.6);
-}
 
 /* 卡片：实白 + 一圈发丝线 + 极轻的投影。 */
 /*
@@ -2473,12 +2191,12 @@ html.is-resizing {
 :root[data-theme='light'] .rh-daily,
 :root[data-theme='light'] .rh-now,
 :root[data-theme='light'] .rh-sc,
-:root[data-theme='light'] .panel,
-:root[data-theme='light'] .settings__body {
+:root[data-theme='light'] .panel {
   background-color: rgb(var(--plane-rgb) / 0.5);
   box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.05), 0 6px 18px -10px rgb(var(--shade-rgb) / 0.12),
     inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
 }
+
 
 /* 行悬停：白卡上压一层淡灰，反馈强度与深色那边对齐。 */
 :root[data-theme='light'] .trk:hover,
@@ -2491,56 +2209,98 @@ html.is-resizing {
   background-color: rgb(var(--plane-rgb) / 0.7);
 }
 
-/* 透出模式没有模糊帮忙压噪声，正文加一层极淡的白晕把字从图上托起来。 */
-:root[data-theme='light'][data-backdrop='clear'] .shell.has-wallpaper .main {
-  text-shadow: 0 1px 0 rgb(var(--plane-rgb) / 0.5);
+/* =============================================================================
+   壁纸模式：一层玻璃，四条规则
+
+   上一版这里有两百多行补丁——四块面各一档白度、表头再一档、次要文字整体提亮、
+   浅色再来一整套、描边、白晕、逐类阴影。补丁互相打架，浅色最后落到「底几乎
+   全透明 + 灰字」，壁纸一亮就整片糊掉。
+
+   现在收成一条：四块面共用同一档玻璃（--wp-glass），模糊把壁纸压成一片色，
+   文字用主题自己的灰阶。深浅两套只差 token 值，规则一行不改。
+   ========================================================================== */
+
+:root .shell.has-wallpaper > .titlebar,
+:root .shell.has-wallpaper > .rail,
+:root .shell.has-wallpaper > .main {
+  background: rgb(var(--plane-rgb) / var(--wp-glass));
+  backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+  text-shadow: none;
 }
 
-/* ------------------------------------------------------------------------
- * 左栏。
+/* 播放条是控制面，比主区再实一点；它自带的三层渐变留着，所以只改颜色。 */
+:root .shell.has-wallpaper > .player {
+  background-color: rgb(var(--plane-rgb) / calc(var(--wp-glass) + 0.08));
+  backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+  text-shadow: none;
+}
+
+/* 播放条下方那条缝跟主区同一块玻璃，否则底部会多出一条露壁纸的带。 */
+:root .shell.has-wallpaper::after {
+  background: rgb(var(--plane-rgb) / var(--wp-glass));
+}
+
+/* 壁纸不再压暗：对比度交给上面那层玻璃，图本身保持原样。 */
+:root .window-bg.has-wallpaper .wallpaper__veil {
+  --veil: 0;
+}
+
+/* 玻璃上发丝线要淡，否则四条边的白线会先跳出来。 */
+:root .shell.has-wallpaper > .titlebar,
+:root .shell.has-wallpaper > .rail {
+  border-color: rgb(var(--tint-rgb) / 0.08);
+}
+
+/*
+ * 整窗口一块玻璃，而不是四块各铺一层。
  *
- * 浅色下它原本和内容区同色，就是一整片蓝玻璃：数字与「库」都淡，左右也不分家。
- * 这里让它成为一块比内容区更实的板——深色那边靠白线分界就够了，浅色需要真的
- * 有一点明度差，眼睛才知道「这一竖条是导航，不是内容」。
- * --------------------------------------------------------------------- */
-:root[data-theme='light'] .shell.has-wallpaper > .rail {
-  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-  border-right-color: rgb(var(--tint-rgb) / 0.08);
+ * 参考 Pane：窗口本体是一整块圆角玻璃，细高光边 + 柔和外阴影，里面的分组只靠
+ * 发丝线和极淡的选中块分层。这里把同一套语言搬到 Aurora 上——壁纸在玻璃后面
+ * 被模糊成柔和色块，界面是浮在它上面的一层玻璃，而不是「压在壁纸上的白纸」。
+ */
+:root .shell.has-wallpaper {
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.35),
+    0 24px 60px -24px rgb(var(--shade-rgb) / 0.45);
+  overflow: hidden;
 }
 
-:root[data-theme='light'] .shell.has-wallpaper .rail__caption,
-:root[data-theme='light'] .shell.has-wallpaper .rail-item__count {
+/* 玻璃内部的容器不再有自己的底：只留悬停与选中那一下。 */
+:root .shell.has-wallpaper .rh-daily,
+:root .shell.has-wallpaper .rh-now,
+:root .shell.has-wallpaper .rh-sc,
+:root .shell.has-wallpaper .panel,
+:root .shell.has-wallpaper .settings__body {
+  background-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/*
+ * 玻璃里还要交代三件事，否则薄的地方就散：
+ * 1) 左栏的图标与分组小字不能再用「更淡的一档」，玻璃后面有壁纸，淡档就没了；
+ * 2) 长列表的行与行之间要有一条发丝线，眼睛才有落点；
+ * 3) 播放条是浮在内容之上的一块，比主区实一点，并向下投一点影。
+ */
+:root .shell.has-wallpaper .rail-item--quiet {
   color: var(--text-mid);
 }
-
-:root[data-theme='light'] .shell.has-wallpaper .rail-item:hover {
-  background: rgb(var(--plane-rgb) / 0.6);
+:root .shell.has-wallpaper .rail-item svg {
+  opacity: 1;
 }
 
-/* 浅色壁纸下的顶栏与搜索框：它们原本靠 5% 白提亮，浅色下等于没画。 */
-:root[data-theme='light'] .shell.has-wallpaper > .titlebar {
-  background: rgb(var(--plane-rgb) / calc((0.5 - 0.14 * var(--wp-level, 0.62)) * var(--ui-veil, 1)));
-  border-bottom-color: rgb(var(--tint-rgb) / 0.08);
+:root .shell.has-wallpaper .trk + .trk,
+:root .shell.has-wallpaper .pl-track + .pl-track {
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
 }
 
-:root[data-theme='light'] .shell.has-wallpaper .search {
-  background: rgb(var(--plane-rgb) / 0.66);
-  border-color: rgb(var(--tint-rgb) / 0.1);
-  box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.05), inset 0 0 0 1px rgb(var(--plane-rgb) / 0.4);
-}
-
-:root[data-theme='light'] .shell.has-wallpaper .search svg,
-:root[data-theme='light'] .shell.has-wallpaper .search input::placeholder,
-:root[data-theme='light'] .shell.has-wallpaper .rh-more {
-  color: var(--text-mid);
-}
-
-:root[data-theme='light'] .shell.has-wallpaper .search kbd {
-  background: rgb(var(--tint-rgb) / 0.05);
-  border-color: rgb(var(--tint-rgb) / 0.1);
-  color: var(--text-mid);
-}
-
-:root[data-theme='light'] .shell.has-wallpaper .rh-more:hover {
-  color: var(--text-hi);
+:root .shell.has-wallpaper > .player {
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.3),
+    0 -1px 0 rgb(var(--tint-rgb) / 0.06),
+    0 10px 28px -12px rgb(var(--shade-rgb) / 0.35);
 }
