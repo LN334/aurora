@@ -18,7 +18,7 @@ import {
   mainWindowVisibility,
   type WindowVisibilityState
 } from './pure/scan-progress'
-import { autoCheck, onUpdateStatus, type UpdateResult } from './updates'
+import { autoCheck, hasReadyUpdate, installPendingUpdate, onUpdateStatus, type UpdateResult } from './updates'
 import {
   createTray,
   destroyTray,
@@ -432,6 +432,12 @@ function createWindow(): void {
   mainWindow.on('hide', () => {
     refreshTrayMenu(trayHandlers())
     notifyVisibility()
+    /*
+     * 收起窗口说明用户这会儿不看它，正好换版本：静默装、装完自动回来，
+     * 下次点托盘图标就是新版。这一条是「不用点安装包」的主力——默认
+     * 关闭按钮就是收进托盘，用户其实很少真正退出应用。
+     */
+    if (hasReadyUpdate()) void installPendingUpdate()
   })
   // Minimise and restore are visibility changes too, and they are the states
   // `document.hidden` reports least reliably inside Electron.

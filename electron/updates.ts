@@ -382,6 +382,9 @@ export async function autoInstallAvailable(): Promise<boolean> {
 
 let installing = false
 
+/** Downloaded but not yet installed. Cleared when the installer runs. */
+let readyVersion: string | null = null
+
  async function downloadAndInstall(result: UpdateResult): Promise<void> {
   if (installing || result.state !== 'available') return
   // Narrowed once, so the progress callback and the failure path below cannot
@@ -424,6 +427,7 @@ let installing = false
     })
 
     updater.on('update-downloaded', () => {
+      readyVersion = pending.info.version
       broadcast({ state: 'ready', current: pending.current, info: pending.info })
     })
 
@@ -440,6 +444,7 @@ let installing = false
 
     await updater.checkForUpdates()
     await updater.downloadUpdate()
+    readyVersion = pending.info.version
     broadcast({ state: 'ready', current: pending.current, info: pending.info })
   } catch (error) {
     // Failing to download must not look like failing to check: the user still
@@ -477,9 +482,15 @@ export async function downloadAvailable(): Promise<boolean> {
   return true
 }
 
+/** Whether a downloaded release is sitting there waiting for the installer. */
+export function hasReadyUpdate(): boolean {
+  return readyVersion !== null
+}
+
 /** Quit and run the downloaded installer. Only meaningful after `ready`. */
 export async function installPendingUpdate(): Promise<boolean> {
   if (!app.isPackaged) return false
+  if (!readyVersion) return false
   // 点下去到进程退出之间有一两秒，界面上得先有个「在装了」，否则像是点了没反应。
   const pending = pendingRelease
   try {
