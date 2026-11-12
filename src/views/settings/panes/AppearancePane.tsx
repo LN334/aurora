@@ -173,30 +173,35 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      {backdrop.mode === 'frosted' ? (
-        <Row label="磨砂程度" hint="0 只铺一层淡底不糊，越大壁纸越模糊。松手就生效。">
-          <div className="settings__slider">
-            <input
-              type="range"
-              min={BLUR_MIN}
-              max={BLUR_MAX}
-              step={1}
-              value={backdropBlur}
-              aria-label="磨砂程度"
-              onChange={(event) => setBlurDraft(Number(event.target.value))}
-              onPointerUp={() => {
-                writeBackdrop({ ...backdrop, blur: backdropBlur })
-                setBlurDraft(null)
-              }}
-              onKeyUp={() => {
-                writeBackdrop({ ...backdrop, blur: backdropBlur })
-                setBlurDraft(null)
-              }}
-            />
-            <span className="settings__number">{backdropBlur}px</span>
-          </div>
-        </Row>
-      ) : null}
+      <Row
+        label="磨砂程度"
+        hint={
+          backdrop.mode === 'frosted'
+            ? '0 只铺一层淡底不糊，越大壁纸越模糊。松手就生效。'
+            : '透出时这里调的是玻璃本身糊多少：0 几乎不糊，越大背景越软。松手就生效。'
+        }
+      >
+        <div className="settings__slider">
+          <input
+            type="range"
+            min={BLUR_MIN}
+            max={BLUR_MAX}
+            step={1}
+            value={backdropBlur}
+            aria-label="磨砂程度"
+            onChange={(event) => setBlurDraft(Number(event.target.value))}
+            onPointerUp={() => {
+              writeBackdrop({ ...backdrop, blur: backdropBlur })
+              setBlurDraft(null)
+            }}
+            onKeyUp={() => {
+              writeBackdrop({ ...backdrop, blur: backdropBlur })
+              setBlurDraft(null)
+            }}
+          />
+          <span className="settings__number">{backdropBlur}px</span>
+        </div>
+      </Row>
 
       <Row
         label="界面跟着封面取色"

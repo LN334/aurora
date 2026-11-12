@@ -24,7 +24,7 @@ const KEY = 'aurora.backdrop'
 
 export const BLUR_MIN = 0
 export const BLUR_MAX = 40
-const BLUR_DEFAULT = 14
+const BLUR_DEFAULT = 20
 
 const DEFAULT_PREF: BackdropPref = { mode: 'frosted', blur: BLUR_DEFAULT }
 
@@ -39,7 +39,11 @@ function clampBlur(value: number): number {
 
 export function applyBackdrop(pref: BackdropPref): void {
   const root = document.documentElement
-  const blur = pref.mode === 'frosted' ? clampBlur(pref.blur) : 0
+  /*
+   * 模糊与「铺不铺雾」是两件事：透出模式也要能调玻璃糊多少，否则那档的玻璃
+   * 只能是不糊的死值。背景处理只决定 veil，模糊一律听滑块的。
+   */
+  const blur = clampBlur(pref.blur)
   root.style.setProperty('--ui-blur', blur + 'px')
   /*
    * 透出不是「一点底都不要」：试过 0，浅色壁纸一亮，正文直接糊在图上读不了。
