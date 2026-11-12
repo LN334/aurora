@@ -118,6 +118,51 @@ async function evaluate(cdp, expression) {
   return result.result.value
 }
 
+/**
+ * 弹窗清障。
+ *
+ * 全新 profile 会先弹首次使用引导；点到「漫游」时未登录又会弹「漫游需要
+ * 登录」。两者都是 modal，一挂上，后面针对列表的点击就全落在遮罩上：搜索
+ * 能出结果，点歌却点不动。这里只按「关闭 / 以后再说」那类按钮，绝不碰
+ * 「下一步」「去登录」——那会把巡检带到别的页面去。
+ */
+const DISMISS_LABELS = ['以后再说', '稍后再设', '知道了', '暂不登录']
+async function dismissDialogs(cdp) {
+  const expression = [
+    '(() => {',
+    '  const labels = ' + JSON.stringify(DISMISS_LABELS),
+    '  const closed = []',
+    "  for (const dialog of document.querySelectorAll('[role=dialog]')) {",
+    "    if (dialog.classList.contains('is-closing')) continue",
+    '    const buttons = [...dialog.querySelectorAll("button")]',
+    '    const hit = buttons.find((b) => labels.includes(b.textContent.trim()))',
+    '    if (!hit) continue',
+    '    closed.push(dialog.getAttribute("aria-label") || "dialog")',
+    '    hit.click()',
+    '  }',
+    '  if (closed.length) return closed',
+    "  const later = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '稍后再设')",
+    '  if (!later) return []',
+    '  later.click()',
+    "  return ['first-run']",
+    '})()',
+  ].join('\n')
+  const closed = await evaluate(cdp, expression)
+  if (!Array.isArray(closed) || closed.length === 0) return false
+  await sleep(600)
+  console.log('smoke: closed ' + closed.join(', '))
+  return true
+}
+
+/** 首次引导是异步挂起来的，轮询几秒等它出现。 */
+async function dismissFirstRun(cdp) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    if (await dismissDialogs(cdp)) return true
+    await sleep(250)
+  }
+  return false
+}
+
 /** Where each kind of step keeps its clickable rows. */
 const STEP_SELECTORS = {
   rail: '.rail-item'
@@ -280,8 +325,13 @@ async function main() {
       console.log('smoke: library rendered ' + rendered + ' rows')
     }
 
+    // 首次启动的引导会挡住列表点击，先收起来再走。
+    await dismissFirstRun(cdp)
+
     for (let index = 0; index < JOURNEY.length; index += 1) {
       const step = JOURNEY[index]
+      // 这一屏挂着的浮层（比如未登录点「漫游」弹出的登录提示）会挡住点击。
+      if (index > 0) await dismissDialogs(cdp)
       const mark = cdp.events.length
       if (!(await clickStep(cdp, step))) {
         rows.push({ ...step, ok: false, why: 'no ' + step.kind + ' labelled ' + step.label })
@@ -657,6 +707,7 @@ async function main() {
        * Chromium 只把手势当用户意图，脚本点击拿不到播放许可：歌能加载出总时长
        * （4:32），进度却一直停在 0:00，看上去像播放坏了。
        */
+      await dismissDialogs(cdp)
       const spotJson = await evaluate(
         cdp,
         [
