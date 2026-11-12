@@ -3,14 +3,14 @@
    这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
 
 
-/* 分区带：一路横排，组与组之间只隔一条发丝线。
-   以前每组头上还写一个组名（听歌 / 界面 / 应用），可组名不承载任何操作，
-   读的人只会先问一句「听歌是什么」——删掉，让八个分区自己说话。 */
+/* 分区带：一路横排，所有相邻分区等距。
+   以前组与组之间隔一条发丝线，结果组内 2px、组间 23px，一眼看过去是「三簇」
+   而不是一排——分组只是渲染顺序，不必在视觉上再断一次。 */
 .settings__tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 0;
+  gap: 8px 2px;
   padding-bottom: var(--s3);
   border-bottom: var(--line-soft);
 }
@@ -19,12 +19,6 @@
   display: flex;
   align-items: center;
   gap: 2px;
-}
-
-.settings__tabgroup + .settings__tabgroup {
-  margin-left: 10px;
-  padding-left: 10px;
-  border-left: var(--line-soft);
 }
 
 .settings__tab {
