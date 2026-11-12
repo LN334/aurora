@@ -69,10 +69,11 @@ export interface Settings {
   /**
    * Download updates in the background instead of waiting to be asked.
    *
-   * On by default: fetching the file is the slow part and it can happen while
-   * the app is being used. Installing is **not** part of this flag - the new
-   * build only replaces the running one when the user presses restart - because
-   * the installers are unsigned and the app cannot verify what it runs.
+   * Off by default: checking for a release is one deliberate click, and a
+   * hundred megabytes arriving without that click is not what most people
+   * expect from a player. The flag only covers the download - installing is
+   * always a separate press - because the installers are unsigned and the app
+   * cannot verify what it runs.
    */
   autoInstallUpdates: boolean
   /**
@@ -131,7 +132,7 @@ const DEFAULTS: Settings = {
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
-  autoInstallUpdates: true,
+  autoInstallUpdates: false,
   desktopLyricsSize: 34,
   onlineLyrics: false,
   closeToTray: true,

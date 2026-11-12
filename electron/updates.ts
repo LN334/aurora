@@ -251,7 +251,7 @@ export async function autoCheck(onResult: (result: UpdateResult) => void): Promi
     onResult(result)
     // The settings page shows progress, so it needs the same news the toast got.
     broadcast(result)
-    if (shouldAutoInstall(result)) void downloadAndInstall(result)
+    if (shouldAutoDownload(result)) void downloadInBackground(result)
   } finally {
     checkInFlight = false
   }
@@ -265,7 +265,7 @@ export async function autoCheck(onResult: (result: UpdateResult) => void): Promi
  * checkout, where there is no installer to replace and the updater would only
  * produce errors.
  */
- function shouldAutoInstall(result: UpdateResult): boolean {
+ function shouldAutoDownload(result: UpdateResult): boolean {
   return result.state === 'available' && appSettings().autoInstallUpdates && app.isPackaged
 }
 
@@ -385,7 +385,7 @@ let installing = false
 /** Downloaded but not yet installed. Cleared when the installer runs. */
 let readyVersion: string | null = null
 
- async function downloadAndInstall(result: UpdateResult): Promise<void> {
+ async function downloadInBackground(result: UpdateResult): Promise<void> {
   if (installing || result.state !== 'available') return
   // Narrowed once, so the progress callback and the failure path below cannot
   // lose track of which member of the union they are working with.
@@ -414,7 +414,11 @@ let readyVersion: string | null = null
      * automatic without taking that decision away.
      */
     updater.autoDownload = false
-    updater.autoInstallOnAppQuit = appSettings().autoInstallUpdates
+    /*
+     * 退出时装同样等于「它自己换掉了自己」，用户没按过装。安装包未签名，出事
+     * 没有回退的路，所以这一位恒定关：装只走 installPendingUpdate()。
+     */
+    updater.autoInstallOnAppQuit = false
 
     // Tells the banner to switch to its progress form before the first chunk.
     broadcast({
@@ -478,14 +482,10 @@ export async function downloadAvailable(): Promise<boolean> {
   const pending = pendingRelease
   if (!pending) return false
 
-  void downloadAndInstall(pending)
+  void downloadInBackground(pending)
   return true
 }
 
-/** Whether a downloaded release is sitting there waiting for the installer. */
-export function hasReadyUpdate(): boolean {
-  return readyVersion !== null
-}
 
 /** Quit and run the downloaded installer. Only meaningful after `ready`. */
 export async function installPendingUpdate(): Promise<boolean> {

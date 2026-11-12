@@ -26,7 +26,7 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
   return (
     <>
-      <Sub title="更新" hint="安装包未签名。新版本可以在应用里下好，装之前会等你停下来。">
+      <Sub title="更新" hint="安装包未签名。新版本可以在应用里下好，装之前一定会问你。">
         <UpdatePanel />
         <Rows>
           <Row
@@ -57,17 +57,17 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             </div>
           </Row>
           <Row
-            label="新版本自动下载并安装"
+            label="发现新版本时自动下载"
             hint={
               page.prefs.autoInstallAvailable
-                ? '发现新版本就在后台下好，装的时候不弹安装向导；没在放歌时会自己换过去，正在听就等这一轮停下来，或者下次退出应用时换上。'
-                : '装好的应用里才能用。开发模式只能手动下载。'
+                ? '后台下好，不打断你在做的事。装永远等你点「重启并安装」：收窗口不装，退出也不装。'
+                : '装好的应用里才能用；开发模式只能手动下载。'
             }
           >
             <Toggle
               checked={page.prefs.autoInstall}
               disabled={page.busy || !page.prefs.autoInstallAvailable}
-              label="新版本自动下载并安装"
+              label="发现新版本时自动下载"
               onChange={(next) => void page.setAutoInstall(next)}
             />
           </Row>

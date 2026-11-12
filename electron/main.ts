@@ -18,7 +18,7 @@ import {
   mainWindowVisibility,
   type WindowVisibilityState
 } from './pure/scan-progress'
-import { autoCheck, hasReadyUpdate, installPendingUpdate, onUpdateStatus, type UpdateResult } from './updates'
+import { autoCheck, onUpdateStatus, type UpdateResult } from './updates'
 import {
   createTray,
   destroyTray,
@@ -433,11 +433,11 @@ function createWindow(): void {
     refreshTrayMenu(trayHandlers())
     notifyVisibility()
     /*
-     * 收起窗口说明用户这会儿不看它，正好换版本：静默装、装完自动回来，
-     * 下次点托盘图标就是新版。这一条是「不用点安装包」的主力——默认
-     * 关闭按钮就是收进托盘，用户其实很少真正退出应用。
+     * 收起窗口不装。装新版本会先关掉应用，这只能由用户在更新面板里点
+     * 「重启并安装」：收窗口的意思是「我不看了」，不是「可以换掉我现在这个
+     * 版本」。以前这里会静默装，于是用户没按过任何按钮就换了版本，下次打开
+     * 还先弹一次安装向导。
      */
-    if (hasReadyUpdate()) void installPendingUpdate()
   })
   // Minimise and restore are visibility changes too, and they are the states
   // `document.hidden` reports least reliably inside Electron.
