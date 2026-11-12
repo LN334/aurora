@@ -1,13 +1,14 @@
 /**
- * Generates the application icons from vector definitions.
+ * Generates the tray, thumbnail and installer artwork from vector definitions.
  *
  * Why not render `scripts/icon.html` with a screenshot tool: a headless page
  * screenshot composites onto white and produces an RGB image with **no alpha
  * channel**, so the rounded corners ship as white blocks. App icons also need
  * several sizes, which one screenshot cannot provide.
  *
- * This rasterises the same design analytically (4x4 supersampling), keeps exact
- * alpha, and writes a multi-size Windows .ico plus a tray icon.
+ * This rasterises the same design analytically (4x4 supersampling) and keeps
+ * exact alpha. The application icon is a bitmap asset now, not drawn here — see
+ * the note above `main`.
  *
  * Usage: node scripts/make-icons.mjs
  */
@@ -412,17 +413,17 @@ const TRAY_DARK = hex('#1b2027')
 fs.mkdirSync(buildDir, { recursive: true })
 fs.mkdirSync(assetDir, { recursive: true })
 
-const icoSizes = [16, 24, 32, 48, 64, 128, 256]
-const icoEntries = []
-
-for (const size of icoSizes) {
-  const pixels = render(size, size, sampleAppIcon, DESIGN, DESIGN)
-  const png = encodePng(size, size, pixels)
-  icoEntries.push({ size, png })
-  if (size === 256) fs.writeFileSync(path.join(buildDir, 'icon.png'), png)
-}
-
-fs.writeFileSync(path.join(buildDir, 'icon.ico'), encodeIco(icoEntries))
+/*
+ * 应用图标（build/icon.ico、icon.png、icon-512.png）不在这里生成。
+ *
+ * 现行那枚白玻璃 A 是设计稿：一张位图，右下腹摞着一层很淡的虹光。代码画不出
+ * 那层光——手绘 SVG 试过八版，全读成装饰线或色块。它已经按 16/24/32/48/64/
+ * 128/256 七档连同透明圆角落进 build/，此后按位图资产维护。所以这个脚本不再
+ * 覆盖它：否则谁跑一次 `npm run icons`，图标就退回下面那套旧的矢量 A。
+ *
+ * 本脚本仍然负责用几何画得动的那些：托盘、任务栏缩略图按钮、安装包侧栏与头图。
+ * 下面的 encodeIco 与 sampleAppIcon 都留着，是这条路万一要走回去时的现成零件。
+ */
 
 /*
  * The tray mark needs to survive both taskbar themes: Windows does not invert
