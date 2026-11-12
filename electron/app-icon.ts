@@ -167,7 +167,11 @@ function squareCrop(source: NativeImage): NativeImage {
  * pure 里的像素函数，alpha 之外不动，所以颜色不会因为这条路径偏掉。
  */
 function renderIcon(square: NativeImage, target: number): Buffer {
-  const scaled = square.resize({ width: target, height: target, quality: 'best' })
+  // 先缩到 target+2，再取中间 target 见方——等于把原图方块最外一圈像素裁掉。
+  // 那块方块的边缘自带一圈极淡的高光，缩到 48 会在深色壁纸上显成一条浅线
+  // （0.7.2 桌面图标上被当成「白边」报过）。裁掉 1px 就干净了。
+  const padded = square.resize({ width: target + 2, height: target + 2, quality: 'best' })
+  const scaled = padded.crop({ x: 1, y: 1, width: target, height: target })
   const bitmap = scaled.toBitmap()
   roundCorners(bitmap, target, target, CORNER)
   return nativeImage
