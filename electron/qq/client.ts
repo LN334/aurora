@@ -39,7 +39,6 @@ import {
   requestNewSongs,
   requestPlay,
   requestPlaylistTracks,
-  requestPublicSonglists,
   requestMacHomePlaylists,
   requestSearch,
   requestOwnedPlaylists,
@@ -542,94 +541,30 @@ export async function qqMyPlaylists(limit = 60): Promise<QqPlaylistSummary[]> {
 /**
  * 平台推荐位上的 QQ 歌单。
  *
- * 用排行榜而不是「标签歌单」：后者实测要登录（playlist.code=500003），而搜索
- * 位只回歌曲。排行榜是 QQ 唯一条匿名也给全的表面板，每一榜都能直接打开播放。
- */
-/**
- * 平台推荐位上的 QQ 歌单。
- *
- * 个人推荐歌单的三条接口（playlist.web_srf 三条）现在对所有人回 500003，
- * 公开榜只剩十几行，所以改从 Mac 版首页取「为你推荐」那一栏：登录账号的第
- * 一张是「今日私享」，后面是「每个周五听点新的」这类个人向歌单。取不到那一
- * 栏才退回公开榜，至少这一块不会空着。
+ * 只从 Mac 版首页「为你推荐」那一栏取：登录账号的第一张是「今日私享」，后面
+ * 是「每个周五听点新的」这类个人向歌单。取不到就空着——公开榜不是「按你的
+ * 口味推」，榜单以后单独开一页，不塞进这里。
  */
 export async function qqRecommendPlaylists(limit = 12): Promise<QqPlaylistSummary[]> {
-  if (hasSession(activeProfileId)) {
-    const state = readState(activeProfileId)
-    if (state.cookie) {
-      try {
-        const rows = await requestMacHomePlaylists({ cookie: state.cookie })
-        // 「今日私享」是日推，不该出现在推荐歌单里；其余按页面顺序取。
-        const picks = rows.filter((row) => !row.name.includes('今日私享')).slice(0, limit)
-        log('qq recmd pl mac rows=' + picks.length)
-        if (picks.length > 0) {
-          return picks.map((row) => ({
-            id: Number(row.rid),
-            name: row.name,
-            coverUrl: row.cover,
-            trackCount: 0,
-            creator: ''
-          }))
-        }
-      } catch (error) {
-        log('qq recmd pl mac failed ' + messageOf(error))
-      }
-    }
-  }
-  // 兜底：公开歌单广场（匿名可用），至少这一栏不会空着。
+  if (!hasSession(activeProfileId)) return []
+  const state = readState(activeProfileId)
+  if (!state.cookie) return []
   try {
-    const response = await requestPublicSonglists(limit)
-    const rows = collectPlaylists(response)
-    log('qq recmd pl public rows=' + rows.length)
-    if (rows.length > 0) return rows.slice(0, limit)
+    const rows = await requestMacHomePlaylists({ cookie: state.cookie })
+    // 「今日私享」是日推，不该出现在推荐歌单里；其余按页面顺序取。
+    const picks = rows.filter((row) => !row.name.includes('今日私享')).slice(0, limit)
+    log('qq recmd pl mac rows=' + picks.length)
+    return picks.map((row) => ({
+      id: Number(row.rid),
+      name: row.name,
+      coverUrl: row.cover,
+      trackCount: 0,
+      creator: ''
+    }))
   } catch (error) {
-    log('qq recmd pl public failed ' + messageOf(error))
-  }
-  return []
-}
-
-/** 在响应里找第一组「带 id 也带名字」的行，兼容没见过的信封。 */
-function collectPlaylists(response: unknown, depth = 0): QqPlaylistSummary[] {
-  if (depth > 6) return []
-  const scope = response as Record<string, unknown> | null
-  if (Array.isArray(scope)) {
-    if (scope.length === 0) return []
-    const first = (scope[0] ?? {}) as Record<string, unknown>
-    const hasId = first.dissid ?? first.disstid ?? first.tid ?? first.id
-    const hasName = first.dissname ?? first.title ?? first.name
-    if (hasId && hasName) {
-      return scope
-        .map((row) => {
-          const entry = (row ?? {}) as Record<string, unknown>
-          const id = Number(entry.dissid ?? entry.disstid ?? entry.tid ?? entry.id)
-          const name = String(entry.dissname ?? entry.title ?? entry.name ?? '')
-          if (!Number.isFinite(id) || !name) return null
-          const cover = entry.imgurl ?? entry.picurl ?? entry.cover ?? entry.logo
-          return {
-            id,
-            name,
-            coverUrl: typeof cover === 'string' ? cover : null,
-            trackCount:
-              Number(entry.song_cnt ?? entry.song_count ?? entry.songnum ?? 0) || 0,
-            creator: String(
-              (entry.creator as Record<string, unknown>)?.nick ??
-                (entry.creator as Record<string, unknown>)?.name ??
-                entry.nick ??
-                ''
-            )
-          } satisfies QqPlaylistSummary
-        })
-        .filter((row): row is QqPlaylistSummary => row !== null)
-    }
+    log('qq recmd pl mac failed ' + messageOf(error))
     return []
   }
-  if (scope && typeof scope === 'object') {
-    for (const child of Object.values(scope)) {
-      const found = collectPlaylists(child, depth + 1)
-      if (found.length > 0) return found
-    }
-  }
-  return []
 }
 
 /** One playlist's songs. Rows are remembered like search results, so they play. */

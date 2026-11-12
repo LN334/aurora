@@ -832,37 +832,6 @@ export async function requestAlbumSongs(params: {
   })
 }
 
-/**
- * 平台推荐歌单的三种候选路由。
- *
- * 「按标签取歌单」要登录（500003），搜索位只回歌曲，榜单又不是歌单，所以这里
- * 把 QQ 网页端历史上用过的三条歌单推荐路由都试一遍：谁先回来谁算。
- */
-/**
- * 歌单广场的公开老接口（fcg_get_diss_by_tag）。
- *
- * QQ 网页端与各家第三方客户端一直用它取「分类 / 热门歌单」，不需要账号；
- * 新式 musicu 路由要登录（500003），先试公开这条。
- */
-export async function requestPublicSonglists(limit = 12): Promise<unknown> {
-  const url =
-    'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg?categoryId=10000000&sortId=5' +
-    '&sin=0&ein=' +
-    String(Math.max(1, Math.min(40, limit))) +
-    '&format=json&platform=yqq.json'
-  const response = await fetch(url, {
-    headers: {
-      referer: 'https://y.qq.com/n/ryqq/playlist',
-      'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-    }
-  })
-  // 这个老接口回的是 GBK 的 JSON：直接 .json() 会把中文读成乱码。
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  const text = new TextDecoder('gbk').decode(bytes)
-  return JSON.parse(text)
-}
-
 /** Mac 版首页里的一张歌单卡。 */
 interface MacHomePlaylist {
   rid: string
