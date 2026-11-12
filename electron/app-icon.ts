@@ -118,7 +118,9 @@ export function resetIcon(): boolean {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.setIcon(bundledIcon())
   }
-  rewriteShortcuts(app.getPath('exe'))
+  // 传空串：清掉快捷方式里的图标字段，让 Windows 跟着 exe 自己走。
+  // 传 app.getPath('exe') 在开发态会写成 node_modules 里的 electron.exe。
+  rewriteShortcuts('')
   notify()
   return true
 }
@@ -202,6 +204,9 @@ function shortcutFiles(): string[] {
  */
 function rewriteShortcuts(icon: string): void {
   if (process.platform !== 'win32') return
+  // 开发态跑的是 node_modules 里的 electron.exe，把它写进用户的桌面快捷方式，
+  // 快捷方式就会变成 Electron 的原子图标（0.7.2 验收时踩过）。要验这条，用打包版。
+  if (!app.isPackaged) return
   const exe = app.getPath('exe')
   for (const link of shortcutFiles()) {
     let current: Electron.ShortcutDetails
