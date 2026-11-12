@@ -863,26 +863,81 @@ export async function requestPublicSonglists(limit = 12): Promise<unknown> {
   return JSON.parse(text)
 }
 
-export async function requestRecommendPlaylists(variant: 'a' | 'b' | 'c'): Promise<unknown> {
-  const payload =
-    variant === 'a'
-      ? { playlist: { module: 'playlist.web_srf', method: 'get_recommend', param: { num: 12 } } }
-      : variant === 'b'
-        ? {
-            playlist: {
-              module: 'music.playlist.PlaylistInfoServer',
-              method: 'get_recommend_playlist',
-              param: { num: 12 }
-            }
-          }
-        : {
-            playlist: {
-              module: 'playlist.web_srf',
-              method: 'get_diss_recommend',
-              param: { num: 12 }
-            }
-          }
-  return await musicu(payload)
+/** Mac 版首页里的一张歌单卡。 */
+interface MacHomePlaylist {
+  rid: string
+  name: string
+  cover: string | null
+}
+
+const HTML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' '
+}
+
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (whole, body: string) => {
+    if (body[0] === '#') {
+      const code =
+        body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1))
+      return Number.isFinite(code) && code >= 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : whole
+    }
+    return HTML_ENTITIES[body] ?? whole
+  })
+}
+
+/**
+ * 从 Mac 版首页里抠「为你推荐」那一栏的歌单卡。
+ *
+ * 为什么是这一栏：`playlist.web_srf` 那三条个人推荐接口现在对所有人回
+ * 500003，只剩下公开榜。Mac 版首页仍然登录给一份个人向推荐——第一张是
+ * 「今日私享」，后面是「每个周五听点新的」这类歌单，卡上带 `data-rid`。
+ * 公开榜只能当兜底，这一栏才是「按你的口味推」。
+ *
+ * 只取第一个 `mod_for_u` 段里的第一组 `ul.mod_playlist`：同一段后面的
+ * 「新歌速递」卡也带 `data-rid`，但那是歌曲 id，混进来会点开错的东西。
+ */
+export function parseMacHomePlaylists(html: string): MacHomePlaylist[] {
+  const start = html.indexOf('mod_for_u')
+  if (start < 0) return []
+  const section = html.slice(start, start + 60000)
+  const list = /<ul[^>]*mod_playlist[^>]*>([\s\S]*?)<\/ul>/.exec(section)
+  const body = list ? list[1] : section
+  const cards = body.match(/<li[^>]*playlist__item[\s\S]*?<\/li>/g) ?? []
+  const rows: MacHomePlaylist[] = []
+  const seen = new Set<string>()
+  for (const card of cards) {
+    const rid = /data-rid="(\d+)"/.exec(card)
+    if (!rid) continue
+    const name = /<h3[^>]*playlist__name[^>]*>\s*<a[^>]*>([^<]+)<\/a>/.exec(card)
+    if (!name) continue
+    const label = decodeEntities(name[1]).trim()
+    if (!label || seen.has(rid[1])) continue
+    seen.add(rid[1])
+    const cover = /<img[^>]*class="playlist__pic"[^>]*src="([^"]+)"/.exec(card)
+    rows.push({ rid: rid[1], name: label, cover: cover ? decodeEntities(cover[1]) : null })
+  }
+  return rows
+}
+
+/** 拉一次 Mac 版首页并解析。页面对游客也给，但个人那一栏只对登录账号出现。 */
+export async function requestMacHomePlaylists(params: { cookie: string }): Promise<MacHomePlaylist[]> {
+  const response = await fetch('https://c.y.qq.com/node/musicmac/v6/index.html', {
+    headers: {
+      referer: 'https://y.qq.com/',
+      'user-agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+      cookie: params.cookie
+    }
+  })
+  if (!response.ok) return []
+  return parseMacHomePlaylists(await response.text())
 }
 
 /** 一个榜的歌曲。 */
@@ -953,27 +1008,7 @@ export async function requestCollectedAlbums(params: {
  * 游客拿到的是同一张页面，但那一栏叫「官方歌单」，没有这张卡 —— 所以必须带 cookie。
  */
 export async function requestDailyPlaylistId(params: { cookie: string }): Promise<string | null> {
-  const response = await fetch('https://c.y.qq.com/node/musicmac/v6/index.html', {
-    headers: {
-      referer: 'https://y.qq.com/',
-      'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-      cookie: params.cookie
-    }
-  })
-  if (!response.ok) return null
-  const html = await response.text()
-  const start = html.indexOf('mod_for_u')
-  if (start < 0) return null
-  /*
-   * 一张卡一张卡地看：标题与 data-rid 在同一段 li 里，标题是「今日私享」的那张
-   * 才算。不取「第一张」——游客版第一张是「官方歌单」，而且栏目的顺序会变。
-   */
-  const section = html.slice(start, start + 60000)
-  for (const card of section.match(/<li[^>]*playlist__item[\s\S]*?<\/li>/g) ?? []) {
-    if (!card.includes('今日私享')) continue
-    const rid = /data-rid="(\d+)"/.exec(card)
-    if (rid) return rid[1]
-  }
-  return null
+  const rows = await requestMacHomePlaylists(params)
+  const today = rows.find((row) => row.name.includes('今日私享'))
+  return today ? today.rid : null
 }

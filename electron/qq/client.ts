@@ -40,7 +40,7 @@ import {
   requestPlay,
   requestPlaylistTracks,
   requestPublicSonglists,
-  requestRecommendPlaylists,
+  requestMacHomePlaylists,
   requestSearch,
   requestOwnedPlaylists,
   requestPlaylistCreate,
@@ -545,17 +545,34 @@ export async function qqMyPlaylists(limit = 60): Promise<QqPlaylistSummary[]> {
  * 用排行榜而不是「标签歌单」：后者实测要登录（playlist.code=500003），而搜索
  * 位只回歌曲。排行榜是 QQ 唯一条匿名也给全的表面板，每一榜都能直接打开播放。
  */
+/**
+ * 平台推荐位上的 QQ 歌单。
+ *
+ * 个人推荐歌单的三条接口（playlist.web_srf 三条）现在对所有人回 500003，
+ * 公开榜只剩十几行，所以改从 Mac 版首页取「为你推荐」那一栏：登录账号的第
+ * 一张是「今日私享」，后面是「每个周五听点新的」这类个人向歌单。取不到那一
+ * 栏才退回公开榜，至少这一块不会空着。
+ */
 export async function qqRecommendPlaylists(limit = 12): Promise<QqPlaylistSummary[]> {
-  // 登录了就先要它自己那份推荐；这三条未登录一律 500003，所以只在有 cookie 时试。
   if (hasSession(activeProfileId)) {
-    for (const variant of ['a', 'b', 'c'] as const) {
+    const state = readState(activeProfileId)
+    if (state.cookie) {
       try {
-        const response = await requestRecommendPlaylists(variant)
-        const rows = collectPlaylists(response)
-        log('qq recmd pl ' + variant + ' rows=' + rows.length + ' ' + JSON.stringify(response).slice(0, 700))
-        if (rows.length > 0) return rows.slice(0, limit)
+        const rows = await requestMacHomePlaylists({ cookie: state.cookie })
+        // 「今日私享」是日推，不该出现在推荐歌单里；其余按页面顺序取。
+        const picks = rows.filter((row) => !row.name.includes('今日私享')).slice(0, limit)
+        log('qq recmd pl mac rows=' + picks.length)
+        if (picks.length > 0) {
+          return picks.map((row) => ({
+            id: Number(row.rid),
+            name: row.name,
+            coverUrl: row.cover,
+            trackCount: 0,
+            creator: ''
+          }))
+        }
       } catch (error) {
-        log('qq recmd pl ' + variant + ' failed ' + messageOf(error))
+        log('qq recmd pl mac failed ' + messageOf(error))
       }
     }
   }

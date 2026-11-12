@@ -12,7 +12,8 @@ import {
   playInfoOf,
   qualityFilename,
   tierLadder,
-  uinDigits
+  uinDigits,
+  parseMacHomePlaylists
 } from '../electron/qq/transport.ts'
 
 /*
@@ -213,4 +214,32 @@ test('the uin is reduced to digits, with or without the "o" prefix', () => {
   assert.equal(uinDigits(''), '')
   assert.equal(uinDigits(null), '')
   assert.equal(uinDigits('o12'), '')
+})
+
+/* Mac 首页「为你推荐」那一栏：个人推荐歌单只剩这条路。 */
+const MAC_HOME = [
+  '<div class="mod_for_u">',
+  '<ul class="mod_playlist mod_adapter_slider_5-6">',
+  '<li class="playlist__item"><a data-rid="8763883723"><img class="playlist__pic" src="http://a/1.jpg"></a>',
+  '<h3 class="playlist__name"><a data-rid="8763883723">今日私享</a></h3></li>',
+  '<li class="playlist__item"><a data-rid="8075336924"><img class="playlist__pic" src="http://a/2.jpg"></a>',
+  '<h3 class="playlist__name"><a data-rid="8075336924">90 后 &amp; 千禧</a></h3></li>',
+  '</ul>',
+  // 同一段里「新歌速递」的卡也带 data-rid，但那是歌曲 id，不能混进来。
+  '<ul class="mod_playlist"><li class="playlist__item"><a data-rid="107212527"></a>',
+  '<h3><a data-rid="107212527">故事</a></h3></li></ul>',
+  '</div>'
+].join('')
+
+test('parseMacHomePlaylists 只取第一组歌单卡，不把新歌速递当成歌单', () => {
+  const rows = parseMacHomePlaylists(MAC_HOME)
+  assert.equal(rows.length, 2)
+  assert.deepEqual(rows[0], { rid: '8763883723', name: '今日私享', cover: 'http://a/1.jpg' })
+  assert.equal(rows[1].rid, '8075336924')
+  // HTML 实体要还原，否则界面会显示「&amp;」。
+  assert.equal(rows[1].name, '90 后 & 千禧')
+})
+
+test('parseMacHomePlaylists 在没有那一栏时返回空，而不是抛错', () => {
+  assert.deepEqual(parseMacHomePlaylists('<html><body>nothing</body></html>'), [])
 })
