@@ -961,19 +961,28 @@ export function App() {  if (!isNative) {
 
   return (
     <>
+      {/*
+        The wallpaper is a window-level surface, not a page surface: the stage
+        paints the very same picture over the whole window. One mounted instance
+        shared by both is what makes that cheap — remounting it inside the stage
+        re-decoded the 4K video (or rebuilt the WebGL scene) on every round trip,
+        a measured 1.5 s freeze on the way back.
+      */}
+      <div
+        className={`window-bg${wallpaperEntry ? ' has-wallpaper' : ''}${stageOpen ? ' is-stage' : ''}`}
+        // The veil lives inside this layer, so the level has to ride along with it.
+        style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
+        aria-hidden="true"
+      >
+        <Backdrop entry={wallpaperEntry} />
+      </div>
       <div
         className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
           wallpaperEntry ? ' has-wallpaper' : ''
-        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}`}
+        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${stage.mounted ? ' is-under-stage' : ''}`}
         // The veil opacity is CSS's business; the level itself is data.
         style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
       >
-        {/*
-          The stage paints the same wallpaper over the whole window, so the
-          shell's copy is dropped while it is open: two WebGL scene instances
-          at 30fps each would double the GPU bill for one visible picture.
-        */}
-        {stageOpen ? null : <Backdrop entry={wallpaperEntry} />}
         {backdrop ? (
           <div
             className="shell__backdrop"

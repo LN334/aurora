@@ -108,8 +108,34 @@ input::placeholder {
    Shell
    ========================================================================== */
 
+/*
+ * The wallpaper's slot, outside the shell.
+ *
+ * It is a window-level surface: the stage paints the same picture over the whole
+ * window, so the layer has to outlive both pages. Mounting a second copy inside
+ * the stage re-opened the 4K video / rebuilt the WebGL scene on every round trip
+ * and froze the main thread for about 1.5 s on the way back out.
+ */
+.window-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.shell.is-under-stage {
+  /*
+   * The stage is opaque and covers the window; the shell underneath would
+   * otherwise show through wherever the stage's own gradient is thin. Hiding it
+   * (rather than unmounting it) keeps its scroll offsets and playback state.
+   */
+  visibility: hidden;
+}
+
 .shell {
   position: relative;
+  /* Above .window-bg; the stage (z-index 40) sits above both. */
+  z-index: 1;
   display: grid;
   grid-template-rows: var(--titlebar-h) 1fr var(--player-h);
   grid-template-columns: var(--rail-w) 1fr;
@@ -1865,7 +1891,7 @@ input::placeholder {
 }
 
 /* 壁纸自己的遮罩几乎全撤掉，只留一层很薄的统一压暗，避免亮部吃掉白字。 */
-.shell.has-wallpaper .wallpaper__veil {
+.window-bg.has-wallpaper .wallpaper__veil {
   --veil: calc(0.4 - 0.3 * var(--wp-level, 0.62));
 }
 
@@ -2051,7 +2077,7 @@ input::placeholder {
 }
 
 /* 白雾是把壁纸压成灰板的主因，浅色下只留一层几乎看不见的匀光。 */
-:root[data-theme='light'] .shell.has-wallpaper .wallpaper__veil {
+:root[data-theme='light'] .window-bg.has-wallpaper .wallpaper__veil {
   --veil: calc(0.06 - 0.04 * var(--wp-level, 0.62));
 }
 
@@ -2375,7 +2401,7 @@ html.is-resizing {
   backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
 }
 
-.shell.has-wallpaper .wallpaper__veil {
+.window-bg.has-wallpaper .wallpaper__veil {
   --veil: calc((0.4 - 0.3 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
 }
 
@@ -2397,7 +2423,7 @@ html.is-resizing {
   backdrop-filter: blur(var(--ui-blur, 14px)) saturate(1.15);
 }
 
-:root[data-theme='light'] .shell.has-wallpaper .wallpaper__veil {
+:root[data-theme='light'] .window-bg.has-wallpaper .wallpaper__veil {
   --veil: calc((0.06 - 0.04 * var(--wp-level, 0.62)) * var(--ui-veil, 1));
 }
 

@@ -12,7 +12,6 @@ import { splitLyricLine } from '../features/lyrics/line-parts'
 import { player } from '../features/player/actions'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Visualizer } from './Visualizer'
-import { Backdrop } from '../features/wallpaper/Backdrop'
 import { chooseEntry } from '../features/wallpaper/pure'
 import { useWallpaper } from '../features/wallpaper/store'
 
@@ -454,7 +453,7 @@ export function LyricsStage({
           : undefined
       }
     >
-      {wallpaper ? <Backdrop entry={wallpaper} /> : <Visualizer getSpectrum={getSpectrum} palette={palette} />}
+      {wallpaper ? null : <Visualizer getSpectrum={getSpectrum} palette={palette} />}
 
       <header className="stage__top">
         <button className="stage__back" onClick={onClose} aria-label="退出沉浸模式">

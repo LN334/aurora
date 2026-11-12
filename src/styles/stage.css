@@ -582,7 +582,7 @@
  * Backdrop 的遮罩是按外壳的列表行调的；舞台这一屏是标题级大字，壁纸可以比
  * 侧栏里再透出一些，靠上面那层渐变补上下两端的对比。
  */
-.stage--wallpaper .wallpaper__veil {
+.window-bg.is-stage .wallpaper__veil {
   --veil: calc(0.68 - 0.5 * var(--wp-level, 0.62));
 }
 
