@@ -164,7 +164,11 @@ export function useSettingsPage(): SettingsPage {
     setUpdateInterval: (interval) =>
       write(
         () => bridge.updates.setInterval(interval),
-        (next) => setPrefs(next)
+        (next) => {
+          setPrefs(next)
+          // 这一页的选中态读的是 settings，只写 prefs 会让按钮点完看着没动。
+          setSettings((prev) => ({ ...prev, updateInterval: next.interval }))
+        }
       ),
 
     setAutoInstall: (enabled) =>
