@@ -26,6 +26,7 @@ export function UpdatePanel() {
   const check = useUpdate((state) => state.check)
   const download = useUpdate((state) => state.download)
   const install = useUpdate((state) => state.install)
+  const open = useUpdate((state) => state.open)
 
   useEffect(() => {
     void bridge.info().then((info) => setVersion(info.version))
@@ -64,11 +65,19 @@ export function UpdatePanel() {
                 <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
                   下载 {result.info.version}
                 </button>
+                <button className="btn" onClick={() => void open()}>
+                  打不开？手动下载
+                </button>
               </div>
             </>
           ) : result.state === 'downloading' ? (
             <>
               <p>正在下载 {Math.round(result.percent)}%</p>
+              <div className="update__actions">
+                <button className="btn" onClick={() => void open()}>
+                  卡住了？改用浏览器下载
+                </button>
+              </div>
             </>
           ) : result.state === 'ready' ? (
             <>
@@ -83,8 +92,20 @@ export function UpdatePanel() {
             </>
           ) : result.state === 'installing' ? (
             <p>正在安装，应用马上会重启</p>
+          ) : result.state === 'error' ? (
+            <>
+              <p>{result.message}</p>
+              <div className="update__actions">
+                <button className="btn" onClick={() => void check()} disabled={busy}>
+                  重新检查
+                </button>
+                <button className="btn" onClick={() => void open()}>
+                  打开发布页
+                </button>
+              </div>
+            </>
           ) : (
-            // `unconfigured` 与 `error` 是剩下的两个，都带一句给人看的话。
+            // 只剩 `unconfigured`：没有发布仓库，也就没有页面可开。
             <p>{result.message}</p>
           )}
         </div>

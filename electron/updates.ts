@@ -87,7 +87,14 @@ export type UpdateResult =
   | { state: 'current'; current: string; checkedAt: number }
   | { state: 'available'; current: string; checkedAt: number; info: UpdateInfo }
   | { state: 'unconfigured'; current: string; message: string }
-  | { state: 'error'; current: string; checkedAt: number; message: string }
+  | {
+      state: 'error'
+      current: string
+      checkedAt: number
+      message: string
+      /** 出错时也带着这一版的信息，界面才有地方把发布页交出去。 */
+      info?: UpdateInfo
+    }
   | {
       state: 'downloading'
       current: string
@@ -457,13 +464,19 @@ let readyVersion: string | null = null
     readyVersion = pending.info.version
     broadcast({ state: 'ready', current: pending.current, info: pending.info, origin })
   } catch (error) {
-    // Failing to download must not look like failing to check: the user still
-    // has a release page they can open by hand.
-    console.error('[aurora] automatic update failed', error)
+    /*
+     * 断网、代理半失效、GitHub 的下载域名被挡，最后都落在这里。
+     *
+     * 这里以前悄悄退回 available，界面于是又出现一个「下载」，用户点一次失败
+     * 一次，看上去像按钮坏了。下载失败必须有一句人话，并且把「用浏览器下载」
+     * 这条路一起交出去——国内直连下载 136 MB 本来就不稳。
+     */
+    console.error('[aurora] update download failed', error)
     broadcast({
-      state: 'available',
+      state: 'error',
       current: pending.current,
       checkedAt: Date.now(),
+      message: '下载没完成，像是连不上下载服务器。改用浏览器下载安装包覆盖安装，效果一样。',
       info: pending.info
     })
   } finally {

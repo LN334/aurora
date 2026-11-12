@@ -108,7 +108,14 @@ export type UpdateResult =
   | { state: 'current'; current: string; checkedAt: number }
   | { state: 'available'; current: string; checkedAt: number; info: UpdateInfo }
   | { state: 'unconfigured'; current: string; message: string }
-  | { state: 'error'; current: string; checkedAt: number; message: string }
+  | {
+      state: 'error'
+      current: string
+      checkedAt: number
+      message: string
+      /** 下载失败时也带着这一版的信息，界面才有地方打开它的发布页。 */
+      info?: UpdateInfo
+    }
   | { state: 'downloading'; current: string; info: UpdateInfo; percent: number; transferred: number; total: number }
   | { state: 'ready'; current: string; info: UpdateInfo; origin: 'auto' | 'manual' }
   | { state: 'installing'; current: string; info: UpdateInfo }

@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { bridge, isNative } from '../../bridge'
 import type { UpdateResult } from '../../env'
 
+/** 兜底的发布页：任何状态都能把人送到这里手动下载。 */
+const LATEST_RELEASE = 'https://github.com/LN334/aurora/releases/latest'
+
 /**
  * 更新状态，全应用一份。
  *
@@ -52,11 +55,17 @@ export const useUpdate = create<UpdateState>()((set, get) => ({
     await bridge.updates.install()
   },
 
+  /**
+   * 打开这一版的发布页。
+   *
+   * 不只是「有新版本」时能用：下载失败也得把人送到一个能手动下载的地方，
+   * 否则界面上那句「改用浏览器下载」就落不了地。没有 info 时给最新版兜底。
+   */
   async open() {
+    if (!isNative) return
     const result = get().result
-    if (!isNative || !result) return
-    if (result.state === 'current' || result.state === 'unconfigured' || result.state === 'error') return
-    await bridge.updates.open(result.info.url)
+    const info = result && 'info' in result ? result.info : null
+    await bridge.updates.open(info?.url || LATEST_RELEASE)
   },
 
 }))
