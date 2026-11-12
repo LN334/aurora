@@ -102,7 +102,11 @@ const webFallback: AuroraApi = {
       hidden: document.hidden
     }),
     onVisibility: () => () => undefined,
-    onResizing: () => () => undefined
+    onResizing: () => () => undefined,
+    // 浏览器预览里换不了任务栏图标：如实说一声，别让按钮点了没反应。
+    getIcon: async () => ({ custom: false, dataUrl: '' }),
+    chooseIcon: async () => ({ ok: false, reason: '浏览器预览里换不了图标，装好应用才能用' }),
+    resetIcon: async () => false
   },
   playlists: {
     /*

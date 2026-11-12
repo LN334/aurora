@@ -24,10 +24,12 @@ import {
   destroyTray,
   hasTray,
   installThumbar,
+  refreshTrayImage,
   refreshTrayMenu,
   type MediaCommand,
   type TrayHandlers
 } from './tray'
+import { applyIconFromArgv, initCustomIcon, onIconChanged, windowIconPath } from './app-icon'
 import {
   destroyOverlay,
   initOverlay,
@@ -325,6 +327,8 @@ function createWindow(): void {
      */
     show: false,
     backgroundColor: '#0d1013',
+    // 用户设过自定义图标时用它，否则用 assets 里那张；任务栏与 Alt+Tab 都认这个。
+    icon: windowIconPath(),
     // Custom chrome: we draw the title bar ourselves, while Windows keeps the
     // real caption buttons overlaid so snap layouts and aero snap still work.
     titleBarStyle: 'hidden',
@@ -776,6 +780,12 @@ if (!app.requestSingleInstanceLock()) {
     syncLoginItem()
     createWindow()
     createTray(trayHandlers())
+    // 图标换了以后托盘得跟着换：窗口图标由 app-icon 自己铺，这里只管托盘。
+    onIconChanged(() => refreshTrayImage())
+    // 重装或换了路径之后快捷方式会丢图标，启动时补一次。
+    initCustomIcon()
+    // 自动化验收用：--set-icon=<图片> 直接把图标设成这张。
+    applyIconFromArgv()
     registerGlobalShortcuts()
 
     /*

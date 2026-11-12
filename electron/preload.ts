@@ -59,7 +59,22 @@ const api = {
       return () => {
         ipcRenderer.removeListener('win:resizing', listener)
       }
-    }
+    },
+    /**
+     * 应用图标：现在是什么、换一张、退回自带那张。
+     *
+     * 换图标要开系统文件对话框、要写 userData、要改快捷方式，都得在主进程做。
+     * 渲染层只拿一个 data URL 预览。
+     */
+    getIcon: () =>
+      ipcRenderer.invoke('app:icon:get') as Promise<{ custom: boolean; dataUrl: string }>,
+    chooseIcon: () =>
+      ipcRenderer.invoke('app:icon:choose') as Promise<{
+        ok: boolean
+        canceled?: boolean
+        reason?: string
+      }>,
+    resetIcon: () => ipcRenderer.invoke('app:icon:reset') as Promise<boolean>
   },
 
   /**

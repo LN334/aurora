@@ -9,6 +9,7 @@ import {
   type NativeImage
 } from 'electron'
 import path from 'node:path'
+import { customTrayImage } from './app-icon'
 
 /**
  * System tray and taskbar thumbnail toolbar.
@@ -55,7 +56,16 @@ let tray: Tray | null = null
  * theme and rebuild when the theme changes.
  */
 function trayImage(): NativeImage {
+  // 用户换过图标就让托盘跟着换：他动图标是为了在任务栏上认出来，托盘漏掉就不算换了。
+  const custom = customTrayImage()
+  if (custom) return custom
   return loadIcon(nativeTheme.shouldUseDarkColors ? 'tray.png' : 'tray-dark.png')
+}
+
+/** 图标换过之后重设托盘；托盘还没建出来时什么也不做。 */
+export function refreshTrayImage(): void {
+  if (!tray || tray.isDestroyed()) return
+  tray.setImage(trayImage())
 }
 
 export function refreshTrayMenu(handlers: TrayHandlers): void {

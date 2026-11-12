@@ -948,3 +948,28 @@
   min-width: 0;
   max-width: 100%;
 }
+
+/* 应用图标：一张方形预览 + 两个按钮；换失败时下面单独一行说原因。 */
+.set-icon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.set-icon__prev {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 11px;
+  object-fit: cover;
+  background: rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+
+.set-icon__notice {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-micro);
+  color: var(--danger);
+}

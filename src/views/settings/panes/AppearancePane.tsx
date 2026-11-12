@@ -62,6 +62,42 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const density = useRowDensity()
   const theme = useTheme()
 
+  /*
+   * 应用图标。预览走 data URL：主进程只回一张 256 的 PNG，渲染层不需要知道
+   * 图标存在哪、存了几档尺寸。
+   */
+  const [appIcon, setAppIcon] = useState<{ custom: boolean; dataUrl: string }>({
+    custom: false,
+    dataUrl: ''
+  })
+  const [iconBusy, setIconBusy] = useState(false)
+  const [iconNotice, setIconNotice] = useState('')
+
+  useEffect(() => {
+    void bridge.app.getIcon().then(setAppIcon)
+  }, [])
+
+  async function chooseAppIcon(): Promise<void> {
+    setIconBusy(true)
+    setIconNotice('')
+    const result = await bridge.app.chooseIcon()
+    setIconBusy(false)
+    if (!result.ok) {
+      // 用户自己点取消不算错，安静回去就行。
+      if (!result.canceled) setIconNotice(result.reason ?? '这张图没用上，再试一张')
+      return
+    }
+    setAppIcon(await bridge.app.getIcon())
+  }
+
+  async function resetAppIcon(): Promise<void> {
+    setIconBusy(true)
+    await bridge.app.resetIcon()
+    setAppIcon(await bridge.app.getIcon())
+    setIconBusy(false)
+    setIconNotice('')
+  }
+
   // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
   const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
   const lyricSizeNow = useLyricSize()
@@ -242,6 +278,42 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             writeReduceMotion(next)
           }}
         />
+      </Row>
+
+      <Row
+        label="应用图标"
+        hint={
+          isNative
+            ? '窗口、任务栏、托盘和桌面快捷方式会一起换。'
+            : '浏览器预览里没有图标可换，装好应用才能用。'
+        }
+      >
+        <div className="set-icon">
+          {appIcon.dataUrl ? (
+            <img className="set-icon__prev" src={appIcon.dataUrl} alt="" />
+          ) : (
+            <span className="set-icon__prev" />
+          )}
+          <button
+            className="btn"
+            type="button"
+            disabled={!isNative || iconBusy}
+            onClick={() => void chooseAppIcon()}
+          >
+            {iconBusy ? '读取中…' : appIcon.custom ? '换一张' : '换个图标'}
+          </button>
+          {appIcon.custom ? (
+            <button
+              className="btn btn--ghost"
+              type="button"
+              disabled={iconBusy}
+              onClick={() => void resetAppIcon()}
+            >
+              恢复默认
+            </button>
+          ) : null}
+          {iconNotice ? <p className="set-icon__notice">{iconNotice}</p> : null}
+        </div>
       </Row>
 
       <Row label="列表行密度" hint="歌单、搜索结果、队列里每一行的高度。">

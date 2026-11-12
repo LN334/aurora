@@ -1,4 +1,5 @@
 import { app, ipcMain, shell } from 'electron'
+import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
 import { mainWindowVisibility } from '../pure/scan-progress'
 import type { WindowSource } from './host'
 
@@ -30,4 +31,12 @@ export function registerAppIpc(deps: WindowSource): void {
     void shell.openExternal(url)
     return true
   })
+
+  /*
+   * 应用图标。读取只回一个预览，选择要开系统对话框，重置要动磁盘——三件事
+   * 都只能由主进程做，所以都从这里过。
+   */
+  ipcMain.handle('app:icon:get', () => iconPreview())
+  ipcMain.handle('app:icon:choose', () => chooseIcon())
+  ipcMain.handle('app:icon:reset', () => resetIcon())
 }

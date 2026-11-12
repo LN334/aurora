@@ -79,6 +79,12 @@ export interface WindowVisibilityState {
   onVisibility(handler: (state: WindowVisibilityState) => void): () => void
   /** 窗口正被拖着改大小；true 期间界面该关掉毛玻璃这类重采样效果。 */
   onResizing(handler: (resizing: boolean) => void): () => void
+  /** 现在用的是不是用户自己设的图标，外加一张可以直接塞进 img 的预览。 */
+  getIcon(): Promise<{ custom: boolean; dataUrl: string }>
+  /** 开系统文件对话框挑一张图；用户点取消时 canceled 为 true。 */
+  chooseIcon(): Promise<{ ok: boolean; canceled?: boolean; reason?: string }>
+  /** 退回自带图标。 */
+  resetIcon(): Promise<boolean>
 }
 
 export interface UpdateInfo {
