@@ -66,16 +66,7 @@
   width: 100%;
   max-width: 1040px;
   margin-inline: auto;
-  padding: var(--s5) var(--s5) var(--s6);
-  border-radius: 18px;
-  /*
-   * 底下一层是会动的壁纸：没有这块板，行与行之间就是漏出来的壁纸，
-   * 看着像表格没画完；有了它，中间那段才是「留白」而不是「空的」。
-   */
-  background: rgb(12 16 22 / 0.3);
-  -webkit-backdrop-filter: blur(20px) saturate(115%);
-  backdrop-filter: blur(20px) saturate(115%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  padding: var(--s2) 0 var(--s6);
 }
 
 
@@ -841,21 +832,24 @@
   background: rgb(255 255 255 / 0.085);
 }
 
-/* 行卡不要用模糊：壁纸是亮的，backdrop-filter 会把背后糊成一片白雾，
-   四行音源堆在一起时比原来更花。改用实一点的深底，文字立刻清楚。 */
+/* 行卡不用模糊（壁纸一亮，backdrop-filter 会把背后糊成一片白雾），但也不用厚底：
+   整页的大板去掉之后，0.62 的实底会让每一行变成一条悬着的横条。降到 0.34 只当轻托底，
+   分隔交给发丝线，压文字交给字色。悬停时再抬一点点。 */
 .settings__row {
-  background: rgb(10 12 16 / 0.62);
+  background: rgb(10 12 16 / 0.34);
   backdrop-filter: none;
   border-color: rgb(255 255 255 / 0.075);
 }
 .settings__row:hover {
-  background: rgb(10 12 16 / 0.74);
+  background: rgb(10 12 16 / 0.46);
 }
 
 /*
  * 分段之内不再各包一张卡：那样一层套一层，像表格叠表格。分段之间只留一条发丝线。
- * 整页由 .settings__body 那一层淡玻璃兜住——底下的壁纸一直在动，没有这层板，
- * 行与行之间就是漏出来的画面，看着像表格没画完。
+ *
+ * 整页不再垫一层大玻璃板：行走过一轮之后已经是不透明的深底（上面那条 rgb(10 12 16 / 0.62)），
+ * 大板叠在下面只会把整页压成一层灰膜，边界也露在内容外面，看着像贴了块脏玻璃。
+ * 现在留白就是留白，压得住文字的是行卡自己。
  */
 .set-part__body {
   padding: 0;
