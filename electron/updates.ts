@@ -1,4 +1,5 @@
 import { app, net, shell } from 'electron'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -7,6 +8,7 @@ import { applyUpdaterProxy } from './proxy'
 import { write } from './startup-log'
 import { isNewer } from './pure/version'
 import { repositoryTarget } from './pure/release-target'
+import { downloadReleaseFile, type DownloadSource } from './update-download'
 
 // `UpdateInterval` is declared alongside the settings that store it; re-exported
 // so callers of this module do not need to know where it lives.
@@ -309,6 +311,13 @@ interface UpdateLogger {
   debug(message: string): void
 }
 
+/** The bits of electron-updater's check result we actually read. */
+interface UpdateCheckResultLike {
+  updateInfo?: {
+    files?: Array<{ url: string; sha512?: string }>
+  }
+}
+
 interface AutoUpdaterLike {
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
@@ -324,7 +333,7 @@ interface AutoUpdaterLike {
   on(event: 'download-progress', listener: (progress: ProgressInfo) => void): unknown
   on(event: 'update-downloaded', listener: () => void): unknown
   setFeedURL(options: FeedOptions): void
-  checkForUpdates(): Promise<unknown>
+  checkForUpdates(): Promise<UpdateCheckResultLike | null>
   downloadUpdate(): Promise<unknown>
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void
 }
@@ -394,6 +403,19 @@ let installing = false
 
 /** Downloaded but not yet installed. Cleared when the installer runs. */
 let readyVersion: string | null = null
+/** The checked file itself; `readyVersion` alone cannot tell us where it is. */
+let readyPath: string | null = null
+
+/**
+ * 下载线路。直连 GitHub 在国内经常被 RST；后面两条是公共的 GitHub 反代。
+ * 它们只代理文件，不代理 API，所以检查更新仍然走 GitHub。校验值来自
+ * GitHub 那边的 latest.yml，镜像就算换了包也过不了 sha512。
+ */
+const DOWNLOAD_SOURCES: DownloadSource[] = [
+  { name: 'GitHub', prefix: '' },
+  { name: 'gh-proxy.com', prefix: 'https://gh-proxy.com/' },
+  { name: 'ghfast.top', prefix: 'https://ghfast.top/' }
+]
 
  async function downloadInBackground(
   result: UpdateResult,
@@ -408,32 +430,15 @@ let readyVersion: string | null = null
     const updater = await loadUpdater()
     if (!updater) return
     /*
-     * GitHub's download hosts are unreachable on many networks, and
-     * electron-updater downloads through a session of its own, which never sees
-     * a proxy that the desktop client only exposes as a local port. Find one
-     * that really reaches GitHub before asking for the first byte.
+     * 检查仍然交给 electron-updater：latest.yml 只有几百字节，GitHub 的 API 与
+     * raw 域名通常是通的。真正下不动的是 136 MB 的安装包，那一段交给下面的
+     * downloadReleaseFile——它会直连失败后换加速源，并且从断点继续。
      */
     await applyUpdaterProxy()
-    /*
-     * `autoDownload = false` plus an explicit `downloadUpdate()` is the ordering
-     * the API expects: check first, then download. The alternative -
-     * `checkForUpdatesAndNotify()` - downloads without asking, which would make
-     * the setting's default a lie.
-     */
-    /*
-     * Install only when the user asks. Quitting must not silently replace the
-     * running build: these installers are unsigned, and a bad release would
-     * arrive with no way back. The download itself is the part that can be
-     * automatic without taking that decision away.
-     */
     updater.autoDownload = false
-    /*
-     * 退出时装同样等于「它自己换掉了自己」，用户没按过装。安装包未签名，出事
-     * 没有回退的路，所以这一位恒定关：装只走 installPendingUpdate()。
-     */
     updater.autoInstallOnAppQuit = false
 
-    // Tells the banner to switch to its progress form before the first chunk.
+    // Tells the settings page to switch to its progress form before the first chunk.
     broadcast({
       state: 'downloading',
       current: pending.current,
@@ -443,33 +448,52 @@ let readyVersion: string | null = null
       total: 0
     })
 
-    updater.on('update-downloaded', () => {
-      readyVersion = pending.info.version
-      broadcast({ state: 'ready', current: pending.current, info: pending.info, origin })
+    const check = await updater.checkForUpdates()
+    const file = check?.updateInfo?.files?.[0]
+    if (!file || !file.sha512) throw new Error('发布信息里没有可用的安装包')
+    const target = publishTarget()
+    if (!target) throw new Error('不知道这个构建来自哪个仓库')
+    const tag = tagOf(pending.info.url) ?? 'v' + pending.info.version
+    const name = fileNameOf(file.url)
+    if (!name) throw new Error('发布信息里的文件名不可用')
+    const url =
+      'https://github.com/' +
+      target.owner +
+      '/' +
+      target.repo +
+      '/releases/download/' +
+      encodeURIComponent(tag) +
+      '/' +
+      encodeURIComponent(name)
+
+    const localPath = await downloadReleaseFile({
+      url,
+      fileName: name,
+      sha512: file.sha512,
+      dir: path.join(app.getPath('temp'), 'aurora-update'),
+      sources: DOWNLOAD_SOURCES,
+      onProgress: (progress) => {
+        broadcast({
+          state: 'downloading',
+          current: pending.current,
+          info: pending.info,
+          percent: progress.percent,
+          transferred: progress.transferred,
+          total: progress.total
+        })
+      }
     })
 
-    updater.on('download-progress', (progress) => {
-      broadcast({
-        state: 'downloading',
-        current: pending.current,
-        info: pending.info,
-        percent: progress.percent,
-        transferred: progress.transferred,
-        total: progress.total
-      })
-    })
-
-    await updater.checkForUpdates()
-    await updater.downloadUpdate()
+    readyPath = localPath
     readyVersion = pending.info.version
     broadcast({ state: 'ready', current: pending.current, info: pending.info, origin })
   } catch (error) {
     /*
-     * 断网、代理半失效、GitHub 的下载域名被挡，最后都落在这里。
+     * 断网、代理半失效、加速源也连不上，最后都落在这里。
      *
      * 这里以前悄悄退回 available，界面于是又出现一个「下载」，用户点一次失败
      * 一次，看上去像按钮坏了。下载失败必须有一句人话，并且把「用浏览器下载」
-     * 这条路一起交出去——国内直连下载 136 MB 本来就不稳。
+     * 这条路一起交出去。
      */
     console.error('[aurora] update download failed', error)
     broadcast({
@@ -482,6 +506,22 @@ let readyVersion: string | null = null
   } finally {
     installing = false
   }
+}
+
+/** 从发布页地址里取 tag；取不到就用版本号拼。 */
+function tagOf(releaseUrl: string): string | null {
+  try {
+    const match = /\/releases\/tag\/([^/?#]+)/.exec(new URL(releaseUrl).pathname)
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    return null
+  }
+}
+
+/** latest.yml 里的 url 可能是完整地址，也可能只是文件名。 */
+function fileNameOf(fileUrl: string): string {
+  const clean = fileUrl.split('?')[0].split('#')[0]
+  return decodeURIComponent(clean.slice(clean.lastIndexOf('/') + 1))
 }
 
 /**
@@ -506,19 +546,28 @@ export async function downloadAvailable(): Promise<boolean> {
 }
 
 
-/** Quit and run the downloaded installer. Only meaningful after `ready`. */
+/** Run the downloaded installer and quit. Only meaningful after `ready`. */
 export async function installPendingUpdate(): Promise<boolean> {
   if (!app.isPackaged) return false
-  if (!readyVersion) return false
+  if (!readyVersion || !readyPath) return false
   // 点下去到进程退出之间有一两秒，界面上得先有个「在装了」，否则像是点了没反应。
   const pending = pendingRelease
   try {
-    const updater = await loadUpdater()
-    if (!updater) return false
     if (pending) {
       broadcast({ state: 'installing', current: pending.current, info: pending.info })
     }
-    updater.quitAndInstall(true, true)
+    /*
+     * 参数与 electron-updater 的 quitAndInstall(true, true) 一致：更新模式、
+     * 静默安装、装完启动。安装器是我们自己的一键 NSIS，customInstall 会在
+     * --updated 这条路上补回缺失的快捷方式。
+     */
+    const child = spawn(readyPath, ['--updated', '/S', '--force-run'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    })
+    child.unref()
+    app.quit()
     return true
   } catch (error) {
     console.error('[aurora] could not start the installer', error)
