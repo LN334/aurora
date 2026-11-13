@@ -122,7 +122,12 @@
 /* --- top bar ------------------------------------------------------------- */
 
 .stage__top {
-  display: flex;
+  /*
+   * 三列：左按钮 / 中间的歌名 / 右侧样式开关。中间那列是真居中，
+   * 右边按钮改多宽都不会把歌名推偏；换成绝对定位则会顶出顶栏。
+   */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--s4);
   /* 右侧这条缝是 Windows 画最小化/最大化/关闭的地方：标题栏让出 148px，
@@ -131,6 +136,7 @@
 }
 
 .stage__back {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: var(--s1);
@@ -149,22 +155,32 @@
   font-size: var(--fs-meta);
 }
 
+/*
+ * 歌名与歌手在正中间，而且是真的居中：三列里中间那一列是 auto，
+ * 右上的样式按钮占多宽都不影响它。
+ */
 .stage__meta {
-  margin-left: auto;
-  text-align: right;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  text-align: center;
   min-width: 0;
+  max-width: 54vw;
 }
 /* 小字在上、歌名在中、艺术家与专辑在下：一屏之内先认出歌，再认出人。 */
 .stage__kicker {
   display: block;
-  font-size: var(--fs-micro);
-  letter-spacing: 0.16em;
-  color: var(--text-low);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  /* 字距是加在每个字之后的，末尾那一份会把这行整体带偏半个字 */
+  text-indent: 0.34em;
+  color: rgb(255 255 255 / 0.5);
 }
 .stage__title {
-  margin: 2px 0 0;
+  margin: 7px 0 0;
   font-family: var(--font-display);
-  font-size: clamp(20px, 2vw, 30px);
+  font-size: clamp(24px, 2.6vw, 38px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -175,22 +191,29 @@
   max-width: 46vw;
 }
 .stage__sub {
-  margin: 4px 0 0;
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  color: rgb(255 255 255 / 0.62);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 46vw;
 }
 .stage__sep {
-  margin: 0 6px;
-  color: var(--text-low);
+  margin: 0 8px;
+  color: rgb(255 255 255 / 0.3);
 }
 .stage__album,
 .stage__artist {
   font-size: inherit;
   color: inherit;
+}
+.stage__artist {
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.8);
+}
+.stage__album {
+  color: rgb(255 255 255 / 0.5);
 }
 
 /* --- the lyric column ---------------------------------------------------- */
@@ -669,3 +692,355 @@
  */
 .lyr:not(.is-active) .lyr__sub { display: none; }
 .lyr.is-active .lyr__sub { opacity: 0.62; }
+
+/* =============================================================================
+   样式：流光 / 终端
+   -----------------------------------------------------------------------------
+   流光那套不动。终端这套借的是「暗纸 + 三色平涂 + 等宽字 + 逐字打出」：
+   纸不动，字在动；强调只有橙色，译文用一抹品红。
+   ========================================================================== */
+
+.stage__styles {
+  /* 顶栏是网格，落在第三列；让出 148px 是窗口按钮的位置 */
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(8 10 14 / 0.42);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(14px) saturate(120%);
+}
+
+.stage__style {
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--text-mid);
+  background: transparent;
+  white-space: nowrap;
+}
+.stage__style:hover {
+  color: var(--text-hi);
+}
+.stage__style.is-on {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--text-hi);
+}
+
+/* --- 终端 ---------------------------------------------------------------- */
+
+.stage.is-terminal {
+  --t-paper: #f2e8dc;
+  --t-ink: #17120f;
+  --t-dim: #8a7c70;
+  --t-hot: #e8734a;
+  --t-pink: #e65a86;
+  /*
+   * 底色与纹理画在整层背景上，不用 ::before：
+   * .stage 是 grid 容器，伪元素会变成一个匿名格位，把三行布局顶乱。
+   */
+  background:
+    radial-gradient(120% 78% at 76% 6%, rgb(232 115 74 / 0.2), transparent 58%),
+    radial-gradient(90% 60% at 12% 100%, rgb(230 90 134 / 0.08), transparent 62%),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.18) 0 1px, transparent 1px 3px),
+    linear-gradient(rgb(242 232 220 / 0.07) 1px, transparent 1px) 0 0 / 100% 46px,
+    linear-gradient(90deg, rgb(242 232 220 / 0.07) 1px, transparent 1px) 0 0 / 46px 100%,
+    #12100e;
+  color: var(--t-paper);
+}
+
+/* 终端里不要壁纸、极光带、粒子：纸是静的，动的只有字。 */
+.stage.is-terminal .wallpaper,
+.stage.is-terminal .viz,
+.stage.is-terminal .stage__particles {
+  display: none;
+}
+.stage.is-terminal.stage--wallpaper::after {
+  display: none;
+}
+
+.stage.is-terminal .stage__top,
+.stage.is-terminal .stage__bottom {
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  text-shadow: none;
+}
+
+.stage.is-terminal .stage__back {
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(242 232 220 / 0.24);
+  color: var(--t-paper);
+  font-family: inherit;
+  font-size: 11.5px;
+}
+.stage.is-terminal .stage__back:hover {
+  background: rgb(242 232 220 / 0.08);
+  color: var(--t-paper);
+}
+.stage.is-terminal .stage__back span {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.stage.is-terminal .stage__top {
+  /* 终端是左对齐的：退出键、标题、样式开关从左往右排，不再分三列。 */
+  display: flex;
+}
+
+.stage.is-terminal .stage__meta {
+  margin-left: 0;
+  margin-right: auto;
+  max-width: none;
+  text-align: left;
+  gap: 2px;
+}
+.stage.is-terminal .stage__kicker {
+  /* 舞台本来就只剩一首歌，再写「正在播放」是与标题抢行；藏掉让它像标题栏。 */
+  display: none;
+}
+.stage.is-terminal .stage__kicker::before {
+  content: '> ';
+}
+.stage.is-terminal .stage__title {
+  font-size: clamp(17px, 1.6vw, 21px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--t-paper);
+  text-shadow: none;
+}
+.stage.is-terminal .stage__sub {
+  font-size: 11.5px;
+  color: var(--t-dim);
+  letter-spacing: 0.02em;
+}
+.stage.is-terminal .stage__sep {
+  color: var(--t-hot);
+}
+
+/* 切换按钮在终端里从胶囊变方块：和标题块同一种边，选中等于一块实心纸。 */
+.stage.is-terminal .stage__styles {
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.stage.is-terminal .stage__style {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 2px;
+  border: 1px solid rgb(242 232 220 / 0.22);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--t-dim);
+}
+.stage.is-terminal .stage__style:hover {
+  border-color: rgb(242 232 220 / 0.5);
+  color: var(--t-paper);
+}
+.stage.is-terminal .stage__style.is-on {
+  background: var(--t-paper);
+  border-color: var(--t-paper);
+  color: var(--t-ink);
+}
+
+/*
+ * 歌词列。
+ *
+ * 槽高压到一半：终端一行就是一行，行距密才像日志。远近不再靠缩放（缩过的字
+ * 在等宽字体上会糊），只降透明度——纸上的墨越远越淡。
+ */
+.stage.is-terminal .stage__lyrics {
+  --lyr-h: clamp(58px, 7.2vh, 76px);
+  padding: 0 clamp(24px, 7vw, 120px);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+}
+
+.stage.is-terminal .lyr {
+  justify-items: center;
+  transform: none;
+  /* 远行不再缩字（等宽字缩了会糊），只把墨色压淡。 */
+  opacity: clamp(0.24, calc(1 - var(--far, 0) * 0.33), 1);
+  will-change: opacity;
+}
+
+.stage.is-terminal .lyr__text {
+  /*
+   * 每一行都是一个定宽的小块，块内左对齐、整块居中：
+   * 行号占左边一列，正文占右边一列。固定宽度是为了让九行共用一条
+   * 左边线——宽度跟着最长的句子变，上下行就会左右错开，像排版事故。
+   */
+  display: grid;
+  grid-template-columns: 2.4ch minmax(0, 1fr);
+  column-gap: 1.6ch;
+  align-items: baseline;
+  width: min(100%, 82ch);
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: clamp(16px, 1.6vw, 23px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  max-width: 100%;
+  text-align: left;
+  color: var(--t-dim);
+  text-shadow: none;
+  transform: none;
+}
+
+/* 行号：像代码左边的行标，远行淡、当前行橙。 */
+.stage.is-terminal .lyr__text::before {
+  content: attr(data-no);
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  font-size: 0.72em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(242 232 220 / 0.26);
+  text-align: right;
+  user-select: none;
+}
+.stage.is-terminal .lyr.is-active .lyr__text::before {
+  color: var(--t-hot);
+  opacity: 0.9;
+}
+.stage.is-terminal .lyr__text:not(.lyr__text--empty):hover {
+  color: var(--t-paper);
+  opacity: 1 !important;
+}
+
+.stage.is-terminal .lyr.is-active .lyr__text {
+  color: var(--t-paper);
+  opacity: 1;
+  max-height: none;
+  text-shadow: none;
+  transform: none;
+}
+
+/* 当前句：橙色提示符 + 整句（不折行，终端一行就是一行）+ 块状光标 */
+.stage.is-terminal .lyr__main {
+  grid-column: 2;
+  grid-row: 1;
+}
+.stage.is-terminal .lyr.is-active .lyr__main {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  -webkit-line-clamp: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: left;
+}
+.stage.is-terminal .lyr.is-active .lyr__main::after {
+  content: '▍';
+  margin-left: 0.08em;
+  color: var(--t-hot);
+  animation: term-caret 1.05s steps(1, end) infinite;
+}
+@keyframes term-caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.stage.is-terminal .lyr__sub {
+  grid-column: 2;
+  grid-row: 2;
+  font-family: inherit;
+  font-size: 0.8em;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--t-pink);
+  opacity: 0.85;
+  margin-top: 0.15em;
+}
+.stage.is-terminal .lyr.is-active .lyr__sub {
+  opacity: 0.85;
+}
+
+/* 空态也换成等宽，别在纸中央留一块玻璃。 */
+.stage.is-terminal .stage__nolyrics {
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  color: var(--t-dim);
+}
+.stage.is-terminal .stage__cover {
+  border-radius: 4px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+}
+.stage.is-terminal .stage__nolyrics-title {
+  color: var(--t-paper);
+  font-family: inherit;
+}
+.stage.is-terminal .stage__nolyrics-action {
+  border-radius: 3px;
+  border: 1px solid rgb(242 232 220 / 0.26);
+  background: transparent;
+  color: var(--t-paper);
+  font-family: inherit;
+}
+
+/* 底栏：方角、1px 边、橙色进度。播放键反过来用实心纸。 */
+.stage.is-terminal .stage__ctrl {
+  border-radius: 3px;
+  border: 1px solid rgb(242 232 220 / 0.26);
+  background: transparent;
+  color: var(--t-paper);
+}
+.stage.is-terminal .stage__ctrl:hover:not(:disabled) {
+  border-color: rgb(242 232 220 / 0.58);
+  background: rgb(242 232 220 / 0.08);
+}
+.stage.is-terminal .stage__play {
+  border-radius: 4px;
+  background: var(--t-paper);
+  color: var(--t-ink);
+}
+.stage.is-terminal .stage__play:hover:not(:disabled) {
+  background: #fff8ef;
+  transform: none;
+}
+.stage.is-terminal .stage__time {
+  color: rgb(242 232 220 / 0.6);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.stage.is-terminal .stage__track {
+  height: 3px;
+  background: rgb(242 232 220 / 0.24);
+}
+.stage.is-terminal .stage__track::before {
+  background: transparent;
+}
+.stage.is-terminal .stage__track-fill {
+  background: var(--t-hot);
+}
+.stage.is-terminal .stage__vol input[type='range']::-webkit-slider-runnable-track {
+  background: rgb(242 232 220 / 0.24);
+}
+.stage.is-terminal .stage__vol input[type='range']::-webkit-slider-thumb {
+  background: var(--t-hot);
+}
+.stage.is-terminal .stage__mute {
+  color: var(--t-dim);
+}
+.stage.is-terminal .stage__back-live {
+  border-radius: 3px;
+  border: 1px solid rgb(242 232 220 / 0.26);
+  background: rgb(18 16 14 / 0.86);
+  color: var(--t-paper);
+  font-family: inherit;
+  font-size: 11.5px;
+}

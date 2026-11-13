@@ -20,15 +20,44 @@ import { useWallpaper } from '../features/wallpaper/store'
 const SPAN = 4
 const SLOTS = SPAN * 2 + 1
 
+/*
+ * 舞台的两种样子。
+ *
+ * paper 是原来那套跟着封面走的流光；terminal 借的是「暗纸 + 三色平涂 +
+ * 等宽字」那一路——纸不动，字在打，当前那句一个字一个字出来。
+ *
+ * 存一个 key、一个布尔就够，不做订阅系统：切换只发生在舞台右上角，用完即走。
+ */
+type StageStyle = 'paper' | 'terminal'
+const STYLE_KEY = 'aurora.stage.style'
+
+function readStageStyle(): StageStyle {
+  try {
+    return localStorage.getItem(STYLE_KEY) === 'terminal' ? 'terminal' : 'paper'
+  } catch {
+    return 'paper'
+  }
+}
+
+function saveStageStyle(next: StageStyle): void {
+  try {
+    localStorage.setItem(STYLE_KEY, next)
+  } catch {
+    /* 存不下就当这一次的选择生效，下次回默认，不影响画面 */
+  }
+}
+
 interface LyricColumnProps {
   lyrics: Lyrics
   /** 手动钉住的行号；null = 跟着正在唱的那句走。 */
   pinned: number | null
   onPin(next: number | null): void
   onSeek(seconds: number): void
+  /** 终端样式：当前这一句按字符一个一个出来，而不是整行出现。 */
+  typing: boolean
 }
 
-function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
+function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps) {
   const active = usePlayer((state) => activeLineAt(lyrics.lines, state.position))
   const live = active < 0 ? 0 : active
   const last = Math.max(0, lyrics.lines.length - 1)
@@ -51,6 +80,10 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
    */
   const paintedRef = useRef(-1)
   const classRef = useRef<string[]>([])
+
+  const typingRef = useRef(typing)
+  typingRef.current = typing
+  const typedRef = useRef(-1)
 
   const liveRef = useRef(live)
   const lastRef = useRef(last)
@@ -101,6 +134,24 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
     return () => window.removeEventListener('resize', read)
   }, [])
 
+  /*
+   * 槽高会变：窗口缩放、切样式（终端那套把行距压掉四成）都会换一套值。
+   *
+   * 不用「切换后重量一次」——useEffect 读到的是切换前的布局，量出来的
+   * 永远是上一档的槽高，于是终端下整列偏上、切回流光又偏下。
+   * ResizeObserver 在布局之后回调，量到的就是当前这一档。
+   */
+  useEffect(() => {
+    const node = trackRef.current?.firstElementChild as HTMLElement | null
+    if (!node) return
+    const observer = new ResizeObserver(() => {
+      const height = node.offsetHeight
+      if (height > 0) hRef.current = height
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
   /* 把「以 centre 为中行」的九行写进固定槽位。只动 textContent 与 class。 */
   function paint(centre: number): void {
     const lines = linesRef.current
@@ -114,6 +165,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
       const line = lines[index]
       if (!line) {
         button.dataset.index = ''
+        button.dataset.no = ''
         button.classList.add('lyr__text--empty')
         main.textContent = ''
         sub.textContent = ''
@@ -123,8 +175,11 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
       }
       const parts = splitLyricLine(line.text || '·')
       button.dataset.index = String(index)
+      /* 终端样式的行号：两位、补齐，空行留空。 */
+      button.dataset.no = String(index + 1).padStart(2, '0')
       button.classList.remove('lyr__text--empty')
       main.textContent = parts.main
+      main.dataset.shown = ''
       sub.textContent = parts.sub || ''
       sub.style.display = parts.sub ? '' : 'none'
       button.title = '跳到 ' + formatTime(line.time)
@@ -140,6 +195,11 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
   function paintState(centre: number): void {
     const activeNow = activeRef.current
     const lines = linesRef.current
+    if (typedRef.current !== activeNow) {
+      typedRef.current = activeNow
+      /* 上一行被截断过，换行后要恢复整句；下一帧重画全部槽位最省事。 */
+      paintedRef.current = -1
+    }
     for (let i = 0; i < SLOTS; i += 1) {
       const node = slotRefs.current[i]
       if (!node) continue
@@ -151,6 +211,37 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
       classRef.current[i] = next
       node.className = next
     }
+  }
+
+  /*
+   * 当前这一句逐字出现。
+   *
+   * 只处理「正在唱」的槽：其它槽由 paint() 写整句。写入前比对字符数，没变就
+   * 不碰 DOM——一行最多几十次写入，而帧有六十帧。
+   *
+   * 速度不按字算，按这一句到下一句的间隔分摊：间隔短就快点打完（半秒），
+   * 长句最多一秒六，免得慢歌看着像卡住。
+   */
+  function typeActive(centre: number): void {
+    if (!typingRef.current) return
+    const active = activeRef.current
+    const lines = linesRef.current
+    const line = lines[active]
+    if (active < 0 || !line) return
+    const at = active - centre + SPAN
+    if (at < 0 || at >= SLOTS) return
+    const button = slotRefs.current[at]?.firstElementChild as HTMLButtonElement | null
+    if (!button) return
+    const main = button.children[0] as HTMLElement
+    const parts = splitLyricLine(line.text || '·')
+    const next = lines[active + 1]
+    const span = Math.min(1.6, Math.max(0.45, (next ? next.time : line.time + 2.4) - line.time))
+    const position = usePlayer.getState().position
+    const done = Math.max(0, Math.min(1, (position - line.time) / span))
+    const shown = String(Math.ceil(parts.main.length * done))
+    if (main.dataset.shown === shown) return
+    main.dataset.shown = shown
+    main.textContent = parts.main.slice(0, Number(shown)) || '\u00A0'
   }
 
   /*
@@ -191,7 +282,13 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
       const track = trackRef.current
       if (track) {
         const shift = (centred - pos) * height
-        const half = track.parentElement ? track.parentElement.clientHeight / 2 : 0
+        /*
+         * 用「窗口中心」而不是「容器中心」：顶栏比底栏高，中间那一行的中心
+         * 天生比屏幕中心低十几像素，歌词看着就会往下坠一点。
+         */
+        const half = track.parentElement
+          ? window.innerHeight / 2 - track.parentElement.getBoundingClientRect().top
+          : 0
         track.style.transform =
           'translate3d(0,' + (half - (SPAN + 0.5) * height + shift).toFixed(2) + 'px,0)'
       }
@@ -207,6 +304,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek }: LyricColumnProps) {
         node.style.setProperty('--far', (coarse / 40).toFixed(3))
       }
       paintState(centred)
+      typeActive(centred)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -395,6 +493,18 @@ export function LyricsStage({
    */
   const [pinned, setPinned] = useState<number | null>(null)
 
+  /*
+   * 样式存在组件里，切换只改根节点类名。
+   *
+   * 不把整个舞台重挂：歌词列的位置、拖动中的惯性、已绘好的槽位都在 DOM 上，
+   * 一重挂就全回零，切样式那一下会看见歌词跳一下。
+   */
+  const [stageStyle, setStageStyle] = useState<StageStyle>(readStageStyle)
+  const pickStageStyle = (next: StageStyle): void => {
+    setStageStyle(next)
+    saveStageStyle(next)
+  }
+
   // 换歌词就交还给歌曲，免得上一首钉住的行号落到这一首身上。
   useEffect(() => {
     setPinned(null)
@@ -443,6 +553,7 @@ export function LyricsStage({
       className={[
         'stage',
         wallpaper ? 'stage--wallpaper' : '',
+        stageStyle === 'terminal' ? 'is-terminal' : '',
         closing ? 'is-closing' : ''
       ]
         .filter(Boolean)
@@ -496,6 +607,25 @@ export function LyricsStage({
           )}
         </div>
 
+        {/* 两档并排，不用下拉：舞台是全屏的，下拉菜单一开就盖住歌词。 */}
+        <div className="stage__styles" role="group" aria-label="舞台样式">
+          <button
+            className={'stage__style' + (stageStyle === 'paper' ? ' is-on' : '')}
+            onClick={() => pickStageStyle('paper')}
+            aria-pressed={stageStyle === 'paper'}
+            title="跟着封面走的流光"
+          >
+            流光
+          </button>
+          <button
+            className={'stage__style' + (stageStyle === 'terminal' ? ' is-on' : '')}
+            onClick={() => pickStageStyle('terminal')}
+            aria-pressed={stageStyle === 'terminal'}
+            title="暗纸、等宽字，当前一句一个字一个字出来"
+          >
+            终端
+          </button>
+        </div>
       </header>
 
       {lyrics.empty ? (
@@ -524,7 +654,13 @@ export function LyricsStage({
           </div>
         </div>
       ) : (
-        <LyricColumn lyrics={lyrics} pinned={pinned} onPin={setPinned} onSeek={onSeek} />
+        <LyricColumn
+          lyrics={lyrics}
+          pinned={pinned}
+          onPin={setPinned}
+          onSeek={onSeek}
+          typing={stageStyle === 'terminal'}
+        />
       )}
 
       <footer className="stage__bottom">
