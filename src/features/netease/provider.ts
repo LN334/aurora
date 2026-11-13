@@ -119,6 +119,7 @@ const neteaseBackend: PlatformBackend = {
 
   myPlaylists: () => netease.myPlaylists() as Promise<OnlinePlaylistSummary[]>,
   playlistTracks: (id) => netease.playlistTracks(id),
+  playlistCreator: (id) => netease.playlistCreator(id),
   artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
 
   async albumSongs(id) {

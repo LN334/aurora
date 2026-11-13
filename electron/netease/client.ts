@@ -1008,6 +1008,18 @@ export async function neteasePlaylistTracks(id: number): Promise<NeteaseSong[]> 
   return toSongs(asRecord(res.body).songs)
 }
 
+/**
+ * 一张歌单是谁建的。
+ *
+ * 首页推荐位上的卡片来自公开推荐接口，那一路只给名字和封面、不带创建者；详情页
+ * 于是只能显示「—」。打开这种卡片时补问一次歌单详情，就是为这一个字段。
+ */
+export async function neteasePlaylistCreator(id: number): Promise<string> {
+  if (!isUsableId(id)) return ''
+  const res = await call('playlist_detail', { id })
+  return asString(asRecord(asRecord(asRecord(res.body).playlist).creator).nickname)
+}
+
 export async function neteaseDailySongs(): Promise<NeteaseSong[]> {
   await bootstrapOnce()
   if (!(await safeAccount())) return []

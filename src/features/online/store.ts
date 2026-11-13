@@ -26,6 +26,7 @@ import {
   type OnlineSearchKind,
   type OnlineSong,
   type OnlineStream,
+  type PlaylistOwnership,
   type ProviderId,
   type QualityTier
 } from './types'
@@ -101,6 +102,13 @@ export interface PlatformBackend {
 
   myPlaylists?(): Promise<OnlinePlaylistSummary[]>
   playlistTracks?(id: number): Promise<OnlineSong[]>
+  /**
+   * 一张歌单是谁建的。
+   *
+   * 推荐位上的卡片来自平台的公开推荐接口，那一路不带创建者；详情页缺名字时用这个
+   * 补问一次。不实现的平台就让它继续显示「—」，不要编。
+   */
+  playlistCreator?(id: number): Promise<string>
   albumSongs?(id: number): Promise<OnlineSong[]>
   artistTopSongs?(id: number, limit: number): Promise<OnlineSong[]>
   /** One generated collection (daily / likes / cloud), for a platform that has them. */
@@ -222,6 +230,11 @@ export interface PlaylistFace {
   name: string
   coverUrl: string | null
   creator: string
+  /**
+   * 这张单子是谁的。推荐位上的卡片是 `'unknown'`——平台推给你的，不是你建的，
+   * 详情页据此不摆改名 / 删除。列表接口自己给了归属的，也一并记下来。
+   */
+  ownership?: PlaylistOwnership
 }
 
 /** Fetched collections are cached: both upstreams rate-limit and change slowly. */
@@ -639,6 +652,27 @@ function createOnlineStore(providerId: ProviderId) {
         const summary = get().playlists.find((item) => item.id === id)
         const name = face?.name ?? summary?.name ?? null
         const cover = face?.coverUrl ?? summary?.coverUrl ?? null
+        /*
+         * 推荐位上的卡片不带创建者，详情页那一行就只能显示「—」。缺的时候补问一次
+         * 歌单详情，把名字记回这张脸；已经有名字的不再问。
+         */
+        if (platform.playlistCreator && !(face?.creator || summary?.creator)) {
+          void platform
+            .playlistCreator(id)
+            .then((creator) => {
+              if (!creator) return
+              const current = get().knownPlaylists[id]
+              if (current?.creator) return
+              get().rememberPlaylist({
+                id,
+                name: current?.name ?? name ?? '',
+                coverUrl: current?.coverUrl ?? cover,
+                creator,
+                ownership: current?.ownership
+              })
+            })
+            .catch(() => {})
+        }
         await openInto('playlists', id, name, cover, () => platform.playlistTracks!(id))
       },
 

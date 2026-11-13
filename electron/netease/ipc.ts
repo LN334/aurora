@@ -315,6 +315,12 @@ export function registerNeteaseIpc(): void {
     return guard<NeteaseSong[]>('playlistTracks', [], () => client.neteasePlaylistTracks(id))
   })
 
+  ipcMain.handle('netease:playlistCreator', (_event, value: unknown) => {
+    const id = asId(value)
+    if (id === null) return ''
+    return guard<string>('playlistCreator', '', () => client.neteasePlaylistCreator(id))
+  })
+
   ipcMain.handle('netease:dailySongs', () =>
     guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())
   )

@@ -1,8 +1,8 @@
-import type { Track } from '../../types'
-import { getProvider } from './registry'
-import type { PlatformBackend } from './store'
-import type { ProviderPlaylistWriteApi, ProviderId } from './types'
-import { showFlash } from '../../ui/flash'
+import type { Track } from '../../types.ts'
+import { getProvider } from './registry.ts'
+import type { PlatformBackend } from './store.ts'
+import type { ProviderPlaylistWriteApi, ProviderId } from './types.ts'
+import { showFlash } from '../../ui/flash.ts'
 
 /**
  * 平台歌单的写入，界面这一侧只认这四件事：改名、删单、加歌、移出歌。
@@ -34,6 +34,12 @@ export function canWritePlaylist(
   const row = summary as { subscribed?: boolean; ownership?: string }
   // 收藏来的、以及平台明确说是别人的，都只让读。
   if (row.ownership === 'collected') return false
+  /*
+   * `'unknown'` 是推荐位上的卡片：平台推给你的单子，不是你建的。这里以前漏判，
+   * 于是从首页推荐点进一张别人的歌单，详情页照样摆着「改名 / 删除」——点了上游
+   * 只会拒绝，看起来像按钮坏了。没把握是谁的，就不摆。
+   */
+  if (row.ownership === 'unknown') return false
   return row.subscribed !== true
 }
 

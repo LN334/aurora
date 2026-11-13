@@ -1,7 +1,7 @@
 import type { ShellRoute } from '../../app/shell'
 import { getProvider } from '../online/registry'
 import { useOnlineStore, type PlaylistFace } from '../online/store'
-import type { ProviderId } from '../online/types'
+import type { PlaylistOwnership, ProviderId } from '../online/types'
 
 /**
  * 「去这个专辑 / 艺人 / 歌单的页面」——从歌曲行里那两个名字点出去。
@@ -68,7 +68,10 @@ export function refOfTrack(track: { source?: string; albumId?: number; artistId?
  */
 export function openOnlinePlaylist(
   providerId: string,
-  playlist: Pick<PlaylistFace, 'id' | 'name' | 'coverUrl'> & { creator?: string },
+  playlist: Pick<PlaylistFace, 'id' | 'name' | 'coverUrl'> & {
+    creator?: string
+    ownership?: PlaylistOwnership
+  },
   origin?: HTMLElement | null
 ): void {
   useOnlineStore(providerId)
@@ -77,7 +80,8 @@ export function openOnlinePlaylist(
       id: playlist.id,
       name: playlist.name,
       coverUrl: playlist.coverUrl,
-      creator: playlist.creator ?? ''
+      creator: playlist.creator ?? '',
+      ownership: playlist.ownership
     })
   // 给点击来源的封面命名；详情页的封面使用同名锚点，浏览器会插值两者的位置和尺寸。
   origin

@@ -643,6 +643,8 @@ export interface NeteaseApi {
     { id: number; name: string; coverUrl: string | null; artistName: string; artistId: number; year: number; songCount: number }[]
   >
   playlistTracks(id: number): Promise<NeteaseSong[]>
+  /** 歌单创建者；推荐位卡片不带这个字段，详情页缺名字时补问一次。 */
+  playlistCreator(id: number): Promise<string>
   dailySongs(): Promise<NeteaseSong[]>
   /** 私人漫游：一次几首没听过的，播到队尾再要下一批。 */
   personalFm(limit?: number): Promise<NeteaseSong[]>

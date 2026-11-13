@@ -314,6 +314,7 @@ const webFallback: AuroraApi = {
     artistSublist: async () => [],
     topAlbums: async () => [],
     playlistTracks: async () => [],
+    playlistCreator: async () => '',
     dailySongs: async () => [],
     personalFm: async () => [],
     cloudSongs: async () => [],

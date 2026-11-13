@@ -386,6 +386,7 @@ const api = {
     topAlbums: (limit?: number, offset?: number) =>
       ipcRenderer.invoke('netease:topAlbums', limit, offset),
     playlistTracks: (id: number) => ipcRenderer.invoke('netease:playlistTracks', id),
+  playlistCreator: (id: number) => ipcRenderer.invoke('netease:playlistCreator', id),
     dailySongs: () => ipcRenderer.invoke('netease:dailySongs'),
   personalFm: (limit?: number) => ipcRenderer.invoke('netease:personalFm', limit),
     cloudSongs: () => ipcRenderer.invoke('netease:cloudSongs'),
