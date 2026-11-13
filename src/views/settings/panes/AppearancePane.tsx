@@ -57,6 +57,12 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
     wallpaperEntry ? state.values[wallpaperEntry.id] : undefined
   )
 
+  /*
+   * 桌面此刻那张。固定了别的壁纸时也要算出来：「跟随当前壁纸」那格画的是
+   * 「跟随会跟到哪一张」，不是「现在画的是哪一张」。
+   */
+  const followedWallpaper = wallpaperList.find((entry) => entry.current) ?? null
+
   // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
   const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
   const accentFromArt = useAccentFromArt()
@@ -445,6 +451,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
               <WallpaperGrid
                 list={wallpaperList}
                 selection={wallpaperSelection}
+                followPreview={followedWallpaper?.previewUrl ?? null}
                 onSelect={setWallpaperSelection}
               />
             </div>

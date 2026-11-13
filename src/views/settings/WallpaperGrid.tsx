@@ -23,10 +23,17 @@ interface WallpaperGridProps {
   list: WallpaperEntry[]
   /** A project id, or `FOLLOW_SELECTION`. */
   selection: string
+  /**
+   * 桌面此刻那张壁纸的预览图（Wallpaper Engine 报上来的）。
+   *
+   * 「跟随当前壁纸」原先只摆一个 ⟳，用户看不出「当前」到底是哪一张——尤其 WE
+   * 自己在轮播时。有图就画图，没图（没装 WE / 那张没有缩略图）才退回那个符号。
+   */
+  followPreview?: string | null
   onSelect: (id: string) => void
 }
 
-export function WallpaperGrid({ list, selection, onSelect }: WallpaperGridProps) {
+export function WallpaperGrid({ list, selection, followPreview, onSelect }: WallpaperGridProps) {
   return (
     <div className="wp-grid" role="list" aria-label="壁纸库">
       {/*
@@ -41,7 +48,11 @@ export function WallpaperGrid({ list, selection, onSelect }: WallpaperGridProps)
         onClick={() => onSelect(FOLLOW_SELECTION)}
       >
         <span className="wp-card__art wp-card__art--follow">
-          <Refresh size={18} />
+          {followPreview ? (
+            <img src={followPreview} alt="" loading="lazy" decoding="async" />
+          ) : (
+            <Refresh size={18} />
+          )}
         </span>
         <span className="wp-card__title">跟随当前壁纸</span>
       </button>
