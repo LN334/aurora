@@ -186,9 +186,19 @@ const trayHandlers = (): TrayHandlers => ({
  * already behind something else, so both actions get a global shortcut.
  */
 function registerGlobalShortcuts(): void {
+  /*
+   * 播放控制与音量也走全局：用户在游戏里、在浏览器里，手不该为了切一首歌回到
+   * 这个窗口。都挂 Control+Alt 前缀，和歌词那两颗同一族——单独一个键在别的程序
+   * 里几乎必然被占。
+   */
   const bindings: [string, () => void][] = [
     ['Control+Alt+L', () => toggleOverlay()],
-    ['Control+Alt+K', () => setOverlayLocked(!isOverlayLocked())]
+    ['Control+Alt+K', () => setOverlayLocked(!isOverlayLocked())],
+    ['Control+Alt+Space', () => sendMediaCommand('toggle')],
+    ['Control+Alt+Right', () => sendMediaCommand('next')],
+    ['Control+Alt+Left', () => sendMediaCommand('prev')],
+    ['Control+Alt+Up', () => sendMediaCommand('volume-up')],
+    ['Control+Alt+Down', () => sendMediaCommand('volume-down')]
   ]
 
   for (const [accelerator, handler] of bindings) {

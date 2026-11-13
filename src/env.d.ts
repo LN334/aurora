@@ -275,7 +275,7 @@ interface MaintenanceApi {
   clean(ids: JunkId[]): Promise<JunkScan>
 }
 
-export type MediaCommand = 'toggle' | 'next' | 'prev'
+export type MediaCommand = 'toggle' | 'next' | 'prev' | 'volume-up' | 'volume-down'
 
  interface PlayerApi {
   reportState(state: { playing: boolean }): Promise<boolean>

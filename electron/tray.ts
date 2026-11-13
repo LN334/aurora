@@ -19,7 +19,7 @@ import { customTrayImage } from './app-icon'
  * build/ would produce a packaged app with a blank tray slot.
  */
 
-export type MediaCommand = 'toggle' | 'next' | 'prev'
+export type MediaCommand = 'toggle' | 'next' | 'prev' | 'volume-up' | 'volume-down'
 
 export interface TrayHandlers {
   toggleWindow(): void

@@ -46,6 +46,7 @@ import { groupAlbums, useLibrary } from './features/library/store'
 import { artworkFor } from './features/library/source'
 import { player } from './features/player/actions'
 import { modeOf } from './features/player/mode'
+import { wheelVolume } from './features/player/volume'
 import { driver } from './features/player/driver'
 import { loadProfilePlayerPrefs, usePlayer } from './features/player/store'
 import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
@@ -382,8 +383,13 @@ export function App() {  if (!isNative) {
 
   const roamNow = useCallback((seed?: Track) => {
     const from = hereRef.current
-    void startRoam(seed).then((ok) => {
-      if (!ok) {
+    void startRoam(seed).then((result) => {
+      /*
+       * 被打断：等歌的这几秒里用户自己点开了别的歌。这时候什么都不说、也不跳页——
+       * 他要的那首歌已经在放了，再弹一句「这一趟没要到歌」等于把责任推给他。
+       */
+      if (result === 'cancelled') return
+      if (result === 'failed') {
         // 点了没反应比报错更糟：要不到时把原因说出来。
         // 缺登录不走这条路，它由对话框接管（见下面的 needSignIn）。
         if (useRoam.getState().needSignIn) return
@@ -626,13 +632,25 @@ export function App() {  if (!isNative) {
     void bridge.player.reportState({ playing })
   }, [playing])
 
-  /** Transport commands from the tray menu and the thumbnail toolbar. */
+  /**
+   * Transport commands from the tray menu, the thumbnail toolbar, and the
+   * global shortcuts in the main process.
+   *
+   * 音量那两条读的是 store 的即时快照而不是这次渲染的 `volume`：全局键不会
+   * 让页面重渲染，闭包里的值可能是半分钟前的。
+   */
   useEffect(() => {
     if (!isNative) return
     return bridge.player.onCommand((command) => {
       if (command === 'toggle') player.toggle()
       else if (command === 'next') player.next()
-      else player.prev()
+      else if (command === 'prev') player.prev()
+      else {
+        const now = usePlayer.getState()
+        const base = now.muted ? 0 : now.volume
+        if (now.muted) player.toggleMute()
+        player.setVolume(wheelVolume(base, command === 'volume-up' ? 1 : -1))
+      }
     })
   }, [])
 

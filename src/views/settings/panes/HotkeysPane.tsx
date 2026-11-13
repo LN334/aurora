@@ -37,6 +37,18 @@ const GROUPS: KeyGroup[] = [
     ]
   },
   {
+    title: '窗口不在前台也能用',
+    lines: [
+      { keys: ['Ctrl', 'Alt', 'Space'], what: '播放 / 暂停（在任何程序里）' },
+      { keys: ['Ctrl', 'Alt', '→'], what: '下一首' },
+      { keys: ['Ctrl', 'Alt', '←'], what: '上一首' },
+      { keys: ['Ctrl', 'Alt', '↑'], what: '音量加 5%' },
+      { keys: ['Ctrl', 'Alt', '↓'], what: '音量减 5%' },
+      { keys: ['Ctrl', 'Alt', 'L'], what: '显示 / 收起桌面歌词' },
+      { keys: ['Ctrl', 'Alt', 'K'], what: '锁定 / 解锁桌面歌词（锁定后鼠标穿透）' }
+    ]
+  },
+  {
     title: '面板',
     lines: [
       { keys: ['L'], what: '打开 / 收起播放页（沉浸歌词）' },
