@@ -283,7 +283,15 @@
   font-size: var(--fs-meta);
   line-height: 1.55;
   color: var(--text-low);
-  max-width: 46ch;
+  /*
+   * 说明文字一条一行读完。
+   *
+   * 之前限在 42–56ch：中文字宽约一个 em（两个 ch），一行只放得下二十来个字，
+   * 三十来字的说明被切成两行，末行常常只剩「套。」这种两个字，看着像断句错。
+   * 行卡里 label 那一侧本来就有五百多像素，放得下就让它放。
+   */
+  max-width: min(72ch, 100%);
+  text-wrap: pretty;
 }
 
 .settings__control {
@@ -665,9 +673,6 @@
 }
 
 @media (min-width: 1080px) {
-  .settings__hint {
-    max-width: 42ch;
-  }
 }
 
 
@@ -776,11 +781,6 @@
 
 
 /* 宽窗口不再给正文限宽：分区带占顶部一条，下面这一段的卡片吃满主区。 */
-@media (min-width: 1080px) {
-  .settings__hint {
-    max-width: 56ch;
-  }
-}
 
 /* ==========================================================================
    正文宽度
