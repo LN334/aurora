@@ -1533,7 +1533,7 @@
 
 .np__like,
 .np__mode,
-.np__vol,
+.np__mute,
 .np__step {
   width: 36px;
   height: 36px;
@@ -1546,7 +1546,7 @@
 }
 .np__like:hover,
 .np__mode:hover,
-.np__vol:hover,
+.np__mute:hover,
 .np__step:hover {
   background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
@@ -1570,6 +1570,22 @@
 }
 .np__play:hover {
   transform: scale(1.04);
+}
+
+/* 音量：静音键 + 一条滑条，和底栏那套同尺寸手感。 */
+.np__vol {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
+.np__vol-bar {
+  width: 84px;
+  height: 18px;
+}
+.np__vol-bar .bar__knob {
+  width: 9px;
+  height: 9px;
 }
 
 /* —— 歌词 —— */
@@ -1865,7 +1881,8 @@
   width: min(100%, 400px);
 }
 .np__right {
-  max-height: min(560px, 100%);
+  /* 歌词窗口按整栏高度走：一屏只有封面和歌词两样，别在下面留一条空带。 */
+  max-height: 100%;
 }
 .np__grid {
   gap: 56px;
@@ -1873,6 +1890,16 @@
 }
 .np__foot {
   margin-top: auto;
+}
+
+/*
+ * 沉浸页没有底栏（.is-nowplaying > .player 是 display:none），但主区仍旧留着
+ * 一条「给浮起播放条让位」的 118px 内边距 —— 在别的页它是必需的，在这一页
+ * 就是纯空白。收掉，让封面与歌词真正铺到窗口底。
+ */
+:root .shell.has-wallpaper.is-nowplaying > .main,
+.shell.is-nowplaying > .main {
+  padding-bottom: 0;
 }
 
 @media (max-width: 1280px) {

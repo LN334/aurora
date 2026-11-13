@@ -9,7 +9,8 @@ import { activeLineAt } from '../features/lyrics/lrc'
 import { splitLyricLine } from '../features/lyrics/line-parts'
 import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
-import { useProgressPosition } from '../features/player/Bar'
+import { Bar, useProgressPosition } from '../features/player/Bar'
+import { wheelVolume } from '../features/player/volume'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
@@ -386,9 +387,38 @@ export function NowPlayingPage({
             <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
               <Next size={20} />
             </button>
-            <button type="button" className="np__vol" onClick={() => player.toggleMute()} title={muted ? '取消静音' : '静音'}>
-              {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
-            </button>
+            {/*
+             * 音量：一颗静音键 + 一条滑条。
+             *
+             * 底栏那条 96px 的滑条能细调，可这一页把底栏收走了——页面上只剩一颗
+             * 静音键，想调小声只能退回首页。滑条留在这儿，滚轮、方向键、拖动都在。
+             */}
+            <div className="np__vol">
+              <button
+                type="button"
+                className="np__mute"
+                onClick={() => player.toggleMute()}
+                title={muted ? '取消静音' : '静音'}
+                aria-label={muted ? '取消静音' : '静音'}
+              >
+                {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
+              </button>
+              <Bar
+                className="np__vol-bar"
+                value={muted ? 0 : volume}
+                onChange={(next) => {
+                  // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
+                  if (muted) player.toggleMute()
+                  player.setVolume(next)
+                }}
+                ariaLabel="音量"
+                valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
+                onWheelDelta={(direction) => {
+                  if (muted) player.toggleMute()
+                  player.setVolume(wheelVolume(muted ? 0 : volume, direction))
+                }}
+              />
+            </div>
           </div>
         </div>
 
