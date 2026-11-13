@@ -11,6 +11,7 @@ import { registerNeteaseIpc } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
+import { registerWarmUpIpc } from './warmup'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
 import {
@@ -804,6 +805,7 @@ if (!app.requestSingleInstanceLock()) {
      * 会话按档案存在 userData。同样只接线不预热。
      */
     registerQishuiIpc()
+    registerWarmUpIpc()
 
     const announceUpdate = (result: UpdateResult): void => {
       if (mainWindow && !mainWindow.isDestroyed()) {

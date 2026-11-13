@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { useRoamPlatforms } from '../player/roam-sources'
+import { roamPlatforms, useRoamPlatforms } from '../player/roam-sources'
+import { bridge } from '../../bridge'
 import { usePushSignedOnly } from '../settings/push-signed'
 import { listProviders } from './registry'
 import { useOnlineStore } from './store'
@@ -114,4 +115,21 @@ export function usePushPlatforms(): ProviderId[] | null {
     return chosen.filter((id) => allowed.has(id))
     // 数组每份快照都是新的，用 join 后的字符串与快照键当依赖。
   }, [chosenKey, sign.key, late, signedOnly])
+}
+
+/**
+ * 趁开场动画还盖着，把用户勾选的推流平台先问一遍。
+ *
+ * 只按勾选，不看登录：勾了就是「这家可以推给我」，没登录的那家也要把后端先拉
+ * 起来——酷狗要 spawn 本地服务、网易云要完成设备握手，这两件都要一两秒。等用户
+ * 点进漫游或搜索才做，这段等待就落到操作上了。
+ *
+ * 主进程侧只做与账号无关的前半段，全部单飞幂等：和首页取数撞上也只会跑一次，
+ * 重复调用命中已热的缓存。预热失败不在这里写任何状态——该报的错由 init 留在页面上。
+ */
+export function warmChosenPlatforms(): void {
+  const ids = roamPlatforms()
+  // 一家都没勾就是「不要推荐」，这时什么也不用拉。
+  if (ids.length === 0) return
+  void bridge.platforms.warmUp(ids).catch(() => {})
 }

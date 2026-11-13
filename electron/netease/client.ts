@@ -496,6 +496,16 @@ const clamp = (value: number, min: number, max: number): number =>
 
 // --- status --------------------------------------------------------------
 
+/**
+ * 只做设备握手，不碰账号。
+ *
+ * 开屏期提前跑：`bootstrapOnce` 要铸 deviceId、取密钥、换令牌，几百毫秒到一秒多；
+ * 等用户点开漫游才做，这段时间就落在操作上了。单例，重复调用直接命中缓存。
+ */
+export async function neteaseWarmUp(): Promise<void> {
+  await bootstrapOnce()
+}
+
 export async function neteaseStatus(): Promise<NeteaseStatusResult> {
   const state = await bootstrapOnce()
   if (!state.ready) return { ready: false, loggedIn: false, detail: state.detail }

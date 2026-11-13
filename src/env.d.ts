@@ -24,6 +24,11 @@ export interface LibraryIndex {
   tracks: Track[]
 }
 
+/** 开屏期的平台预热：只做与账号无关的冷启动，重复调用安全。 */
+interface PlatformsApi {
+  warmUp(ids: string[]): Promise<{ warmed: number; total: number }>
+}
+
  interface LibraryApi {
   /**
    * Point the library at a profile.
@@ -1308,6 +1313,7 @@ export interface AuroraApi {
     platform: string
     userData: string
   }>
+  platforms: PlatformsApi
   library: LibraryApi
   playlists: PlaylistsApi
   app: AppApi

@@ -35,6 +35,17 @@ const api = {
    * runs with `backgroundThrottling: false`, so nothing else will throttle the
    * page for us.
    */
+  /**
+   * 开屏期的平台预热。
+   *
+   * 只管与账号无关的冷启动（酷狗拉本地服务、网易云做设备握手）：登录态仍由各
+   * 平台自己的接口去问。这些初始化都是单飞幂等的，重复调用命中已热的缓存。
+   */
+  platforms: {
+    warmUp: (ids: string[]) =>
+      ipcRenderer.invoke('platforms:warmUp', ids) as Promise<{ warmed: number; total: number }>
+  },
+
   app: {
     /** 关于页的仓库与反馈按钮；主进程只放行 GitHub 链接。 */
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url) as Promise<boolean>,

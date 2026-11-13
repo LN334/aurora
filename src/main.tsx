@@ -23,6 +23,7 @@ import './features/player/netease'
  */
 import './features/online/register'
 import { bridge } from './bridge'
+import { warmChosenPlatforms } from './features/online/push-platforms'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
@@ -59,6 +60,14 @@ setActiveStorageProfile(useAccounts.getState().activeId)
  */
 const openingProfile = useAccounts.getState().activeId
 if (openingProfile) void bridge.library.useProfile(openingProfile)
+/*
+ * 开屏期间把用户勾选的推流平台先热起来。
+ *
+ * 发在 render 之前，和首屏绘制并行：酷狗要 spawn 本地服务、网易云要完成设备
+ * 握手，等首页挂载后再踢就晚了一步。主进程只做与账号无关的冷启动，登录态和
+ * 歌单仍由组件里的 init 去问，这里只把「等后端起来」那段挪进开屏里。
+ */
+warmChosenPlatforms()
 
 const container = document.getElementById('root')
 if (!container) throw new Error('Root container #root is missing from index.html')
