@@ -1572,20 +1572,67 @@
   transform: scale(1.04);
 }
 
-/* 音量：静音键 + 一条滑条，和底栏那套同尺寸手感。 */
+/*
+ * 音量：常驻只有一颗静音键，鼠标移上来时从按键上方浮出一小片，里面是数值和
+ * 一条竖滑条——和网易云那个一样，竖着不占横向的排。
+ *
+ * 这一行已经排了六个控件（喜欢/模式/上一首/播放/下一首/静音），再常驻一条
+ * 84px 的滑条就把左列挤满、整行看着松散。浮层平时不占位，要调的时候鼠标
+ * 往上一探就到，滚轮和方向键也还挂在滑条上。
+ *
+ * 浮层与按键之间留了 6px 空隙，中间那块由 .np__vol::before 当桥：没有它，
+ * 鼠标从按键往条上移的那一瞬间就离开 hover，浮层会先消失再出现，闪一下。
+ */
 .np__vol {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-left: 2px;
+}
+.np__vol::before {
+  content: '';
+  position: absolute;
+  right: -14px;
+  bottom: 100%;
+  width: 58px;
+  height: 24px;
+}
+.np__vol-pop {
+  position: absolute;
+  right: -8px;
+  bottom: calc(100% + 6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  border-radius: 14px;
+  background: rgb(10 13 18 / 0.62);
+  box-shadow:
+    0 18px 40px -18px rgb(0 0 0 / 0.72),
+    inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(16px) saturate(120%);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+.np__vol:hover .np__vol-pop,
+.np__vol:focus-within .np__vol-pop {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.np__vol-val {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mid);
+  line-height: 1;
 }
 .np__vol-bar {
-  width: 84px;
-  height: 18px;
-}
-.np__vol-bar .bar__knob {
-  width: 9px;
-  height: 9px;
+  width: 20px;
+  height: 58px;
 }
 
 /* —— 歌词 —— */

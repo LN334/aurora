@@ -188,6 +188,32 @@
   outline-offset: 2px;
   border-radius: 999px;
 }
+/*
+ * 竖向：音量用。宽一条按键、高一小段，0 在底部。
+ *
+ * 轨道反着量：横向是 width，竖向改成 height；滑块用 bottom 定位，再用
+ * translate 把自己摆回轨道末端——只改 top/left 会让滑块跑到轨道外面半格。
+ */
+.bar.is-vertical {
+  flex: none;
+  width: 20px;
+  height: 68px;
+  padding: 5px 0;
+  align-items: stretch;
+}
+.bar.is-vertical .bar__track {
+  width: 3px;
+  height: 100%;
+  margin: 0 auto;
+}
+.bar.is-vertical .bar__fill {
+  inset: auto 0 0 0;
+}
+.bar.is-vertical .bar__knob {
+  top: auto;
+  left: 50%;
+  translate: -50% 50%;
+}
 
 /* --- 中：怎么放 ----------------------------------------------------------- */
 

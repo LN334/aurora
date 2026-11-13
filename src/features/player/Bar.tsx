@@ -55,6 +55,13 @@ interface BarProps {
   valueText?: string
   /** 鼠标滚轮：+1 表示调大（向上滚），-1 表示调小。传了才接管滚轮。 */
   onWheelDelta?: (direction: number) => void
+  /**
+   * 竖向：音量用。0 在底部，拖动按 clientY 反算。
+   *
+   * 播放页那颗音量键悬停时浮出来的是一条竖条——横向滑条在那儿会顶到歌名，
+   * 竖向只占一个按键的宽。
+   */
+  vertical?: boolean
 }
 
 /**
@@ -69,7 +76,8 @@ export function Bar({
   disabled,
   className,
   valueText,
-  onWheelDelta
+  onWheelDelta,
+  vertical = false
 }: BarProps) {
   const trackRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -94,21 +102,27 @@ export function Bar({
   const pct = Math.min(1, Math.max(0, value)) * 100
 
   const seekTo = useCallback(
-    (clientX: number) => {
+    (clientX: number, clientY: number) => {
       const el = trackRef.current
       if (!el) return
       const rect = el.getBoundingClientRect()
+      if (vertical) {
+        if (rect.height <= 0) return
+        // 竖条上端是满，下端是零。
+        onChange(Math.min(1, Math.max(0, 1 - (clientY - rect.top) / rect.height)))
+        return
+      }
       if (rect.width <= 0) return
       onChange(Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)))
     },
-    [onChange]
+    [onChange, vertical]
   )
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (disabled) return
       event.currentTarget.setPointerCapture(event.pointerId)
-      seekTo(event.clientX)
+      seekTo(event.clientX, event.clientY)
     },
     [disabled, seekTo]
   )
@@ -117,7 +131,7 @@ export function Bar({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (disabled) return
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-      seekTo(event.clientX)
+      seekTo(event.clientX, event.clientY)
     },
     [disabled, seekTo]
   )
@@ -146,7 +160,7 @@ export function Bar({
   return (
     <div
       ref={rootRef}
-      className={className ? `bar ${className}` : 'bar'}
+      className={['bar', vertical ? 'is-vertical' : '', className ?? ''].filter(Boolean).join(' ')}
       role="slider"
       title={valueText}
       aria-valuetext={valueText}
@@ -161,8 +175,8 @@ export function Bar({
       onKeyDown={onKeyDown}
     >
       <div className="bar__track" ref={trackRef}>
-        <div className="bar__fill" style={{ width: `${pct}%` }} />
-        <div className="bar__knob" style={{ left: `${pct}%` }} />
+        <div className="bar__fill" style={vertical ? { height: `${pct}%` } : { width: `${pct}%` }} />
+        <div className="bar__knob" style={vertical ? { bottom: `${pct}%` } : { left: `${pct}%` }} />
       </div>
     </div>
   )

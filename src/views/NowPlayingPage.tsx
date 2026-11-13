@@ -388,10 +388,11 @@ export function NowPlayingPage({
               <Next size={20} />
             </button>
             {/*
-             * 音量：一颗静音键 + 一条滑条。
+             * 音量：一颗静音键，滑条藏在它上面，鼠标移上来才浮出来。
              *
-             * 底栏那条 96px 的滑条能细调，可这一页把底栏收走了——页面上只剩一颗
-             * 静音键，想调小声只能退回首页。滑条留在这儿，滚轮、方向键、拖动都在。
+             * 底栏那条滑条能细调，可这一页把底栏收走了——页面上只剩一颗静音键，
+             * 想调小声只能退回首页。常驻一条又会把这一行挤满，所以做成悬停浮层：
+             * 竖向条按 clientY 反算，抬头看数值，低头看条。滚轮、方向键、拖动都在。
              */}
             <div className="np__vol">
               <button
@@ -403,21 +404,25 @@ export function NowPlayingPage({
               >
                 {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
               </button>
-              <Bar
-                className="np__vol-bar"
-                value={muted ? 0 : volume}
-                onChange={(next) => {
-                  // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
-                  if (muted) player.toggleMute()
-                  player.setVolume(next)
-                }}
-                ariaLabel="音量"
-                valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
-                onWheelDelta={(direction) => {
-                  if (muted) player.toggleMute()
-                  player.setVolume(wheelVolume(muted ? 0 : volume, direction))
-                }}
-              />
+              <div className="np__vol-pop">
+                <span className="np__vol-val">{muted ? '静音' : Math.round(volume * 100)}</span>
+                <Bar
+                  className="np__vol-bar"
+                  vertical
+                  value={muted ? 0 : volume}
+                  onChange={(next) => {
+                    // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
+                    if (muted) player.toggleMute()
+                    player.setVolume(next)
+                  }}
+                  ariaLabel="音量"
+                  valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
+                  onWheelDelta={(direction) => {
+                    if (muted) player.toggleMute()
+                    player.setVolume(wheelVolume(muted ? 0 : volume, direction))
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
