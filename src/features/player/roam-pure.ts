@@ -63,6 +63,26 @@ export function withoutTrack(tracks: readonly Track[], target: Track): Track[] {
 }
 
 /**
+ * 换池子时把「已听」里还对得上的留下。
+ *
+ * 这一趟的列表会被整份换掉：快池换成整池、平台又推来一批、或者重开一趟。
+ * `heard` 是按 trackKey 记的，跟着列表一起清空的话，「已听 N 首」会在用户
+ * 明明听了七八首之后跳回 1——那行字说的是「这一趟听了多少」，不是「这一批
+ * 里听过多少」。所以只清掉新列表里已经不存在的那些，剩下的留着。
+ */
+export function carryHeard(
+  heard: Readonly<Record<string, true>>,
+  tracks: readonly Track[]
+): Record<string, true> {
+  const keys = new Set(tracks.map((track) => trackKey(track)))
+  const out: Record<string, true> = {}
+  for (const key of Object.keys(heard)) {
+    if (keys.has(key)) out[key] = true
+  }
+  return out
+}
+
+/**
  * 快放到这一趟的尾巴了吗。
  *
  * 漫游不主动停止：剩下几首的时候就把下一批要过来，接在队列后面。留出这一段

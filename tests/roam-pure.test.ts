@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   appendFresh,
+  carryHeard,
   rankBySeed,
   remainingSeconds,
   roamProgress,
@@ -148,4 +149,25 @@ test('rankBySeed 同曲的另一个平台版本也算种子', () => {
 test('remainingSeconds 位次不在列表里返回 0', () => {
   assert.equal(remainingSeconds([a, b], -1), 0)
   assert.equal(remainingSeconds([], 0), 0)
+})
+
+test('carryHeard 换池时只留下新列表里还在的已听', () => {
+  const heard = { [trackKey(a)]: true as const, [trackKey(b)]: true as const }
+  // 新池子里有甲、丙，乙被换掉了：乙那一笔跟着走，甲留着。
+  const carried = carryHeard(heard, [a, c])
+  assert.deepEqual(Object.keys(carried), [trackKey(a)])
+})
+
+test('carryHeard 空表与空列表都安全，且不认得已听表里多出来的键', () => {
+  assert.deepEqual(carryHeard({}, [a]), {})
+  assert.deepEqual(carryHeard({ [trackKey(a)]: true }, []), {})
+  assert.deepEqual(Object.keys(carryHeard({ 不相干的键: true }, [a])), [])
+})
+
+test('carryHeard 之后 roamProgress 的已听只增不减', () => {
+  const heard = { [trackKey(a)]: true as const, [trackKey(b)]: true as const }
+  const before = roamProgress([a, b], a, new Set(Object.keys(heard)))
+  const after = roamProgress([a, b, c], a, new Set(Object.keys(carryHeard(heard, [a, b, c]))))
+  assert.equal(before.heard, 2)
+  assert.equal(after.heard, 2)
 })

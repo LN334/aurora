@@ -492,6 +492,21 @@ class AudioEngine {
 
   // --- position reporting --------------------------------------------------
 
+  /**
+   * 把元素上的时间写进 store。
+   *
+   * 换源这一段不写：`load()` 已经把进度归零，真正的元素却还挂着上一首的
+   * currentTime——新地址要等网络回来才换上，这中间少则一两百毫秒、多则一秒。
+   * 照读就会把进度条写成上一首的位置（标题已是新歌、进度还停在上一首的 0:46），
+   * 一秒后才跳回 0:00，看起来像「切歌没归零」。
+   *
+   * 只挡写入、不挡计时：淡出那几秒上一首确实还在响，listened seconds 照记不误。
+   */
+  private publishPosition(el: HTMLAudioElement): void {
+    if (this.loadingTrack !== null) return
+    usePlayer.getState().setPosition(el.currentTime)
+  }
+
   private startTicker(): void {
     this.tickerActive = true
     if (!this.unbindVisibility) this.unbindVisibility = onWindowVisibility(() => this.armTicker())
@@ -510,7 +525,7 @@ class AudioEngine {
 
     if (isWindowVisible()) {
       const tick = () => {
-        usePlayer.getState().setPosition(el.currentTime)
+        this.publishPosition(el)
         this.recordProgress(el)
         this.raf = requestAnimationFrame(tick)
       }
@@ -524,7 +539,7 @@ class AudioEngine {
      * sixty times a second, which is the cost worth removing here.
      */
     const tick = () => {
-      usePlayer.getState().setPosition(el.currentTime)
+      this.publishPosition(el)
       this.recordProgress(el)
     }
     // Publish once immediately so the desktop lyric window is not a quarter

@@ -6,6 +6,7 @@ import { trackKey } from '../online/unify'
 import { onQueueReset, player } from './actions'
 import {
   appendFresh,
+  carryHeard,
   remainingSeconds,
   roamProgress,
   shouldPullMore,
@@ -218,6 +219,25 @@ function parkRepeat(): void {
  */
 let roamSwitch = false
 
+/**
+ * 这一趟的代号。开新趟、离开漫游、用户去听别的，都会 +1。
+ *
+ * 网络回来的两样东西——补出来的一批、刚开趟要的池子——都只是某个 await 之后的
+ * setState，它们没有「用户已经走开」这个概念。实测的走法：漫游剩四首时按判据去
+ * 要下一批，等它回来的这两三秒里点开一张专辑；队列换了、漫游也清了，那批歌随后
+ * 落地，把 tracks 又填满——底栏重新写「漫游中」，还把漫游的歌接进那张专辑的队列。
+ * 反过来也成立：刚点漫游、还在要快池时去点别的歌，一趟回来会把队列抢回去。
+ *
+ * 两种都是竞态，所以「有意复现不出现」。做法是每个 await 之后先核对代号，
+ * 对不上就放手，一个字也不写进状态。
+ */
+let sessionEpoch = 0
+
+/** 作废所有还在路上的请求。 */
+function invalidateSession(): void {
+  sessionEpoch += 1
+}
+
 function playRoamQueue(tracks: Track[], startAt: number): void {
   roamSwitch = true
   try {
@@ -234,8 +254,12 @@ function playRoamQueue(tracks: Track[], startAt: number): void {
  * 遍迟早会偏，而且「名单把池子吃空了就清一次滚动记录」这种兜底只需要一套。
  *
  * 种子是用户亲手挑的：哪怕它在「不想再听」名单里，这一趟也得放它。
+ *
+ * `epoch` 是调用方要歌之前记下的代号：等这批的这几秒里用户可能已经去听别的了，
+ * 对不上就不要装——不然会把人家刚点开的歌单换掉。
  */
-function commitRoam(queue: Track[], seed: Track | undefined): boolean {
+function commitRoam(queue: Track[], seed: Track | undefined, epoch: number): boolean {
+  if (epoch !== sessionEpoch) return false
   const hidden = readKeys(HIDE_KEY)
   // 名单只读一次；以前放在 filter 回调里，每首歌都要读一遍 localStorage。
   const skip = browsedOut()
@@ -251,10 +275,16 @@ function commitRoam(queue: Track[], seed: Track | undefined): boolean {
     tracks = queue.filter((track) => trackKey(track) === keep || !hidden.has(trackKey(track)))
   }
   if (tracks.length === 0) return false
+  // 这一趟正式开场：上一趟还在路上的一批就此作废（见 sessionEpoch 那段）。
+  invalidateSession()
   // 漫游不重复：循环会让放过的再来一遍，先关掉，退出时还原。
   useRoam.setState({
     tracks,
-    heard: {},
+    /*
+     * 已听跟着人走，不跟着这批列表走：换池、补池、重开一趟都可能走到这里，
+     * 一律清零会让轨道上那行字在听了七八首之后跳回 1。
+     */
+    heard: carryHeard(useRoam.getState().heard, tracks),
     seed: seed ?? null,
     busy: false,
     pulling: false,
@@ -270,8 +300,11 @@ function commitRoam(queue: Track[], seed: Track | undefined): boolean {
  *
  * 快池只有几首就开播了，补满这一趟要等网络。这段窗口里别让 refillIfLow 判「快见底」
  * ——它一判就会立刻再要一批，一趟于是变成两批（实测 3 首 + 补的 + 再要的 ≈ 38 首）。
+ *
+ * 记几个而不是一个布尔：补池是异步的，用户中途退出又重开一趟时，旧的那次回来会和
+ * 新的一次叠着收尾。计数让「还有人没补完」这个判断不会被先回来的那个清掉。
  */
-let filling = false
+let filling = 0
 
 /**
  * 开播之后在后台把整池补进来。
@@ -280,11 +313,13 @@ let filling = false
  * 要不到就算了——补完之后会再看一眼剩多少，真不够再按正常判据要。
  */
 async function fillRoamPool(wanted: ProviderId[]): Promise<void> {
-  filling = true
+  const epoch = sessionEpoch
+  filling += 1
   try {
     const full = await loadRoamPool(wanted).catch(() => null)
+    // 用户可能在这几百毫秒里退出了漫游（或者又开了一趟新的），这批就不是他的了。
+    if (epoch !== sessionEpoch) return
     if (!full || full.freshTracks.length === 0) return
-    // 用户可能在这几百毫秒里退出了漫游，那就别再往空队列里塞。
     const state = useRoam.getState()
     if (state.tracks.length === 0) return
     /*
@@ -302,22 +337,33 @@ async function fillRoamPool(wanted: ProviderId[]): Promise<void> {
     useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...extra] }))
     player.addToQueue(extra, 'end')
   } finally {
-    filling = false
+    filling -= 1
     // 补完再看一眼：池子今天回得少的话，这会儿按正常判据接着要。
-    refillIfLow()
+    // 作废的那一次不查——那会儿放的是别人的队列。
+    if (epoch === sessionEpoch) refillIfLow()
   }
 }
 
 /**
+ * 开一趟的三种结果。
+ *
+ * 分「没要到」和「被打断」两种失败是必要的：前者该说一句话（点了没反应比报错更糟），
+ * 后者恰恰**不该**说——用户早就点开别的歌了，两秒后弹一句「这一趟没要到歌」
+ * 只会让人以为自己点错了什么。
+ */
+type RoamStart = 'ok' | 'failed' | 'cancelled'
+
+/**
  * 点「漫游」。
  *
- * 有这一趟就接着听：先找第一首没听过的。没有就现要一趟。返回 true 表示队列已经
- * 换好，调用方可以进播放页；false 表示这次没成，原因写在 error 里。
+ * 有这一趟就接着听：先找第一首没听过的。没有就现要一趟。`ok` 表示队列已经换好，
+ * 调用方可以进播放页；`failed` 表示这次没成，原因写在 error 里；`cancelled`
+ * 表示等歌的这几秒里用户已经去听别的了，什么都不用说、也不该再动页面。
  *
  * 带一个种子进来是另一条路：「从这首出发」明确要换一趟，所以不接上一趟的账，
  * 而是把池子按与那首的亲疏重排，种子排第一。
  */
-export async function startRoam(seed?: Track): Promise<boolean> {
+export async function startRoam(seed?: Track): Promise<RoamStart> {
   /*
    * 导航栏那颗「漫游」是 onClick={onRoam}，React 会把点击事件当第一个参数塞进来。
    * 加种子之前 startRoam 不收参数，所以没人发现；加了种子之后事件对象就成了
@@ -326,21 +372,29 @@ export async function startRoam(seed?: Track): Promise<boolean> {
    */
   const chosen = seed && typeof seed.artist === 'string' && typeof seed.title === 'string' ? seed : undefined
   const state = useRoam.getState()
-  if (state.busy) return false
+  // 连点两下：手上这一趟已经在要了，第二下不该换来一句报错。
+  if (state.busy) return 'cancelled'
 
   const current = usePlayer.getState().current()
   if (!chosen && state.tracks.length > 0) {
     // 这一趟还在：从第一首没听过的接着放。全都听过就从头，反正下面会补新的。
     if (current && isRoamTrack(current)) {
       parkRepeat()
-      return true
+      return 'ok'
     }
     const heard = state.heard
     const at = state.tracks.findIndex((track) => !heard[trackKey(track)])
     parkRepeat()
     playRoamQueue(state.tracks, at >= 0 ? at : 0)
-    return true
+    return 'ok'
   }
+
+  /*
+   * 从这里开始要网络，也就是从这里开始可能被用户打断：等歌的这几秒里他可能点开
+   * 了一张专辑。记下代号，每个 await 之后核对一次；对不上就撒手——既不换队列，
+   * 也不往状态里写一句话（那会儿界面上已经是别人的东西了）。
+   */
+  let epoch = sessionEpoch
 
   /*
    * 一家都没勾就别要了。这时上游一定回空，落到下面那句「这几家今天还没推过来，
@@ -350,7 +404,7 @@ export async function startRoam(seed?: Track): Promise<boolean> {
   const wanted = roamPlatforms()
   if (wanted.length === 0) {
     useRoam.setState({ busy: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
-    return false
+    return 'failed'
   }
   /*
    * 勾着、但一家都没登录：先让人去登录，不要装作能推。
@@ -360,10 +414,19 @@ export async function startRoam(seed?: Track): Promise<boolean> {
    * 设置里关掉「只用我登录了的平台」的人例外：他明确接受公开榜单。
    */
   if (readPushSignedOnly() && (await signedCount(wanted)) === 0) {
+    if (epoch !== sessionEpoch) return 'cancelled'
     useRoam.setState({ busy: false, error: '', needSignIn: true })
-    return false
+    return 'failed'
   }
+  // 数登录的这几秒里用户可能已经点开别的歌了：那就当我没按过漫游。
+  if (epoch !== sessionEpoch) return 'cancelled'
 
+  /*
+   * 真要开这一趟了：从这儿起算新的一趟，上一趟还在路上的东西一律作废。
+   * 走到这里要么手上没有这一趟（tracks 为空），要么是种子模式明确要换一趟。
+   */
+  invalidateSession()
+  epoch = sessionEpoch
   useRoam.setState({ busy: true, error: '' })
   try {
     /*
@@ -377,19 +440,29 @@ export async function startRoam(seed?: Track): Promise<boolean> {
      */
     if (!chosen) {
       const quick = await loadRoamQuick(wanted)
+      // 等快池的这几秒里用户已经去听别的了：别把队列抢回来。
+      if (epoch !== sessionEpoch) return 'cancelled'
       if (quick.length > 0) {
         /*
          * 先立「正在补池」再换队列。commitRoam 里的 playQueue 会同步触发订阅，
          * 那一刻队列只有快池那几首、看着就是「快见底」，不挡住它会立刻再要一批，
          * 一趟于是变成两批（实测 3 首 → 18 首 → 37 首）。
+         *
+         * 用引用计数而不是布尔：fillRoamPool 一进去就自己加一，这里退出去减一，
+         * 补池还占着的时候计数仍然是 1。
          */
-        filling = true
-        if (commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined)) {
-          void fillRoamPool(wanted)
-          return true
+        filling += 1
+        try {
+          if (commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined, epoch)) {
+            void fillRoamPool(wanted)
+            return 'ok'
+          }
+        } finally {
+          filling -= 1
         }
-        filling = false
       }
+      // 快池装不上、或者装的这会儿被用户打断：别再白跑一轮整池。
+      if (epoch !== sessionEpoch) return 'cancelled'
     }
     // 种子模式，或者快池一首都没要到：退回攒齐的老路。
     // 种子模式要两路一起要：平台今天推的，和这个人的歌。
@@ -397,6 +470,8 @@ export async function startRoam(seed?: Track): Promise<boolean> {
       loadRoamPool(wanted),
       chosen ? loadSeedTracks(chosen, wanted) : Promise.resolve([] as Track[])
     ])
+    // 攒整池要好几轮往返，中途被别的操作打断是常事。
+    if (epoch !== sessionEpoch) return 'cancelled'
     /*
      * 同艺人的歌多半是用户手上已有的，严格说不算「新的」；但这一趟要的就是从这一
      * 首走进这个人的作品里，所以并进来一起排序。种子自己也在 near 里，建队列时去重。
@@ -406,7 +481,7 @@ export async function startRoam(seed?: Track): Promise<boolean> {
       SLOTS.roam,
       chosen
     )
-    if (!commitRoam(queue, chosen)) {
+    if (!commitRoam(queue, chosen, epoch)) {
       /*
        * 分两种原因：真没登录，还是今天真没推。
        *
@@ -415,19 +490,23 @@ export async function startRoam(seed?: Track): Promise<boolean> {
        * 设置里关掉「只用我登录了的平台」的人例外：他接受公开榜单，那就是真没推。
        */
       const signed = !readPushSignedOnly() || (await signedCount(wanted)) > 0
+      // 数登录的这几秒里也可能被用户走开：这句话就别写了。
+      if (epoch !== sessionEpoch) return 'cancelled'
       useRoam.setState({
         busy: false,
         error: signed
           ? '这几家今天还没推过来，换几家或过会儿再试'
           : '这几家今天都没回歌，登录一下或过会儿再来'
       })
-      return false
+      return 'failed'
     }
-    return true
+    return 'ok'
   } catch (error) {
+    // 打断之后的收尾不该留下报错：界面上已经换成别人的歌了。
+    if (epoch !== sessionEpoch) return 'cancelled'
     const reason = error instanceof Error ? error.message : String(error)
     useRoam.setState({ busy: false, error: '这一趟没要到：' + (reason || '不知道哪儿出了岔子') })
-    return false
+    return 'failed'
   }
 }
 
@@ -446,10 +525,18 @@ async function pullRoamMore(): Promise<boolean> {
     useRoam.setState({ pulling: false, error: '设置 → 听歌 → 推荐来源里还没勾任何平台' })
     return false
   }
+  // 这一批属于此刻的这一趟。回来时若对不上，说明用户已经走了（或又开了一趟）。
+  const epoch = sessionEpoch
   useRoam.setState({ pulling: true, error: '' })
   let got = false
   try {
     const more = await loadRoamStream(ROAM_MORE, wanted)
+    /*
+     * 这一处是「漫游不肯退出」的老窝：等歌的那两三秒里用户点开一张专辑，
+     * 队列换了、漫游也清了，这批随后落地把 tracks 重新填满——底栏又写「漫游中」，
+     * 歌还被接进了那张专辑的队列。所以先核对代号，对不上就整批丢掉，一个字不写。
+     */
+    if (epoch !== sessionEpoch) return false
     const fresh = appendFresh(useRoam.getState().tracks, more, browsedOut())
     if (fresh.length === 0) {
       useRoam.setState({ pulling: false, error: '平台这批和手上重复了，过一会儿再要' })
@@ -459,6 +546,7 @@ async function pullRoamMore(): Promise<boolean> {
       got = true
     }
   } catch (error) {
+    if (epoch !== sessionEpoch) return false
     const reason = error instanceof Error ? error.message : String(error)
     useRoam.setState({ pulling: false, error: '这批没要到：' + reason })
   }
@@ -575,6 +663,8 @@ export function dropSeed(): void {
 /** 退出漫游：轨道收起来。队列不换，正在放的继续放；被换掉的循环模式放回去。 */
 export function endRoam(): void {
   clearUndoClock()
+  // 还在路上的那批（补池、开趟要的快池）就此作废，回来时不会再把这一趟装回去。
+  invalidateSession()
   const { parkedRepeat } = useRoam.getState()
   if (parkedRepeat) usePlayer.getState().setRepeat(parkedRepeat)
   useRoam.setState({
@@ -583,7 +673,10 @@ export function endRoam(): void {
     error: '',
     parkedRepeat: null,
     dropped: null,
-    seed: null
+    seed: null,
+    // 这两个标志得一起收：作废的那一批不会再回来替自己收尾。
+    busy: false,
+    pulling: false
   })
 }
 
@@ -607,7 +700,7 @@ function refillIfLow(): void {
 /** 还缺吗。首数到了就缺；首数没到但剩下的时长不够了（长曲之后常发生）也算缺。 */
 function wantsMore(): boolean {
   // 开趟那几秒由 fillRoamPool 负责补满，这时判「快见底」只会把一趟叠成两批。
-  if (filling) return false
+  if (filling > 0) return false
   const now = usePlayer.getState()
   const current = now.current()
   if (!current || !isRoamTrack(current)) return false
@@ -634,7 +727,17 @@ function scheduleRetry(): void {
  */
 onQueueReset(() => {
   if (roamSwitch) return
-  if (useRoam.getState().tracks.length === 0) return
+  /*
+   * 不管手上有没有这一趟，先作废在路上的请求。「用户换了一条队列」这个动作本身
+   * 就说明：刚才还在等的那些歌不用来了。少了这一句，点漫游之后那几百毫秒里点开
+   * 一张专辑，要歌的请求回来会把整条队列换成漫游——看起来就是漫游赖着不走。
+   */
+  invalidateSession()
+  const roam = useRoam.getState()
+  if (roam.tracks.length === 0) {
+    if (roam.busy || roam.pulling) useRoam.setState({ busy: false, pulling: false })
+    return
+  }
   endRoam()
 })
 
