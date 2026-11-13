@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { bridge } from '../bridge'
 import { player } from '../features/player/actions'
+import { KEY_STEP } from '../features/player/volume'
 
 /**
  * Transport and shell shortcuts, ignored while a field has focus.
@@ -120,8 +121,8 @@ export function useKeyboardShortcuts(options: {
       }
       if (event.key === 'ArrowRight') player.nudge(5)
       else if (event.key === 'ArrowLeft') player.nudge(-5)
-      else if (event.key === 'ArrowUp') player.setVolume(volume + 0.05)
-      else if (event.key === 'ArrowDown') player.setVolume(volume - 0.05)
+      else if (event.key === 'ArrowUp') player.setVolume(volume + KEY_STEP)
+      else if (event.key === 'ArrowDown') player.setVolume(volume - KEY_STEP)
     }
 
     window.addEventListener('keydown', onKey)

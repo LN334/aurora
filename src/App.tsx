@@ -46,7 +46,7 @@ import { groupAlbums, useLibrary } from './features/library/store'
 import { artworkFor } from './features/library/source'
 import { player } from './features/player/actions'
 import { modeOf } from './features/player/mode'
-import { wheelVolume } from './features/player/volume'
+import { KEY_STEP, stepVolume } from './features/player/volume'
 import { driver } from './features/player/driver'
 import { loadProfilePlayerPrefs, usePlayer } from './features/player/store'
 import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
@@ -649,7 +649,7 @@ export function App() {  if (!isNative) {
         const now = usePlayer.getState()
         const base = now.muted ? 0 : now.volume
         if (now.muted) player.toggleMute()
-        player.setVolume(wheelVolume(base, command === 'volume-up' ? 1 : -1))
+        player.setVolume(stepVolume(base, command === 'volume-up' ? 1 : -1, KEY_STEP))
       }
     })
   }, [])

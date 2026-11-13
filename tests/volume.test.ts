@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  KEY_STEP,
   MIN_AUDIBLE_VOLUME,
   RESTORE_VOLUME,
   WHEEL_STEP,
+  stepVolume,
   volumeForUnmute,
   volumeIntentChanged,
   wheelVolume
@@ -25,17 +27,27 @@ test('volumeForUnmute clamps an out-of-range value and survives garbage', () => 
   assert.equal(volumeForUnmute(Number.NaN), RESTORE_VOLUME)
 })
 
-test('wheelVolume moves one step in the wheel direction', () => {
-  assert.equal(wheelVolume(0.5, 1), 0.55)
-  assert.equal(wheelVolume(0.5, -1), 0.45)
+test('wheelVolume moves one percent per notch', () => {
+  assert.equal(WHEEL_STEP, 0.01)
+  assert.equal(wheelVolume(0.5, 1), 0.5 + WHEEL_STEP)
+  assert.equal(wheelVolume(0.5, -1), 0.5 - WHEEL_STEP)
   // 一次滚动常给 100/120 这样的大 delta，方向之外不参与计算。
   assert.equal(wheelVolume(0.5, 120), 0.5 + WHEEL_STEP)
 })
 
 test('wheelVolume clamps at both ends', () => {
-  assert.equal(wheelVolume(0.98, 1), 1)
-  assert.equal(wheelVolume(0.02, -1), 0)
+  assert.equal(wheelVolume(0.995, 1), 1)
+  assert.equal(wheelVolume(0.005, -1), 0)
   assert.equal(wheelVolume(0, -1), 0)
+})
+
+test('stepVolume walks a fixed step, default five percent', () => {
+  assert.equal(KEY_STEP, 0.05)
+  assert.equal(stepVolume(0.5, 1), 0.55)
+  assert.equal(stepVolume(0.5, -1), 0.45)
+  assert.equal(stepVolume(0.5, 1, 0.2), 0.7)
+  assert.equal(stepVolume(0.9, 1, 0.2), 1)
+  assert.equal(stepVolume(0.1, -1, 0.2), 0)
 })
 
 test('volumeIntentChanged reacts to the two fields the gain depends on', () => {

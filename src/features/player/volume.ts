@@ -15,8 +15,17 @@ export const MIN_AUDIBLE_VOLUME = 0.05
 /** 从 0 恢复播放时用这个音量：不炸耳朵，也明显能听见。 */
 export const RESTORE_VOLUME = 0.6
 
-/** 滚轮一格改变多少。 */
-export const WHEEL_STEP = 0.05
+/**
+ * 滚轮一格改变多少。
+ *
+ * 百分之一。原先是一格 5%——滚十格就跨掉一半音量，想从 60 调到 55 这种小动作
+ * 根本做不到，只能去拖滑条。滚轮本来就是细调的手势（笔记本触控板更是），
+ * 一格 1 个百分点才配得上它。
+ */
+export const WHEEL_STEP = 0.01
+
+/** 键盘 ↑↓ 与全局音量键一次走多少：5% 是「差不多一个刻度」，再小要按很多次。 */
+export const KEY_STEP = 0.05
 
 /** 取消静音时要用的音量：原本听得见就原样保留，听不见就回到默认值。 */
 export function volumeForUnmute(volume: number): number {
@@ -24,11 +33,17 @@ export function volumeForUnmute(volume: number): number {
   return volume >= MIN_AUDIBLE_VOLUME ? Math.min(1, volume) : RESTORE_VOLUME
 }
 
+/** 按固定步长走一格，结果夹在 0..1。键盘、全局键和滚轮共用这一条。 */
+export function stepVolume(volume: number, direction: number, step = KEY_STEP): number {
+  if (!Number.isFinite(volume) || !Number.isFinite(direction) || !Number.isFinite(step)) {
+    return volume
+  }
+  return Math.min(1, Math.max(0, volume + Math.sign(direction) * step))
+}
+
 /** 滚轮：只取方向，每格 {@link WHEEL_STEP}，结果夹在 0..1。 */
 export function wheelVolume(volume: number, direction: number): number {
-  if (!Number.isFinite(volume) || !Number.isFinite(direction)) return volume
-  const step = Math.sign(direction) * WHEEL_STEP
-  return Math.min(1, Math.max(0, volume + step))
+  return stepVolume(volume, direction, WHEEL_STEP)
 }
 
 /**
