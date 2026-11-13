@@ -47,7 +47,7 @@ applyLyricSize(readLyricSize())
 applyRowDensity(readRowDensity())
 /* public/boot.js 已经在首帧前落过一次；这里补一次，兜住「系统在这之间翻了」。 */
 applyTheme(readTheme())
-/* 背景垫底与磨砂半径，同样只落一次，之后由设置页改。 */
+/* 背景材质与模糊半径，同样只落一次，之后由设置页改。 */
 applyBackdrop(readBackdrop())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)

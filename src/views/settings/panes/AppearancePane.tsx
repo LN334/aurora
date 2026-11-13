@@ -3,7 +3,7 @@ import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/a
 import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
 import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features/settings/row-density'
 import { THEMES, useTheme, writeTheme } from '../../../features/settings/theme'
-import { BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
+import { applyBackdrop, BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
 import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
 import { setStageParticles, useStageParticles } from '../../../features/settings/stage-particles'
 import { useSettingsPage } from '../../../features/settings/store'
@@ -156,29 +156,29 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      <Row label="背景" hint="磨砂会给壁纸垫一层雾，字更清楚；透出则壁纸原样铺满。">
+      <Row label="背景" hint="标准亚克力是一块厚玻璃，把壁纸糊成一片色；轻薄亚克力玻璃更薄、图看得清。">
         <div className="seg">
           <button
             className={backdrop.mode === 'frosted' ? 'is-active' : ''}
             onClick={() => writeBackdrop({ ...backdrop, mode: 'frosted' })}
           >
-            磨砂
+            标准亚克力
           </button>
           <button
             className={backdrop.mode === 'clear' ? 'is-active' : ''}
             onClick={() => writeBackdrop({ ...backdrop, mode: 'clear' })}
           >
-            透出
+            轻薄亚克力
           </button>
         </div>
       </Row>
 
       <Row
-        label="磨砂程度"
+        label="模糊程度"
         hint={
           backdrop.mode === 'frosted'
-            ? '0 只铺一层淡底不糊，越大壁纸越模糊。松手就生效。'
-            : '透出时这里调的是玻璃本身糊多少：0 几乎不糊，越大背景越软。松手就生效。'
+            ? '0 只铺一层淡底不糊，越大壁纸越模糊。拖动即刻生效。'
+            : '轻薄亚克力下这里调的是玻璃本身糊多少：0 几乎不糊，越大背景越软。拖动即刻生效。'
         }
       >
         <div className="settings__slider">
@@ -188,8 +188,13 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             max={BLUR_MAX}
             step={1}
             value={backdropBlur}
-            aria-label="磨砂程度"
-            onChange={(event) => setBlurDraft(Number(event.target.value))}
+            aria-label="模糊程度"
+            onChange={(event) => {
+              const next = Number(event.target.value)
+              setBlurDraft(next)
+              // 拖动过程中就把变量落下去，界面当场变；写 localStorage 留到松手。
+              applyBackdrop({ ...backdrop, blur: next })
+            }}
             onPointerUp={() => {
               writeBackdrop({ ...backdrop, blur: backdropBlur })
               setBlurDraft(null)
