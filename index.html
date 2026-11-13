@@ -180,6 +180,23 @@
         }
       }
 
+      /*
+       * 应用里的「动态效果」关掉时，这一层仍然要动。
+       *
+       * 开屏不是装饰，是加载指示器：应用要等首轮数据才退场，慢的时候六秒以上。
+       * 一张完全静止的图在这六秒里看起来就是卡死——用户会以为点坏了。所以只留
+       * 光晕呼吸与扫光这两条最小的「还在跑」信号，界面其余动效照旧全关。
+       */
+      html.is-reduced-motion #boot-splash .boot-splash__glow {
+        animation-duration: 2200ms !important;
+        animation-iteration-count: infinite !important;
+      }
+
+      html.is-reduced-motion #boot-splash .boot-splash__bar::after {
+        animation-duration: 1150ms !important;
+        animation-iteration-count: infinite !important;
+      }
+
       /* 关掉动态效果的人只看到标记本身。 */
       @media (prefers-reduced-motion: reduce) {
         #boot-splash,
