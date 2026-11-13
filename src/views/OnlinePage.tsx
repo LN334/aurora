@@ -115,6 +115,7 @@ function PlaylistPage({
   return (
     <div className="col ol-page">
       <DetailHero
+        playlistTransition
         art={
           summary?.coverUrl ? (
             <img src={remoteImageUrl(sizedImage(summary.coverUrl, 400), 400)} alt="" />

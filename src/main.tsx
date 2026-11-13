@@ -22,7 +22,6 @@ import './features/player/netease'
  * platform the others have).
  */
 import './features/online/register'
-import { useNetease } from './features/netease/store'
 import { bridge } from './bridge'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
@@ -60,15 +59,6 @@ setActiveStorageProfile(useAccounts.getState().activeId)
  */
 const openingProfile = useAccounts.getState().activeId
 if (openingProfile) void bridge.library.useProfile(openingProfile)
-
-/*
- * Ask the online source whether it is usable and who is signed in.
- *
- * Deliberately not awaited and deliberately not fatal: it is a network round
- * trip to a third-party service on a cold start, and the offline parts of the
- * app - which is nearly all of it - must not wait for it or fail with it.
- */
-void useNetease.getState().init()
 
 const container = document.getElementById('root')
 if (!container) throw new Error('Root container #root is missing from index.html')

@@ -68,7 +68,8 @@ export function refOfTrack(track: { source?: string; albumId?: number; artistId?
  */
 export function openOnlinePlaylist(
   providerId: string,
-  playlist: Pick<PlaylistFace, 'id' | 'name' | 'coverUrl'> & { creator?: string }
+  playlist: Pick<PlaylistFace, 'id' | 'name' | 'coverUrl'> & { creator?: string },
+  origin?: HTMLElement | null
 ): void {
   useOnlineStore(providerId)
     .getState()
@@ -78,6 +79,10 @@ export function openOnlinePlaylist(
       coverUrl: playlist.coverUrl,
       creator: playlist.creator ?? ''
     })
+  // 给点击来源的封面命名；详情页的封面使用同名锚点，浏览器会插值两者的位置和尺寸。
+  origin
+    ?.querySelector<HTMLElement>('.rh-card__art')
+    ?.style.setProperty('view-transition-name', 'playlist-cover')
   navigate?.({ view: 'onlineplaylist', id: idOf(providerId, playlist.id) })
 }
 

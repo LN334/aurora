@@ -475,6 +475,7 @@ input::placeholder {
 
 /* 分组标题：全栏只有这一个，所以敢把它做得很轻。 */
 .rail__caption {
+  max-width: 180px;
   padding: 18px 10px 5px;
   font-size: 11px;
   font-weight: 500;
@@ -482,6 +483,7 @@ input::placeholder {
   color: var(--text-low);
   white-space: nowrap;
   overflow: hidden;
+  transition: max-width 200ms var(--ease-out), opacity 140ms var(--ease-out), padding 200ms var(--ease-out);
 }
 
 .rail-item {
@@ -495,7 +497,11 @@ input::placeholder {
   border-radius: 8px;
   color: var(--text-mid);
   white-space: nowrap;
-  transition: background 130ms var(--ease-out), color 130ms var(--ease-out);
+  transition:
+    background 130ms var(--ease-out),
+    color 130ms var(--ease-out),
+    gap 200ms var(--ease-out),
+    padding 200ms var(--ease-out);
 }
 .rail-item:hover {
   background: var(--ink-800);
@@ -527,10 +533,11 @@ input::placeholder {
 .rail-item__label {
   flex: 1;
   min-width: 0;
+  max-width: 140px;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: opacity var(--dur-1) var(--ease-out), max-width var(--dur-2) var(--ease-out);
+  transition: opacity 140ms var(--ease-out), max-width 200ms var(--ease-out);
 }
 
 .rail-item__count {
@@ -1948,6 +1955,12 @@ input::placeholder {
    ========================================================================== */
 .main__body {
   scrollbar-gutter: stable;
+  view-transition-name: aurora-page;
+}
+
+/* 点击歌单时，让卡片封面直接过渡到详情页的大封面。 */
+.dp__art--playlist-transition {
+  view-transition-name: playlist-cover;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -2008,6 +2021,49 @@ html.is-resizing {
 .main__body.is-enter {
   animation: pageIn 200ms var(--ease-out) both;
 }
+
+/* Route snapshots keep the transition off the live scroll container. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(root),
+::view-transition-group(aurora-page) {
+  animation: none;
+}
+::view-transition-old(aurora-page) {
+  animation: pageSnapshotOut 150ms var(--ease-out) both;
+}
+::view-transition-new(aurora-page) {
+  animation: pageSnapshotIn 220ms var(--ease-out) both;
+}
+::view-transition-group(playlist-cover) {
+  overflow: hidden;
+  border-radius: 12px;
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(.2, .75, .25, 1);
+}
+::view-transition-old(playlist-cover) {
+  animation: playlistCoverOut 120ms ease-out both;
+}
+::view-transition-new(playlist-cover) {
+  animation: playlistCoverIn 260ms ease-out both;
+}
+@keyframes playlistCoverOut {
+  to { opacity: 0; }
+}
+@keyframes playlistCoverIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pageSnapshotOut {
+  to { opacity: 0; transform: translateX(-5px); }
+}
+@keyframes pageSnapshotIn {
+  from { opacity: 0; transform: translateX(7px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 /*
  * 只做透明度，不做位移：动画 fill-mode 为 both 时，transform 即使落到 none 也会
  * 以矩阵形式留在计算样式里，把 .main__body 变成 fixed 子元素的定位祖先——

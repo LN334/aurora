@@ -159,18 +159,6 @@ async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Prom
   }
 }
 
-/**
- * Kick off the upstream bootstrap from `app.whenReady`, without awaiting it.
- *
- * `electron/main.ts` calls this fire-and-forget: the handshake only needs to be
- * finished before the user opens the online tab, and awaiting a network round
- * trip there would put the upstream's latency in front of the app's first
- * window. Failures are recorded in the client and reported by `netease:status`.
- */
-export function warmUpNetease(): Promise<void> {
-  return client.neteaseWarmUp()
-}
-
 export function registerNeteaseIpc(): void {
   const statusFailure: NeteaseStatusResult = { ready: false, loggedIn: false }
 

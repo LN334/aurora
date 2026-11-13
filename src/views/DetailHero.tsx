@@ -12,6 +12,7 @@ import type { ReactNode } from 'react'
 export function DetailHero({
   art,
   round,
+  playlistTransition,
   kicker,
   title,
   meta,
@@ -21,6 +22,7 @@ export function DetailHero({
 }: {
   art: ReactNode
   round?: boolean
+  playlistTransition?: boolean
   kicker?: ReactNode
   title: ReactNode
   /** 标题下面那一行：作者 / 年份 / 曲目数，用分隔点隔开。 */
@@ -34,7 +36,15 @@ export function DetailHero({
   return (
     <>
       <header className="dp">
-        <div className={'dp__art' + (round ? ' dp__art--round' : '')}>{art}</div>
+        <div
+          className={
+            'dp__art' +
+            (round ? ' dp__art--round' : '') +
+            (playlistTransition ? ' dp__art--playlist-transition' : '')
+          }
+        >
+          {art}
+        </div>
         <div className="dp__body">
           {kicker ? <span className="dp__k">{kicker}</span> : null}
           <h1 className="dp__t">{title}</h1>

@@ -7,7 +7,7 @@ import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
 import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
-import { registerNeteaseIpc, warmUpNetease } from './netease/ipc'
+import { registerNeteaseIpc } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
@@ -258,24 +258,6 @@ function debounce<T extends (...args: never[]) => void>(fn: T, ms: number): T {
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => fn(...args), ms)
   }) as T
-}
-
-/**
- * Warm the online source up, but only once nothing else needs the main process.
- *
- * `setTimeout` rather than `requestIdleCallback` because the cost being deferred
- * is module loading and disk I/O, not a layout-sensitive task; the delay is what
- * keeps it off the first-frame path, and the guard keeps it to one scheduling
- * even if `whenReady` runs again for a window that was closed and reopened.
- */
-let neteaseWarmUpScheduled = false
-
-function scheduleNeteaseWarmUp(): void {
-  if (neteaseWarmUpScheduled) return
-  neteaseWarmUpScheduled = true
-  setTimeout(() => {
-    void warmUpNetease()
-  }, 3000)
 }
 
 function createWindow(): void {
@@ -795,22 +777,11 @@ if (!app.requestSingleInstanceLock()) {
     registerGlobalShortcuts()
 
     /*
-     * The Netease client needs two pieces of state in the OS temp directory
-     * before its own module can even be required (see electron/netease/client.ts).
-     * That bootstrap is slow and memory-hungry: measured at ~1.5 s and ~29 MB
-     * resident, because the upstream package eagerly requires all 449 of its
-     * endpoint modules (and jsdom with them) whether or not Aurora uses them.
-     *
-     * It is therefore deferred until the machine is idle *after* the window has
-     * been shown, rather than fired the moment the app is ready. A user who only
-     * plays local files never pays it at all; a user who opens the online tab
-     * gets a bootstrap that is already warm.
-     *
-     * IPC handlers are registered first regardless: they are what makes the
-     * bootstrap reachable on demand, and they cost ~1.5 ms on their own.
+     * Register handlers eagerly, but do not preload the upstream client here.
+     * Its first real request runs bootstrapOnce(); local-only sessions therefore
+     * avoid loading the large third-party package altogether.
      */
     registerNeteaseIpc()
-    scheduleNeteaseWarmUp()
 
     /*
      * QQ is registered the same way and for the same reason: the handlers cost

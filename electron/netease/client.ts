@@ -496,18 +496,6 @@ const clamp = (value: number, min: number, max: number): number =>
 
 // --- status --------------------------------------------------------------
 
-/**
- * Begin the bootstrap without waiting for it.
- *
- * Called once when the app is ready: the first real Netease call would
- * otherwise pay for the whole device/key/token handshake on the user's click.
- * The result is deliberately discarded - a failure sets `detail`, which
- * `neteaseStatus` reports later, and it must never delay app startup.
- */
-export async function neteaseWarmUp(): Promise<void> {
-  await bootstrapOnce()
-}
-
 export async function neteaseStatus(): Promise<NeteaseStatusResult> {
   const state = await bootstrapOnce()
   if (!state.ready) return { ready: false, loggedIn: false, detail: state.detail }

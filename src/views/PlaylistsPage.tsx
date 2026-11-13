@@ -6,7 +6,7 @@ import { useOnlineStore } from '../features/online/store'
 import type { ProviderId } from '../features/online/types'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlinePlaylist } from '../features/refs/navigate'
-import { Note, Plus } from '../ui/icons'
+import { ChevronRight, Note, Plus } from '../ui/icons'
 import { NameModal } from './NameModal'
 
 /**
@@ -26,6 +26,16 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
   const kugou = useOnlineStore('kugou')()
   const qishui = useOnlineStore('qishui')()
   const [naming, setNaming] = useState<ProviderId | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<ProviderId>>(() => new Set())
+
+  const toggleGroup = (id: ProviderId) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const signedIn: Record<string, boolean> = {
     netease: Boolean(netease.account),
@@ -34,13 +44,23 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
     qishui: Boolean(qishui.account)
   }
 
+  // 平台自带的「我喜欢」仍在喜欢页读取，这里只展示普通歌单。
+  // 网易云默认喜欢歌单的 id 就是账号 id；其他平台用其固定系统名称识别。
+  const visibleCards = useMemo(() => {
+    const likedNames = new Set(['我喜欢', '我喜欢的', '我喜欢的音乐', '我的喜欢', '喜欢的音乐'])
+    return cards.filter((card) => {
+      if (card.providerId === 'netease' && card.id === Number(netease.account?.id)) return false
+      return !likedNames.has(card.name.trim())
+    })
+  }, [cards, netease.account?.id])
+
   const groups = useMemo(() => {
     return PLAYLIST_PROVIDERS.map((platform) => ({
       ...platform,
-      rows: cards.filter((card) => card.providerId === platform.id),
+      rows: visibleCards.filter((card) => card.providerId === platform.id),
       writable: Boolean(getProvider(platform.id)?.playlists?.create)
     })).filter((group) => group.rows.length > 0 || signedIn[group.id])
-  }, [cards, signedIn.netease, signedIn.qq, signedIn.kugou, signedIn.qishui])
+  }, [visibleCards, signedIn.netease, signedIn.qq, signedIn.kugou, signedIn.qishui])
 
   const create = async (name: string) => {
     const providerId = naming
@@ -90,7 +110,19 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
       {groups.map((group) => (
         <section className="rh-sec" key={group.id}>
           <header className="rh-sec__head">
-            <h3>{group.label}</h3>
+            <button
+              className="pl-group__toggle"
+              type="button"
+              aria-expanded={!collapsedGroups.has(group.id)}
+              aria-controls={`playlist-group-${group.id}`}
+              onClick={() => toggleGroup(group.id)}
+            >
+              <ChevronRight
+                size={15}
+                className={`pl-group__arrow${collapsedGroups.has(group.id) ? '' : ' is-open'}`}
+              />
+              <span className="pl-group__title">{group.label}</span>
+            </button>
             <span className="rh-more">{group.rows.length} 个</span>
             {group.writable && signedIn[group.id] ? (
               <button className="rh-more rh-add" type="button" onClick={() => setNaming(group.id)}>
@@ -98,15 +130,24 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
               </button>
             ) : null}
           </header>
-          {group.rows.length === 0 ? (
-            <p className="pg-note">这个账号还没有歌单。</p>
-          ) : (
-            <div className="pl-grid">
-              {group.rows.map((row) => (
-                <Card key={row.key} row={row} />
-              ))}
+          <div
+            id={`playlist-group-${group.id}`}
+            className={`pl-group__body${collapsedGroups.has(group.id) ? ' is-collapsed' : ''}`}
+            aria-hidden={collapsedGroups.has(group.id)}
+            inert={collapsedGroups.has(group.id)}
+          >
+            <div className="pl-group__inner">
+              {group.rows.length === 0 ? (
+                <p className="pg-note">这个账号还没有歌单。</p>
+              ) : (
+                <div className="pl-grid">
+                  {group.rows.map((row) => (
+                    <Card key={row.key} row={row} />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       ))}
 
@@ -126,7 +167,11 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
 
 function Card({ row }: { row: PlaylistCard }) {
   return (
-    <button className="rh-card pl-card" type="button" onClick={() => openOnlinePlaylist(row.providerId, row)}>
+    <button
+      className="rh-card pl-card"
+      type="button"
+      onClick={(event) => openOnlinePlaylist(row.providerId, row, event.currentTarget)}
+    >
       <span className="rh-card__art" style={{ background: tint(row.key) }}>
         {/* 封面走主进程代理：页面 CSP 不允许外域图片，原地址由 aurora-remote:// 转发。 */}
         {row.coverUrl ? (

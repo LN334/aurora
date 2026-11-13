@@ -129,6 +129,11 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
 const ROW = 8
 
+/** Stable for this hour, but different across launches at different times. */
+function homeRotationSeed(): number {
+  return Math.floor(Date.now() / 3_600_000)
+}
+
 /**
  * 卡片副标题：先报首数，没有首数就报它从哪来。
  *
@@ -189,10 +194,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 歌单——推荐位放自己的收藏，等于把音乐库又摆了一遍。
    */
   const { rows: recommended, ready: playlistsReady } = useRecommendedPlaylists()
-  const [batch, setBatch] = useState(0)
+  const [batch, setBatch] = useState(homeRotationSeed)
   /** 最近新歌：freshTick 驱动重取，freshBatch 驱动换一行看。 */
-  const [freshTick, setFreshTick] = useState(0)
-  const [freshBatch, setFreshBatch] = useState(0)
+  const [freshTick, setFreshTick] = useState(homeRotationSeed)
+  const [freshBatch, setFreshBatch] = useState(homeRotationSeed)
   /* 鼠标停在哪一行，左边的大卡就换哪一首；移出去回到第一首。 */
   const [freshLead, setFreshLead] = useState(0)
   const freshList = useRef<HTMLDivElement | null>(null)
@@ -204,7 +209,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    */
   const { picks } = useMemo(() => picksByProvider(recommended, batch, SLOTS.playlist), [recommended, batch])
   /** 推荐专辑：跟歌单一样有「换一批」，换的是平台那边的下一屏，不是本页重排。 */
-  const [albumBatch, setAlbumBatch] = useState(0)
+  const [albumBatch, setAlbumBatch] = useState(homeRotationSeed)
   const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album, albumBatch)
   const albumStrip = useRef<HTMLDivElement | null>(null)
   /*
@@ -699,7 +704,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                 className="rh-card"
                 type="button"
                 key={row.key}
-                onClick={() => openOnlinePlaylist(row.providerId, row)}
+                onClick={(event) => openOnlinePlaylist(row.providerId, row, event.currentTarget)}
               >
                 <span className="rh-card__art" style={tintOf(row.key)}>
                   <Artwork

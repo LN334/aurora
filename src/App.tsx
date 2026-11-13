@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { AccountPage } from './views/AccountPage'
 import { useCollectedAlbums, useFollowedArtists } from './features/online/platform-collections'
 import { CollectionsPage } from './views/CollectionsPage'
@@ -119,6 +120,10 @@ import { Refraction } from './features/glass/Refraction'
  */
 let appRenders = 0
 
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { finished: Promise<void> }
+}
+
 /**
  * The screens that show files on this disk.
  *
@@ -139,6 +144,26 @@ export function App() {  if (!isNative) {
 
   const [stack, setStack] = useState<ShellRoute[]>(() => [initialShell()])
   const [cursor, setCursor] = useState(0)
+  const viewTransitionActive = useRef(false)
+  const commitPageChange = useCallback((update: () => void) => {
+    const start = (document as ViewTransitionDocument).startViewTransition
+    if (!start || document.documentElement.classList.contains('is-reduced-motion')) {
+      update()
+      return
+    }
+
+    viewTransitionActive.current = true
+    try {
+      const transition = start.call(document, () => flushSync(update))
+      void transition.finished.then(
+        () => { viewTransitionActive.current = false },
+        () => { viewTransitionActive.current = false }
+      )
+    } catch {
+      viewTransitionActive.current = false
+      update()
+    }
+  }, [])
   /** 外壳路由：人在哪一页。左栏高亮、页头标题、地址栏都由它决定。 */
   const shell = stack[cursor] ?? { view: 'home' as ShellView }
   /** 页面组件仍然只认旧参数；这一层翻译让它们暂时不用改。 */
@@ -331,11 +356,13 @@ export function App() {  if (!isNative) {
       const current = stack[cursor]
       if (current && sameShell(current, next)) return
       const trimmed = stack.slice(0, cursor + 1)
-      setStack([...trimmed, next])
-      setCursor(trimmed.length)
+      commitPageChange(() => {
+        setStack([...trimmed, next])
+        setCursor(trimmed.length)
+      })
       setFlash(null)
     },
-    [stack, cursor]
+    [stack, cursor, commitPageChange]
   )
 
   /**
@@ -421,7 +448,7 @@ export function App() {  if (!isNative) {
   useEffect(() => {
     const key = shell.view + ':' + (shell.id ?? '')
     const body = document.querySelector<HTMLElement>('.main__body')
-    if (body && lastRoute.current !== null && lastRoute.current !== key) {
+    if (body && !viewTransitionActive.current && lastRoute.current !== null && lastRoute.current !== key) {
       body.classList.remove('is-enter')
       // 读一次布局，让上面那次 remove 落地；否则同一帧里加回来不重启动画。
       void body.offsetWidth
@@ -481,17 +508,22 @@ export function App() {  if (!isNative) {
       if (!parsed) return
       const current = stack[cursor]
       if (current && sameShell(current, parsed)) return
-      setStack((prev) => [...prev.slice(0, cursor + 1), parsed])
-      setCursor((c) => c + 1)
+      commitPageChange(() => {
+        setStack((prev) => [...prev.slice(0, cursor + 1), parsed])
+        setCursor((c) => c + 1)
+      })
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [stack, cursor])
+  }, [stack, cursor, commitPageChange])
 
-  const goBack = useCallback(() => setCursor((c) => Math.max(0, c - 1)), [])
+  const goBack = useCallback(
+    () => commitPageChange(() => setCursor((c) => Math.max(0, c - 1))),
+    [commitPageChange]
+  )
   const goForward = useCallback(
-    () => setCursor((c) => Math.min(stack.length - 1, c + 1)),
-    [stack.length]
+    () => commitPageChange(() => setCursor((c) => Math.min(stack.length - 1, c + 1))),
+    [stack.length, commitPageChange]
   )
 
   /**

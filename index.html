@@ -84,7 +84,9 @@
          * 到这里时标记已经是完整状态；光晕和进度条接着动，看起来是同一段加载，
          * 而不是「画面冻住等应用」。
          */
-        animation: boot-breathe 2200ms ease-in-out 120ms both;
+        /* Keep moving for however long the app takes to paint; a one-shot animation
+         * leaves the loading screen frozen on its last frame on slower starts. */
+        animation: boot-breathe 2200ms ease-in-out 120ms infinite alternate;
         pointer-events: none;
       }
 
