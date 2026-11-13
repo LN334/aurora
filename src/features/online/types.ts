@@ -299,6 +299,12 @@ interface OnlineArtistProfile {
   /** 可选：艺人页「专辑」分页。缺了就不给这个标签页。 */
   artistAlbums?(id: number, limit: number, offset: number): Promise<OnlineAlbumRef[]>
   playlistTracks(id: number): Promise<OnlineSong[]>
+  /** 可选：列表接口不给作者时，打开详情补问一次。问不出来回空串。 */
+  playlistCreator?(id: number): Promise<string>
+  /**
+   * 一张歌单是不是当前账号自己建的；回 null 表示分不出来。
+   */
+  playlistOwned?(id: number): Promise<boolean | null>
   myPlaylists?(): Promise<OnlinePlaylistSummary[]>
 }
 

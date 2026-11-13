@@ -16,6 +16,7 @@ import {
   kugouLogoutProfile,
   kugouMyPlaylists,
   kugouNewSongs,
+  kugouPlaylistCreator,
   kugouPlaylistTracks,
   kugouQrCheck,
   kugouQrCreate,
@@ -156,6 +157,14 @@ export function registerKugouIpc(): void {
       const playlistId = asId(id)
       if (playlistId === '') return []
       return await kugouPlaylistTracks(playlistId)
+    })
+  )
+
+  ipcMain.handle('kugou:playlistCreator', async (_event, id: unknown) =>
+    guard('playlistCreator', '', async () => {
+      const playlistId = asId(id)
+      if (playlistId === '') return ''
+      return await kugouPlaylistCreator(playlistId)
     })
   )
 

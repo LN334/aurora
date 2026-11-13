@@ -590,10 +590,45 @@ export async function qqPlaylistTracks(disstid: string | number): Promise<QqSong
 
   try {
     const response = await requestPlaylistTracks({ disstid: id, cookie: state.cookie })
+    rememberCreator(String(id), response)
     return rememberAll(normalizePlaylistTracks(response))
   } catch (error) {
     console.error('[aurora] qq playlist detail failed', messageOf(error))
     return []
+  }
+}
+
+/** 歌单创建者。详情响应里 `cdlist[0].nick`/`nickname` 实测有值（官方歌单也一样）。 */
+const playlistCreators = new Map<string, string>()
+
+function rememberCreator(disstid: string, response: unknown): string {
+  const wrap = (value: unknown): Record<string, unknown> =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
+  const body = wrap(wrap(response).body)
+  const cdlist = wrap(body.response).cdlist
+  const owner = wrap(Array.isArray(cdlist) ? cdlist[0] : undefined)
+  const name = [owner.nickname, owner.nick, wrap(owner.creator).name].find(
+    (value): value is string => typeof value === 'string' && value !== ''
+  )
+  if (name) playlistCreators.set(disstid, name)
+  return name ?? ''
+}
+
+/** 推荐歌单的列表项不带作者，打开详情时补问一次。 */
+export async function qqPlaylistCreator(id: number): Promise<string> {
+  const key = String(id)
+  const cached = playlistCreators.get(key)
+  if (cached) return cached
+  const state = readState(activeProfileId)
+  if (!state.cookie) return ''
+  try {
+    const response = await requestPlaylistTracks({ disstid: key, cookie: state.cookie })
+    return rememberCreator(key, response)
+  } catch (error) {
+    log(`[aurora] qq playlist creator failed ${messageOf(error)}`)
+    return ''
   }
 }
 

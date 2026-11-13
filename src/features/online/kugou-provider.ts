@@ -204,22 +204,28 @@ const kugouBackend: PlatformBackend = {
   anonymousPlaylists: true,
 
   async myPlaylists() {
+    /*
+     * `/user/playlist` 只给一张表，自建与收藏不分开。但每条都带作者昵称，跟自己
+     * 账号昵称一比就分得开：作者是自己的是自建的，别人的是收藏的。未登录时这
+     * 张表是公开榜单，作者全不是你，所以不标归属。
+     */
+    const account = await client()?.loginStatus()
+    const nickname = account?.nickname ?? ''
     const rows = (await client()?.myPlaylists()) ?? []
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      coverUrl: row.coverUrl,
-      trackCount: row.trackCount,
-      // 上游不在这个接口里报播放量，所以留 0，不拿另一个接口的数字充数。
-      playCount: 0,
-      creator: row.creator,
-      /*
-       * `/user/playlist` 只给一张表，自建与收藏不分开；未登录时给的还是公开榜单。
-       * 三种情况都没法判定归属，就答「分不出来」，别把公开榜单说成「我收藏的」。
-       */
-      subscribed: false,
-      ownership: 'unknown' as const
-    }))
+    return rows.map((row) => {
+      const mine = Boolean(nickname) && row.creator === nickname
+      return {
+        id: row.id,
+        name: row.name,
+        coverUrl: row.coverUrl,
+        trackCount: row.trackCount,
+        // 上游不在这个接口里报播放量，所以留 0，不拿另一个接口的数字充数。
+        playCount: 0,
+        creator: row.creator,
+        subscribed: false,
+        ownership: nickname ? (mine ? ('mine' as const) : ('collected' as const)) : ('unknown' as const)
+      }
+    })
   },
 
   async playlistTracks(id) {
@@ -310,6 +316,7 @@ const kugouProvider: OnlineMusicProvider = {
       }))
     },
     playlistTracks: (id) => kugouBackend.playlistTracks!(id),
+    playlistCreator: (id) => kugouBackend.playlistCreator!(id),
     myPlaylists: () => kugouBackend.myPlaylists!()
   },
 

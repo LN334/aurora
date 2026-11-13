@@ -448,6 +448,7 @@ const api = {
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qq:myPlaylists', limit),
     recommendPlaylists: (limit?: number) => ipcRenderer.invoke('qq:recommendPlaylists', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('qq:playlistTracks', id),
+    playlistCreator: (id: number) => ipcRenderer.invoke('qq:playlistCreator', id),
     newSongs: (limit?: number) => ipcRenderer.invoke('qq:newSongs', limit),
     daily: () => ipcRenderer.invoke('qq:daily'),
     liked: () => ipcRenderer.invoke('qq:liked'),
@@ -494,6 +495,7 @@ const api = {
     myPlaylists: (limit?: number) => ipcRenderer.invoke('kugou:myPlaylists', limit),
     newSongs: (limit?: number) => ipcRenderer.invoke('kugou:newSongs', limit),
     playlistTracks: (id: string | number) => ipcRenderer.invoke('kugou:playlistTracks', id),
+    playlistCreator: (id: number) => ipcRenderer.invoke('kugou:playlistCreator', id),
     likes: (limit?: number) => ipcRenderer.invoke('kugou:likes', limit),
     like: (songId: number, liked: boolean) => ipcRenderer.invoke('kugou:like', songId, liked),
 
@@ -534,6 +536,8 @@ const api = {
     like: (songId: number, liked: boolean) => ipcRenderer.invoke('qishui:like', songId, liked),
     playlistTracksEdit: (playlistId: number, songIds: number[], add: boolean) =>
       ipcRenderer.invoke('qishui:playlistTracksEdit', { playlistId, songIds, add }),
+    playlistCreator: (id: number) => ipcRenderer.invoke('qishui:playlistCreator', id),
+    playlistOwned: (id: number) => ipcRenderer.invoke('qishui:playlistOwned', id) as Promise<boolean | null>,
     searchPlaylists: (keywords: string, limit?: number) =>
       ipcRenderer.invoke('qishui:searchPlaylists', { keywords, limit }),
     myPlaylists: (limit?: number) => ipcRenderer.invoke('qishui:myPlaylists', limit),

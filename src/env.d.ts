@@ -807,6 +807,8 @@ export interface QqApi {
   recommendPlaylists(limit?: number): Promise<QqPlaylistSummary[]>
   /** 一个歌单里的歌。 */
   playlistTracks(id: string | number): Promise<QqSong[]>
+  /** 歌单作者。列表里不带，打开详情时补问。 */
+  playlistCreator(id: number): Promise<string>
   /** 每日推荐。 */
   /** 新歌速递；不需要登录。 */
   newSongs(limit?: number): Promise<QqSong[]>
@@ -1154,6 +1156,8 @@ export interface KugouApi {
   newSongs(limit?: number): Promise<KugouSong[]>
   /** 一张歌单里的歌。`id` 是列表里那个数字别名。 */
   playlistTracks(id: string | number): Promise<KugouSong[]>
+  /** 歌单作者；同样是数字别名。 */
+  playlistCreator(id: number): Promise<string>
   /** 「我喜欢」。酷狗没有独立接口，读的就是那张云端歌单。 */
   likes(limit?: number): Promise<KugouSong[]>
   /**
@@ -1252,6 +1256,8 @@ interface QishuiPlaylistSummary {
   /** 上游 track_count；0 表示没报，不是「空歌单」。 */
   trackCount: number
   creator: string
+  /** 歌单作者的账号 id；空串表示上游没报。渲染侧拿它和自己的账号 id 比，分自建与收藏。 */
+  ownerId: string
 }
 
 interface QishuiArtistProfile {
@@ -1301,6 +1307,14 @@ export interface QishuiApi {
   /** 公开歌单搜索；首页推荐位用它拿「汽水推荐了什么」，不需要登录。 */
   searchPlaylists(keywords: string, limit?: number): Promise<QishuiPlaylistSummary[]>
   myPlaylists(limit?: number): Promise<QishuiPlaylistSummary[]>
+  playlistCreator(id: number): Promise<string>
+  /**
+   * 这张歌单是不是当前账号自己建的。
+   *
+   * 列表只给数字 `owner_id`，登录态给的是加密 id，两个域对不上；能比的只有详情里的
+   * `relation_info.owner.id`。拿不到任一侧时回 null（分不出来），不要猜。
+   */
+  playlistOwned(id: number): Promise<boolean | null>
   playlistTracks(id: number): Promise<QishuiSong[]>
   artistProfile(id: number): Promise<QishuiArtistProfile | null>
   artistSongs(artistId: number, limit?: number): Promise<QishuiSong[]>

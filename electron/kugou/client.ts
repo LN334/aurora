@@ -21,6 +21,7 @@ import {
   readDailySongs,
   readFavoriteList,
   readNewSongs,
+  readPlaylistCreator,
   readPlaylistRawSongs,
   readPlaylistTracks,
   readWriteOk,
@@ -438,6 +439,38 @@ export async function kugouPlaylistTracks(id: string | number): Promise<KugouSon
   } catch (error) {
     write(`[kugou] playlist tracks failed: ${messageOf(error)}`)
     return []
+  }
+}
+
+const playlistCreators = new Map<string, string>()
+
+/**
+ * 一张歌单的作者。`id` 是主进程发的数字别名。
+ *
+ * 详情把歌单挂在 `data["0"]` 上（`data` 不是数组），作者字段是 `list_create_username`。
+ * 那个通用读取器还留作兜底——上游偶尔换个形状，它那几路能接住。
+ */
+export async function kugouPlaylistCreator(id: string | number): Promise<string> {
+  const numeric = typeof id === 'number' ? id : Number(id)
+  const globalId = playlistIds.get(numeric) ?? ''
+  if (!globalId) return ''
+  const cached = playlistCreators.get(globalId)
+  if (cached) return cached
+  if (!(await ensureServer())) return ''
+
+  try {
+    const response = await request('/playlist/detail', { query: { ids: globalId } })
+    const slot = (response.body as { data?: Record<string, unknown> } | null)?.data?.['0'] as
+      | Record<string, unknown>
+      | undefined
+    const raw = slot?.list_create_username ?? slot?.nickname
+    const name = typeof raw === 'string' ? raw : readPlaylistCreator(response.body)
+    if (name) playlistCreators.set(globalId, name)
+    else write(`[kugou] playlist creator empty for ${globalId}`)
+    return name
+  } catch (error) {
+    write(`[kugou] playlist creator failed: ${messageOf(error)}`)
+    return ''
   }
 }
 

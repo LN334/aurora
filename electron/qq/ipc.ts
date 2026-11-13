@@ -200,6 +200,12 @@ export function registerQqIpc(): void {
     return guard<QqSong[]>('playlistTracks', [], () => client.qqPlaylistTracks(id))
   })
 
+  ipcMain.handle('qq:playlistCreator', (_event, value: unknown) => {
+    const numeric = typeof value === 'number' ? value : Number(asText(value, 32))
+    if (!Number.isFinite(numeric) || numeric <= 0) return Promise.resolve('')
+    return guard<string>('playlistCreator', '', () => client.qqPlaylistCreator(numeric))
+  })
+
   // 公开推荐歌单：不需要账号，首页那片「歌单」在没人登录时也能有 QQ 的份。
   ipcMain.handle('qq:recommendPlaylists', (_event, value: unknown) => {
     const limit = typeof value === 'number' && value > 0 ? Math.min(Math.trunc(value), 40) : 12

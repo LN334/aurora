@@ -72,6 +72,32 @@ function accountIdOf(id: string): number {
   return Number.isFinite(value) ? value : 0
 }
 
+/**
+ * 账号里的歌单一览。
+ *
+ * 列表只给数字 `owner_id`，与登录态的加密 id 不同域，比不了；归属只能逐张打开详情
+ * 问 `relation_info.owner.id`。问不出来答 unknown（分不出来），不猜。
+ */
+async function myPlaylistRows() {
+  const rows = (await client()?.myPlaylists()) ?? []
+  return Promise.all(
+    rows.map(async (row) => {
+      const owned = (await client()?.playlistOwned(row.id)) ?? null
+      return {
+        id: row.id,
+        name: row.name,
+        coverUrl: row.coverUrl,
+        trackCount: row.trackCount,
+        // 上游不在这个接口报播放量，留 0，不拿别的接口数字充数。
+        playCount: 0,
+        creator: row.creator,
+        subscribed: false,
+        ownership: owned === null ? ('unknown' as const) : owned ? ('mine' as const) : ('collected' as const)
+      }
+    })
+  )
+}
+
 const qishuiBackend: PlatformBackend = {
   id: 'qishui',
   displayName: '汽水音乐',
@@ -188,26 +214,16 @@ const qishuiBackend: PlatformBackend = {
    * 歌单要登录才读得到（上游对未登录答 auth-required），所以不设 anonymous。
    * 读不到就答空数组——空货架是诚实的画面，账号页已经说明登录能多出什么。
    */
-  async myPlaylists() {
-    const rows = (await client()?.myPlaylists()) ?? []
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      coverUrl: row.coverUrl,
-      trackCount: row.trackCount,
-      // 上游不在这个接口报播放量，留 0，不拿别的接口数字充数。
-      playCount: 0,
-      creator: row.creator,
-      // `user_playlists` 不带 owner 判定信息，归属分不出来——如实标 unknown。
-      subscribed: false,
-      ownership: 'unknown' as const
-    }))
-  },
+  myPlaylists: myPlaylistRows,
 
   async playlistTracks(id) {
     const rows = (await client()?.playlistTracks(id)) ?? []
     return rows.map((song) => asOnlineSong(song))
   },
+
+  playlistCreator: async (id) => (await client()?.playlistCreator(id)) ?? '',
+
+  playlistOwned: async (id) => (await client()?.playlistOwned(id)) ?? null,
 
   async artistTopSongs(id, limit) {
     const rows = (await client()?.artistSongs(id, limit)) ?? []
@@ -316,6 +332,7 @@ const qishuiProvider: OnlineMusicProvider = {
     },
     artistTopSongs: (id, limit) => qishuiBackend.artistTopSongs!(id, limit ?? 50),
     playlistTracks: (id) => qishuiBackend.playlistTracks!(id),
+    playlistCreator: (id) => qishuiBackend.playlistCreator!(id),
     myPlaylists: () => qishuiBackend.myPlaylists!()
   },
 

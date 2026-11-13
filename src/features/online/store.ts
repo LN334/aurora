@@ -109,6 +109,13 @@ export interface PlatformBackend {
    * 补问一次。不实现的平台就让它继续显示「—」，不要编。
    */
   playlistCreator?(id: number): Promise<string>
+  /**
+   * 一张歌单是不是当前账号自己建的。
+   *
+   * 列表接口常常不给归属，或者给的 id 与登录态不同域；只能打开详情问一次。
+   * 回 null 表示分不出来，调用方按 unknown 处理，不要猜。
+   */
+  playlistOwned?(id: number): Promise<boolean | null>
   albumSongs?(id: number): Promise<OnlineSong[]>
   artistTopSongs?(id: number, limit: number): Promise<OnlineSong[]>
   /** One generated collection (daily / likes / cloud), for a platform that has them. */

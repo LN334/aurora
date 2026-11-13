@@ -10,6 +10,8 @@ import {
   qishuiLoginStatus,
   qishuiLogout,
   qishuiMyPlaylists,
+  qishuiPlaylistCreator,
+  qishuiPlaylistOwned,
   qishuiPlaylistTracks,
   qishuiQrCheck,
   qishuiQrCreate,
@@ -144,6 +146,20 @@ export function registerQishuiIpc(): void {
     guard('playlistTracks', [], async () => {
       const alias = asAlias(id)
       return alias ? await qishuiPlaylistTracks(alias) : []
+    })
+  )
+
+  ipcMain.handle('qishui:playlistCreator', async (_event, id: unknown) =>
+    guard('playlistCreator', '', async () => {
+      const alias = asAlias(id)
+      return alias ? await qishuiPlaylistCreator(alias) : ''
+    })
+  )
+  /* 归属只能在详情里判：列表的 owner_id 与登录态的加密 id 不同域。 */
+  ipcMain.handle('qishui:playlistOwned', async (_event, id: unknown) =>
+    guard('playlistOwned', null, async () => {
+      const alias = asAlias(id)
+      return alias ? await qishuiPlaylistOwned(alias) : null
     })
   )
 

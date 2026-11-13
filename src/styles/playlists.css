@@ -191,3 +191,12 @@
 @media (prefers-reduced-motion: reduce) {
   .flash { animation: none; }
 }
+
+/* 歌单页顶部：自己建的与收来的分开看。 */
+.pg-sides {
+  align-self: flex-start;
+  margin: 0 0 var(--s4);
+}
+.pg-sides button {
+  white-space: nowrap;
+}

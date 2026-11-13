@@ -248,6 +248,8 @@ interface QishuiPlaylistShape {
   coverUrl: string | null
   trackCount: number
   creator: string
+  /** 歌单作者的账号 id。上游没报时是空串，不猜它等于谁。 */
+  ownerId: string
 }
 
 interface QishuiArtistShape {
@@ -586,7 +588,8 @@ export async function qishuiMyPlaylists(limit: number): Promise<QishuiPlaylistSh
       name: text(base.title) || text(base.name) || '未命名歌单',
       coverUrl: imageUrl(base.cover_url ?? base.cover ?? base.pic_url ?? base.pic),
       trackCount: typeof base.track_count === 'number' ? base.track_count : 0,
-      creator: text(record(base.owner).nickname) || text(base.owner_name)
+      creator: text(record(base.owner).nickname) || text(base.owner_name),
+      ownerId
     })
   }
   return out
@@ -650,7 +653,8 @@ export async function qishuiSearchPlaylists(
        */
       coverUrl: playlistCover(Object.keys(entity).length > 0 ? entity : row),
       trackCount: typeof base.track_count === 'number' ? base.track_count : 0,
-      creator: text(record(base.owner).nickname) || text(base.owner_name)
+      creator: text(record(base.owner).nickname) || text(base.owner_name),
+      ownerId
     })
   }
   return out
@@ -675,6 +679,65 @@ export async function qishuiPlaylistTracks(alias: number): Promise<QishuiSongSha
     if (track) songs.push(songShape(track))
   }
   return songs
+}
+
+/**
+ * 一张歌单的详情。`playlist_detail` 返回歌单本身（`data`），不是曲目。
+ *
+ * 列表接口只给数字 `owner_id`，而登录态给的是加密账号 id，两个域对不上；能判归属的
+ * 只有详情里的 `relation_info.owner.id`。所以作者与归属都从这里读，短缓存避免重复请求。
+ */
+const DETAIL_TTL_MS = 5 * 60_000
+const detailCache = new Map<number, { at: number; meta: Record<string, unknown> }>()
+
+async function playlistDetailOf(alias: number): Promise<Record<string, unknown> | null> {
+  const hit = detailCache.get(alias)
+  if (hit && Date.now() - hit.at < DETAIL_TTL_MS) return hit.meta
+  const ref = refOf(alias)
+  if (!ref || ref.kind !== 'playlist') return null
+  try {
+    const result = (await apiFor(activeProfileId).request('playlist_detail', {
+      id: ref.id,
+      ownerId: ref.ownerId
+    })) as { ok?: boolean; data?: unknown }
+    if (!result.ok) return null
+    const meta = record(result.data)
+    detailCache.set(alias, { at: Date.now(), meta })
+    return meta
+  } catch {
+    return null
+  }
+}
+
+/** 一张歌单的作者。详情里放在 `relation_info.owner.nickname`。 */
+export async function qishuiPlaylistCreator(alias: number): Promise<string> {
+  const meta = await playlistDetailOf(alias)
+  if (!meta) return ''
+  return (
+    text(record(record(meta.relation_info).owner).nickname) ||
+    text(record(meta.owner).nickname) ||
+    text(record(meta.user_info).nickname) ||
+    text(record(meta.creator).nickname) ||
+    text(meta.owner_name) ||
+    text(meta.nickname)
+  )
+}
+
+/**
+ * 这张歌单是不是当前账号自己建的。
+ *
+ * `relation_info.owner.id` 是加密账号 id，与 `login_status` 的 id 同域，可以直比。
+ * 拿不到任一侧时答 null——「分不出来」是诚实答案，宁可让它落到 unknown 侧。
+ */
+export async function qishuiPlaylistOwned(alias: number): Promise<boolean | null> {
+  const meta = await playlistDetailOf(alias)
+  if (!meta) return null
+  const ownerId = text(record(record(meta.relation_info).owner).id)
+  if (!ownerId) return null
+  const account = await qishuiLoginStatus()
+  const selfId = text(record(account).id)
+  if (!selfId) return null
+  return ownerId === selfId
 }
 
 export async function qishuiArtistProfile(alias: number): Promise<QishuiArtistShape | null> {

@@ -330,6 +330,7 @@ const qqBackend: PlatformBackend = {
     // 艺人页还没有取数通道。不写空实现：那会让页面说「这位艺人没有取到歌曲」，
     // 而事实是这一页没做。
     playlistTracks: (id) => qqBackend.playlistTracks!(id),
+    playlistCreator: (id) => qqBackend.playlistCreator!(id),
     myPlaylists: () => qqBackend.myPlaylists!()
   },
 

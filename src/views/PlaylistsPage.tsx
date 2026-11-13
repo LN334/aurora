@@ -12,9 +12,10 @@ import { NameModal } from './NameModal'
 /**
  * 歌单：按平台分组，一页看完几个账号里的单子。
  *
- * 不分「我建的」和「收藏的」。那个分法看着像在讲归属，实际是在讲数据是从哪个
- * 接口拿的——用户脑子里那件事是「网易云有哪些、QQ 有哪些」，不是「谁建的」。
- * 组里也不排序：平台给什么顺序就是什么顺序，自建与收藏本来就常常混在一起。
+ * 顶部两档：「我创建的」与「我收藏的」。以前不分，理由是「用户脑子里是网易云
+ * 有哪些、QQ 有哪些」；用下来发现收藏的单子混在自己建的单子里会让人认错，还是
+ * 按归属分开。平台分辨不出来的（`unknown`）留在「我创建的」侧，不替上游猜。
+ * 组里不排序：平台给什么顺序就是什么顺序。
  *
  * 新建只出现在能写歌单的平台（现在只有网易云）。点了就把歌建到那个平台的账号
  * 上，Aurora 自己不存歌单——所以换台机器登录同一个账号，单子还在。
@@ -25,6 +26,7 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
   const qq = useOnlineStore('qq')()
   const kugou = useOnlineStore('kugou')()
   const qishui = useOnlineStore('qishui')()
+  const [side, setSide] = useState<'mine' | 'collected'>('mine')
   const [naming, setNaming] = useState<ProviderId | null>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<ProviderId>>(() => new Set())
 
@@ -47,20 +49,32 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
   // 平台自带的「我喜欢」仍在喜欢页读取，这里只展示普通歌单。
   // 网易云默认喜欢歌单的 id 就是账号 id；其他平台用其固定系统名称识别。
   const visibleCards = useMemo(() => {
-    const likedNames = new Set(['我喜欢', '我喜欢的', '我喜欢的音乐', '我的喜欢', '喜欢的音乐'])
+    const likedNames = new Set(['我喜欢', '我喜欢的', '我喜欢的音乐', '我的喜欢', '喜欢的音乐', '抖音收藏的音乐'])
     return cards.filter((card) => {
       if (card.providerId === 'netease' && card.id === Number(netease.account?.id)) return false
       return !likedNames.has(card.name.trim())
     })
   }, [cards, netease.account?.id])
 
+  const split = useMemo(() => {
+    const mine: PlaylistCard[] = []
+    const collected: PlaylistCard[] = []
+    for (const card of visibleCards) {
+      if (card.ownership === 'collected') collected.push(card)
+      else mine.push(card)
+    }
+    return { mine, collected }
+  }, [visibleCards])
+
+  const shown = side === 'mine' ? split.mine : split.collected
+
   const groups = useMemo(() => {
     return PLAYLIST_PROVIDERS.map((platform) => ({
       ...platform,
-      rows: visibleCards.filter((card) => card.providerId === platform.id),
+      rows: shown.filter((card) => card.providerId === platform.id),
       writable: Boolean(getProvider(platform.id)?.playlists?.create)
     })).filter((group) => group.rows.length > 0 || signedIn[group.id])
-  }, [visibleCards, signedIn.netease, signedIn.qq, signedIn.kugou, signedIn.qishui])
+  }, [shown, signedIn.netease, signedIn.qq, signedIn.kugou, signedIn.qishui])
 
   const create = async (name: string) => {
     const providerId = naming
@@ -107,6 +121,26 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
 
   return (
     <div className="col">
+      <div className="seg pg-sides" role="tablist" aria-label="歌单归属">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={side === 'mine'}
+          className={side === 'mine' ? 'is-active' : undefined}
+          onClick={() => setSide('mine')}
+        >
+          我创建的 {split.mine.length}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={side === 'collected'}
+          className={side === 'collected' ? 'is-active' : undefined}
+          onClick={() => setSide('collected')}
+        >
+          我收藏的 {split.collected.length}
+        </button>
+      </div>
       {groups.map((group) => (
         <section className="rh-sec" key={group.id}>
           <header className="rh-sec__head">
@@ -138,7 +172,9 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
           >
             <div className="pl-group__inner">
               {group.rows.length === 0 ? (
-                <p className="pg-note">这个账号还没有歌单。</p>
+                <p className="pg-note">
+                  {side === 'mine' ? '这个账号还没有自己建的歌单。' : '这个账号还没有收藏别人的歌单。'}
+                </p>
               ) : (
                 <div className="pl-grid">
                   {group.rows.map((row) => (

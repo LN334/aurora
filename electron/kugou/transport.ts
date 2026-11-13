@@ -420,6 +420,41 @@ export function readFavoriteList(raw: unknown): { listId: string; globalId: stri
 }
 
 /** 歌单曲目的原始行（写「取消喜欢」要 `fileid`，共享形状里没有这个字段）。 */
+/**
+ * 歌单详情里的作者。
+ *
+ * 实测返回是 `{status:1, data:{"0":{...}}}`：`data` 不是数组，以歌单 id 段为键。
+ * 因此除了 `info[0]` / `list[0]` 这两条常见路径，还要把 `data` 里每个键值也当候选。
+ */
+export function readPlaylistCreator(raw: unknown): string {
+  const root = asRecord(raw)
+  const data = asRecord(root.data)
+  const keyed = Object.values(data).flatMap((value) => {
+    const inner = asRecord(value)
+    const first = asRecord(asArray(inner.info)[0])
+    return Object.keys(first).length > 0 ? [first, inner] : [inner]
+  })
+  const candidates = [
+    asRecord(asRecord(asArray(data.info)[0])),
+    asRecord(asRecord(asArray(data.list)[0])),
+    ...keyed,
+    asRecord(asArray(root.info)[0]),
+    asRecord(data.info),
+    data
+  ]
+  for (const row of candidates) {
+    const name =
+      asString(row.list_create_username) ||
+      asString(row.nickname) ||
+      asString(row.create_user) ||
+      asString(row.author) ||
+      asString(row.username) ||
+      asString(asRecord(row.user).nickname)
+    if (name) return name
+  }
+  return ''
+}
+
 export function readPlaylistRawSongs(raw: unknown): Record<string, unknown>[] {
   const data = asRecord(asRecord(raw).data)
   return asArray(data.songs).map(asRecord)
