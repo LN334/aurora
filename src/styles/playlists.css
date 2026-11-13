@@ -192,11 +192,27 @@
   .flash { animation: none; }
 }
 
-/* 歌单页顶部：自己建的与收来的分开看。 */
-.pg-sides {
+/* 歌单页顶部：自己建的与收来的分开看。
+   这一条不带底框：它是整页的归属切换，不是一组开关，铺一块深色底反而像张卡片压在标题下面。
+   底框改用「当前档底下一条 2px 主色」，和详情页的文字页签同一路数。
+   选择器带上 .seg：playlists.css 是在 app.css 顶部 @import 进来的，同特异性的
+   .seg 规则写在后面会赢，光写 .pg-sides 压不住它的底与内边距。 */
+.seg.pg-sides {
   align-self: flex-start;
+  gap: var(--s5);
   margin: 0 0 var(--s4);
+  padding: 0;
+  border-radius: 0;
+  background: none;
 }
-.pg-sides button {
+.seg.pg-sides button {
+  height: auto;
+  min-height: 30px;
+  padding: 0 0 7px;
+  border-radius: 0;
   white-space: nowrap;
+}
+.seg.pg-sides button.is-active {
+  background: none;
+  box-shadow: inset 0 -2px 0 rgb(var(--accent-rgb) / 0.9);
 }
