@@ -66,6 +66,50 @@ function greeting(now: Date): string {
   return '晚上好'
 }
 
+/** Wait for artwork already inside the opening viewport; below-fold images stay lazy. */
+function waitForVisibleHomeArtwork(): Promise<void> {
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>('.rh img')).filter((image) => {
+    const rect = image.getBoundingClientRect()
+    return rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth
+  })
+  if (images.length === 0) return Promise.resolve()
+
+  return new Promise((resolve) => {
+    const pending = images.filter((image) => !image.complete)
+    let remaining = pending.length
+    if (pending.length === 0) {
+      resolve()
+      return
+    }
+
+    let done = false
+    const finish = (): void => {
+      if (done) return
+      done = true
+      window.clearTimeout(timeout)
+      resolve()
+    }
+    const settle = (): void => {
+      remaining -= 1
+      if (remaining <= 0) finish()
+    }
+    const timeout = window.setTimeout(finish, 5000)
+
+    for (const image of pending) {
+      let settled = false
+      const settleImage = (): void => {
+        if (settled) return
+        settled = true
+        settle()
+      }
+      image.addEventListener('load', settleImage, { once: true })
+      image.addEventListener('error', settleImage, { once: true })
+      // The request can complete between the first check and listener binding.
+      if (image.complete) settleImage()
+    }
+  })
+}
+
 const SOURCE_NAMES: Record<string, string> = {
   netease: '网易云',
   qq: 'QQ 音乐',
@@ -157,6 +201,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
 
   const liked = useFavorites((state) => state.liked)
   const tracks = useLibrary((state) => state.tracks)
+  const libraryReady = useLibrary((state) => state.ready)
 
   const recent = useRecentEntries()
   const today = useToday()
@@ -361,7 +406,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
    * 一次要六十首/家：池子得够一屏四十首，「换一批」才有地方可换。
    */
-  const platformFresh = usePlatformNewSongs(60, freshTick)
+  const { tracks: platformFresh, ready: platformFreshReady } = usePlatformNewSongs(60, freshTick)
 
   /**
    * 按源轮转的全序。
@@ -473,6 +518,43 @@ export function HomePage({ onNavigate }: HomeViewProps) {
     return () => window.clearTimeout(timer)
   }, [])
   const dailyArtReady = platformDailyReady || dailyArtSettled
+
+  /*
+   * 开场动画等首页首轮内容落定后再退场。
+   *
+   * 首屏在这一刻背后已经完成绘制：本机曲库、每日推荐、快捷入口计数、歌单与专辑
+   * 推荐，以及首页的新歌和最近播放。网络错误也会把对应的 ready/status 收尾，
+   * 不会要求每个平台都必须成功。歌单与专辑沿用页面现有的六秒兜底；每日推荐
+   * 等平台结果落定。然后再等首屏可见封面和两帧绘制，确保内容已经上屏再揭开。
+   */
+  const homeContentReady =
+    libraryReady &&
+    settled &&
+    !likedLoading &&
+    !cardsLoading &&
+    platformDailyReady &&
+    dailyArtReady &&
+    ((!homeSections.playlists && !homeSections.albums) || cardsReady) &&
+    (!homeSections.fresh ||
+      ((newBlock.status === 'ready' || newBlock.status === 'failed') && platformFreshReady))
+  const bootReleased = useRef(false)
+  useEffect(() => {
+    if (!homeContentReady || bootReleased.current) return
+    let cancelled = false
+    void waitForVisibleHomeArtwork().then(() => {
+      if (cancelled || bootReleased.current) return
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (cancelled || bootReleased.current) return
+          bootReleased.current = true
+          ;(window as unknown as { __auroraBootDone?: () => void }).__auroraBootDone?.()
+        })
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [homeContentReady])
 
   const now = new Date()
 

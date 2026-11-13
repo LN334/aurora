@@ -80,14 +80,6 @@ console.log('[boot] render dispatched', Math.round(performance.now()))
 requestAnimationFrame(() => {
   requestAnimationFrame(() => {
     console.log('[boot] first frame painted', Math.round(performance.now()))
-    /*
-     * 开场动画退场。
-     *
-     * 只等首帧，不等数据：再等下去，首屏就绪要两秒多，开场动画会把「打开慢」
-     * 从看不见变成看得见——盖着不动比骨架更难受。首帧之后交给骨架接力，
-     * 视觉上是一段连续的「正在来」。最短停留与最长兜底由 public/boot.js 管，
-     * 这里只负责说「可以走了」。
-     */
-    ;(window as unknown as { __auroraBootDone?: () => void }).__auroraBootDone?.()
+    // HomePage dismisses the animated cover after its initial content has settled.
   })
 })

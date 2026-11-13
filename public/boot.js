@@ -8,11 +8,10 @@
  * 它做两件事：
  *   1. 先把主题落到 <html> 上。浅色的用户不该先看一帧深色界面再翻白。
  *   2. 备好退场。渲染层的首帧画完会调 window.__auroraBootDone()；
- *      渲染层要是抛错没调，这里自己也会在 2.6 秒后走开，绝不把窗口锁死。
+ *      渲染层要是抛错没调，这里自己也会在 20 秒后走开，绝不把窗口锁死。
  *
  * 入场动画（描边、扫光）不在这里：它已经由 public/splash.html 演过一遍。这一层
- * 只是同一张画面的静态接续，负责盖住「应用页开始加载 → React 首帧」的空白，
- * 所以首帧一到就该走，停留越短越好。
+ * 延续同一张画面，直到首页首轮数据与首屏绘制准备好后再退场。
  */
 ;(function () {
   var root = document.documentElement
@@ -54,6 +53,6 @@
     )
   }
 
-  window.setTimeout(dismiss, 2600)
+  window.setTimeout(dismiss, 20000)
   window.__auroraBootDone = dismiss
 })()

@@ -59,10 +59,12 @@ async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promi
  * 榜单；只重取不换切片的话，两个平台的新歌榜几小时才动一次，看起来又是没反应。
  * 所以按钮同时做两件事——这里靠 tick 重取，页面上再向前挪一格切片。
  */
-export function usePlatformNewSongs(limit = 20, tick = 0): Track[] {
+export function usePlatformNewSongs(limit = 20, tick = 0): { tracks: Track[]; ready: boolean } {
   const chosen = usePushPlatforms()
   const chosenKey = chosen ? chosen.join(',') : ''
+  const requestKey = `${limit}:${tick}:${chosenKey}`
   const [rows, setRows] = useState<Track[]>([])
+  const [completedKey, setCompletedKey] = useState<string | null>(null)
 
   useEffect(() => {
     // 还没问出「哪几家登录着」，先别取：先取一版再收紧，看起来就是内容在换。
@@ -70,14 +72,19 @@ export function usePlatformNewSongs(limit = 20, tick = 0): Track[] {
     let alive = true
     void loadPlatformNewSongs(limit, chosen)
       .then((next) => {
-        if (alive) setRows(next)
+        if (alive) {
+          setRows(next)
+          setCompletedKey(requestKey)
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (alive) setCompletedKey(requestKey)
+      })
     return () => {
       alive = false
     }
     // chosen 每份快照都会新建，用 join 后的字符串当依赖。
-  }, [limit, tick, chosenKey])
+  }, [limit, requestKey])
 
-  return rows
+  return { tracks: rows, ready: chosen !== null && completedKey === requestKey }
 }
