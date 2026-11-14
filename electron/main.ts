@@ -39,6 +39,7 @@ import {
   initOverlay,
   isLocked as isOverlayLocked,
   setLocked as setOverlayLocked,
+  setOverlaySuppressed,
   status as overlayStatus,
   toggleOverlay
 } from './lyrics-overlay'
@@ -389,6 +390,15 @@ function createWindow(): void {
     if (resizeSettle) clearTimeout(resizeSettle)
     resizeSettle = null
   })
+
+  /*
+   * 主窗自己进全屏时把桌面歌词收起来。
+   *
+   * 全屏是「只想看这一个」的意思，压在最上面的歌词这时候是干扰。舞台走的是
+   * 渲染层那条 IPC——舞台是页面里的全屏层，主进程看不见。
+   */
+  mainWindow.on('enter-full-screen', () => setOverlaySuppressed(true))
+  mainWindow.on('leave-full-screen', () => setOverlaySuppressed(false))
 
   const bootAt = Date.now()
   /*

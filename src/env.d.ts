@@ -330,6 +330,8 @@ export interface OverlayStatus {
   open: boolean
   locked: boolean
   size: number
+  /** 窗口是否真在屏幕上；舞台或主窗全屏时窗口还在，只是被收起来了。 */
+  visible: boolean
 }
 
  interface OverlayApi {
@@ -365,6 +367,13 @@ export interface OverlayStatus {
   /** The overlay lives in its own window; the settings page drives it from here. */
   setSize(size: number): Promise<number>
   onSize(handler: (size: number) => void): () => void
+  /**
+   * 舞台铺满整屏、或主窗自己进了全屏时，把桌面歌词先收起来。
+   *
+   * 只藏不关：退出全屏后再 `showInactive` 回来，用户不用重新打开一次。系统里
+   * 别的程序全屏这一版不处理，要原生模块，见 docs/roadmap.md 的 P1-3。
+   */
+  setSuppressed(suppressed: boolean): Promise<OverlayStatus>
 }
 
  interface DesktopLyricsSettings {

@@ -197,6 +197,19 @@ export function App() {  if (!isNative) {
    * 打开时不需要延迟——stageOpen 立刻为真，mounted 同帧就真。
    */
   const stage = usePresence(stageOpen, 320)
+  /*
+   * 舞台铺满整屏时把桌面歌词收起来，退出再放回来。
+   *
+   * 桌面歌词本来就要压在别的程序上面，但舞台是同一个播放器自己的全屏歌词，
+   * 两块字叠在一起既重复又挡操作。主进程只 hide 不 destroy，所以这里每次切换
+   * 都说一次话即可，不用管窗口是不是真开着。
+   */
+  useEffect(() => {
+    void window.aurora?.overlay.setSuppressed(stageOpen)
+    return () => {
+      void window.aurora?.overlay.setSuppressed(false)
+    }
+  }, [stageOpen])
   const onboarded = useOnboarded()
   const [eqOpen, setEqOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
@@ -205,7 +218,8 @@ export function App() {  if (!isNative) {
   const [overlayStatus, setOverlayStatus] = useState<OverlayStatus>({
     open: false,
     locked: true,
-    size: 34
+    size: 34,
+    visible: false
   })
   /** Transient result message for import/export, dismissed on navigation. */
   /*

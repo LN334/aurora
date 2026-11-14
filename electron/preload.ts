@@ -332,6 +332,9 @@ const api = {
     push: (state: OverlayState) => ipcRenderer.invoke('overlay:push', state) as Promise<boolean>,
     /** The settings page resizes the strip; the overlay's own buttons do too. */
     setSize: (size: number) => ipcRenderer.invoke('overlay:setSize', size) as Promise<number>,
+    /** 舞台或主窗全屏时让桌面歌词先藏起来，退出后再回来。 */
+    setSuppressed: (suppressed: boolean) =>
+      ipcRenderer.invoke('overlay:setSuppressed', suppressed) as Promise<OverlayStatus>,
     onSize: (handler: (size: number) => void) => {
       const listener = (_event: IpcRendererEvent, size: number) => handler(size)
       ipcRenderer.on('overlay:size', listener)

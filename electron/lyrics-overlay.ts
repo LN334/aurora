@@ -54,6 +54,13 @@ export interface OverlayStatus {
   locked: boolean
   /** Font size of the strip, in px. Mirrors `src/env.d.ts`. */
   size: number
+  /**
+   * 窗口此刻是否真的在屏幕上。
+   *
+   * 和 `open` 分开：舞台或主窗全屏时窗口还开着，只是被收起来（hide），退出后
+   * 原样放回来。设置页与探针都靠这一位区分「关掉了」和「暂时让位」。
+   */
+  visible: boolean
 }
 
 const DEV_URL = 'http://127.0.0.1:5173'
@@ -104,6 +111,34 @@ let hoverTimer: NodeJS.Timeout | undefined
 /** Held while the window is closed so it renders instantly when reopened. */
 let latest: OverlayState | null = null
 let notify: (status: OverlayStatus) => void = () => undefined
+
+/**
+ * 主窗自己进了全屏、或用户打开舞台时，桌面歌词先让开。
+ *
+ * 这两种遮挡都看得见：一个是主窗自己的窗口状态，一个是渲染层知道的舞台。系统里
+ * 别的程序全屏（游戏、播放器）这一版不猜——那要 `SHQueryUserNotificationState`
+ * 原生模块，见 docs/roadmap.md 的 P1-3。
+ *
+ * 只 hide 不 destroy：恢复时 `showInactive` 就够，重开窗口会白等一次渲染。
+ */
+let suppressed = false
+
+function applySuppressed(): void {
+  if (!overlay || overlay.isDestroyed()) return
+  if (suppressed) {
+    if (overlay.isVisible()) overlay.hide()
+    return
+  }
+  overlay.showInactive()
+}
+
+export function setOverlaySuppressed(next: boolean): boolean {
+  const wanted = Boolean(next)
+  if (wanted === suppressed) return suppressed
+  suppressed = wanted
+  applySuppressed()
+  return suppressed
+}
 
 export function initOverlay(onStatus: (status: OverlayStatus) => void): void {
   notify = onStatus
@@ -232,7 +267,8 @@ export function status(): OverlayStatus {
   return {
     open: overlay !== null && !overlay.isDestroyed(),
     locked,
-    size: lyricSize()
+    size: lyricSize(),
+    visible: Boolean(overlay && !overlay.isDestroyed() && overlay.isVisible())
   }
 }
 
@@ -276,7 +312,7 @@ export function setLyricSize(size: number): number {
 
 function open(): void {
   if (overlay && !overlay.isDestroyed()) {
-    overlay.showInactive()
+    if (!suppressed) overlay.showInactive()
     sendState()
     sendSize(true)
     notifyStatus()
@@ -326,7 +362,7 @@ function open(): void {
   applyLock()
 
   overlay.once('ready-to-show', () => {
-    overlay?.showInactive()
+    if (!suppressed) overlay?.showInactive()
     sendState()
     sendSize(true)
     notifyHover()

@@ -5,6 +5,7 @@ import {
   setHitArea as setOverlayHitArea,
   setLocked as setOverlayLocked,
   setLyricSize,
+  setOverlaySuppressed,
   status as overlayStatus,
   toggleOverlay,
   type OverlayState
@@ -42,6 +43,12 @@ export function registerOverlayIpc(sendCommand: (command: MediaCommand) => void)
   ipcMain.handle('overlay:hit-area', (_event, rect: unknown) => setOverlayHitArea(rect))
 
   ipcMain.handle('overlay:setSize', (_event, size: unknown) => setLyricSize(Number(size)))
+
+  // 舞台是全屏歌词，桌面歌词这时候该让开；渲染层开关舞台时转进来。
+  ipcMain.handle('overlay:setSuppressed', (_event, suppressed: unknown) => {
+    setOverlaySuppressed(Boolean(suppressed))
+    return overlayStatus()
+  })
 
   ipcMain.handle('overlay:close', () => {
     toggleOverlay(false)

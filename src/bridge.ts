@@ -261,12 +261,12 @@ const webFallback: AuroraApi = {
      * lyric design would be unreviewable outside Electron, which is the one
      * window that cannot be screenshotted here.
      */
-    toggle: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
-    getStatus: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
+    toggle: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
+    getStatus: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
     setLocked: async () => true,
     setHitArea: async () => true,
     onHover: () => () => undefined,
-    close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size }),
+    close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
     command: async () => true,
     push: async () => true,
     setSize: async (size) => {
@@ -277,6 +277,8 @@ const webFallback: AuroraApi = {
       return size
     },
     onSize: () => () => undefined,
+    // 预览里没有第二个窗口可藏，状态照旧回报，调用方不用分叉。
+    setSuppressed: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
     onState: (handler) => {
       /*
        * 预览里没有播放器，也就没有真的时间轴。给一句「正在唱到一半」的假
