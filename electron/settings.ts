@@ -176,6 +176,12 @@ export function loadSettings(): Settings {
     delete parsed.excluded
     delete parsed.rootsDiscovered
     const raw = parsed as Partial<Settings>
+    /*
+     * 这份文件写在「自动安装默认开」的时候：它没有 trayHintShown 这个后加的
+     * 字段。那种配置正是「每次打开都要重装」的受害对象，读到时把自动安装
+     * 关掉一次，并立刻写回；之后以用户在设置页选的为准。
+     */
+    const legacyAutoInstall = !Object.prototype.hasOwnProperty.call(parsed, 'trayHintShown')
     cache = {
       // Spread first so keys this version does not know about survive a
       // read-write cycle instead of being silently dropped.
@@ -196,8 +202,10 @@ export function loadSettings(): Settings {
       overlayHoverControls: raw.overlayHoverControls !== false,
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
-      downloadBitrate: clampBitrate(raw.downloadBitrate)
+      downloadBitrate: clampBitrate(raw.downloadBitrate),
+      autoInstallUpdates: legacyAutoInstall ? false : raw.autoInstallUpdates === true
     }
+    if (legacyAutoInstall) saveSettings({ autoInstallUpdates: false })
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
     cache = { ...DEFAULTS }
