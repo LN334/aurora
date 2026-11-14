@@ -25,7 +25,7 @@ const FALLBACK_SETTINGS: AppSettings = {
   onlineLyrics: false,
   updateInterval: 'daily',
   updateLastCheck: 0,
-  autoInstallUpdates: true,
+  autoInstallUpdates: false,
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,

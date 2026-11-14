@@ -68,6 +68,16 @@ export function refreshTrayImage(): void {
   tray.setImage(trayImage())
 }
 
+/**
+ * 系统气泡。托盘窗口收起来时用它说一句，别让窗口凭空消失。
+ *
+ * 用气泡而不是应用内提示：提示画在那个已经隐藏的窗口里，用户看不见。
+ */
+export function showTrayBalloon(title: string, content: string): void {
+  if (!tray || tray.isDestroyed()) return
+  tray.displayBalloon({ title, content, iconType: 'info', noSound: true })
+}
+
 export function refreshTrayMenu(handlers: TrayHandlers): void {
   if (!tray) return
   const template: MenuItemConstructorOptions[] = [

@@ -575,6 +575,29 @@ export async function installPendingUpdate(): Promise<boolean> {
   }
 }
 
+/**
+ * 清掉 electron-updater 自己的下载缓存。
+ *
+ * 真正用来安装的包由 downloadInBackground 下到临时目录，和这个缓存无关。
+ * 这里留着的是旧版本留下的 pending（安装包 + update-info.json）：升级之后
+ * 它不会自己消失，下一次检查有可能把「上次已经下好」当成「这次也下好了」，
+ * 于是版本号一直说还有新版、装却装不上。启动时清一次；缓存本来也只服务一次
+ * 检查，不需要跨启动保留。目录名与 app-update.yml 的 updaterCacheDirName 对应。
+ */
+export function sweepUpdaterCache(): void {
+  if (!app.isPackaged) return
+  const local = process.env.LOCALAPPDATA
+  if (!local) return
+  const root = path.join(local, 'aurora-player-updater')
+  for (const junk of [path.join(root, 'pending'), path.join(root, 'installer.exe')]) {
+    try {
+      fs.rmSync(junk, { recursive: true, force: true })
+    } catch {
+      // 正被占用就下次再说；清不掉缓存不是启动失败的理由
+    }
+  }
+}
+
 /** Hand the release page to the real browser, never to an in-app window. */
 export async function openReleasePage(url: string): Promise<void> {
   if (!/^https:\/\/github\.com\//.test(url)) return

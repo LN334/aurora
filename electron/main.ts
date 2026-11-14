@@ -1,7 +1,7 @@
 import { app, BrowserWindow, globalShortcut, screen, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
-import { loadSettings } from './settings'
+import { loadSettings, saveSettings } from './settings'
 import { syncLoginItem } from './login-item'
 import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
@@ -19,7 +19,7 @@ import {
   mainWindowVisibility,
   type WindowVisibilityState
 } from './pure/scan-progress'
-import { autoCheck, onUpdateStatus, type UpdateResult } from './updates'
+import { autoCheck, onUpdateStatus, sweepUpdaterCache, type UpdateResult } from './updates'
 import {
   createTray,
   destroyTray,
@@ -27,6 +27,7 @@ import {
   installThumbar,
   refreshTrayImage,
   refreshTrayMenu,
+  showTrayBalloon,
   type MediaCommand,
   type TrayHandlers
 } from './tray'
@@ -99,6 +100,21 @@ function sendMediaCommand(command: MediaCommand): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('media:command', command)
   }
+}
+
+/**
+ * 第一次把窗口收进托盘时，用系统气泡说明一句。
+ *
+ * 默认行为是「关窗继续放」：窗口消失、音乐不断。用户若不知道托盘这回事，
+ * 会以为程序关不掉，或者干脆又去装一遍。只说一次，之后靠托盘菜单与设置页。
+ */
+function announceTrayHidden(): void {
+  if (loadSettings().trayHintShown) return
+  saveSettings({ trayHintShown: true })
+  showTrayBalloon(
+    'Aurora 还在放',
+    '窗口收进托盘了。点托盘图标，或再点一次桌面快捷方式就能回来。不想这样，设置 → 启动与系统 里可以改成「退出应用」。'
+  )
 }
 
 function showWindow(): void {
@@ -426,6 +442,10 @@ function createWindow(): void {
     refreshTrayMenu(trayHandlers())
     notifyVisibility()
     /*
+     * 第一次收进托盘时说明一句：窗口消失、声音还在，是最容易误解的一步。
+     */
+    announceTrayHidden()
+    /*
      * 收起窗口不装。装新版本会先关掉应用，这只能由用户在更新面板里点
      * 「重启并安装」：收窗口的意思是「我不看了」，不是「可以换掉我现在这个
      * 版本」。以前这里会静默装，于是用户没按过任何按钮就换了版本，下次打开
@@ -724,9 +744,15 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
+    /*
+     * 快捷方式再点一次、从开始菜单启动第二次，都落到这里。
+     *
+     * 只 focus 不够：窗口收进托盘时是 hide() 状态，focus() 不会让一个隐藏
+     * 窗口出现，用户点桌面图标就以为程序没反应，然后去重装一遍。showWindow
+     * 同时覆盖「最小化」「收进托盘」「窗口已经销毁」三种状态。
+     */
+    if (!app.isReady()) return
+    showWindow()
   })
 
   void app.whenReady().then(async () => {
@@ -746,6 +772,8 @@ if (!app.requestSingleInstanceLock()) {
     // 上次清理时被占用、没删掉的垃圾在这里补删。必须赶在窗口建起来之前：
     // 一旦渲染进程启动，Chromium 又会把那些缓存文件重新打开并锁住。
     void sweepPendingJunk()
+    // 更新器缓存里留着旧包会让「已经下好」误判，启动时清掉。
+    sweepUpdaterCache()
     // 窗口尺寸必须在建窗之前拿到：读盘一旦晚于 createWindow，首帧就会退回默认
     // 1360x860，等保存的尺寸到位再跳一次。这一行是同步等待，代价是几毫秒读盘。
     await preloadWinState()

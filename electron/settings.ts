@@ -125,6 +125,13 @@ export interface Settings {
   downloadFormat: 'original' | 'mp3' | 'flac' | 'm4a'
   /** 有损目标的码率（kbps）。 */
   downloadBitrate: number
+  /**
+   * 第一次把窗口收进托盘时，是否已经用系统气泡说明过。
+   *
+   * 只用一次：每个会话都弹就成了骚扰，但从来不说，用户会以为关窗把程序
+   * 关了——窗口消失、声音还在，这是这套默认行为里最容易误解的一步。
+   */
+  trayHintShown: boolean
   /** Last position and size of the desktop lyric strip. */
   lyricsOverlayBounds?: { x: number; y: number; width: number; height: number }
 }
@@ -133,7 +140,13 @@ const DEFAULTS: Settings = {
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
-  autoInstallUpdates: true,
+  /*
+   * 默认只检查、不自己装。检查更新是问一句，换掉正在运行的版本是另一回事：
+   * 静默装完如果被权限、杀软或单实例锁挡住，用户看到的就是「每次打开都要
+   * 重装一遍」。这个开关还在，想全自动的人自己打开。
+   */
+  autoInstallUpdates: false,
+  trayHintShown: false,
   desktopLyricsSize: 34,
   onlineLyrics: false,
   closeToTray: true,
@@ -179,6 +192,7 @@ export function loadSettings(): Settings {
       preventSleepWhilePlaying: raw.preventSleepWhilePlaying !== false,
       openAfterDownload: raw.openAfterDownload === true,
       trayClick: raw.trayClick === 'show' ? 'show' : 'toggle',
+      trayHintShown: raw.trayHintShown === true,
       overlayHoverControls: raw.overlayHoverControls !== false,
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
