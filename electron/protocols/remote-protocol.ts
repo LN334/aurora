@@ -3,6 +3,7 @@ import dns from 'node:dns'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
+import { coverEvictions } from '../pure/cover-cache-rules.ts'
 
 /**
  * A private, standard, secure scheme for media that lives on someone else's
@@ -460,22 +461,23 @@ function createCoverCache(directory: string): CoverCache {
     pruned = Date.now()
     try {
       const names = await fs.promises.readdir(directory)
-      if (names.length <= 4000) return
+      if (names.length === 0) return
       const rows = await Promise.all(
         names.map(async (name) => {
           try {
             const info = await fs.promises.stat(path.join(directory, name))
-            return { name, at: info.mtimeMs }
+            return { name, at: info.mtimeMs, size: info.size }
           } catch {
             return null
           }
         })
       )
-      const live = rows.filter((row): row is { name: string; at: number } => row !== null)
-      live.sort((a, b) => a.at - b.at)
-      const drop = live.slice(0, Math.max(0, live.length - 3000))
+      const live = rows.filter((row): row is { name: string; at: number; size: number } => row !== null)
+      // 淘汰口径在 pure/cover-cache-rules.ts：两条预算（字节与文件数）都测过。
+      const drop = coverEvictions(live)
+      if (drop.length === 0) return
       await Promise.all(
-        drop.map((row) => fs.promises.unlink(path.join(directory, row.name)).catch(() => undefined))
+        drop.map((name) => fs.promises.unlink(path.join(directory, name)).catch(() => undefined))
       )
     } catch {
       /* 清理失败不影响读，下一次再试 */
