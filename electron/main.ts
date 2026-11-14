@@ -7,6 +7,8 @@ import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
 import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
+import { handleCacheProtocol, registerCacheScheme } from './protocols/cache-protocol'
+import { mediaCache } from './media-cache-instance'
 import { registerNeteaseIpc } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
@@ -76,6 +78,11 @@ registerRemoteScheme()
 // use it as a backdrop. Same privileged position: a video wallpaper loops with
 // range requests just like local audio does.
 registerWallpaperScheme()
+/*
+ * `aurora-cache:` 是 `aurora-remote:` 的本地命中版本：同一个流，第一次从
+ * 上游拿并存进 userData/media-cache，之后直接从磁盘按 Range 给。
+ */
+registerCacheScheme()
 
 interface WinState {
   width: number
@@ -791,6 +798,7 @@ if (!app.requestSingleInstanceLock()) {
     handleAppProtocol()
     handleRemoteProtocol()
     handleWallpaperProtocol()
+    handleCacheProtocol(mediaCache())
     initOverlay((status) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('overlay:status', status)

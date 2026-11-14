@@ -1,4 +1,4 @@
-import { remoteStreamUrl } from '../player/urls'
+import { cachedStreamUrl } from '../player/urls'
 import { setOnlineStreamLoader } from '../player/online-fetch'
 import { registerProviders } from './providers'
 import { useOnlineStore } from './store'
@@ -29,10 +29,16 @@ setOnlineStreamLoader(async (track) => {
   const onlineId = track.onlineId
   if (!providerId || providerId === 'local' || onlineId === undefined) return null
 
+  /*
+   * 一律走 `aurora-cache:`，命中与否由主进程判断：命中是本地文件，未命中它会
+   * 透传上游并顺手把整首存下来。这样播放内核不需要知道缓存的存在，也就不会
+   * 出现「渲染层以为有缓存、主进程其实没有」的两套状态。
+   */
+  const key = `${providerId}:${onlineId}`
   const cached = cachedStream(providerId, onlineId)
-  if (cached) return remoteStreamUrl(cached.url)
+  if (cached) return cachedStreamUrl(key, cached.url)
 
   await useOnlineStore(providerId).getState().ensureStream(onlineId)
   const resolved = cachedStream(providerId, onlineId)
-  return resolved ? remoteStreamUrl(resolved.url) : null
+  return resolved ? cachedStreamUrl(key, resolved.url) : null
 })

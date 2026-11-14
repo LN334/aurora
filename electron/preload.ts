@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { LibraryIndex, ScanProgress } from './library-scan'
 import type { AppSettings, StorageUsage } from './settings'
+import type { MediaCacheStats } from './media-cache'
 import type { DownloadFormat, DownloadPrefs, DownloadRequest, DownloadView } from './downloads'
 import type { UpdateInterval, UpdatePrefs, UpdateResult } from './updates'
 import type { LyricsHit, LyricsQuery } from './lyrics'
@@ -178,7 +179,21 @@ const api = {
     setOverlayHoverControls: (enabled: boolean) =>
       ipcRenderer.invoke('settings:setOverlayHoverControls', enabled) as Promise<AppSettings>,
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
-    clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>
+    clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>,
+    setMediaCacheLimit: (megabytes: number) =>
+      ipcRenderer.invoke('settings:setMediaCacheLimit', megabytes) as Promise<AppSettings>
+  },
+
+  /**
+   * 在线音频缓存（`userData/media-cache`）。
+   *
+   * 单独的命名空间而不是并进 settings：这几个动作读写的是磁盘上的缓存目录，
+   * 不是偏好设置，而且设置页要在「占用」变化时重新拉一次 stats。
+   */
+  mediaCache: {
+    stats: () => ipcRenderer.invoke('mediaCache:stats') as Promise<MediaCacheStats>,
+    clear: () => ipcRenderer.invoke('mediaCache:clear') as Promise<MediaCacheStats>,
+    openFolder: () => ipcRenderer.invoke('mediaCache:openFolder') as Promise<void>
   },
 
   /**

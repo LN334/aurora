@@ -1,6 +1,7 @@
 import { app, net } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { normalizeName, pickBest, type TrackFacts } from './pure/lyrics-match'
 
 /**
  * Online lyric lookup against LRCLIB (lrclib.net).
@@ -114,10 +115,20 @@ function pruneCache(): void {
 interface LrclibRecord {
   trackName?: string
   artistName?: string
+  albumName?: string
   duration?: number
   instrumental?: boolean
   plainLyrics?: string | null
   syncedLyrics?: string | null
+}
+
+function factsOf(record: LrclibRecord): TrackFacts {
+  return {
+    title: record.trackName ?? '',
+    artist: record.artistName ?? '',
+    album: record.albumName ?? '',
+    duration: record.duration ?? 0
+  }
 }
 
 async function request(url: string): Promise<unknown> {
@@ -179,6 +190,48 @@ function toHit(record: LrclibRecord | null | undefined): LyricsHit | null {
 }
 
 /**
+ * One exact lookup, retried once with the name folded to a canonical spelling.
+ *
+ * `api/get` is an exact match on the title, so 「（晴天）」 with a full-width
+ * bracket, a curly apostrophe, or a traditional character set that the file's
+ * tagger kept never reaches the row that exists. Folding is cheap and only runs
+ * when it actually changes the query.
+ */
+async function lookupExact(facts: TrackFacts): Promise<LyricsHit | null> {
+  const attempts: TrackFacts[] = [{ ...facts }]
+  const folded: TrackFacts = {
+    title: normalizeName(facts.title),
+    artist: normalizeName(facts.artist),
+    album: normalizeName(facts.album ?? ''),
+    duration: facts.duration
+  }
+  if (
+    folded.title !== facts.title ||
+    folded.artist !== facts.artist ||
+    (folded.album ?? '') !== (facts.album ?? '')
+  ) {
+    attempts.push(folded)
+  }
+
+  for (const attempt of attempts) {
+    if (!attempt.title) continue
+    const url = new URL('https://lrclib.net/api/get')
+    url.searchParams.set('track_name', attempt.title)
+    if (attempt.artist && attempt.artist !== '未知艺术家') {
+      url.searchParams.set('artist_name', attempt.artist)
+    }
+    if (attempt.album) url.searchParams.set('album_name', attempt.album)
+    if (attempt.duration && attempt.duration > 0) {
+      url.searchParams.set('duration', String(attempt.duration))
+    }
+
+    const hit = toHit((await request(url.toString())) as LrclibRecord | null)
+    if (hit) return hit
+  }
+  return null
+}
+
+/**
  * Look up lyrics for a track. Never throws: a lookup failure is an ordinary
  * outcome (offline, unknown track) and must not disturb playback.
  */
@@ -186,18 +239,15 @@ export async function lookupLyrics(query: LyricsQuery): Promise<LyricsHit | null
   const cached = readCache(query)
   if (cached) return cached
 
-  const artist = query.artist.trim()
-  const title = query.title.trim()
-  if (!title) return null
+  const facts: TrackFacts = {
+    title: query.title.trim(),
+    artist: query.artist.trim(),
+    album: query.album.trim(),
+    duration: Math.round(query.duration)
+  }
+  if (!facts.title) return null
 
-  const duration = Math.round(query.duration)
-  const direct = new URL('https://lrclib.net/api/get')
-  direct.searchParams.set('track_name', title)
-  if (artist && artist !== '未知艺术家') direct.searchParams.set('artist_name', artist)
-  if (query.album.trim()) direct.searchParams.set('album_name', query.album.trim())
-  if (duration > 0) direct.searchParams.set('duration', String(duration))
-
-  const exact = toHit((await request(direct.toString())) as LrclibRecord | null)
+  const exact = await lookupExact(facts)
   if (exact) {
     writeCache(query, exact.text, exact.synced)
     return exact
@@ -206,26 +256,34 @@ export async function lookupLyrics(query: LyricsQuery): Promise<LyricsHit | null
   // Fall back to search: tags rarely match LRCLIB's spelling exactly, and an
   // exact-duration lookup misses on any rip whose duration is off by a second.
   const search = new URL('https://lrclib.net/api/search')
-  search.searchParams.set('track_name', title)
-  if (artist && artist !== '未知艺术家') search.searchParams.set('artist_name', artist)
+  search.searchParams.set('track_name', facts.title)
+  if (facts.artist && facts.artist !== '未知艺术家') {
+    search.searchParams.set('artist_name', facts.artist)
+  }
 
   const results = (await request(search.toString())) as LrclibRecord[] | null
   if (!Array.isArray(results)) return null
 
-  // Prefer a synchronised match, then the one closest in duration.
-  const ranked = results
+  const candidates = results
     .map((record) => ({ record, hit: toHit(record) }))
     .filter((entry): entry is { record: LrclibRecord; hit: LyricsHit } => entry.hit !== null)
-    .sort((a, b) => {
-      if (a.hit.synced !== b.hit.synced) return a.hit.synced ? -1 : 1
-      if (duration > 0 && a.record.duration && b.record.duration) {
-        return Math.abs(a.record.duration - duration) - Math.abs(b.record.duration - duration)
-      }
-      return 0
-    })
 
-  const best = ranked[0]
+  /*
+   * Search answers with every row that shares a word with the query, so the
+   * ranking decides the result. Score each row on what identifies a recording
+   * (see pure/lyrics-match.ts) and refuse anything below the threshold: showing
+   * the lyrics of a different song because its duration was close is worse than
+   * showing nothing.
+   *
+   * The sort below only breaks ties. `pickBest` keeps the earlier candidate on
+   * equal scores, so synchronised rows go first and win a tie.
+   */
+  const ordered = candidates
+    .slice()
+    .sort((left, right) => Number(right.hit.synced) - Number(left.hit.synced))
+  const best = pickBest(ordered, facts, (entry) => factsOf(entry.record))
   if (!best) return null
-  writeCache(query, best.hit.text, best.hit.synced)
-  return best.hit
+
+  writeCache(query, best.item.hit.text, best.item.hit.synced)
+  return best.item.hit
 }

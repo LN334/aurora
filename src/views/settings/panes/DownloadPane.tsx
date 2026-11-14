@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useDownloads } from '../../../features/downloads/store'
 import type { useSettingsPage } from '../../../features/settings/store'
-import type { DownloadFormat } from '../../../env'
+import { bridge } from '../../../bridge'
+import type { DownloadFormat, MediaCacheStats } from '../../../env'
 import { Row, Rows, Toggle } from '../parts'
 
 const FORMATS: { value: DownloadFormat; label: string; hint: string }[] = [
@@ -11,6 +13,26 @@ const FORMATS: { value: DownloadFormat; label: string; hint: string }[] = [
 ]
 
 const BITRATES = [128, 192, 256, 320]
+
+/**
+ * 在线缓存的几档上限。
+ *
+ * 用固定档位而不是滑块：2GB 与 2.1GB 对用户没有区别，但一行按钮比拖动条更好
+ * 点，也更好解释「不缓存」这个真实存在的选项。
+ */
+const CACHE_LIMITS = [0, 512, 1024, 2048, 5120, 10_240]
+
+function limitLabel(megabytes: number): string {
+  if (megabytes === 0) return '不缓存'
+  return megabytes >= 1024 ? `${megabytes / 1024} GB` : `${megabytes} MB`
+}
+
+/** 占用按「1.2 GB / 36 MB」报；这里不追求精确到小数第二位。 */
+function sizeLabel(bytes: number): string {
+  if (bytes <= 0) return '0 MB'
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+  return `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`
+}
 
 /**
  * 09 下载。
@@ -26,9 +48,42 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
   const pickDir = useDownloads((state) => state.pickDir)
   const openFolder = useDownloads((state) => state.openFolder)
 
+  const [cache, setCache] = useState<MediaCacheStats | null>(null)
+  const [cacheBusy, setCacheBusy] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    void bridge.mediaCache.stats().then((value) => {
+      if (alive) setCache(value)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const changeCacheLimit = async (megabytes: number): Promise<void> => {
+    setCacheBusy(true)
+    try {
+      await page.setMediaCacheLimit(megabytes)
+      setCache(await bridge.mediaCache.stats())
+    } finally {
+      setCacheBusy(false)
+    }
+  }
+
+  const clearAudioCache = async (): Promise<void> => {
+    setCacheBusy(true)
+    try {
+      setCache(await bridge.mediaCache.clear())
+    } finally {
+      setCacheBusy(false)
+    }
+  }
+
   const format = prefs?.format ?? 'original'
   const bitrate = prefs?.bitrate ?? 256
   const lossy = format === 'mp3' || format === 'm4a'
+  const cacheLimit = page.settings.mediaCacheLimitMb
 
   return (
     <Rows>
@@ -113,6 +168,57 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
         <span className={`dlp__badge${prefs?.ffmpeg ? ' is-ok' : ''}`}>
           {prefs?.ffmpeg ? '可用' : '未安装'}
         </span>
+      </Row>
+
+      <Row
+        label="在线缓存上限"
+        hint={
+          cacheLimit === 0
+            ? '关掉之后，听过的歌不再留在本地，每次都重新联网取。'
+            : '听过的歌存在本机，再听同一首直接读盘、不再联网。超了按最久未听先删。'
+        }
+      >
+        <div className="seg" role="group" aria-label="在线缓存上限">
+          {CACHE_LIMITS.map((megabytes) => (
+            <button
+              key={megabytes}
+              type="button"
+              className={megabytes === cacheLimit ? 'is-active' : ''}
+              disabled={cacheBusy || page.busy}
+              onClick={() => void changeCacheLimit(megabytes)}
+            >
+              {limitLabel(megabytes)}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      <Row
+        label="缓存占用"
+        hint={cacheLimit === 0 ? undefined : '这部分只存音频，清掉不影响下载目录里的歌。'}
+        title={cache?.directory}
+      >
+        <div className="dlp__dir">
+          <span className="dlp__path" title={cache?.directory}>
+            {cache ? `${cache.entries} 首 · ${sizeLabel(cache.bytes)}` : '读取中…'}
+          </span>
+          <button
+            className="btn btn--ghost"
+            type="button"
+            disabled={cacheBusy || !cache || cache.entries === 0}
+            onClick={() => void clearAudioCache()}
+          >
+            清空
+          </button>
+          <button
+            className="btn btn--ghost"
+            type="button"
+            disabled={cacheBusy}
+            onClick={() => void bridge.mediaCache.openFolder()}
+          >
+            打开
+          </button>
+        </div>
       </Row>
 
       <p className="dlp__note">

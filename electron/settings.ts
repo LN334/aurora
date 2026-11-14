@@ -36,6 +36,8 @@ export interface AppSettings {
    * 穿透，想动它只能先解锁。
    */
   overlayHoverControls: boolean
+  /** 在线音频缓存上限（MB）；0 表示不缓存。 */
+  mediaCacheLimitMb: number
 }
 
 export interface StorageUsage {
@@ -126,6 +128,13 @@ export interface Settings {
   /** 有损目标的码率（kbps）。 */
   downloadBitrate: number
   /**
+   * 在线音频本地缓存的上限（MB）。0 表示不缓存。
+   *
+   * 缓存的是「自己听过的歌」，位置在 userData/media-cache；上限按最近使用
+   * 淘汰，默认 2GB——一张专辑约 100MB，够二十张来回听。
+   */
+  mediaCacheLimitMb: number
+  /**
    * 第一次把窗口收进托盘时，是否已经用系统气泡说明过。
    *
    * 只用一次：每个会话都弹就成了骚扰，但从来不说，用户会以为关窗把程序
@@ -158,7 +167,8 @@ const DEFAULTS: Settings = {
   neteaseQuality: 'exhigh',
   downloadDir: '',
   downloadFormat: 'original',
-  downloadBitrate: 256
+  downloadBitrate: 256,
+  mediaCacheLimitMb: 2048
 }
 
 let cache: Settings | null = null
@@ -203,6 +213,7 @@ export function loadSettings(): Settings {
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
       downloadBitrate: clampBitrate(raw.downloadBitrate),
+      mediaCacheLimitMb: clampMediaCacheLimit(raw.mediaCacheLimitMb),
       autoInstallUpdates: legacyAutoInstall ? false : raw.autoInstallUpdates === true
     }
     if (legacyAutoInstall) saveSettings({ autoInstallUpdates: false })
@@ -240,6 +251,12 @@ function clampBitrate(value: unknown): number {
   return Math.min(320, Math.max(96, Math.round(value)))
 }
 
+/** 0 是「不缓存」，所以下限就是 0；上限 10GB，再大不像音乐播放器。 */
+function clampMediaCacheLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULTS.mediaCacheLimitMb
+  return Math.min(10_240, Math.max(0, Math.round(value)))
+}
+
 function clampLyricSize(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULTS.desktopLyricsSize
   return Math.min(LYRIC_SIZE_MAX, Math.max(LYRIC_SIZE_MIN, Math.round(value)))
@@ -259,6 +276,7 @@ export function appSettings(): AppSettings {
     openAfterDownload: settings.openAfterDownload === true,
     trayClick: settings.trayClick === 'show' ? 'show' : 'toggle',
     overlayHoverControls: settings.overlayHoverControls !== false,
+    mediaCacheLimitMb: clampMediaCacheLimit(settings.mediaCacheLimitMb),
     desktopLyrics: {
       size: clampLyricSize(settings.desktopLyricsSize),
       min: LYRIC_SIZE_MIN,

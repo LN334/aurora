@@ -58,6 +58,20 @@ export function remoteImageUrl(upstream: string, px?: number): string {
 }
 
 /**
+ * 在线音频的本地缓存地址。
+ *
+ * 与 remoteStreamUrl 的区别只有 key：上游地址是带你签名和过期时间的临时
+ * 地址，每次播放都不一样，拿它当缓存键等于永不命中。key 由「平台:歌曲 id」
+ * 组成，主进程用它找磁盘上的文件；上游地址排在后面，只在第一次播放时被
+ * 真正请求。命中之后，这个 URL 里那段 http 地址根本不会被用到。
+ */
+export const CACHE_SCHEME = 'aurora-cache'
+
+export function cachedStreamUrl(key: string, upstream: string): string {
+  return `${CACHE_SCHEME}://audio/${encodeURIComponent(key)}/${encodeURIComponent(upstream)}`
+}
+
+/**
  * 按显示尺寸向图片 CDN 要缩放版。
  *
  * 网易云的图床支持 `?param=WxY`：同一张封面原图 800KB，200×200 只有 39KB，

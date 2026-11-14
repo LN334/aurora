@@ -104,6 +104,16 @@ async function resolveLyrics(subject: Track): Promise<string | null> {
   return lookupSharedLyrics(subject)
 }
 
+/**
+ * 一首歌的歌词原文，给「没有播放器上下文」的地方用——喜欢页那张词卡就是。
+ *
+ * 走的是和 useLyrics 同一条三级回退（本家 → 同一首的其它版本 → 公共库），
+ * 只是不解析、不订阅：那里要的是三行文本，不是时间轴。
+ */
+export function lyricsTextFor(track: Track): Promise<string | null> {
+  return resolveLyrics(track)
+}
+
 /** Lyrics for the current track. The owning source decides where they come from. */
 export function useLyrics(track: Track | null): LyricsState {
   const [lyrics, setLyrics] = useState<Lyrics>(() => emptyLyrics())

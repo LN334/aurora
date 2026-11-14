@@ -2,14 +2,16 @@ import { create } from 'zustand'
 import type { Track } from '../../types'
 import {
   HISTORY_KEY,
+  addPlay,
   addRecent,
   addSeconds,
   emptyHistory,
   parseHistory,
+  prunePlays,
   serializeHistory,
   todaySummary
 } from './history'
-import type { HistoryState, RecentEntry, TodaySummary } from './history'
+import type { HistoryState, PlayEntry, RecentEntry, TodaySummary } from './history'
 
 /**
  * Listening history, persisted to localStorage.
@@ -75,7 +77,9 @@ export const useHistory = create<HistoryStore>((set, get) => ({
   lastFlush: 0,
 
   noteStart(track) {
-    const history = addRecent(get().history, track, Date.now())
+    const now = Date.now()
+    // 一份时间戳给两条记录：书架（recent）与明细（plays）说的必须是同一件事。
+    const history = addPlay(addRecent(get().history, track, now), track, now)
     write(history)
     set({ history })
   },
@@ -105,6 +109,7 @@ export const useHistory = create<HistoryStore>((set, get) => ({
       if (!span || !(span.seconds > 0)) continue
       next = addSeconds(next, span.track, span.seconds, now)
     }
+    next = prunePlays(next, now)
     write(next)
     set({ history: next, pending: {}, lastFlush: now })
   },
@@ -130,6 +135,11 @@ if (typeof window !== 'undefined') {
 /** Recently played, newest first. */
 export function useRecentEntries(): RecentEntry[] {
   return useHistory((state) => state.history.recent)
+}
+
+/** Every play, newest first. The week view groups these by day. */
+export function usePlayEntries(): PlayEntry[] {
+  return useHistory((state) => state.history.plays)
 }
 
 /** Today's headline numbers, derived at render time. */

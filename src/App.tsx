@@ -61,6 +61,7 @@ import { useWallpaper } from './features/wallpaper/store'
 import { LyricsStage } from './stage/LyricsStage'
 import type { OverlayStatus } from './env'
 import type { Track } from './types'
+import { orderPlaylistTracks } from './features/library/views'
 import type { Route } from './app/routing'
 import {
   SHELL_TITLES,
@@ -970,6 +971,20 @@ export function App() {  if (!isNative) {
             playing={playing}
             onPlayAt={(index) => player.playQueue(playlistTracks.tracks, index)}
             onMove={(from, to) => usePlaylists.getState().move(activePlaylist.id, from, to)}
+            onSort={(order) => {
+              if (order === 'manual') return
+              const byId = new Map(tracks.map((track) => [track.id, track]))
+              // 曲库里已经找不到的条目原样留在末尾：排序只换顺序，不删东西。
+              const known: Track[] = []
+              const lost: string[] = []
+              for (const id of activePlaylist.trackIds) {
+                const track = byId.get(id)
+                if (track) known.push(track)
+                else lost.push(id)
+              }
+              const ids = orderPlaylistTracks(known, order).map((track) => track.id)
+              usePlaylists.getState().replaceTracks(activePlaylist.id, [...ids, ...lost])
+            }}
             onRemoveAt={(index) => usePlaylists.getState().removeAt(activePlaylist.id, index)}
             onExport={() => void exportPlaylist()}
             onRename={(name) => usePlaylists.getState().rename(activePlaylist.id, name)}

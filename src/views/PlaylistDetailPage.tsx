@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Playlist } from '../features/playlists/store'
+import type { PlaylistOrder } from '../features/library/views'
 import type { Track } from '../types'
 import { formatSpan, formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
@@ -17,10 +18,19 @@ interface PlaylistDetailProps {
   playing: boolean
   onPlayAt(index: number): void
   onMove(from: number, to: number): void
+  onSort(order: PlaylistOrder): void
   onRemoveAt(index: number): void
   onExport(): void
   onRename(name: string): void
 }
+
+const SORTS: Array<[PlaylistOrder, string]> = [
+  ['manual', '手动顺序'],
+  ['added', '最近添加'],
+  ['title', '标题'],
+  ['artist', '艺人'],
+  ['duration', '时长']
+]
 
 export function PlaylistDetailPage({
   playlist,
@@ -30,6 +40,7 @@ export function PlaylistDetailPage({
   playing,
   onPlayAt,
   onMove,
+  onSort,
   onRemoveAt,
   onExport,
   onRename
@@ -37,6 +48,11 @@ export function PlaylistDetailPage({
   const [draft, setDraft] = useState(playlist.name)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  /*
+   * 排序方式不存进歌单：存下来的就是排好的那份顺序，重开时「手动顺序」指的
+   * 正是它。把排序方式也持久化会多一个状态，还得处理「改了排序但没保存」。
+   */
+  const [order, setOrder] = useState<PlaylistOrder>('manual')
 
   const total = tracks.reduce((sum, track) => sum + track.duration, 0)
 
@@ -103,6 +119,27 @@ export function PlaylistDetailPage({
 
       {missingCount > 0 ? (
         <div className="pl-detail__warn">有 {missingCount} 个条目在曲库里找不到</div>
+      ) : null}
+
+      {tracks.length > 0 ? (
+        <div className="pl-detail__sort">
+          <div className="seg" role="group" aria-label="歌单顺序">
+            {SORTS.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={order === key ? 'is-active' : ''}
+                onClick={() => {
+                  setOrder(key)
+                  onSort(key)
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="pl-detail__note">拖一行就能改顺序，或按住 Alt 用上下方向键</span>
+        </div>
       ) : null}
 
       {tracks.length === 0 ? (

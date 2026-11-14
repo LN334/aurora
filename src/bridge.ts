@@ -39,7 +39,8 @@ let previewSettings: AppSettings = {
   preventSleepWhilePlaying: true,
   openAfterDownload: false,
   trayClick: 'toggle',
-  overlayHoverControls: true
+  overlayHoverControls: true,
+  mediaCacheLimitMb: 2048
 }
 
 /**
@@ -202,6 +203,8 @@ const webFallback: AuroraApi = {
     setTrayClick: async (mode) => (previewSettings = { ...previewSettings, trayClick: mode }),
     setOverlayHoverControls: async (enabled) =>
       (previewSettings = { ...previewSettings, overlayHoverControls: enabled }),
+    setMediaCacheLimit: async (megabytes) =>
+      (previewSettings = { ...previewSettings, mediaCacheLimitMb: megabytes }),
     // A browser has no userData directory, so "nothing to measure" is the
     // honest answer rather than a made-up zero.
     getStorage: async () => ({
@@ -216,6 +219,22 @@ const webFallback: AuroraApi = {
       cacheBytes: null,
       userDataBytes: null
     })
+  },
+  mediaCache: {
+    // 浏览器里没有主进程的缓存目录；如实报空，而不是编一个占用。
+    stats: async () => ({
+      entries: 0,
+      bytes: 0,
+      limitBytes: 0,
+      directory: '（浏览器预览模式，没有缓存目录）'
+    }),
+    clear: async () => ({
+      entries: 0,
+      bytes: 0,
+      limitBytes: 0,
+      directory: '（浏览器预览模式，没有缓存目录）'
+    }),
+    openFolder: async () => undefined
   },
   maintenance: {
     // 浏览器里没有「本应用的进程」，也没有数据目录：如实回答没有可做的事，

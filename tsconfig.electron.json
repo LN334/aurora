@@ -14,6 +14,11 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
     "declaration": false,
+    // node --test runs these files as TypeScript directly, so tests have to
+    // spell out the `.ts` they import. Only that form is allowed here, and the
+    // emitted JavaScript gets the extension rewritten back to `.js`.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "types": ["node"]
   },
   "include": ["electron/**/*.ts"]

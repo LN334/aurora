@@ -49,6 +49,13 @@ const scanned = tracked.filter(
 const EXAMPLE_FILES = new Set(['scripts/audit-stale-paths.mjs'])
 
 /*
+ * 计划文档先写还没建的文件，这是它们的用处，不是失效引用。只放行这一份：
+ * roadmap 描述的是下一步要新建的模块，写路径比写「那个匹配器」更可查。
+ * 一旦某个路径已经建成、又被挪走，这份白名单同样会漏报——所以别往里加。
+ */
+const PLAN_FILES = new Set(['docs/roadmap.md'])
+
+/*
  * Longest meaningful source path in a string.
  *
  * The extension alternation is written `tsx?`, not `ts|tsx`: this pattern is
@@ -69,6 +76,7 @@ for (const file of scanned) {
     const candidate = match[1]
     if (trackedSet.has(candidate) || dirs.has(candidate)) continue
     const line = text.slice(0, match.index).split('\n').length
+    if (PLAN_FILES.has(file)) continue
     if (EXAMPLE_FILES.has(file) && /\busage\b|^ \*/i.test(lines[line - 1] ?? '')) continue
     stale.push({ file, line, candidate })
   }

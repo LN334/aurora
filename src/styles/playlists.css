@@ -84,6 +84,19 @@
   font-size: var(--fs-meta);
 }
 
+/* 排序条：一行里左边的 seg 能点，右边那句是给鼠标之外的第二条路做说明。 */
+.pl-detail__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.pl-detail__note {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
 .pl-tracks {
   list-style: none;
   margin: 0;

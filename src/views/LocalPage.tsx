@@ -3,7 +3,9 @@ import type { ShellRoute } from '../app/shell'
 import { artworkFor } from '../features/library/source'
 import { groupAlbums, groupArtists, useLibrary } from '../features/library/store'
 import { buildFolderTree } from '../features/library/tree'
+import { orderTracks, playCounts, type SongOrder } from '../features/library/views'
 import { player } from '../features/player/actions'
+import { usePlayEntries } from '../features/player/history-store'
 import { usePlayer } from '../features/player/store'
 import { Artwork } from '../ui/Artwork'
 import { formatSpan } from '../ui/format'
@@ -18,6 +20,13 @@ const TABS: Array<[Tab, string]> = [
   ['albums', '专辑'],
   ['artists', '艺人'],
   ['folders', '文件夹']
+]
+
+/** 歌曲页的三种顺序。文件夹视图本身就是另一种维度，不需要再排。 */
+const ORDERS: Array<[SongOrder, string]> = [
+  ['default', '默认'],
+  ['recent', '最近添加'],
+  ['plays', '最多播放']
 ]
 
 /**
@@ -40,6 +49,15 @@ export function LocalPage({
   const roots = useLibrary((state) => state.roots)
   const scanning = useLibrary((state) => state.scanning)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'songs')
+  const [order, setOrder] = useState<SongOrder>('default')
+
+  /*
+   * 「最多播放」直接读播放明细，不另存一份计数：历史本身已经保留 180 天，
+   * 再维护一份计数器就有两个真相，删历史与计数对不上。
+   */
+  const plays = usePlayEntries()
+  const counts = useMemo(() => playCounts(plays), [plays])
+  const shown = useMemo(() => orderTracks(tracks, order, counts), [tracks, order, counts])
 
   const albums = useMemo(() => groupAlbums(tracks), [tracks])
   const artists = useMemo(() => groupArtists(tracks), [tracks])
@@ -88,18 +106,34 @@ export function LocalPage({
             </button>
           ))}
         </div>
-        <span className="pl-head__count lm-count">
-          {tracks.length} 首 · {albums.length} 张专辑 · {artists.length} 位艺人 ·{' '}
-          {formatSpan(seconds)}
+        <span className="lm-tools">
+          <span className="pl-head__count lm-count">
+            {tracks.length} 首 · {albums.length} 张专辑 · {artists.length} 位艺人 ·{' '}
+            {formatSpan(seconds)}
+          </span>
+          {tab === 'songs' ? (
+            <div className="seg lm-order" role="group" aria-label="歌曲顺序">
+              {ORDERS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={order === key ? 'is-active' : ''}
+                  onClick={() => setOrder(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </span>
       </header>
 
       {tab === 'songs' ? (
         <TrackList
-          tracks={tracks}
+          tracks={shown}
           currentId={currentId}
           playing={playing}
-          onPlayAt={(index) => player.playQueue(tracks, index)}
+          onPlayAt={(index) => player.playQueue(shown, index)}
           onMenu={onMenu}
         />
       ) : null}

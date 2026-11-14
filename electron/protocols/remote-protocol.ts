@@ -168,7 +168,7 @@ const HOST_TTL_MS = 60_000
  * touching the network. Note that this resolves names: a public name pointing
  * at 127.0.0.1 is exactly the case a literal-only check would miss.
  */
- async function isAllowedHost(hostname: string): Promise<boolean> {
+ export async function isAllowedHost(hostname: string): Promise<boolean> {
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase()
   if (!host) return false
   if (host === 'localhost' || host.endsWith('.localhost')) return false
@@ -266,7 +266,7 @@ function upstreamHeaders(target: string, range: string | null): Record<string, s
   return headers
 }
 
-async function fetchUpstream(target: string, range: string | null): Promise<Response> {
+export async function fetchUpstream(target: string, range: string | null): Promise<Response> {
   let current = target
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {

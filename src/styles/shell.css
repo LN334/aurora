@@ -418,6 +418,192 @@
   color: var(--text-low);
 }
 
+/* =============================================================================
+   喜欢页顶部的词卡
+
+   三行词、标题、播放全部。不铺封面：浅色主题下一张封面要被压暗才托得住白字，
+   压完就是一块贴错地方的深色板，与整页的磨砂玻璃割裂。所以这张卡走页面自己
+   的材质——半透明平面 + 一层很淡的主色，像一块比周围厚一点的玻璃。
+   整张卡是一个按钮，点哪里都从头播；没取到词就空着，不编一句假词顶上。
+   ========================================================================== */
+
+.lk-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s5);
+  width: 100%;
+  min-height: 152px;
+  margin-bottom: var(--s5);
+  padding: var(--s5) var(--s5) var(--s4);
+  overflow: hidden;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: var(--r-panel);
+  background-color: rgb(var(--plane-rgb) / 0.62);
+  background-image: linear-gradient(140deg, rgb(var(--accent-rgb) / 0.16), transparent 62%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  color: var(--text-hi);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    background-color var(--dur-2) var(--ease-out);
+}
+
+.lk-hero:hover {
+  border-color: rgb(var(--tint-rgb) / 0.22);
+  background-color: rgb(var(--plane-rgb) / 0.62);
+}
+
+.lk-hero:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lk-hero__words {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  /* 三行的位置先占住：换到一首没词的歌，卡面不会跟着缩一截。 */
+  min-height: calc(3 * 1.6em);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+}
+
+.lk-hero__line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-mid);
+}
+
+/* 往下数第三行离标题最近，最该读清；上面两行是引子。 */
+.lk-hero__line:last-child {
+  color: var(--text-hi);
+}
+
+.lk-hero__foot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.lk-hero__titles {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* 页面已经有一个「我喜欢的音乐」大标题，卡里这一行只作说明，不再抢权重。 */
+.lk-hero__title {
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  color: var(--text-mid);
+}
+
+.lk-hero__stat {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.02em;
+  color: var(--text-low);
+}
+
+/* 主色实底胶囊，与播放条那颗主按钮同一种「这里能按」的读法。 */
+.lk-hero__play {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.lk-hero:hover .lk-hero__play {
+  transform: translateX(2px);
+}
+
+/* =============================================================================
+   最近播放：按天分段
+
+   一天一个标题，下面是当天的歌。段与段之间不再套卡片——时间线靠标题分隔就
+   够了，每段再来一个框，一屏会变成三个小应用。
+   ========================================================================== */
+
+.rv-head__acts {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* 两段式范围开关：一颗胶囊，选中的那半浮起来，不是两颗并排按钮。 */
+.rv-scope {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+.rv-scope__opt {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-low);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.rv-scope__opt:hover {
+  color: var(--text-hi);
+}
+
+.rv-scope__opt.is-on {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+
+.rv-day {
+  margin-bottom: var(--s5);
+}
+
+.rv-day:last-child {
+  margin-bottom: 0;
+}
+
+.rv-day__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 var(--s2);
+  padding-left: 2px;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-mid);
+}
+
+.rv-day__count {
+  font-size: var(--fs-micro);
+  font-weight: 400;
+  color: var(--text-low);
+}
+
 .rh-more {
   display: inline-flex;
   align-items: center;
@@ -2829,6 +3015,20 @@
 }
 .lm-root__name { color: var(--text-hi); }
 .lm-root__meta { color: var(--text-low); }
+
+/*
+ * 页头右侧：顺序开关与统计挤在同一行。统计本来就短，多一个 seg 也不会把
+ * 页签区压下去——真压到了，统计先让步（它是最不重要的那半句）。
+ */
+.lm-tools {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--s4);
+}
+.lm-order {
+  flex: none;
+}
 .lm-hint {
   margin: 0 0 14px;
   max-width: 62ch;

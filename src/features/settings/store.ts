@@ -32,7 +32,8 @@ const FALLBACK_SETTINGS: AppSettings = {
   preventSleepWhilePlaying: true,
   openAfterDownload: false,
   trayClick: 'toggle',
-  overlayHoverControls: true
+  overlayHoverControls: true,
+  mediaCacheLimitMb: 2048
 }
 
  interface SettingsPage {
@@ -67,6 +68,8 @@ const FALLBACK_SETTINGS: AppSettings = {
   setTrayClick(mode: TrayClick): Promise<void>
   /** 锁住桌面歌词时，悬停是否临时接管鼠标。 */
   setOverlayHoverControls(enabled: boolean): Promise<void>
+  /** 在线音频缓存上限（MB）；0 表示不缓存。 */
+  setMediaCacheLimit(megabytes: number): Promise<void>
   clearCache(): Promise<void>
   refreshStorage(): Promise<void>
   releaseMemory(): Promise<void>
@@ -214,6 +217,12 @@ export function useSettingsPage(): SettingsPage {
     setOverlayHoverControls: (enabled) =>
       write(
         () => bridge.settings.setOverlayHoverControls(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setMediaCacheLimit: (megabytes) =>
+      write(
+        () => bridge.settings.setMediaCacheLimit(megabytes),
         (next) => setSettings(next)
       ),
 

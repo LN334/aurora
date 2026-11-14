@@ -42,6 +42,36 @@ export interface RecentEntry {
   track?: Track
 }
 
+/** How many days of individual plays to keep. A season is enough for "what was I into". */
+export const PLAY_DAYS = 180
+
+/**
+ * Hard cap on detail rows.
+ *
+ * The day window alone cannot bound size: three hours of skipping through a
+ * playlist is a few hundred starts. 2,000 rows is a couple of megabytes at the
+ * snapshot size, which still fits next to everything else in localStorage.
+ */
+export const PLAY_LIMIT = 2000
+
+/**
+ * Restarting the same track within this window is the same play.
+ *
+ * The rail deduplicates for three minutes, which is right for "recently
+ * played" but would erase the second of two deliberate listens; half a minute
+ * only folds the A-B-A-B of someone auditioning a queue.
+ */
+export const PLAY_DEDUP_MS = 30 * 1000
+
+/**
+ * One listened play, newest first in the store.
+ *
+ * Same shape as a recent entry on purpose: a play needs exactly the same
+ * snapshot to be replayed later, and keeping two shapes would mean two
+ * validators.
+ */
+export type PlayEntry = RecentEntry
+
 interface DayStat {
   /** Local calendar day, `YYYY-MM-DD`. */
   day: string
@@ -56,6 +86,8 @@ export interface HistoryState {
   version: number
   recent: RecentEntry[]
   days: DayStat[]
+  /** Every play, not one row per song: this is what the week view groups by day. */
+  plays: PlayEntry[]
 }
 
 export interface TodaySummary {
@@ -76,7 +108,7 @@ export function dayKey(at: number): string {
 }
 
 export function emptyHistory(): HistoryState {
-  return { version: HISTORY_VERSION, recent: [], days: [] }
+  return { version: HISTORY_VERSION, recent: [], days: [], plays: [] }
 }
 
 function validEntry(raw: unknown): RecentEntry | null {
@@ -151,7 +183,21 @@ export function parseHistory(raw: string | null): HistoryState {
   }
   days.sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0))
 
-  return { version: HISTORY_VERSION, recent, days: days.slice(0, DAY_LIMIT) }
+  /*
+   * Plays are not deduplicated: hearing a song twice is two rows. Old payloads
+   * simply have no array, and the week view falls back to `recent`.
+   */
+  const plays: PlayEntry[] = []
+  if (Array.isArray(source.plays)) {
+    for (const item of source.plays) {
+      const entry = validEntry(item)
+      if (!entry) continue
+      plays.push(entry)
+      if (plays.length >= PLAY_LIMIT) break
+    }
+  }
+
+  return { version: HISTORY_VERSION, recent, days: days.slice(0, DAY_LIMIT), plays }
 }
 
 /** The stored shape, trimmed to the retention limits. */
@@ -159,7 +205,8 @@ export function serializeHistory(state: HistoryState): HistoryState {
   return {
     version: HISTORY_VERSION,
     recent: state.recent.slice(0, RECENT_LIMIT),
-    days: state.days.slice(0, DAY_LIMIT)
+    days: state.days.slice(0, DAY_LIMIT),
+    plays: state.plays.slice(0, PLAY_LIMIT)
   }
 }
 
@@ -188,6 +235,65 @@ export function addRecent(state: HistoryState, track: Track, at: number): Histor
   }
   const next = [entryFor(track, at), ...state.recent.filter((item) => item.id !== track.id)]
   return { ...state, recent: next.slice(0, RECENT_LIMIT) }
+}
+
+/**
+ * Record one play in the detail log.
+ *
+ * Unlike the rail this keeps every listen, because the week view answers
+ * "what did I play that day" rather than "what did I play last". A restart
+ * inside `PLAY_DEDUP_MS` still refreshes the top row instead of appending:
+ * auditioning a queue by skipping back and forth should not fill the day with
+ * the same title.
+ */
+export function addPlay(state: HistoryState, track: Track, at: number): HistoryState {
+  const latest = state.plays[0]
+  if (latest && latest.id === track.id && at - latest.at < PLAY_DEDUP_MS) {
+    return { ...state, plays: [{ ...latest, at }, ...state.plays.slice(1)] }
+  }
+  return { ...state, plays: [entryFor(track, at), ...state.plays].slice(0, PLAY_LIMIT) }
+}
+
+/**
+ * Drop plays older than the retention window.
+ *
+ * Called when the store writes, not on every play: the filter walks the whole
+ * log, and the log only needs trimming once in a while.
+ */
+export function prunePlays(state: HistoryState, at: number): HistoryState {
+  const cutoff = at - PLAY_DAYS * 24 * 60 * 60 * 1000
+  const plays = state.plays.filter((entry) => entry.at >= cutoff)
+  return plays.length === state.plays.length ? state : { ...state, plays }
+}
+
+interface PlayDay {
+  /** Local calendar day, `YYYY-MM-DD`. */
+  day: string
+  entries: PlayEntry[]
+}
+
+/**
+ * Group plays into calendar days, newest day first.
+ *
+ * Repeated starts of the same track collapse to its newest row: a day that
+ * lists 晚风 four times is a log, not a summary of what you listened to.
+ * Order inside a day stays newest first, from the input order.
+ */
+export function groupPlaysByDay(plays: readonly PlayEntry[]): PlayDay[] {
+  const buckets = new Map<string, PlayDay>()
+  const days: PlayDay[] = []
+  for (const entry of plays) {
+    const key = dayKey(entry.at)
+    let bucket = buckets.get(key)
+    if (!bucket) {
+      bucket = { day: key, entries: [] }
+      buckets.set(key, bucket)
+      days.push(bucket)
+    }
+    if (bucket.entries.some((item) => item.id === entry.id)) continue
+    bucket.entries.push(entry)
+  }
+  return days
 }
 
 /**

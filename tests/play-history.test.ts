@@ -4,13 +4,19 @@ import { makeTrack } from './fixtures.ts'
 import {
   DAY_LIMIT,
   DEDUP_WINDOW_MS,
+  PLAY_DAYS,
+  PLAY_DEDUP_MS,
+  PLAY_LIMIT,
   RECENT_LIMIT,
+  addPlay,
   addRecent,
   addSeconds,
   dayKey,
   dayStat,
   emptyHistory,
+  groupPlaysByDay,
   parseHistory,
+  prunePlays,
   serializeHistory,
   todaySummary
 } from '../src/features/player/history.ts'
@@ -175,4 +181,119 @@ test('serializeHistory trims to the retention limits', () => {
   assert.equal(trimmed.recent.length, RECENT_LIMIT)
   assert.equal(trimmed.days.length, DAY_LIMIT)
   assert.equal(trimmed.version, 1)
+})
+
+test('addPlay keeps every listen instead of one row per track', () => {
+  let state = emptyHistory()
+  state = addPlay(state, night, at(2026, 11, 7, 9, 0))
+  state = addPlay(state, sunny, at(2026, 11, 7, 9, 5))
+  state = addPlay(state, night, at(2026, 11, 7, 9, 30))
+  // 明细的意义是「听了几次」，同一天再听一遍要另起一行。
+  assert.deepEqual(
+    state.plays.map((entry) => entry.id),
+    ['a', 'b', 'a']
+  )
+})
+
+test('addPlay folds a restart inside the dedup window', () => {
+  let state = emptyHistory()
+  const start = at(2026, 11, 7, 9, 0)
+  state = addPlay(state, night, start)
+  state = addPlay(state, night, start + PLAY_DEDUP_MS / 2)
+  assert.equal(state.plays.length, 1)
+  assert.equal(state.plays[0].at, start + PLAY_DEDUP_MS / 2)
+})
+
+test('addPlay does not fold two tracks that interleave', () => {
+  let state = emptyHistory()
+  const start = at(2026, 11, 7, 9, 0)
+  state = addPlay(state, night, start)
+  state = addPlay(state, sunny, start + 1000)
+  state = addPlay(state, night, start + 2000)
+  assert.deepEqual(
+    state.plays.map((entry) => entry.id),
+    ['a', 'b', 'a']
+  )
+})
+
+test('addPlay caps the detail log', () => {
+  let state = emptyHistory()
+  for (let index = 0; index < PLAY_LIMIT + 5; index += 1) {
+    state = addPlay(state, makeTrack(`t${index}`, `D:/m/${index}.flac`), at(2026, 11, 7) + index)
+  }
+  assert.equal(state.plays.length, PLAY_LIMIT)
+})
+
+test('prunePlays drops rows past the retention window', () => {
+  let state = emptyHistory()
+  const old = at(2026, 1, 1)
+  const recent = at(2026, 11, 7)
+  state = addPlay(state, night, old)
+  state = addPlay(state, sunny, recent)
+  const pruned = prunePlays(state, recent)
+  assert.deepEqual(
+    pruned.plays.map((entry) => entry.id),
+    ['b']
+  )
+})
+
+test('prunePlays returns the same state when nothing is old enough', () => {
+  const state = addPlay(emptyHistory(), night, at(2026, 11, 7))
+  assert.equal(prunePlays(state, at(2026, 11, 8)), state)
+})
+
+test('prunePlays keeps a row exactly on the retention edge', () => {
+  const recent = at(2026, 11, 7)
+  const edge = recent - PLAY_DAYS * 24 * 60 * 60 * 1000
+  let state = addPlay(emptyHistory(), rice, edge)
+  state = addPlay(state, sunny, recent)
+  // 边界那一毫秒算「还在」：宁可多留一天，也不要某天突然少一批。
+  assert.deepEqual(
+    prunePlays(state, recent).plays.map((entry) => entry.id),
+    ['b', 'c']
+  )
+})
+
+test('groupPlaysByDay splits newest day first and folds repeats inside a day', () => {
+  let state = emptyHistory()
+  state = addPlay(state, night, at(2026, 11, 6, 22, 0))
+  state = addPlay(state, sunny, at(2026, 11, 7, 9, 0))
+  state = addPlay(state, night, at(2026, 11, 7, 9, 30))
+  state = addPlay(state, rice, at(2026, 11, 7, 10, 0))
+  const days = groupPlaysByDay(state.plays)
+  assert.deepEqual(
+    days.map((day) => day.day),
+    ['2026-11-07', '2026-11-06']
+  )
+  // 今天这组按开始时间倒序：稻香 10:00、夜曲 9:30、晴天 9:00。
+  assert.deepEqual(
+    days[0].entries.map((entry) => entry.id),
+    ['c', 'a', 'b']
+  )
+  assert.deepEqual(
+    days[1].entries.map((entry) => entry.id),
+    ['a']
+  )
+})
+
+test('parseHistory reads plays and drops junk rows', () => {
+  const raw = JSON.stringify({
+    version: 1,
+    recent: [],
+    days: [],
+    plays: [
+      { id: 'a', title: '夜曲', artist: '周杰伦', album: '', at: 1 },
+      { id: 'a', title: '夜曲', artist: '周杰伦', album: '', at: 2 },
+      { id: 7, title: 'bad' },
+      null
+    ]
+  })
+  const state = parseHistory(raw)
+  assert.equal(state.plays.length, 2)
+  assert.equal(state.plays[0].at, 1)
+})
+
+test('parseHistory accepts payloads that predate plays', () => {
+  const state = parseHistory(JSON.stringify({ version: 1, recent: [], days: [] }))
+  assert.deepEqual(state.plays, [])
 })

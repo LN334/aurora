@@ -409,6 +409,22 @@ export interface AppSettings {
   trayClick: TrayClick
   /** 锁住桌面歌词时，鼠标悬到那行字上要不要临时接管。 */
   overlayHoverControls: boolean
+  /** 在线音频缓存上限（MB）；0 表示不缓存。 */
+  mediaCacheLimitMb: number
+}
+
+/** 在线音频缓存目录的占用与预算。 */
+export interface MediaCacheStats {
+  entries: number
+  bytes: number
+  limitBytes: number
+  directory: string
+}
+
+interface MediaCacheApi {
+  stats(): Promise<MediaCacheStats>
+  clear(): Promise<MediaCacheStats>
+  openFolder(): Promise<void>
 }
 
  interface SettingsApi {
@@ -421,6 +437,7 @@ export interface AppSettings {
   setOpenAfterDownload(enabled: boolean): Promise<AppSettings>
   setTrayClick(mode: TrayClick): Promise<AppSettings>
   setOverlayHoverControls(enabled: boolean): Promise<AppSettings>
+  setMediaCacheLimit(megabytes: number): Promise<AppSettings>
   /** Bytes on disk for the cache and data directories; null when unmeasurable. */
   getStorage(): Promise<StorageUsage>
   /**
@@ -1334,6 +1351,7 @@ export interface AuroraApi {
   playlists: PlaylistsApi
   app: AppApi
   settings: SettingsApi
+  mediaCache: MediaCacheApi
   downloads: DownloadsApi
   updates: UpdatesApi
   player: PlayerApi
