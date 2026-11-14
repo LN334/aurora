@@ -221,6 +221,9 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
    *
    * 速度不按字算，按这一句到下一句的间隔分摊：间隔短就快点打完（半秒），
    * 长句最多一秒六，免得慢歌看着像卡住。
+   *
+   * 增强 LRC 带真实词时间时，播放页改成按词点亮；舞台这里仍是按字数推进，
+   * 两处的视觉口径留到统一时再合并。
    */
   function typeActive(centre: number): void {
     if (!typingRef.current) return

@@ -5,7 +5,7 @@ import { useRoam } from '../features/player/roam-session'
 import { trackKey } from '../features/online/unify'
 import { RoamRail } from './RoamRail'
 import type { Lyrics } from '../features/lyrics/lrc'
-import { activeLineAt } from '../features/lyrics/lrc'
+import { activeLineAt, spokenWords } from '../features/lyrics/lrc'
 import { splitLyricLine } from '../features/lyrics/line-parts'
 import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
@@ -93,6 +93,12 @@ function LyricRoll({
   const lastRef = useRef(last)
   lastRef.current = last
   activeRef.current = active < 0 ? 0 : active
+  /* rAF 里要读歌词数据算逐字进度，但 effect 只挂一次，所以走 ref。 */
+  const linesRef = useRef(lines)
+  linesRef.current = lines
+  /* 上一帧点亮到第几段、点亮的是哪一行；值没变就不碰 DOM。 */
+  const litRef = useRef(-1)
+  const litElRef = useRef<HTMLButtonElement | null>(null)
 
   /* 播放换行了：只要用户没在翻，就把目标交还给播放 */
   useEffect(() => {
@@ -164,6 +170,24 @@ function LyricRoll({
         if (farRef.current[i] !== far) {
           farRef.current[i] = far
           list[i]?.setAttribute('data-far', String(far))
+        }
+      }
+      /*
+       * 逐字：只动当前行里那些 span，按播放位置点亮已经唱到的段。
+       * 跟远近档位同一条原则——算出来才写，值没变不碰 DOM。
+       */
+      const rowIndex = activeRef.current
+      const rowWords = linesRef.current[rowIndex]?.words
+      const rowEl = list[rowIndex] ?? null
+      if (rowWords && rowWords.length > 0 && rowEl) {
+        const lit = spokenWords(rowWords, usePlayer.getState().position)
+        if (rowEl !== litElRef.current || lit !== litRef.current) {
+          const spans = rowEl.querySelectorAll<HTMLElement>('[data-w]')
+          for (let i = 0; i < spans.length; i += 1) {
+            spans[i].toggleAttribute('data-lit', i < lit)
+          }
+          litElRef.current = rowEl
+          litRef.current = lit
         }
       }
       rafRef.current = requestAnimationFrame(tick)
@@ -242,7 +266,17 @@ function LyricRoll({
               onClick={() => onSeek(line.time)}
               title={formatTime(line.time)}
             >
-              <span className="np__line-main">{main}</span>
+              {line.words && line.words.length > 0 ? (
+                <span className="np__line-main np__line-words">
+                  {line.words.map((word, wordIndex) => (
+                    <span key={wordIndex} data-w={wordIndex}>
+                      {word.text}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="np__line-main">{main}</span>
+              )}
               {sub ? <span className="np__line-sub">{sub}</span> : null}
             </button>
           )

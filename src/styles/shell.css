@@ -1919,6 +1919,19 @@
   font-weight: 400;
   opacity: 0.62;
 }
+/*
+ * 逐字歌词：整行拆成一段一段的 span，唱到哪亮到哪。
+ *
+ * 未唱段先淡下去，已唱段回到这一行的字色——只加透明度，不动字号和行高，
+ * 否则位移按行高算的那套会整条错位；过渡给得短，跟唱词的步子不拖影。
+ */
+.np__line-words > span {
+  opacity: 0.26;
+  transition: opacity 140ms linear;
+}
+.np__line-words > span[data-lit] {
+  opacity: 1;
+}
 .np__line:hover {
   color: var(--text-mid);
 }
