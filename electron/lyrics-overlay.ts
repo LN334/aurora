@@ -1,5 +1,6 @@
 import { BrowserWindow, screen, type Rectangle } from 'electron'
 import path from 'node:path'
+import { startFullscreenWatch, stopFullscreenWatch } from './fullscreen-watch'
 import { APP_ORIGIN } from './protocols/app-protocol'
 import {
   LYRIC_SIZE_MAX,
@@ -113,31 +114,42 @@ let latest: OverlayState | null = null
 let notify: (status: OverlayStatus) => void = () => undefined
 
 /**
- * 主窗自己进了全屏、或用户打开舞台时，桌面歌词先让开。
+ * 主窗自己进了全屏、用户打开舞台、或系统里别的程序占着屏幕时，桌面歌词先让开。
  *
- * 这两种遮挡都看得见：一个是主窗自己的窗口状态，一个是渲染层知道的舞台。系统里
- * 别的程序全屏（游戏、播放器）这一版不猜——那要 `SHQueryUserNotificationState`
- * 原生模块，见 docs/roadmap.md 的 P1-3。
+ * 前两种是应用自己知道的事（窗口事件、舞台开关），第三种要问系统：Windows 的
+ * `SHQueryUserNotificationState` 会说「全屏应用在跑」或「演示模式」，Electron
+ * 没有绑定，交给 fullscreen-watch 常驻轮询。三路各占一位，谁都不该顺手撤掉别人
+ * 那一份抑制。
  *
  * 只 hide 不 destroy：恢复时 `showInactive` 就够，重开窗口会白等一次渲染。
  */
-let suppressed = false
+const hiddenReasons = new Set<'app' | 'system'>()
 
 function applySuppressed(): void {
   if (!overlay || overlay.isDestroyed()) return
-  if (suppressed) {
+  if (hiddenReasons.size > 0) {
     if (overlay.isVisible()) overlay.hide()
     return
   }
   overlay.showInactive()
 }
 
-export function setOverlaySuppressed(next: boolean): boolean {
+function setSuppressedReason(reason: 'app' | 'system', next: boolean): boolean {
   const wanted = Boolean(next)
-  if (wanted === suppressed) return suppressed
-  suppressed = wanted
+  if (wanted === hiddenReasons.has(reason)) return hiddenReasons.size > 0
+  if (wanted) hiddenReasons.add(reason)
+  else hiddenReasons.delete(reason)
   applySuppressed()
-  return suppressed
+  return hiddenReasons.size > 0
+}
+
+export function setOverlaySuppressed(next: boolean): boolean {
+  return setSuppressedReason('app', next)
+}
+
+/** 系统里别的程序全屏了，来自 fullscreen-watch 的轮询。 */
+function setOverlaySuppressedBySystem(next: boolean): boolean {
+  return setSuppressedReason('system', next)
 }
 
 export function initOverlay(onStatus: (status: OverlayStatus) => void): void {
@@ -312,10 +324,11 @@ export function setLyricSize(size: number): number {
 
 function open(): void {
   if (overlay && !overlay.isDestroyed()) {
-    if (!suppressed) overlay.showInactive()
+    if (hiddenReasons.size === 0) overlay.showInactive()
     sendState()
     sendSize(true)
     notifyStatus()
+    startFullscreenWatch(setOverlaySuppressedBySystem)
     return
   }
 
@@ -362,7 +375,7 @@ function open(): void {
   applyLock()
 
   overlay.once('ready-to-show', () => {
-    if (!suppressed) overlay?.showInactive()
+    if (hiddenReasons.size === 0) overlay?.showInactive()
     sendState()
     sendSize(true)
     notifyHover()
@@ -373,6 +386,8 @@ function open(): void {
   overlay.on('closed', () => {
     overlay = null
     hovering = false
+    stopFullscreenWatch()
+    hiddenReasons.delete('system')
     notifyStatus()
   })
 
@@ -394,16 +409,21 @@ function open(): void {
   }
 
   notifyStatus()
+  startFullscreenWatch(setOverlaySuppressedBySystem)
 }
 
 function close(): void {
   if (!overlay || overlay.isDestroyed()) {
     overlay = null
+    stopFullscreenWatch()
+    hiddenReasons.delete('system')
     notifyStatus()
     return
   }
   persistBounds()
   stopHoverPolling()
+  stopFullscreenWatch()
+  hiddenReasons.delete('system')
   overlay.destroy()
   overlay = null
   hovering = false
@@ -476,6 +496,7 @@ export function pushOverlayState(state: OverlayState): void {
 
 /** Used while quitting, so the overlay does not outlive the app. */
 export function destroyOverlay(): void {
+  stopFullscreenWatch()
   if (overlay && !overlay.isDestroyed()) overlay.destroy()
   overlay = null
 }
