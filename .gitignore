@@ -77,6 +77,9 @@ shots/
 # 参考仓库的 README 与源码摘录，读的时候抓下来，不随项目入库。
 .refs/
 
+# 参考仓库的完整 clone（改 AF Media Bar 时用），带着自己的 bin/obj。
+.ref-*/
+
 # Unpacked copy of an installed build, used to diff a shipped version against
 # the repository. Temporary by nature; the extract is 60+ MB.
 .installed*/
@@ -97,6 +100,9 @@ src/**/*.js.map
 # electron-builder 的备用输出目录，与 release/ 同类。
 release-dir/
 release-*/
+
+# 本地 .NET SDK，编 AF Media Bar 接入用，300+ MB，不入库。
+.dotnet10/
 
 
 .commit-msg.txt
