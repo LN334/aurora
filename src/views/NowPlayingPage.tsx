@@ -81,6 +81,8 @@ function LyricRoll({
   const velRef = useRef(0)
   const holdRef = useRef(0)
   const activeRef = useRef(0)
+  /* true = 这一程是跟着播放走的，收尾不能过冲；用户自己拨过之后才允许回弹 */
+  const followRef = useRef(true)
   const farRef = useRef<number[]>([])
   const dragRef = useRef<{ id: number; y: number; base: number; moved: boolean } | null>(null)
   const clockRef = useRef(0)
@@ -96,6 +98,7 @@ function LyricRoll({
   useEffect(() => {
     if (dragRef.current) return
     if (performance.now() < holdRef.current) return
+    followRef.current = true
     aimRef.current = activeRef.current
   }, [active])
 
@@ -124,7 +127,10 @@ function LyricRoll({
       clockRef.current = now
       const dt = Math.min(0.05, Math.max(0.004, (now - previous) / 1000))
       /* 停手四秒之后把位置还给播放 */
-      if (!dragRef.current && now > holdRef.current) aimRef.current = activeRef.current
+      if (!dragRef.current && now > holdRef.current) {
+        followRef.current = true
+        aimRef.current = activeRef.current
+      }
       const aim = Math.max(0, Math.min(lastRef.current, aimRef.current))
       const gap = aim - posRef.current
       if (!dragRef.current) {
@@ -137,8 +143,10 @@ function LyricRoll({
           velRef.current += (want - velRef.current) * Math.min(1, dt * 26)
           posRef.current += velRef.current * dt
         } else {
-          /* 收尾欠阻尼：滑过去、弹回来、站住 */
-          const acc = gap * 190 - velRef.current * 14
+          /* 收尾：跟着播放时用临界阻尼（2*sqrt(190)），一路滑过去不过冲；
+             用户自己拨完才用欠阻尼，留一点弹回来的手感 */
+          const damp = followRef.current ? 27.57 : 14
+          const acc = gap * 190 - velRef.current * damp
           velRef.current += acc * dt
           posRef.current += velRef.current * dt
         }
@@ -175,6 +183,7 @@ function LyricRoll({
       if (!event.deltaY) return
       event.preventDefault()
       aimRef.current += Math.max(-2, Math.min(2, event.deltaY / 120))
+      followRef.current = false
       holdRef.current = performance.now() + 4000
     }
     el.addEventListener('wheel', wheel, { passive: false })
@@ -196,6 +205,7 @@ function LyricRoll({
     posRef.current = Math.max(0, Math.min(lastRef.current, drag.base - dy / lineH.current))
     aimRef.current = posRef.current
     velRef.current = 0
+    followRef.current = false
     holdRef.current = performance.now() + 4000
   }
   const endDrag = (): void => {
@@ -204,6 +214,7 @@ function LyricRoll({
     dragRef.current = null
     if (!drag.moved) return
     aimRef.current = Math.round(posRef.current)
+    followRef.current = false
     holdRef.current = performance.now() + 4000
   }
 
