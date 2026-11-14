@@ -84,6 +84,10 @@ export function RecentPage({
   }, [flat])
   const shown = rows && rows.length === flat.length ? rows : flat
   const byId = useMemo(() => new Map(shown.map((track) => [track.id, track])), [shown])
+  /*
+   * 一周内的次数与全部次数一样时只说一遍：两串相同的数字并排，读起来像没算对。
+   */
+  const weekCount = plays.filter((entry) => entry.at >= startOfToday - (WEEK_DAYS - 1) * DAY_MS).length
 
   /*
    * 每一段的行，以及这一段第一行在整条时间线里的位置。
@@ -122,7 +126,9 @@ export function RecentPage({
       <header className="rh-sec__head rv-head">
         <span className="pl-head__count">
           {plays.length
-            ? `最近一周 ${plays.filter((entry) => entry.at >= startOfToday - (WEEK_DAYS - 1) * DAY_MS).length} 次 · 全部 ${plays.length} 次`
+            ? weekCount === plays.length
+              ? `最近一周 ${weekCount} 次`
+              : `最近一周 ${weekCount} 次 · 全部 ${plays.length} 次`
             : `${recent.length} 首`}
         </span>
         <span className="rv-head__acts">

@@ -328,6 +328,18 @@
   text-shadow: none;
 }
 
+/*
+ * 增强 LRC 的逐字：整行拆成词段，唱到哪亮到哪。
+ * 只动透明度——字号和行高由槽高决定，改了整列就错位。
+ */
+.lyr__main > span {
+  opacity: 0.3;
+  transition: opacity 180ms linear;
+}
+.lyr__main > span[data-lit] {
+  opacity: 1;
+}
+
 .stage__nolyrics {
   display: flex;
   flex-direction: column;

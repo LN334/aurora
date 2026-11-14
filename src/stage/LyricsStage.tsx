@@ -1,4 +1,4 @@
-import { activeLineAt, type Lyrics } from '../features/lyrics/lrc'
+import { activeLineAt, spokenWords, type Lyrics } from '../features/lyrics/lrc'
 import type { Palette } from '../features/library/palette'
 import type { Track } from '../types'
 import { useProgressPosition } from '../features/player/Bar'
@@ -174,11 +174,35 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
         continue
       }
       const parts = splitLyricLine(line.text || '·')
+      const words = line.words
       button.dataset.index = String(index)
       /* 终端样式的行号：两位、补齐，空行留空。 */
       button.dataset.no = String(index + 1).padStart(2, '0')
       button.classList.remove('lyr__text--empty')
-      main.textContent = parts.main
+      if (words && words.length > 0) {
+        /*
+         * 增强 LRC：整行拆成词段，点亮交给 typeActive。
+         * 只有换到另一行才重建，滚动时槽位复用不会把已亮的段清掉。
+         */
+        if (main.dataset.words !== String(index)) {
+          main.dataset.words = String(index)
+          main.replaceChildren(
+            ...words.map((word, wordIndex) => {
+              const span = document.createElement('span')
+              span.textContent = word.text
+              span.dataset.w = String(wordIndex)
+              return span
+            })
+          )
+        }
+      } else {
+        /* 上一行是词段行，换回普通行先把子节点收掉。 */
+        if (main.dataset.words) {
+          main.dataset.words = ''
+          main.replaceChildren()
+        }
+        main.textContent = parts.main
+      }
       main.dataset.shown = ''
       sub.textContent = parts.sub || ''
       sub.style.display = parts.sub ? '' : 'none'
@@ -226,7 +250,6 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
    * 两处的视觉口径留到统一时再合并。
    */
   function typeActive(centre: number): void {
-    if (!typingRef.current) return
     const active = activeRef.current
     const lines = linesRef.current
     const line = lines[active]
@@ -236,6 +259,21 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
     const button = slotRefs.current[at]?.firstElementChild as HTMLButtonElement | null
     if (!button) return
     const main = button.children[0] as HTMLElement
+    /*
+     * 有真实词时间就照它点亮，别等「打字机」开关——逐字是时间数据，不是外观偏好。
+     */
+    if (line.words && line.words.length > 0) {
+      const lit = spokenWords(line.words, usePlayer.getState().position)
+      if (main.dataset.lit !== String(lit)) {
+        main.dataset.lit = String(lit)
+        const spans = main.children
+        for (let i = 0; i < spans.length; i += 1) {
+          spans[i].toggleAttribute('data-lit', i < lit)
+        }
+      }
+      return
+    }
+    if (!typingRef.current) return
     const parts = splitLyricLine(line.text || '·')
     const next = lines[active + 1]
     const span = Math.min(1.6, Math.max(0.45, (next ? next.time : line.time + 2.4) - line.time))

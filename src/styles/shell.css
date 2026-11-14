@@ -603,6 +603,12 @@
   font-weight: 400;
   color: var(--text-low);
 }
+/* 组标题里「今天」与「2 首」用全站一致的间隔点分开，别挤成一串。 */
+.rv-day__count::before {
+  content: '·';
+  margin-right: 6px;
+  opacity: 0.6;
+}
 
 .rh-more {
   display: inline-flex;
