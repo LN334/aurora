@@ -48,6 +48,19 @@
   font-weight: 600;
 }
 
+/* 有新版时「更新与关于」后面那颗点：跟左栏是同一颗，只是换了落点。 */
+.settings__tab__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #ff6b5e;
+  box-shadow: 0 0 0 1.5px rgb(28 18 16 / 0.35);
+  vertical-align: 2px;
+  animation: rr-pulse 2.4s ease-in-out infinite;
+}
+
 .settings__body {
   display: flex;
   flex-direction: column;

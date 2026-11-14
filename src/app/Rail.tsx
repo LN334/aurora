@@ -3,6 +3,7 @@ import { useOnlineBindings } from '../features/accounts/bindings'
 import { useFavorites } from '../features/favorites/store'
 import { useRecentEntries } from '../features/player/history-store'
 import { useRoam } from '../features/player/roam-session'
+import { useUpdate } from '../features/updates/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
 import { Album, Compass, Folder, Heart, List, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
@@ -86,6 +87,8 @@ export function Rail({
   const roamPending = useRoam((state) => state.busy)
   const live = roaming ?? roamLive
   const pending = roamBusy ?? roamPending
+  // 查到了新版本、还没去看，就在「设置」上留一颗点；别为它单开一条横幅。
+  const updateReady = useUpdate((state) => state.result?.state === 'available' && !state.noted)
   /*
    * 侧栏底部这一行的头像跟「我」页的档案卡必须是同一张：先看档案自己设的头像，
    * 没设过就用该档案绑定的在线账号头像（网易云那种彩色头像是账号最有辨识度的
@@ -126,21 +129,33 @@ export function Rail({
     return null
   }
 
-  const item = (view: ShellView, label: string, Icon: typeof Compass, count: number | null) => {
+  const item = (
+    view: ShellView,
+    label: string,
+    Icon: typeof Compass,
+    count: number | null,
+    dot = false
+  ) => {
     const on = lit === view
+    const title = dot
+      ? label + ' · 有新版本'
+      : collapsed
+        ? label
+        : undefined
     return (
       <button
         key={view}
         className={`rail-item${on ? ' is-active' : ''}`}
         onClick={() => onNavigate({ view })}
         aria-current={on ? 'page' : undefined}
-        title={collapsed ? label : undefined}
+        title={title}
       >
         <Icon size={16} />
         <span className="rail-item__label">{label}</span>
         {count !== null && count > 0 ? (
           <span className="rail-item__count">{count > 9999 ? '9999+' : count.toLocaleString()}</span>
         ) : null}
+        {dot ? <span className="rail-item__dot rail-item__dot--update" aria-hidden="true" /> : null}
       </button>
     )
   }
@@ -173,7 +188,9 @@ export function Rail({
       </div>
 
       <div className="rail__foot">
-        {FOOT.map((entry) => item(entry.view, entry.label, entry.icon, null))}
+        {FOOT.map((entry) =>
+          item(entry.view, entry.label, entry.icon, null, entry.view === 'settings' && updateReady)
+        )}
 
         {/* 「我」用当前档案的头像当图标：这一行本来就是这个意思。 */}
         <button

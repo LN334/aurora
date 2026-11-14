@@ -175,6 +175,7 @@ const trayHandlers = (): TrayHandlers => ({
     if (loadSettings().trayClick === 'show') showWindow()
     else toggleWindow()
   },
+  balloonClick: () => showWindow(),
   isWindowVisible: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()),
   command: sendMediaCommand,
   quit: () => {
@@ -845,10 +846,24 @@ if (!app.requestSingleInstanceLock()) {
     registerQishuiIpc()
     registerWarmUpIpc()
 
+    /*
+     * 自动检查的结果先推给界面；窗口不在眼前时再补一句系统气泡，否则把窗口
+     * 收进托盘的人永远不知道有新版。同一版只弹一次，别每小时提醒一遍。
+     */
+    let announcedVersion: string | null = null
     const announceUpdate = (result: UpdateResult): void => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('updates:available', result)
       }
+      if (result.state !== 'available') return
+      const hidden = !mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()
+      if (!hidden) return
+      if (announcedVersion === result.info.version) return
+      announcedVersion = result.info.version
+      showTrayBalloon(
+        'Aurora 有新版本',
+        result.info.version + ' 可以更新了。点托盘图标，设置 → 更新与关于。'
+      )
     }
     void autoCheck(announceUpdate)
     /*

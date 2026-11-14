@@ -27,6 +27,8 @@ export interface TrayHandlers {
   command(command: MediaCommand): void
   /** 单击托盘图标。行为可配，所以由主进程决定，这里只转发。 */
   trayClick(): void
+  /** 用户点了系统气泡。Windows 上气泡本身就是入口，点了得把窗口叫出来。 */
+  balloonClick?(): void
   quit(): void
   /**
    * Items inserted above Quit. Keeps this module from having to know about
@@ -103,6 +105,7 @@ export function createTray(handlers: TrayHandlers): Tray {
   tray = new Tray(trayImage())
   tray.setToolTip('Aurora')
   tray.on('click', () => handlers.trayClick())
+  tray.on('balloon-click', () => handlers.balloonClick?.())
   refreshTrayMenu(handlers)
 
   nativeTheme.on('updated', () => {

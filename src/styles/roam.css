@@ -245,6 +245,15 @@
   animation: rr-pulse 2.4s ease-in-out infinite;
 }
 
+/*
+ * 「有新版本」那颗点不能跟着封面取色：浅色壁纸加黑白封面时主色是灰的，
+ * 点会直接消失在底上。用固定的暖红，深浅两套都认得出来。
+ */
+.rail-item__dot--update {
+  background: #ff6b5e;
+  box-shadow: 0 0 0 2px rgb(28 18 16 / 0.42), 0 0 6px rgb(255 107 94 / 0.45);
+}
+
 .rail-item__spin {
   flex: none;
   width: 13px;

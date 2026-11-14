@@ -15,8 +15,17 @@ const LATEST_RELEASE = 'https://github.com/LN334/aurora/releases/latest'
 interface UpdateState {
   /** 最近一次检查或下载的状态；null 表示这次启动还没查过。 */
   result: UpdateResult | null
+  /**
+   * 有新版本这件事，用户是不是已经去看过了。
+   *
+   * 左栏那颗点只在「查到了、还没看」时亮：一直亮着会变成噪音，一进设置就灭
+   * 又让人还没找到「更新与关于」就丢了线索。所以熄灭的时机定在打开那一格。
+   */
+  noted: boolean
   /** 检查或下载的请求在飞，按钮该转圈。 */
   busy: boolean
+  /** 用户已经打开过更新页，左栏那颗点可以收了。 */
+  note(): void
   check(): Promise<void>
   download(): Promise<void>
   install(): Promise<void>
@@ -28,7 +37,12 @@ let bound = false
 
 export const useUpdate = create<UpdateState>()((set, get) => ({
   result: null,
+  noted: false,
   busy: false,
+
+  note() {
+    set({ noted: true })
+  },
 
   async check() {
     if (!isNative || get().busy) return
@@ -80,8 +94,15 @@ export const useUpdate = create<UpdateState>()((set, get) => ({
 export function bindUpdateEvents(): void {
   if (bound || !isNative) return
   bound = true
-  bridge.updates.onAvailable((result) => useUpdate.setState({ result }))
-  bridge.updates.onStatus((result) => useUpdate.setState({ result }))
+  const apply = (result: UpdateResult): void => {
+    useUpdate.setState((state) => ({
+      result,
+      // 只剩「有新版本」值得盯；一变成 current / downloading 就把点收掉。
+      noted: result.state === 'available' ? state.noted : false
+    }))
+  }
+  bridge.updates.onAvailable(apply)
+  bridge.updates.onStatus(apply)
 }
 
 /**

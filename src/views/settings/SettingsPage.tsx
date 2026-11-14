@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useSettingsPage } from '../../features/settings/store'
+import { useUpdate } from '../../features/updates/store'
 import { Part } from './parts'
 import { AppearancePane } from './panes/AppearancePane'
 import { HomePane } from './panes/HomePane'
@@ -90,6 +91,7 @@ export function SettingsPage() {
   // 只在这里读一次设置：useSettingsPage 是普通 hook（内部有 IPC 与订阅），
   // 每个分区各读一次会重复请求，也会让 busy/error 各说各的。
   const page = useSettingsPage()
+  const updateReady = useUpdate((state) => state.result?.state === 'available' && !state.noted)
   const [active, setActive] = useState(SECTIONS[0].id)
   const section = SECTIONS.find((item) => item.id === active) ?? SECTIONS[0]
   const render = PANES[section.id]
@@ -105,9 +107,16 @@ export function SettingsPage() {
                 type="button"
                 className={`settings__tab${active === item.id ? ' is-active' : ''}`}
                 aria-current={active === item.id ? 'true' : undefined}
-                onClick={() => setActive(item.id)}
+                onClick={() => {
+                  setActive(item.id)
+                  // 打开这一格就等于看到了有新版，左栏那颗点可以收了。
+                  if (item.id === 'update') useUpdate.getState().note()
+                }}
               >
                 {item.label}
+                {item.id === 'update' && updateReady ? (
+                  <span className="settings__tab__dot" aria-hidden="true" />
+                ) : null}
               </button>
             ))}
           </div>
