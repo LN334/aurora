@@ -312,6 +312,16 @@ export function activeProfile(): string {
   return activeProfileId
 }
 
+/**
+ * 这个档案下有没有登录过。
+ *
+ * 只读会话文件，不去问上游：预热要用它决定「值不值得把后端拉起来」，
+ * 那一步本身就得便宜。和另外三家的同名函数保持一样的口径。
+ */
+export function profileHasSession(profileId: string): boolean {
+  return readState(profileId).session !== null
+}
+
 export async function qishuiStatus(): Promise<{ ready: boolean; loggedIn: boolean; detail?: string }> {
   const profileId = activeProfileId
   const signedIn = readState(profileId).session !== null
