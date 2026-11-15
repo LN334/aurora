@@ -425,7 +425,14 @@ async function main() {
         ].join('\n')
       )
       console.log('smoke: seeded ' + likedSeeded + ' likes')
-      await evaluate(cdp, 'document.querySelector(".trk__hit")?.click()')
+      /*
+       * 播最后一首而不是第一首：「最多播放」按次数排，只有播过的那首换位置，
+       * 本机页的排序断言才看得出先后不同。
+       */
+      await evaluate(
+        cdp,
+        '(() => { const hits = document.querySelectorAll(".trk__hit"); hits[hits.length - 1]?.click() })()'
+      )
       await sleep(2500)
     }
 
@@ -484,11 +491,46 @@ async function main() {
           // 播种的每首歌都带歌词，卡上却没有词，说明摘词那一路断了。
           problems.push('liked page card has no lyric lines')
         }
+        /*
+         * 整张卡就是一个「播放全部」按钮。点下去播放条上要出现曲名，
+         * 否则卡只是个装饰。
+         */
+        await evaluate(cdp, `document.querySelector('.lk-hero')?.click()`)
+        await sleep(800)
+        const playing = await evaluate(
+          cdp,
+          `(document.querySelector('.pb-title')?.textContent ?? '').trim()`
+        )
+        if (!playing) problems.push('clicking the lyric card started nothing')
       }
       if (LIBRARY && step.view === 'recent') {
         if ((await evaluate(cdp, 'document.querySelectorAll(".rv-day").length')) === 0) {
           problems.push('recent page has no day groups')
         }
+        /*
+         * 范围开关是这一页唯一的交互：点「全部」要真的切过去。
+         * 只认 class，不认文字，文字将来改了不该让巡检红。
+         */
+        const switched = await evaluate(
+          cdp,
+          `(() => {
+            const opts = Array.from(document.querySelectorAll('.rv-scope__opt'))
+            if (opts.length < 2) return false
+            opts[1].click()
+            return true
+          })()`
+        )
+        await sleep(450)
+        const firstOn = await evaluate(
+          cdp,
+          `Array.from(document.querySelectorAll('.rv-scope__opt')).map((el) => el.classList.contains('is-on'))`
+        )
+        if (!switched) problems.push('the recent page has no range switch')
+        else if (!Array.isArray(firstOn) || firstOn[1] !== true) {
+          problems.push('the recent page range switch did not move')
+        }
+        await evaluate(cdp, `document.querySelectorAll('.rv-scope__opt')[0]?.click()`)
+        await sleep(300)
       }
 
       /*
@@ -586,6 +628,82 @@ async function main() {
         images: probe.images,
         broken: probe.brokenCount,
         brokenSrcs: probe.broken,
+        shot: path.relative(ROOT, shotPath)
+      })
+    }
+
+    /*
+     * 本机页的顺序切换。
+     *
+     * 三种排序各自怎么排由 library-views 的纯函数测试钉住，这里只证明按钮真接上了：
+     * 点哪个哪个亮、列表一行不少。把顺序也钉死会让巡检跟着数据抖动，反而假红。
+     */
+    if (LIBRARY) {
+      const mark = cdp.events.length
+      await clickStep(cdp, { kind: 'rail', label: '本机' })
+      await sleep(500)
+      const orders = await evaluate(
+        cdp,
+        `Array.from(document.querySelectorAll('.lm-order button')).map((el) => (el.textContent || '').trim())`
+      )
+      const problems = []
+      if (!Array.isArray(orders) || orders.length < 3) {
+        problems.push('the library page has no sort switch')
+      } else {
+        for (const label of orders) {
+          await evaluate(
+            cdp,
+            `(() => {
+              const button = Array.from(document.querySelectorAll('.lm-order button')).find((el) => (el.textContent || '').trim() === ${JSON.stringify(label)})
+              if (button) button.click()
+              return Boolean(button)
+            })()`
+          )
+          await sleep(350)
+          const state = await evaluate(
+            cdp,
+            `(() => ({
+              active: (document.querySelector('.lm-order button.is-active')?.textContent ?? '').trim(),
+              rows: document.querySelectorAll('.trk').length
+            }))()`
+          )
+          if (state.active !== label) problems.push('sort "' + label + '" did not become active')
+          if (state.rows !== 3) problems.push('sort "' + label + '" lost rows (' + state.rows + ')')
+        }
+        await evaluate(cdp, `document.querySelectorAll('.lm-order button')[0]?.click()`)
+        await sleep(250)
+      }
+
+      const fresh = cdp.events.slice(mark)
+      const logged = fresh
+        .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
+        .filter((event) => !isQuietMiss(event))
+        .map((event) => event.params.entry.text)
+      quietMisses += fresh.filter(isQuietMiss).length
+      const thrown = fresh
+        .filter((event) => event.method === 'Runtime.exceptionThrown')
+        .map(
+          (event) =>
+            event.params.exceptionDetails.exception?.description ?? event.params.exceptionDetails.text
+        )
+      errors.push(...logged, ...thrown)
+      if (logged.length) problems.push(logged.length + ' console error(s)')
+      if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
+
+      console.log('smoke: library sorts ' + JSON.stringify(orders))
+
+      const shotPath = path.join(SHOTS, '08d-library-order.png')
+      const shotOk = await shoot(cdp, shotPath)
+      if (!shotOk) problems.push('screenshot failed')
+
+      rows.push({
+        view: 'library-order',
+        label: '本机排序',
+        ok: problems.length === 0,
+        why: problems.join('; '),
+        images: 0,
+        broken: 0,
+        brokenSrcs: [],
         shot: path.relative(ROOT, shotPath)
       })
     }
