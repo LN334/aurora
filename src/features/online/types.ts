@@ -211,8 +211,13 @@ export interface ProviderFollowedArtist {
   id: number
   name: string
   avatarUrl: string | null
-  albumCount: number
-  musicCount: number
+  /**
+   * 专辑数。**不填表示上游没给**（酷狗的歌手行没有这两个数），与「填 0 表示
+   * 他确实一张专辑都没有」是两件事，卡片上要能说清。
+   */
+  albumCount?: number
+  /** 歌曲数，同上。 */
+  musicCount?: number
 }
 
 /** Where a track's audio comes from. The discriminator the whole layer turns on. */

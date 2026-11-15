@@ -69,16 +69,32 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
                 />
               </span>
               <span className="rh-card__title">{artist.name}</span>
-              <span className="rh-card__sub">
-                {artist.albumCount ? artist.albumCount + ' 张专辑' : '还没有专辑'}
-                {artist.musicCount ? ' · ' + artist.musicCount + ' 首歌' : ''}
-              </span>
+              <span className="rh-card__sub">{subtitle(artist)}</span>
             </button>
           ))}
         </div>
       </section>
     </div>
   )
+}
+
+/**
+ * 卡片副标题。
+ *
+ * 上游给计数就照写；一点计数都没有（酷狗的歌手行只给 id 与名字）时说清是哪一家，
+ * 而不是写「还没有专辑」——那是我们没拿到这两个数，不是他真的一张都没有。
+ */
+function subtitle(artist: {
+  albumCount?: number
+  musicCount?: number
+  providerLabel: string
+}): string {
+  const parts: string[] = []
+  if (artist.albumCount !== undefined) {
+    parts.push(artist.albumCount > 0 ? artist.albumCount + ' 张专辑' : '还没有专辑')
+  }
+  if (artist.musicCount) parts.push(artist.musicCount + ' 首歌')
+  return parts.length > 0 ? parts.join(' · ') : artist.providerLabel
 }
 
 /**

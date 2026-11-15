@@ -50,6 +50,7 @@ interface CollectedAlbum extends ProviderCollectedAlbum {
 interface FollowedArtist extends ProviderFollowedArtist {
   key: string
   providerId: ProviderId
+  providerLabel: string
 }
 
 /*
@@ -169,11 +170,8 @@ async function loadFollowedArtists(signed: Record<string, boolean>): Promise<Fol
           list.map((artist) => ({
             key: provider.id + ':' + artist.id,
             providerId: provider.id,
-            id: artist.id,
-            name: artist.name,
-            avatarUrl: artist.avatarUrl,
-            albumCount: artist.albumCount,
-            musicCount: artist.musicCount
+            providerLabel: provider.displayName,
+            ...artist
           }))
         )
         .catch(() => [])
