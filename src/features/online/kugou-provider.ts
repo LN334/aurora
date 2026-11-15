@@ -260,7 +260,7 @@ const kugouProvider: OnlineMusicProvider = {
     const list = await api.followedArtists()
     // 酷狗只给 id / 名字 / 头像，没有专辑数与歌曲数——不填，别拿 0 冒充。
     return list.map((artist) => ({
-      id: Number(artist.id),
+      id: artist.id,
       name: artist.name,
       avatarUrl: artist.avatarUrl
     }))

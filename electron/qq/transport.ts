@@ -975,22 +975,52 @@ export async function requestCollectedAlbums(params: {
 /**
  * Singers this profile follows on the platform.
  *
- * 上游是 `/rsc/fcgi-bin/fcg_order_singer_getlist.fcg`：`g_tk` 由包里写死成 5381、
- * cookie 走整个会话串。登录失效时它回 `{code:1000, msg:"not login"}`，normalize
- * 会把这种情况当成空列表，不抛。
+ * 上游是 `music.concern.RelationList` / `GetFollowSingerList`（实测 2026-11-15
+ * 用户重登后仍可用）：请求体只有 `From` / `Size`，不带 `HostUin` 时按登录账号
+ * 自己算，返回 `{code:0, req:{code:0, data:{Total, List[]}}}`，每行是
+ * `{MID, EncUin, Name, Desc, AvatarUrl, FanNum}`——**只有 mid，没有数字 id**。
+ *
+ * 以前走的是 `getUserFollowSingers`（包内实现打 `rsc/fcgi-bin/fcg_order_singer_
+ * getlist.fcg`）：那个 CGI 现在带任何 `g_tk` 都回 HTTP 500、不带回
+ * `{code:1006, msg:"g_token is wrong"}`，网页版 cookie 里也没有 `skey` 可以算
+ * `g_tk`，所以整条废弃。
  */
 export async function requestFollowedArtists(params: {
   uin: string
   cookie: string
-  page?: number
   limit?: number
 }): Promise<unknown> {
-  return await loadServices().getUserFollowSingers({
-    uin: params.uin,
-    page: params.page ?? 1,
-    limit: params.limit ?? 100,
-    cookie: params.cookie
+  const uin = Number(params.uin) || 0
+  const body = {
+    comm: {
+      ct: 24,
+      cv: 0,
+      format: 'json',
+      inCharset: 'utf-8',
+      outCharset: 'utf-8',
+      platform: 'yqq.json',
+      needNewCode: 0,
+      loginUin: uin
+    },
+    req: {
+      module: 'music.concern.RelationList',
+      method: 'GetFollowSingerList',
+      param: { From: 0, Size: params.limit ?? 100 }
+    }
+  }
+  const response = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      referer: 'https://y.qq.com/portal/profile.html',
+      cookie: params.cookie
+    },
+    body: JSON.stringify(body)
   })
+  if (!response.ok) {
+    return { status: response.status, body: { error: 'followed artists http ' + response.status } }
+  }
+  return { status: 200, body: await response.json() }
 }
 
 /**

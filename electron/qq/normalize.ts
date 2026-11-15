@@ -833,6 +833,28 @@ export function normalizeCollectedAlbums(response: unknown): QqCollectedAlbum[] 
  */
 export function normalizeFollowedArtists(response: unknown): QqFollowedArtist[] {
   const envelope = record(record(response).body ?? response)
+  /*
+   * 现在这条通道（`music.concern.RelationList` / `GetFollowSingerList`）的信封是
+   * `body.req.data.List[]`，字段全大写，且**只有 MID 没有数字 id**。命中就先走它，
+   * 下面的旧形状留作兜底。
+   */
+  const relationRows = list(record(record(envelope.req).data).List)
+  if (relationRows.length > 0) {
+    const fromRelation: QqFollowedArtist[] = []
+    for (const row of relationRows) {
+      const entry = record(row)
+      const mid = text(pick(entry, 'MID', 'mid'))
+      const name = text(pick(entry, 'Name', 'name'))
+      if (!mid || !name) continue
+      fromRelation.push({
+        id: 0,
+        mid,
+        name,
+        avatarUrl: text(pick(entry, 'AvatarUrl', 'avatarUrl')) || null
+      })
+    }
+    return fromRelation
+  }
   const inner = record(envelope.response)
   /*
    * 两种信封都见过：`body.response.data`（多数 fcg 接口）与顶层 `data`（部分

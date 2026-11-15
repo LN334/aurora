@@ -68,3 +68,45 @@ test('an expired login answers an empty list, not a throw', () => {
   assert.deepEqual(normalizeFollowedArtists(null), [])
   assert.deepEqual(normalizeFollowedArtists({}), [])
 })
+
+test('reads the relation-list envelope the current upstream answers', () => {
+  /*
+   * 2026-11-15 真机：`music.concern.RelationList` / `GetFollowSingerList`。
+   * 字段全大写，只有 MID 没有数字 id，也没有专辑数/歌曲数。
+   */
+  const response = {
+    status: 200,
+    body: {
+      code: 0,
+      req: {
+        code: 0,
+        data: {
+          Msg: '',
+          Total: 74,
+          FromLimit: 2000,
+          List: [
+            {
+              MID: '000djEdv2aAycA',
+              EncUin: 'oK6kowEAoK4z7eSPoiSiNKoqoc**',
+              Name: '艾热AIR',
+              Desc: '种梦音乐旗下艺人',
+              AvatarUrl: 'http://y.gtimg.cn/music/photo_new/T001R150x150M000000djEdv2aAycA_6.jpg',
+              FanNum: 41814
+            },
+            { MID: '', Name: '没有 mid 的行' },
+            { MID: 'only-mid' }
+          ]
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(normalizeFollowedArtists(response), [
+    {
+      id: 0,
+      mid: '000djEdv2aAycA',
+      name: '艾热AIR',
+      avatarUrl: 'http://y.gtimg.cn/music/photo_new/T001R150x150M000000djEdv2aAycA_6.jpg'
+    }
+  ])
+})

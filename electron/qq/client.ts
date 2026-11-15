@@ -677,9 +677,10 @@ export async function qqCollectedAlbums(limit = 200): Promise<QqCollectedAlbum[]
 /**
  * Singers this profile follows, or an empty list.
  *
- * 登录失效时上游回 `code:1000`，normalize 认不出行、给空数组——这里不当错误，
- * 页面会落到「没读到关注」那一种说法上。字段名也还没被真机确认过，见
- * `normalizeFollowedArtists` 的说明。
+ * 走 `music.concern.RelationList` / `GetFollowSingerList`（2026-11-15 真机确认：
+ * 用户的 74 位关注歌手，字段 `MID` / `Name` / `AvatarUrl`）。登录失效或上游
+ * 改形状时 normalize 认不出行、给空数组——这里不当错误，页面会落到「没读到
+ * 关注」那一种说法上。
  */
 export async function qqFollowedArtists(limit = 100): Promise<QqFollowedArtist[]> {
   const state = readState(activeProfileId)

@@ -223,12 +223,14 @@ export interface QqCollectedAlbum {
  * 它们，页面要按「没有封面」与 0 处理。
  */
 export interface QqFollowedArtist {
+  /** 数字 id：老接口给 `singer_id`；`RelationList` 只给 mid，此时为 0。 */
   id: number
   mid: string
   name: string
   avatarUrl: string | null
-  albumCount: number
-  musicCount: number
+  /** 上游没给就不填（`RelationList` 只有粉丝数，没有专辑数、歌曲数）。 */
+  albumCount?: number
+  musicCount?: number
 }
 
 export interface QqAlbumDetail {

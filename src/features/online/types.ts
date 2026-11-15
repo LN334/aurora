@@ -208,7 +208,11 @@ export interface ProviderCollectedAlbum {
 
 /** 一位关注的艺人，已归一化。只有 id 与名字是各家都稳的。 */
 export interface ProviderFollowedArtist {
-  id: number
+  /**
+   * 平台内的稳定标识。数字（网易云的 artistId、酷狗的 singerid）与字符串
+   * （QQ 的歌手 mid）都出现过，页面只用它拼 key，不做数值运算。
+   */
+  id: string | number
   name: string
   avatarUrl: string | null
   /**

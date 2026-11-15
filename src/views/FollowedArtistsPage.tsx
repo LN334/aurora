@@ -54,13 +54,25 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
           <span className="rh-more">{artists.length} 位</span>
         </header>
         <div className="rh-row">
-          {artists.map((artist) => (
-            <button
-              className="rh-card"
-              type="button"
-              key={artist.key}
-              onClick={(event) => openOnlineArtist(artist.providerId, artist.id, event.currentTarget)}
-            >
+          {artists.map((artist) => {
+            /*
+             * 艺人页的 id 是数字（路由里也按数字解析）。酷狗的 singerid 是数字
+             * 字符串，转得动；QQ 的关系列表只给 mid（`000djEdv2aAycA`），转不动，
+             * 于是那一张卡不挂点击——比点进去报错好。
+             */
+            const routeId = Number(artist.id)
+            const openable = Number.isFinite(routeId) && routeId > 0
+            return (
+              <button
+                className="rh-card"
+                type="button"
+                key={artist.key}
+                onClick={
+                  openable
+                    ? (event) => openOnlineArtist(artist.providerId, routeId, event.currentTarget)
+                    : undefined
+                }
+              >
               <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
                 <Artwork
                   src={artist.avatarUrl ? remoteImageUrl(sizedImage(artist.avatarUrl, 300), 300) : null}
@@ -71,7 +83,8 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
               <span className="rh-card__title">{artist.name}</span>
               <span className="rh-card__sub">{subtitle(artist)}</span>
             </button>
-          ))}
+            )
+          })}
         </div>
       </section>
     </div>
