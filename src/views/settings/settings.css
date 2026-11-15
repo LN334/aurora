@@ -173,10 +173,24 @@
 }
 
 .set-sub__title {
+  position: relative;
   flex-shrink: 0;
-  font-size: var(--fs-micro);
-  font-weight: 500;
-  color: var(--text-low);
+  padding-left: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-mid);
+}
+/* 分组标题左侧一小截竖线：卡是淡底的，标题得比卡更“硬”一点才分得开两层。 */
+.set-sub__title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  background: rgb(var(--tint-rgb) / 0.28);
+  translate: 0 -50%;
 }
 
 .set-sub__hint {
@@ -702,11 +716,19 @@
 .settings__row {
   padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.075);
-  background: rgb(var(--tint-rgb) / 0.045);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  /*
+   * 卡片自己带一层可读底色。
+   *
+   * 之前只有 4.5% 的前景色，壁纸一亮（比如亮色场景壁纸）标题就跟背景糊在一起。
+   * 现在是 62% 的背景色加一层模糊：浅色主题是白卡，深色主题是深灰卡，两边的
+   * 正文都压得住底图。
+   */
+  background: rgb(var(--plane-rgb) / 0.62);
+  backdrop-filter: blur(10px);
 }
 .settings__row:hover {
-  background: rgb(var(--tint-rgb) / 0.065);
+  background: rgb(var(--plane-rgb) / 0.74);
 }
 
 .set-rows {
