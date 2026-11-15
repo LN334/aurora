@@ -15,7 +15,7 @@ src/
     netease/      网易云：provider 声明 + 它自己的登录弹窗 + api/track/stream/lrc
     qq/           QQ 音乐：它自己的登录弹窗与视图（provider 声明在 online/qq-provider.ts）
     library/      本地曲库：store、扫描、来源接缝、封面、歌单树、配色
-    lyrics/       歌词解析（LRC）
+    lyrics/       歌词解析（LRC，含行内 `<mm:ss.xx>` 词级时间）与随机取句
     player/       播放内核：engine、driver、queue、urls、进度条；history.ts 是播放历史的
                   纯函数（按本地日历日累计、最近 60 条），history-store.ts 负责攒批与落盘
     playlists/    歌单：m3u 读写、存储、导入导出的流程
@@ -37,6 +37,10 @@ electron/
   pure/         零 Electron 依赖、可在裸 Node 下测试的纯逻辑（含 netease-bootstrap 的
                 重试策略）
   protocols/    私有协议：aurora-app:// aurora-media:// aurora-remote:// aurora-wallpaper://
+                aurora-cache://（在线音频缓存，见「在线缓存」）
+  media-cache.ts        在线音频缓存：磁盘 LRU、sha1 命名、边写边量上限
+  media-cache-instance.ts  userData/media-cache 的单例，上限读设置
+  fullscreen-watch.ts   常驻 PowerShell 读系统全屏状态，供桌面歌词让位
   netease/      网易云客户端与 IPC
   qq/           QQ 音乐客户端与 IPC，按 transport / normalize / reasons / session 分文件
   wallpaper.ts  Wallpaper Engine 库扫描与 aurora-wallpaper:// 协议（只读，不改对方文件）
@@ -173,6 +177,43 @@ http(s)、data、blob 三种地址。Aurora 的封面走的是应用私有协议
 视觉上不画底板：静止态只有文字与一圈径向暗晕（`::before`，`opacity: .92`），悬停时才淡入一层
 34% 的深色卡片（`::after`）承托控制条。顶部的 28px 内边距就是给控制条留的座位，不然按钮会压在
 第一行歌词上。
+
+### 什么时候让开
+
+三种遮挡分开记两份原因（`hiddenReasons` 里的 `app` 与 `system`），任何一份在，窗口就 `hide()`，
+都空才 `showInactive()`；两份互不撤销，谁先谁后都不会把对方的状态抹掉。
+
+- `app`：主窗 `enter-full-screen` / `leave-full-screen`，以及渲染层打开歌词舞台时的
+  `overlay:setSuppressed`。
+- `system`：别的程序占着屏幕。Electron 没有 `SHQueryUserNotificationState` 的绑定，所以
+  `fullscreen-watch.ts` 在歌词窗打开时起一个常驻 PowerShell，每 1.5 秒报一次状态；2 忙/全屏、
+  3 D3D 独占、4 演示模式都算占屏，5（可接受通知）才是正常。实测全屏的 Electron 窗口与全屏的
+  Edge 窗口都报 2 而不是 3——3 只有拿独占模式进程才给。歌词窗关掉时进程一起退出。
+
+判定与解析是纯函数（`electron/pure/notification-state.ts`），失败一律静默：读不到状态只是不让位，
+不影响播放。
+
+## 在线缓存
+
+在线音频以前每次播放都走 `aurora-remote://` 透传，切歌重播就要重新连平台。现在中间加一层
+`aurora-cache://audio/<key>/<上游地址>`：
+
+- **键由渲染层给**（`provider:onlineId`），不拿签名地址当键——平台的直链带过期签名，每次播都变，
+  拿它做键永远命不中。`src/features/online/register.ts` 的 loader 在拿到流地址后统一换成缓存地址。
+- **命中**：直接读 `userData/media-cache/sha1(key).bin`，按请求的 `Range` 回 206（或整段 200、
+  `HEAD` 只回头部），一个字节的网络请求都不发。文件头 16 字节用来嗅探 `content-type`。
+- **未命中**：一边照常透传上游（Range/CORS 与以前一致），一边另起一个**不带 Range** 的请求把整首
+  存盘。不用 tee 复制：播放器请求的是一段段 Range，拼不出完整文件；切歌还会连带取消写盘。
+- **上限**：默认 2 GB，超了按最久未读先删，删到 90% 为止；设 0 等于关闭并把已有的清干净。
+  淘汰规则在 `electron/pure/media-cache-rules.ts`（纯函数，另有 `Range` 解析与音频类型嗅探），
+  存储实现在 `electron/media-cache.ts`。
+- 自定义协议必须同时进 `index.html` 的 CSP `media-src` 与 `connect-src`，否则渲染层拿到的就是
+  `Failed to fetch`——这条踩过一次。
+
+封面缓存是另一套，早就存在：`electron/protocols/remote-protocol.ts` 里的 `createCoverCache`，
+内存 48 MB + `userData/cover-cache` 磁盘，按 URL 哈希命名。这次只把它从「按文件数」换成
+「200 MB 字节预算」（`electron/pure/cover-cache-rules.ts`）：单张最多 3 MB，4000 个文件的旧口径
+最坏能占十几 G。
 
 ## 真实窗口巡检
 
