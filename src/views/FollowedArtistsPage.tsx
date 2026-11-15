@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { anySourceSigned, useFollowedArtists, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { User } from '../ui/icons'
+import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 
 /**
  * 关注的艺人。
@@ -17,6 +19,13 @@ import { User } from '../ui/icons'
 export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const artists = useFollowedArtists()
   const signed = useSignedInPlatforms()
+  const [query, setQuery] = useState('')
+
+  /* 本地过滤：名单已经在手里，输入时不必再打一轮平台接口。 */
+  const shown = useMemo(
+    () => artists.filter((artist) => shelfMatches(query, artist.name)),
+    [artists, query]
+  )
 
   /*
    * 空页要说清是哪一种空。
@@ -51,41 +60,54 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
           <h3>
             <User size={14} /> 艺人
           </h3>
-          <span className="rh-more">{artists.length} 位</span>
+          <span className="rh-more">
+            {query.trim() ? `${shown.length} / ${artists.length} 位` : `${artists.length} 位`}
+          </span>
         </header>
-        <div className="rh-row">
-          {artists.map((artist) => {
-            /*
-             * 艺人页的 id 是数字（路由里也按数字解析）。酷狗的 singerid 是数字
-             * 字符串，转得动；QQ 的关系列表只给 mid（`000djEdv2aAycA`），转不动，
-             * 于是那一张卡不挂点击——比点进去报错好。
-             */
-            const routeId = Number(artist.id)
-            const openable = Number.isFinite(routeId) && routeId > 0
-            return (
-              <button
-                className="rh-card"
-                type="button"
-                key={artist.key}
-                onClick={
-                  openable
-                    ? (event) => openOnlineArtist(artist.providerId, routeId, event.currentTarget)
-                    : undefined
-                }
-              >
-              <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
-                <Artwork
-                  src={artist.avatarUrl ? remoteImageUrl(sizedImage(artist.avatarUrl, 300), 300) : null}
-                  alt=""
-                  fallback={<User size={18} />}
-                />
-              </span>
-              <span className="rh-card__title">{artist.name}</span>
-              <span className="rh-card__sub">{subtitle(artist)}</span>
-            </button>
-            )
-          })}
-        </div>
+        <ShelfSearch value={query} placeholder="搜索艺人" onChange={setQuery} />
+        {shown.length === 0 ? (
+          <p className="shelf-empty">没有匹配的艺人。</p>
+        ) : (
+          <div className="rh-row">
+            {shown.map((artist) => {
+              /*
+               * 艺人页的 id 是数字（路由里也按数字解析）。酷狗的 singerid 是数字
+               * 字符串，转得动；QQ 的关系列表只给 mid（`000djEdv2aAycA`），转不动，
+               * 于是那一张卡不挂点击——比点进去报错好。
+               */
+              const routeId = Number(artist.id)
+              const openable = Number.isFinite(routeId) && routeId > 0
+              return (
+                <button
+                  className="rh-card"
+                  type="button"
+                  key={artist.key}
+                  onClick={
+                    openable
+                      ? (event) => openOnlineArtist(artist.providerId, routeId, event.currentTarget)
+                      : undefined
+                  }
+                >
+                  <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
+                    <Artwork
+                      src={artist.avatarUrl ? remoteImageUrl(sizedImage(artist.avatarUrl, 300), 300) : null}
+                      alt=""
+                      fallback={<User size={18} />}
+                    />
+                  </span>
+                  {/* 圆形封面会把角上的东西裁掉，所以色点放在外面。 */}
+                  <span className="rh-card__dots">
+                    {artist.providers.map((id) => (
+                      <span key={id} className={'src-dot src-dot--' + id} />
+                    ))}
+                  </span>
+                  <span className="rh-card__title">{artist.name}</span>
+                  <span className="rh-card__sub">{subtitle(artist)}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </section>
     </div>
   )

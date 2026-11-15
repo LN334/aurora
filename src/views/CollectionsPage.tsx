@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { anySourceSigned, useCollectedAlbums, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
@@ -5,6 +6,7 @@ import { openOnlineAlbum } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { ArtistById } from '../ui/NameRef'
 import { Note } from '../ui/icons'
+import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 
 /**
  * 收藏专辑。
@@ -16,6 +18,13 @@ import { Note } from '../ui/icons'
 export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const albums = useCollectedAlbums()
   const signed = useSignedInPlatforms()
+  const [query, setQuery] = useState('')
+
+  /* 数据已经在手里，筛选就只是本地过滤——不该为一次输入再打一轮平台接口。 */
+  const shown = useMemo(
+    () => albums.filter((album) => shelfMatches(query, album.name, album.artistName)),
+    [albums, query]
+  )
 
   /*
    * 空页要说清是哪一种空。
@@ -51,35 +60,47 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
           <h3>
             <Note size={14} /> 专辑
           </h3>
-          <span className="rh-more">{albums.length} 张</span>
+          <span className="rh-more">
+            {query.trim() ? `${shown.length} / ${albums.length} 张` : `${albums.length} 张`}
+          </span>
         </header>
-        <div className="rh-row">
-          {albums.map((album) => (
-            <button
-              className="rh-card"
-              type="button"
-              key={album.key}
-              onClick={(event) => openOnlineAlbum(album.providerId, album.id, event.currentTarget)}
-            >
-              <span className="rh-card__art" style={{ background: tint(album.key) }}>
-                <Artwork
-                  src={album.coverUrl ? remoteImageUrl(sizedImage(album.coverUrl, 300), 300) : null}
-                  alt=""
-                  fallback={<Note size={18} />}
-                />
-                <span className={'pl-card__src src-dot--' + album.providerId}>{album.providerLabel}</span>
-              </span>
-              <span className="rh-card__title">{album.name}</span>
-              <span className="rh-card__sub">
-                {album.providerLabel}
-                {album.artistName ? ' · ' : null}
-                {album.artistName ? (
-                  <ArtistById providerId={album.providerId} id={album.artistId} name={album.artistName} />
-                ) : null}
-              </span>
-            </button>
-          ))}
-        </div>
+        <ShelfSearch value={query} placeholder="搜索专辑或歌手" onChange={setQuery} />
+        {shown.length === 0 ? (
+          <p className="shelf-empty">没有匹配的专辑。</p>
+        ) : (
+          <div className="rh-row">
+            {shown.map((album) => (
+              <button
+                className="rh-card"
+                type="button"
+                key={album.key}
+                onClick={(event) => openOnlineAlbum(album.providerId, album.id, event.currentTarget)}
+              >
+                <span className="rh-card__art" style={{ background: tint(album.key) }}>
+                  <Artwork
+                    src={album.coverUrl ? remoteImageUrl(sizedImage(album.coverUrl, 300), 300) : null}
+                    alt=""
+                    fallback={<Note size={18} />}
+                  />
+                </span>
+                {/* 色点必须在封面外面：圆形封面会把它裁掉。 */}
+                <span className="rh-card__dots">
+                  {album.providers.map((id) => (
+                    <span key={id} className={'src-dot src-dot--' + id} />
+                  ))}
+                </span>
+                <span className="rh-card__title">{album.name}</span>
+                <span className="rh-card__sub">
+                  {album.providerLabel}
+                  {album.artistName ? ' · ' : null}
+                  {album.artistName ? (
+                    <ArtistById providerId={album.providerId} id={album.artistId} name={album.artistName} />
+                  ) : null}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

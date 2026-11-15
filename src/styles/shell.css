@@ -670,6 +670,62 @@
   opacity: 0.6;
 }
 
+/* 书架上的搜索：收藏专辑与关注艺人都是几百条平铺，滚动找不动，得能打字筛。 */
+.shelf-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(320px, 100%);
+  height: 32px;
+  margin: 0 0 var(--s4);
+  padding: 0 12px;
+  border: var(--line-soft);
+  border-radius: 999px;
+  background: rgb(var(--plane-rgb) / 0.55);
+  color: var(--text-low);
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+
+.shelf-search:focus-within {
+  border-color: rgb(var(--tint-rgb) / 0.28);
+}
+
+.shelf-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  outline: none;
+}
+
+.shelf-search input::placeholder {
+  color: var(--text-low);
+}
+
+.shelf-search__clear {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--text-low);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shelf-search__clear:hover {
+  color: var(--text-hi);
+}
+
+.shelf-empty {
+  margin: 0;
+  padding: var(--s4) 0;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+}
+
 .rh-more {
   display: inline-flex;
   align-items: center;
@@ -3015,6 +3071,21 @@
   display: flex;
   justify-content: center;
   padding: 18px 0 8px;
+}
+
+/*
+ * 书架卡片上的多平台色点：同名合并后，几家有它就亮几颗。
+ *
+ * 放在封面上会被圆形裁掉——圆形裁切的正是左下角这块。改到封面下面一行，
+ * 与标题同列居中。
+ */
+.rh-card__dots {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  align-self: stretch;
+  margin-top: 4px;
+  pointer-events: none;
 }
 
 /* ---- 歌单页：来源筛选与平台角标 ------------------------------------------ */

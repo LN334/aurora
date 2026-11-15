@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
 import { listAvailableProviders } from './registry'
+import { mergeShelves } from './shelf-merge'
 import type { ProviderCollectedAlbum, ProviderFollowedArtist, ProviderId } from './types'
 
 /**
@@ -45,12 +46,16 @@ interface CollectedAlbum extends ProviderCollectedAlbum {
   key: string
   providerId: ProviderId
   providerLabel: string
+  /** 这张专辑在几家的收藏里都有；一颗色点一家，第一个是主平台。 */
+  providers: ProviderId[]
 }
 
 interface FollowedArtist extends ProviderFollowedArtist {
   key: string
   providerId: ProviderId
   providerLabel: string
+  /** 同名艺人被几家关注着；第一个是可点进去的那一家。 */
+  providers: ProviderId[]
 }
 
 /*
@@ -92,6 +97,7 @@ async function loadCollectedAlbums(signed: Record<string, boolean>): Promise<Col
             key: provider.id + ':' + album.id,
             providerId: provider.id,
             providerLabel: provider.displayName,
+            providers: [provider.id],
             id: album.id,
             name: album.name,
             coverUrl: album.coverUrl,
@@ -107,7 +113,7 @@ async function loadCollectedAlbums(signed: Record<string, boolean>): Promise<Col
 
   if (loads.length === 0) return []
   const groups = await Promise.all(loads)
-  return groups.flat()
+  return mergeShelves(groups.flat())
 }
 
 /**
@@ -171,6 +177,7 @@ async function loadFollowedArtists(signed: Record<string, boolean>): Promise<Fol
             key: provider.id + ':' + artist.id,
             providerId: provider.id,
             providerLabel: provider.displayName,
+            providers: [provider.id],
             ...artist
           }))
         )
@@ -180,7 +187,11 @@ async function loadFollowedArtists(signed: Record<string, boolean>): Promise<Fol
 
   if (loads.length === 0) return []
   const groups = await Promise.all(loads)
-  return groups.flat()
+  /*
+   * 同名艺人收成一行：同一个人被两家关注着，两张头像一样的卡并排站着，
+   * 读起来像重复渲染。合并后卡片上挂几颗平台色点。
+   */
+  return mergeShelves(groups.flat())
 }
 
 /**
