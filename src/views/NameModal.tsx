@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLeave } from '../ui/presence'
 
 /**
@@ -56,7 +57,8 @@ export function NameModal({
     onConfirm(clean)
   }
 
-  return (
+  /* 与 ConfirmModal 同因：挂到 body，避开 `<main>` 的 backdrop-filter 包含块。 */
+  return createPortal(
     <>
       <div
         className={'nm__scrim' + (leaving ? ' is-closing' : '')}
@@ -100,6 +102,7 @@ export function NameModal({
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }

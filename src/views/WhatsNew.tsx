@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import rawChangelog from '../../CHANGELOG.md?raw'
 import { bridge } from '../bridge'
 import { parseChangelog } from '../features/updates/changelog'
@@ -66,7 +67,8 @@ export function WhatsNew() {
     leave(() => setEntry(null))
   }
 
-  return (
+  /* 挂到 body：`<main>` 有 backdrop-filter，会成为 fixed 的包含块，弹窗会偏。 */
+  return createPortal(
     <>
       <div
         className={'nm__scrim' + (leaving ? ' is-closing' : '')}
@@ -98,6 +100,7 @@ export function WhatsNew() {
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }

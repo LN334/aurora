@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useLeave } from '../ui/presence'
 
 /**
@@ -39,7 +40,14 @@ export function ConfirmModal({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onCancel, leave])
 
-  return (
+  /*
+   * 挂到 body 上，不留在调用处。
+   *
+   * `<main>` 上有 backdrop-filter，而带 backdrop-filter 的祖先会成为 fixed
+   * 元素的包含块——弹窗的 left: 50% 于是按内容区算，整块往右偏 112px（实测）。
+   * 挂到 body 就没有这层祖先了。
+   */
+  return createPortal(
     <>
       <div
         className={'nm__scrim' + (leaving ? ' is-closing' : '')}
@@ -67,6 +75,7 @@ export function ConfirmModal({
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
