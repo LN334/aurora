@@ -76,11 +76,16 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
 
   // 取数只在进页面时做一次；勾选变化只影响下面两个 effect 与最后的过滤。
   useEffect(() => {
+    // 没勾网易云就别问：这一问会把那 93 MB 的上游包拉进主进程。这一块直接算落定。
+    if (!list.includes('netease')) {
+      markDone('netease')
+      return
+    }
     void useDiscover
       .getState()
       .load('playlists')
       .catch(() => {})
-  }, [])
+  }, [chosenKey, markDone])
 
   /*
    * 网易云：块状态离开 idle/loading 就算落定，成功失败都算。
@@ -95,9 +100,17 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
    * 酷狗：歌单是 init 里顺手发出去的（未登录走公开榜单），拿不到自己的 promise。
    * 所以用「init 完成 + 不在加载中」两条件近似落定，中间可能差的一帧由
    * READY_TAIL_MS 那个收敛窗吃掉。
+   *
+   * 没勾酷狗就别 init：它一 init 就要 spawn 那个本地 Node 服务（`[kugou] starting
+   * api`，几十 MB）。这一块直接算落定，页面照常往下画。
    */
+  const wantKugou = list.includes('kugou')
   const [kugouInit, setKugouInit] = useState(false)
   useEffect(() => {
+    if (!wantKugou) {
+      markDone('kugou')
+      return
+    }
     let alive = true
     void useOnlineStore('kugou')
       .getState()
@@ -109,7 +122,7 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
     return () => {
       alive = false
     }
-  }, [])
+  }, [wantKugou, markDone])
   const kugouLoading = kugou.playlistsLoading
   useEffect(() => {
     if (kugouInit && !kugouLoading) markDone('kugou')

@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { bridge } from '../../bridge'
 import { useOnlineStore } from './store'
 import type { OnlinePlaylistSummary, PlaylistOwnership, ProviderId } from './types'
 
@@ -86,12 +87,38 @@ export function useAccountPlaylists(): AccountPlaylistsState {
   const kugou = useOnlineStore('kugou')()
   const qishui = useOnlineStore('qishui')()
 
+  /*
+   * 先问主进程「谁登录过」（只读会话文件，零加载），再只 init 这几家。
+   *
+   * 以前这里对四家无条件 init，于是首页一挂载就把网易云那 93 MB 的包和酷狗的
+   * 本地服务全拉起来——而这一格本来就只要「登录着的那几家」的歌单。
+   */
+  const [signedKey, setSignedKey] = useState<string | null>(null)
   useEffect(() => {
-    // 未接入或未登录的平台会回一个空壳，init 只是让它自己报「连不上」，不会抛。
-    for (const platform of PLAYLIST_PROVIDERS) {
-      void useOnlineStore(platform.id).getState().init().catch(() => {})
+    let alive = true
+    void bridge.platforms
+      .signedIn()
+      .then((map) => {
+        if (!alive) return
+        setSignedKey(Object.keys(map).filter((id) => map[id]).join(','))
+      })
+      .catch(() => {
+        if (alive) setSignedKey('')
+      })
+    return () => {
+      alive = false
     }
   }, [])
+
+  useEffect(() => {
+    if (signedKey === null) return
+    const signed = new Set(signedKey.split(',').filter(Boolean))
+    // 未接入或未登录的平台会回一个空壳，init 只是让它自己报「连不上」，不会抛。
+    for (const platform of PLAYLIST_PROVIDERS) {
+      if (!signed.has(platform.id)) continue
+      void useOnlineStore(platform.id).getState().init().catch(() => {})
+    }
+  }, [signedKey])
 
   const cards = useMemo(() => {
     const rows: PlaylistCard[] = []

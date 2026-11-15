@@ -20,6 +20,7 @@ import { useHomeSections } from '../features/settings/home-sections'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { usePlatformLiked } from '../features/online/platform-liked'
+import { usePushPlatforms } from '../features/online/push-platforms'
 import { useRoamPlatforms } from '../features/player/roam-sources'
 import { useCollectedAlbums } from '../features/online/platform-collections'
 import { collectedOnly, useAccountPlaylists } from '../features/online/playlist-cards'
@@ -169,11 +170,11 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 首页却写 0 首——同一件事两个数，谁都不敢信。
    */
   /*
-   * 只问勾选的平台：首页这一格只要一个数字，不值得为它把四家后端全拉起来。
-   * 收藏页那边不传，仍是四家全量。
+   * 只问「勾着且登录着」的平台：首页这一格只要一个数字，不值得为它把四家后端
+   * 全拉起来。收藏页那边不传，仍是四家全量。
    */
-  const chosenPlatforms = useRoamPlatforms()
-  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked(chosenPlatforms)
+  const likedPlatforms = usePushPlatforms() ?? []
+  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked(likedPlatforms)
   const { cards: accountCards, loading: cardsLoading } = useAccountPlaylists()
   const collectedPlaylists = useMemo(() => collectedOnly(accountCards), [accountCards])
   const collectedAlbums = useCollectedAlbums()
@@ -264,10 +265,16 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [])
   const cardsReady = (playlistsReady && albumsReady) || cardsLate
 
+  /*
+   * 「最近新歌」这一栏是网易云的公开榜单。没勾它就别问——这一问会把那 93 MB
+   * 的上游包拉进主进程。不勾时这一栏留空，下面其它平台的歌照常填。
+   */
+  const discoverOn = useRoamPlatforms().includes('netease')
   useEffect(() => {
     // 失败就整块不出现，不在首屏留一行报错——曲库里的东西够填满这一页了。
+    if (!discoverOn) return
     void useDiscover.getState().load('newsongs').catch(() => {})
-  }, [])
+  }, [discoverOn])
 
   const current = index >= 0 ? (queue[index] ?? null) : null
 

@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { roamPlatforms, useRoamPlatforms } from '../player/roam-sources'
 import { bridge } from '../../bridge'
 import { usePushSignedOnly } from '../settings/push-signed'
-import { listProviders } from './registry'
-import { useOnlineStore } from './store'
 import type { ProviderId } from './types'
 
 /**
@@ -20,99 +18,47 @@ import type { ProviderId } from './types'
  * 「没登录」只影响推送位。搜索、播放、收藏都不看这个判断：那些事游客也能做。
  */
 
-/** 各平台问过没有、登没登录，合成一份快照。 */
-interface SignState {
-  /** 快照键：平台 id 后面跟 +（登录）/ -（没登录）/ ?（还没问过）。 */
-  key: string
-  signed: ProviderId[]
-  unknown: ProviderId[]
-}
-
-let snapshot: SignState | null = null
-
-function read(): SignState {
-  const parts: string[] = []
-  const signed: ProviderId[] = []
-  const unknown: ProviderId[] = []
-  for (const provider of listProviders()) {
-    const state = useOnlineStore(provider.id).getState()
-    /*
-     * ready 与 backendBlocked 都由 init 写：一个说「问通了」，一个说「这个构建
-     * 没有它的后端」。两者都没动过，就是还没问过——此刻不能断言「没登录」，
-     * 否则首屏会先把这一家滤掉、等 init 回来再补，推荐位先空一次再满。
-     */
-    const asked = state.ready || state.backendBlocked
-    if (!asked) unknown.push(provider.id)
-    if (state.account) signed.push(provider.id)
-    parts.push(provider.id + (state.account ? '+' : asked ? '-' : '?'))
-  }
-  const key = parts.join(',')
-  if (snapshot?.key !== key) snapshot = { key, signed, unknown }
-  return snapshot ?? { key, signed, unknown }
-}
-
-function subscribe(listener: () => void): () => void {
-  const stops = listProviders().map((provider) => useOnlineStore(provider.id).subscribe(listener))
-  return () => {
-    for (const stop of stops) stop()
-  }
-}
-
-/**
- * 等 700ms 还没问出结果，就先把未知平台放行去取内容。
- *
- * 平台初始化是网络活：冷启动、代理抖动、上游限流都可能让某一家久等不回。这
- * 时候一直把整块推荐挂空，用户看到的就不是「那一家没登录」，而是「推荐坏了」。
- * 700ms 是启动首屏的折中：尽快并行发内容请求，同时保持整块仍等数据齐了再显示。
- * 问不出来不等于不能用，放行比挂住好。
- */
-const GIVE_UP_MS = 700
-
 /**
  * 推送位该问的平台。
  *
- * 返回 null 表示还有平台没问完、结论未定：调用方此时应停在加载态，别先画一版
- * 再收紧（那会看起来像内容在换）。
+ * 返回 null 表示登录状态还没回来（一次 IPC，毫秒级）：调用方此时应停在加载态，
+ * 别先画一版再收紧（那会看起来像内容在换）。
+ *
+ * 登录状态问主进程，不问各平台的 store。问 store 需要先 init——为了知道「这家
+ * 登录没有」把四家后端全拉起来（网易云那 93 MB 的包、酷狗的本地服务），正是不
+ * 该做的事。主进程读一眼会话文件就知道，零加载。
  */
 export function usePushPlatforms(): ProviderId[] | null {
   const chosen = useRoamPlatforms()
   const signedOnly = usePushSignedOnly()
-  const sign = useSyncExternalStore(subscribe, read, read)
-  const [late, setLate] = useState(false)
   const chosenKey = chosen.join(',')
+  const [signed, setSigned] = useState<Record<string, boolean> | null>(null)
 
-  /*
-   * 有平台还没问过就去问。
-   *
-   * 只问勾选的那几家：推送位最后只是在 chosen 里挑，没勾的平台登录不登录都不影响
-   * 结论。以前这里问的是 listProviders() 全量，结果是哪怕用户只勾一家，另外三家
-   * 的后端也会被 init 拉起来（酷狗还要 spawn 本地服务）。
-   */
   useEffect(() => {
     if (!signedOnly) return
-    const pending = chosen.filter((id) => {
-      const state = useOnlineStore(id).getState()
-      return !state.ready && !state.backendBlocked
-    })
-    if (pending.length === 0) return
-    for (const id of pending) void useOnlineStore(id).getState().init().catch(() => {})
-  }, [signedOnly, chosenKey])
-
-  useEffect(() => {
-    if (sign.unknown.length === 0) return
-    const timer = window.setTimeout(() => setLate(true), GIVE_UP_MS)
-    return () => window.clearTimeout(timer)
-  }, [sign.key, sign.unknown.length])
+    let alive = true
+    void bridge.platforms
+      .signedIn()
+      .then((map) => {
+        if (alive) setSigned(map)
+      })
+      .catch(() => {
+        // 问不出来就当都没登录：宁可少问一家，也别把四家后端拉起来。
+        if (alive) setSigned({})
+      })
+    return () => {
+      alive = false
+    }
+  }, [signedOnly])
 
   return useMemo(() => {
     // 用户放开了：勾着谁就问谁，没登录也照问，取回来的会是公开榜单。
     if (!signedOnly) return chosen
-    if (sign.unknown.length > 0 && !late) return null
-    const allowed = new Set<ProviderId>(sign.signed)
-    if (late) for (const id of sign.unknown) allowed.add(id)
+    if (!signed) return null
+    const allowed = new Set(Object.keys(signed).filter((id) => signed[id]))
     return chosen.filter((id) => allowed.has(id))
-    // 数组每份快照都是新的，用 join 后的字符串与快照键当依赖。
-  }, [chosenKey, sign.key, late, signedOnly])
+    // 数组每份快照都是新的，用 join 后的字符串与登录快照当依赖。
+  }, [chosenKey, signed, signedOnly])
 }
 
 /**
