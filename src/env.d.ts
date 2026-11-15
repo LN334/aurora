@@ -27,6 +27,8 @@ export interface LibraryIndex {
 /** 开屏期的平台预热：只做与账号无关的冷启动，重复调用安全。 */
 interface PlatformsApi {
   warmUp(ids: string[]): Promise<{ warmed: number; total: number }>
+  /** 每个平台在当前档案下登录过没有。只读会话文件，不拉起任何后端。 */
+  signedIn(): Promise<Record<string, boolean>>
 }
 
  interface LibraryApi {

@@ -20,6 +20,7 @@ import { useHomeSections } from '../features/settings/home-sections'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
 import { usePlatformLiked } from '../features/online/platform-liked'
+import { useRoamPlatforms } from '../features/player/roam-sources'
 import { useCollectedAlbums } from '../features/online/platform-collections'
 import { collectedOnly, useAccountPlaylists } from '../features/online/playlist-cards'
 import { picksByProvider, useRecommendedPlaylists } from '../features/online/recommended'
@@ -167,7 +168,12 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 首页这一格以前只数本机收藏，于是左边栏点进「我喜欢的音乐」有 626 首，
    * 首页却写 0 首——同一件事两个数，谁都不敢信。
    */
-  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked()
+  /*
+   * 只问勾选的平台：首页这一格只要一个数字，不值得为它把四家后端全拉起来。
+   * 收藏页那边不传，仍是四家全量。
+   */
+  const chosenPlatforms = useRoamPlatforms()
+  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked(chosenPlatforms)
   const { cards: accountCards, loading: cardsLoading } = useAccountPlaylists()
   const collectedPlaylists = useMemo(() => collectedOnly(accountCards), [accountCards])
   const collectedAlbums = useCollectedAlbums()

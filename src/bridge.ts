@@ -75,7 +75,9 @@ const webFallback: AuroraApi = {
   }),
   // 浏览器预览没有主进程，也就没有后端要热；如实报 0 家。
   platforms: {
-    warmUp: async () => ({ warmed: 0, total: 0 })
+    warmUp: async () => ({ warmed: 0, total: 0 }),
+    // 没有主进程就没有会话文件，四家一律当没登录。
+    signedIn: async () => ({})
   },
   library: {
     // One browser preview is one profile, so switching is a no-op there.

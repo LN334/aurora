@@ -3,7 +3,7 @@ import type { Track } from '../../types'
 import { onLikesChanged, useLikes } from '../favorites/likes'
 import { getProvider, listAvailableProviders } from './registry'
 import { useOnlineStore, type PlatformBackend } from './store'
-import type { OnlineSong } from './types'
+import type { OnlineSong, ProviderId } from './types'
 
 /**
  * 各平台账号里「我喜欢的」。
@@ -19,7 +19,11 @@ const TTL = 10 * 60 * 1000
  */
 const FOCUS_TTL = 60 * 1000
 
-let cache: { at: number; tracks: Track[] } | null = null
+/*
+ * 按「问了哪几家」分份缓存：收藏页要四家全量，漫游只该拿勾选的那几家。
+ * 键 '*' 是全量。
+ */
+const cache = new Map<string, { at: number; tracks: Track[] }>()
 
 /*
  * 缓存被作废时要叫醒正在看这一页的人。心形按钮与这一页读的不是同一份数据：
@@ -29,7 +33,7 @@ const listeners = new Set<() => void>()
 
 /** 把缓存丢掉，下一次读走一趟网络。喜欢动作之后、窗口回到前台时调它。 */
 export function invalidatePlatformLiked(): void {
-  cache = null
+  cache.clear()
   for (const listener of listeners) {
     try {
       listener()
@@ -39,11 +43,22 @@ export function invalidatePlatformLiked(): void {
   }
 }
 
-/** 每家自己失败就自己空着，一家登不上不该让整页变白。 */
-export async function loadPlatformLiked(): Promise<Track[]> {
-  if (cache && Date.now() - cache.at < TTL) return cache.tracks
+/**
+ * 每家自己失败就自己空着，一家登不上不该让整页变白。
+ *
+ * 传了 `platforms` 就只问这几家（漫游只该拿勾选的那几家）；不传是全量。没被问
+ * 到的平台连 `init` 都不跑，后端不会为它起来。
+ */
+export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<Track[]> {
+  const key = platforms ? [...platforms].sort().join(',') : '*'
+  const hit = cache.get(key)
+  if (hit && Date.now() - hit.at < TTL) return hit.tracks
+  const wanted = platforms ? new Set(platforms) : null
 
-  const providers = listAvailableProviders().filter((provider) => provider.capabilities.likes)
+  const providers = listAvailableProviders().filter(
+    (provider) =>
+      Boolean(provider.capabilities.likes) && (wanted === null || wanted.has(provider.id))
+  )
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
@@ -69,7 +84,7 @@ export async function loadPlatformLiked(): Promise<Track[]> {
   )
 
   const tracks = lists.flat()
-  cache = { at: Date.now(), tracks }
+  cache.set(key, { at: Date.now(), tracks })
   return tracks
 }
 
@@ -79,13 +94,20 @@ interface PlatformLikedState {
   loading: boolean
 }
 
-export function usePlatformLiked(): PlatformLikedState {
-  const [state, setState] = useState<PlatformLikedState>(() =>
-    cache ? { tracks: cache.tracks, loading: false } : { tracks: [], loading: true }
-  )
+/**
+ * 传了 `platforms` 就只问这几家。首页那张「我喜欢的音乐」卡传的是用户勾选的推流
+ * 平台——否则启动时会为了一个数字把四家后端全拉起来。收藏页不传，仍是四家全量。
+ */
+export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
+  const key = platforms ? [...platforms].sort().join(',') : '*'
+  const [state, setState] = useState<PlatformLikedState>(() => {
+    const hit = cache.get(key)
+    return hit ? { tracks: hit.tracks, loading: false } : { tracks: [], loading: true }
+  })
 
   useEffect(() => {
     let alive = true
+    const ids = key === '*' ? undefined : (key.split(',') as ProviderId[])
 
     /*
      * 缓存还新鲜就直接用，不必再问一次上游；否则读一次，读完把 loading 落下来。
@@ -97,12 +119,13 @@ export function usePlatformLiked(): PlatformLikedState {
      * 只把 loading 亮起来。清空再填会让人以为收藏被删了。
      */
     const read = (keep: boolean): void => {
-      if (cache && Date.now() - cache.at < TTL) {
-        if (alive) setState({ tracks: cache.tracks, loading: false })
+      const hit = cache.get(key)
+      if (hit && Date.now() - hit.at < TTL) {
+        if (alive) setState({ tracks: hit.tracks, loading: false })
         return
       }
       if (alive) setState((prev) => ({ tracks: keep ? prev.tracks : [], loading: true }))
-      void loadPlatformLiked()
+      void loadPlatformLiked(ids)
         .then((next) => {
           if (alive) setState({ tracks: next, loading: false })
         })
@@ -121,7 +144,7 @@ export function usePlatformLiked(): PlatformLikedState {
       alive = false
       listeners.delete(onChange)
     }
-  }, [])
+  }, [key])
 
   return state
 }
@@ -140,7 +163,8 @@ onLikesChanged(() => {
  */
 if (typeof window !== 'undefined') {
   window.addEventListener('focus', () => {
-    if (cache && Date.now() - cache.at < FOCUS_TTL) return
+    const hit = cache.get('*')
+    if (hit && Date.now() - hit.at < FOCUS_TTL) return
     invalidatePlatformLiked()
   })
 }

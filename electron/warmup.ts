@@ -49,6 +49,16 @@ const warm: Record<string, () => Promise<unknown>> = {
  * 抵不上代价。等首页取数或用户点进在线页时，由渲染层的 init 按需拉起。
  */
 export function registerWarmUpIpc(): void {
+  /*
+   * 渲染层在取数前问一次「谁登录过」：没登录、而它的日推又需要账号的平台，
+   * 连 init 都不必跑，省下整个后端的常驻内存。
+   */
+  ipcMain.handle('platforms:signedIn', () => {
+    const result: Record<string, boolean> = {}
+    for (const [id, check] of Object.entries(signedIn)) result[id] = check()
+    return result
+  })
+
   ipcMain.handle('platforms:warmUp', async (_event, ids: unknown) => {
     const list = Array.isArray(ids)
       ? [...new Set(ids.filter((id): id is string => typeof id === 'string'))]

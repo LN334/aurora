@@ -10,6 +10,7 @@ import {
   isTransientHandshakeFailure
 } from '../pure/netease-bootstrap'
 import { clearCookie, hasCookie, readCookie, writeCookie } from './session'
+import { write } from '../startup-log'
 import { isUsableId } from './types'
 import type {
   NeteaseAccount,
@@ -159,6 +160,8 @@ function loadUpstream(): Upstream {
   if (!fs.existsSync(TOKEN_PATH)) fs.writeFileSync(TOKEN_PATH, '', 'utf-8')
   muteNestedDotenv()
   upstream = require(API_PACKAGE) as Upstream
+  /* 这一行是「后端被拉起来了」的硬证据，探针靠它判断懒加载有没有漏。 */
+  write('netease: upstream loaded')
   return upstream
 }
 

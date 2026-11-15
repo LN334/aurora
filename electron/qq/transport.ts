@@ -1,4 +1,5 @@
 import type { QqQuality } from './types'
+import { write } from '../startup-log.ts'
 
 /**
  * The QQ wire layer: the two-step vkey exchange, the file-name rules, the
@@ -295,7 +296,11 @@ let services: QqServices | null = null
  * detail string instead of every call failing with an unrelated message.
  */
 export function loadSdk(): QqSdk {
-  if (!sdk) sdk = require(SDK_PACKAGE) as QqSdk
+  if (!sdk) {
+    sdk = require(SDK_PACKAGE) as QqSdk
+    /* 这一行是「后端被拉起来了」的硬证据，探针靠它判断懒加载有没有漏。 */
+    write('qq: upstream loaded')
+  }
   return sdk
 }
 

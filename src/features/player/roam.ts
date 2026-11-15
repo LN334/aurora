@@ -37,7 +37,12 @@ export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> 
     .getState()
     .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
   const [liked, daily, stream] = await Promise.all([
-    loadPlatformLiked().catch(() => [] as Track[]),
+    /*
+     * 这里也按勾选问：漫游是「从这几家给我找歌」。不勾的平台连喜欢都不该并进来——
+     * 否则用户明明没勾 QQ，漫游里却飘出一首 QQ 的歌，看着像设置没生效。
+     * 收藏页那边不传参数，照样四家全量。
+     */
+    loadPlatformLiked(platforms).catch(() => [] as Track[]),
     loadPlatformDaily(platforms).catch(() => [] as Track[]),
     loadRoamStream(SLOTS.roam, platforms).catch(() => [] as Track[])
   ])

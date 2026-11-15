@@ -44,7 +44,9 @@ const api = {
    */
   platforms: {
     warmUp: (ids: string[]) =>
-      ipcRenderer.invoke('platforms:warmUp', ids) as Promise<{ warmed: number; total: number }>
+      ipcRenderer.invoke('platforms:warmUp', ids) as Promise<{ warmed: number; total: number }>,
+    signedIn: () =>
+      ipcRenderer.invoke('platforms:signedIn') as Promise<Record<string, boolean>>
   },
 
   app: {

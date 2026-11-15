@@ -79,25 +79,24 @@ export function usePushPlatforms(): ProviderId[] | null {
   const signedOnly = usePushSignedOnly()
   const sign = useSyncExternalStore(subscribe, read, read)
   const [late, setLate] = useState(false)
+  const chosenKey = chosen.join(',')
 
   /*
    * 有平台还没问过就去问。
    *
-   * 日志页、搜索页都会用到各自平台，但推送位不能指望别人先 init：QQ 与汽水
-   * 平时不进首页，它们的 store 可能一直是空的，那样「登录着没有」永远没有答案，
-   * 只能靠超时放行，等于这道判断不存在。init 是单飞且幂等的，这里主动踢一脚。
+   * 只问勾选的那几家：推送位最后只是在 chosen 里挑，没勾的平台登录不登录都不影响
+   * 结论。以前这里问的是 listProviders() 全量，结果是哪怕用户只勾一家，另外三家
+   * 的后端也会被 init 拉起来（酷狗还要 spawn 本地服务）。
    */
   useEffect(() => {
     if (!signedOnly) return
-    const pending = listProviders()
-      .filter((provider) => {
-        const state = useOnlineStore(provider.id).getState()
-        return !state.ready && !state.backendBlocked
-      })
-      .map((provider) => provider.id)
+    const pending = chosen.filter((id) => {
+      const state = useOnlineStore(id).getState()
+      return !state.ready && !state.backendBlocked
+    })
     if (pending.length === 0) return
     for (const id of pending) void useOnlineStore(id).getState().init().catch(() => {})
-  }, [signedOnly])
+  }, [signedOnly, chosenKey])
 
   useEffect(() => {
     if (sign.unknown.length === 0) return
@@ -105,7 +104,6 @@ export function usePushPlatforms(): ProviderId[] | null {
     return () => window.clearTimeout(timer)
   }, [sign.key, sign.unknown.length])
 
-  const chosenKey = chosen.join(',')
   return useMemo(() => {
     // 用户放开了：勾着谁就问谁，没登录也照问，取回来的会是公开榜单。
     if (!signedOnly) return chosen

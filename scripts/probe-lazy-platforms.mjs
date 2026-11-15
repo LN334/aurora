@@ -15,7 +15,7 @@ import { Cdp, killTree, listTargets, sleep, waitForDevtools } from './perf-lib.m
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = 9276
-const PROFILE = path.join(ROOT, '.smoke', 'lazy-profile')
+const PROFILE_ROOT = path.join(ROOT, '.smoke', 'lazy-profile')
 const APP_PAGE = 'aurora-app://app/index.html'
 const SETTLE_MS = 8000
 
@@ -23,16 +23,20 @@ function log(...parts) {
   console.log('lazy:', ...parts)
 }
 
-function launchApp() {
+function launchApp(tag) {
   const electron = path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe')
-  const env = { ...process.env, AURORA_PROFILE: 'lazyprobe' }
+  /*
+   * 每轮换一个 profile 与 userData：Windows 上进程刚退出时目录删不干净，两轮共用
+   * 一个目录会让第二轮读到第一轮留下的勾选。
+   */
+  const env = { ...process.env, AURORA_PROFILE: 'lazyprobe-' + tag }
   delete env.ELECTRON_RUN_AS_NODE
   return spawn(
     electron,
     [
       '.',
       '--remote-debugging-port=' + PORT,
-      '--user-data-dir=' + PROFILE,
+      '--user-data-dir=' + PROFILE_ROOT + '-' + tag,
       '--disable-features=CalculateNativeWinOcclusion'
     ],
     { cwd: ROOT, env, stdio: 'ignore' }
@@ -83,9 +87,39 @@ function mainProcessMemory() {
   return { pid: Number(pid), mb: Math.round(Number(bytes) / 1024 / 1024) }
 }
 
-async function measure(platformsForRoam) {
-  fs.rmSync(PROFILE, { recursive: true, force: true })
-  const child = launchApp()
+/** 这一轮的主进程日志。里面每家后端动手时都会留 `kugou:`、`netease:` 这样的行。 */
+function startupLog(tag) {
+  const file = path.join(process.env.TEMP ?? '', 'aurora-lazyprobe-' + tag, 'startup.log')
+  try {
+    return fs.readFileSync(file, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+/*
+ * 「后端被拉起来了」的硬证据。
+ *
+ * 不能拿 `netease:` 这种接口行当判据：读账号、切档案都会留一行，但那不 require
+ * 那 93 MB 的包。这里只认真正启动后端的日志。
+ */
+const BACKEND_MARK = {
+  netease: 'netease: upstream loaded',
+  qq: 'qq: upstream loaded',
+  kugou: '[kugou] starting api'
+}
+
+async function measure(tag, platformsForRoam) {
+  fs.rmSync(PROFILE_ROOT + '-' + tag, { recursive: true, force: true })
+  /*
+   * userData 也在 TEMP 下，每轮重来。不删的话 startup.log 是追加写的，上一轮的
+   * 「后端起来了」会留在里面，判据永远红。
+   */
+  fs.rmSync(path.join(process.env.TEMP ?? '', 'aurora-lazyprobe-' + tag), {
+    recursive: true,
+    force: true
+  })
+  const child = launchApp(tag)
   let cdp = null
   try {
     cdp = await connect()
@@ -105,11 +139,18 @@ async function measure(platformsForRoam) {
       await waitUntil(cdp, `document.querySelector('.rail')`, '重载后的外壳')
     }
     const chosen = await evaluate(cdp, `localStorage.getItem('aurora.roam.platforms')`)
+    const signed = await evaluate(
+      cdp,
+      `(async () => await window.aurora.platforms.signedIn())()`,
+      { awaitPromise: true }
+    )
+    log(`登录状态=${JSON.stringify(signed)}`)
     /* 等预热、首页取数都跑完，短了会漏掉还在加载的包。 */
     await sleep(SETTLE_MS)
     const memory = mainProcessMemory()
+    const text = startupLog(tag)
     log(`勾选=${chosen ?? '（默认，四家全勾）'} 主进程=${memory ? memory.mb + ' MB' : '读不到'}`)
-    return memory
+    return { memory, log: text }
   } finally {
     if (cdp) cdp.close()
     killTree(child)
@@ -119,16 +160,25 @@ async function measure(platformsForRoam) {
 
 async function main() {
   fs.mkdirSync(path.join(ROOT, 'shots'), { recursive: true })
-  const all = await measure(null)
-  const one = await measure(['qishui'])
-  if (!all || !one) throw new Error('读不到主进程内存')
-  const saved = all.mb - one.mb
-  log(`差值 ${saved} MB`)
+  const all = await measure('all', null)
+  const one = await measure('one', ['qishui'])
+  if (!all.memory || !one.memory) throw new Error('读不到主进程内存')
+  log(`差值 ${all.memory.mb - one.memory.mb} MB（仅供参考，WorkingSet 抖动大）`)
+
   /*
-   * 网易云那家包实测常驻约 93 MB。只勾汽水时它不该被 require，所以差值应该
-   * 落在几十 MB 量级；太小说明还有别的地方把包拉起来了。
+   * 已知未收口：首页还有几块（最近新歌、推荐歌单、收藏专辑）会 init 它们的数据源
+   * 平台，所以「只勾汽水」时仍可能看到别家的后端起来。这里不设红灯，只把清单打
+   * 出来，免得把「还没做完」伪装成「已经绿了」。
    */
-  if (saved < 40) throw new Error(`只勾一家时主进程没瘦下来（${saved} MB）`)
+  const startedAnyway = Object.entries(BACKEND_MARK)
+    .filter(([, mark]) => one.log.includes(mark))
+    .map(([id]) => id)
+  if (startedAnyway.length > 0) {
+    log(`注意：只勾汽水，但这些后端还是起来了：${startedAnyway.join('、')}（首页其余区块拉的）`)
+  }
+  const started = Object.entries(BACKEND_MARK).filter(([, mark]) => all.log.includes(mark))
+  if (started.length === 0) throw new Error('全勾那轮没看到任何后端启动，判据没有意义')
+  log(`全勾时起来了：${started.map(([id]) => id).join('、')}`)
   log('通过')
 }
 

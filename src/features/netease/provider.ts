@@ -284,6 +284,8 @@ const neteaseBackend: PlatformBackend = {
 
   recommendations: {
     dailySongs: () => netease.dailySongs(),
+    // 上游这个接口不给游客，未登录时问了也是空。
+    dailyNeedsAccount: true,
     personalFm: (limit) => netease.personalFm(limit),
     likeList: () => netease.likeList(),
     cloudSongs: () => netease.cloudSongs()

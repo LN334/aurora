@@ -310,6 +310,13 @@ interface OnlineArtistProfile {
 
  interface ProviderRecommendationsApi {
   dailySongs?(): Promise<OnlineSong[]>
+  /**
+   * 每日推荐是不是必须要账号。
+   *
+   * 标了 true 的平台，未登录时渲染层不会为它 init——省掉把后端整个拉进内存
+   * （网易云那一步常驻 +93 MB），而反正拿回来的也是空。不标就是「游客也能拿」。
+   */
+  dailyNeedsAccount?: boolean
   /** 可选：私人漫游流。一次几首，具体数量由平台决定。 */
   personalFm?(limit?: number): Promise<OnlineSong[]>
   likeList?(): Promise<OnlineSong[]>

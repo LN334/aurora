@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { bridge } from '../../bridge'
 import type { Track } from '../../types'
 import { getProvider, listAvailableProviders } from './registry'
 import { useOnlineStore, type PlatformBackend } from './store'
@@ -63,9 +64,20 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
    * 不同的首曲，用户能看出「今天换过了」，而当天之内怎么进出首页都不变。
    */
   const daySeed = dailyDay()
+  /*
+   * 谁登录过。
+   *
+   * 未登录、而它的日推又要账号的平台，直接跳过——连 init 都不跑。init 会问一次
+   * 登录状态，问这一步就得把平台后端整个 require 进来（网易云常驻 +93 MB），
+   * 而拿回来的本来就只能是空。这一问只读会话文件，很便宜。
+   */
+  const signedIn = await bridge.platforms.signedIn().catch(() => ({}) as Record<string, boolean>)
   const lists = await Promise.all(
     providers.map(async (provider) => {
       try {
+        if (provider.recommendations?.dailyNeedsAccount && !signedIn[provider.id]) {
+          return [] as Track[]
+        }
         // 同上：绑定档案在 init 里，跳过它上游会当游客。
         await useOnlineStore(provider.id as never).getState().init().catch(() => {})
         const backend =
