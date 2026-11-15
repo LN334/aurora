@@ -3,9 +3,11 @@ import type { Route } from '../app/routing'
 import { hydrateArtistRefs } from '../features/online/hydrate'
 import { player } from '../features/player/actions'
 import { groupPlaysByDay } from '../features/player/history'
-import { usePlayEntries, useRecentEntries } from '../features/player/history-store'
+import { useHistoryState, usePlayEntries, useRecentEntries } from '../features/player/history-store'
+import { hourLabel, summarizeListening } from '../features/player/stats'
 import { usePlayer } from '../features/player/store'
 import type { Track } from '../types'
+import { formatSpan } from '../ui/format'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -40,6 +42,15 @@ export function RecentPage({
   const currentId = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index]?.id ?? null) : null))
   const playing = usePlayer((state) => state.playing)
   const [scope, setScope] = useState<Scope>('week')
+
+  const history = useHistoryState()
+
+  /*
+   * 统计固定看一周，不跟下面的列表切「全部」。
+   * 时长的数据源（days）只留 30 天，而次数（plays）留 180 天；把两者放进
+   * 同一个「全部」里，两个数字说的就不是同一段时间了。
+   */
+  const stats = useMemo(() => summarizeListening(history, Date.now(), 'week'), [history])
 
   /*
    * 页面开着跨零点不必立刻重排，所以「今天」只取一次。
@@ -154,6 +165,30 @@ export function RecentPage({
           </button>
         </span>
       </header>
+
+      {stats.days > 0 ? (
+        <section className="rv-stats" aria-label="这周的收听">
+          <div className="rv-stats__nums">
+            <div className="rv-stats__num">
+              <b>{formatSpan(stats.seconds)}</b>
+              <span>这周听了</span>
+            </div>
+            <div className="rv-stats__num">
+              <b>{stats.tracks} 首</b>
+              <span>不重复</span>
+            </div>
+          </div>
+          {/*
+            连续天数是跨周的指标，放进上面那排会被读成「这周 9 天」。
+            所以它和另外两句一起，作为对数字的补充说明。
+          */}
+          <p className="rv-stats__note">
+            {[`连着听 ${stats.streak} 天`, stats.topArtists.length ? `最常听 ${stats.topArtists[0].name}` : '', stats.topHour !== null ? `多在${hourLabel(stats.topHour)}` : '']
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </section>
+      ) : null}
 
       {days.map((day) => (
         <section className="rv-day" key={day.day || 'recent'}>

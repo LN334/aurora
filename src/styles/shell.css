@@ -586,6 +586,59 @@
   color: var(--text-hi);
 }
 
+/* -----------------------------------------------------------------------------
+   这周的收听：四个数字 + 一句话
+
+   放在列表上方，和下面的时间线分开读——上面是「这段时间怎么样」，下面是
+   「具体哪天听了什么」。两者都用 7 天窗口，所以数字与列表对得上。
+   -------------------------------------------------------------------------- */
+
+/* 宽度随内容收：拉伸到整行会让两格数字与一句话之间空出一大块。 */
+.rv-stats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--s5);
+  margin: 0 0 var(--s5);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg);
+  background: rgb(var(--plane-rgb) / 0.55);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+.rv-stats__nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5);
+}
+
+.rv-stats__num {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rv-stats__num b {
+  font-size: var(--fs-title);
+  font-weight: 650;
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-stats__num span {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.rv-stats__note {
+  margin: 0;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+
 .rv-day {
   margin-bottom: var(--s5);
 }

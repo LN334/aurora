@@ -146,3 +146,15 @@ export function usePlayEntries(): PlayEntry[] {
 export function useToday(now = Date.now()): TodaySummary {
   return todaySummary(useHistory((state) => state.history), now)
 }
+
+/**
+ * 整份历史快照。
+ *
+ * 统计要同时读 `days`（听歌时长）与 `plays`（次数、曲目、时段），只给一个
+ * 数组的 hook 不够用。历史写入是节流的（每 5 秒一次），所以多订阅这一份
+ * 不会让页面按帧重渲染。
+ */
+export function useHistoryState(): HistoryState {
+  return useHistory((state) => state.history)
+}
+
