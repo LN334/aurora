@@ -331,11 +331,33 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
   return ordered.map((item) => item.property)
 }
 
+/**
+ * Property names Aurora does not draw.
+ *
+ * Two groups, both of which the engine's own editor shows on other tabs:
+ *
+ * - the wallpaper's own audio: the player mounts every scene with `volume: 0`
+ *   so a wallpaper can never make sound, which makes a volume slider a control
+ *   that does nothing. The *audio listener* switch is different - it makes the
+ *   wallpaper react to what the player is playing - and stays.
+ * - sponsor / music blocks: those are the engine's author-support and
+ *   media-player panels, not settings for the backdrop.
+ *
+ * Everything else (theme colour, speed, parallax, alignment, position, flip,
+ * image filter, ...) is a real knob the renderer reads.
+ */
+const HIDDEN_PROPERTY = /^(volume|music|media|sponsor)/i
+
+function isHiddenProperty(name: string): boolean {
+  return HIDDEN_PROPERTY.test(name)
+}
+
 /** One property, or null when it is not a control this app can show. */
 function readProperty(name: string, entry: unknown): WallpaperProperty | null {
   const record = asRecord(entry)
   if (!record) return null
   if (name.toLowerCase() === SCHEME_COLOR_KEY) return null
+  if (isHiddenProperty(name)) return null
 
   // A conditional property is only visible while some other value has a specific
   // setting; without evaluating that expression, showing it would be misleading.

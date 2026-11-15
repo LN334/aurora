@@ -388,3 +388,23 @@ test('editableProperties tolerates a value that is not a property map', () => {
   assert.deepEqual(editableProperties({ broken: null, list: [1, 2] }), [])
 })
 
+test('editableProperties hides the wallpaper audio, music and sponsor panels', () => {
+  /*
+   * 场景挂载时 volume 恒为 0（壁纸不该出声），所以音量滑杆是一条按了没反应的
+   * 行；music/media 是壁纸自带的播放器面板，sponsor 是作者赞助入口。这三组都
+   * 不是背景的可调项。音频监听（audio）不同：它让壁纸跟着正在播的歌动，要留。
+   */
+  const properties = {
+    volume: { type: 'slider', value: 20, min: 0, max: 100, text: '音量' },
+    music: { type: 'bool', value: true, text: '壁纸音乐' },
+    media: { type: 'bool', value: true, text: '媒体播放' },
+    sponsor: { type: 'bool', value: true, text: '赞助' },
+    audio: { type: 'bool', value: true, text: '音频监听' },
+    parallax: { type: 'slider', value: 1, min: 0, max: 2, text: '鼠标视差' }
+  }
+
+  const names = editableProperties(properties).map((property) => property.name)
+  assert.deepEqual(names, ['audio', 'parallax'])
+})
+
+
