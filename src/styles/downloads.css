@@ -259,6 +259,12 @@
   max-width: 460px;
 }
 
+/*
+ * 这一行报的是「3 首 · 12 MB」，不是路径。
+ *
+ * 早先为了在窄处从头部省略路径用过 direction: rtl，但计数一旦走 RTL，
+ * 「1 首 · 101 KB」会被排成「首 · 101 KB 1」。省略交给 title 与弹层的目录按钮。
+ */
 .dlp__path {
   flex: 1;
   min-width: 0;
@@ -267,8 +273,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  direction: rtl;
-  text-align: left;
 }
 
 .dlp__badge {

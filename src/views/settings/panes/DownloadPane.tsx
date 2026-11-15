@@ -27,11 +27,13 @@ function limitLabel(megabytes: number): string {
   return megabytes >= 1024 ? `${megabytes / 1024} GB` : `${megabytes} MB`
 }
 
-/** 占用按「1.2 GB / 36 MB」报；这里不追求精确到小数第二位。 */
+/** 占用按「1.2 GB / 36 MB / 101 KB」报；这里不追求精确到小数第二位。 */
 function sizeLabel(bytes: number): string {
   if (bytes <= 0) return '0 MB'
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
-  return `${Math.max(1, Math.round(bytes / 1024 ** 2))} MB`
+  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
+  // 短音频、试听片段只有几十上百 KB，按 MB 报会四舍五入成 0，看着像没缓存。
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
 /**
