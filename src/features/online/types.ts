@@ -189,6 +189,32 @@ export interface ProviderCapabilities {
   likes: boolean
 }
 
+/**
+ * 一张收藏专辑，已归一化成各平台共用的形状。
+ *
+ * 平台实现 `collectedAlbums?()` 时交这个：字段名的差别（`albumname` / `name`、
+ * 数字 id / mid）都在 provider 里消化掉，页面只认这一份。
+ */
+export interface ProviderCollectedAlbum {
+  id: number
+  name: string
+  coverUrl: string | null
+  artistName: string
+  /** 艺人 id：卡片上那行名字据此点进艺人页；缺了就只是文字。 */
+  artistId?: number
+  year: number
+  songCount: number
+}
+
+/** 一位关注的艺人，已归一化。只有 id 与名字是各家都稳的。 */
+export interface ProviderFollowedArtist {
+  id: number
+  name: string
+  avatarUrl: string | null
+  albumCount: number
+  musicCount: number
+}
+
 /** Where a track's audio comes from. The discriminator the whole layer turns on. */
 export type PlaybackSourceRef =
   | { kind: 'online'; providerId: ProviderId; mediaId: string }
@@ -405,6 +431,19 @@ export interface OnlineMusicProvider {
 
   /** Collections this platform offers, in the order they should be listed. */
   collections?: OnlineCollection[]
+
+  /**
+   * The albums this account collected.
+   *
+   * 没有这条通道的平台不定义这个方法——「有这个方法」本身就是能力声明。界面
+   * 据此决定给不给入口，不再另立一张布尔表去描述同一件事（那两张表迟早会不一致，
+   * 2026-11 接 QQ 关注艺人时已经踩过：接口有了、表里没这一项，页面只能硬编码
+   * 平台名）。
+   */
+  collectedAlbums?(): Promise<ProviderCollectedAlbum[]>
+
+  /** The artists this account follows. 同上：有方法就有这条通道。 */
+  followedArtists?(): Promise<ProviderFollowedArtist[]>
 
   /** The quality tiers this platform accepts, best-last, matching `QUALITY_TIERS`. */
   qualityTiers?: QualityTier[]

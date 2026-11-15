@@ -177,6 +177,9 @@ const neteaseBackend: PlatformBackend = {
   available: () => previewBackendsForced() || hasNeteaseBackend,
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
+  // 这两条是账号里的关系，不是「这一家支持不支持」的布尔项：有方法就有通道。
+  collectedAlbums: () => netease.albumSublist(),
+  followedArtists: () => netease.artistSublist(),
   qualityTiers: TIERS,
   getQuality: neteaseBackend.getQuality,
   setQuality: neteaseBackend.setQuality,

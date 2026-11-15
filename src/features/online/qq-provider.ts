@@ -282,6 +282,19 @@ const qqBackend: PlatformBackend = {
   available: () => previewBackendsForced() || client() !== null,
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
+  // 收藏专辑与关注歌手都是账号里的关系；没有后端时 client() 是 null，两条如实缺席。
+  collectedAlbums: async () => {
+    const api = client()
+    if (!api) return []
+    const list = await api.collectedAlbums()
+    // QQ 的年份是「有就带上」，共用形状里按 0 表示不知道。
+    return list.map((album) => ({ ...album, year: album.year ?? 0 }))
+  },
+  followedArtists: async () => {
+    const api = client()
+    if (!api) return []
+    return api.followedArtists()
+  },
   qualityTiers: TIERS,
   getQuality: qqBackend.getQuality,
   setQuality: qqBackend.setQuality,

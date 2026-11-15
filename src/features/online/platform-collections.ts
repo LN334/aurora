@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
-import type { ProviderId } from './types'
+import { listAvailableProviders } from './registry'
+import type { ProviderCollectedAlbum, ProviderFollowedArtist, ProviderId } from './types'
 
 /**
  * 平台上的「收藏」：专辑与关注的艺人。
@@ -40,28 +41,15 @@ export function useSignedInPlatforms(): Record<string, boolean> | null {
   return signed
 }
 
-interface CollectedAlbum {
+interface CollectedAlbum extends ProviderCollectedAlbum {
   key: string
   providerId: ProviderId
   providerLabel: string
-  id: number
-  name: string
-  coverUrl: string | null
-  artistName: string
-  /** 艺人 id：卡片上那行名字据此点进艺人页；缺了就只是文字。 */
-  artistId?: number
-  year: number
-  songCount: number
 }
 
-interface FollowedArtist {
+interface FollowedArtist extends ProviderFollowedArtist {
   key: string
   providerId: ProviderId
-  id: number
-  name: string
-  avatarUrl: string | null
-  albumCount: number
-  musicCount: number
 }
 
 /*
@@ -83,49 +71,32 @@ function sharedFetch<T>(key: string, load: () => Promise<T>): Promise<T> {
   return promise
 }
 
-async function loadCollectedAlbums(withNetease: boolean, withQq: boolean): Promise<CollectedAlbum[]> {
+/**
+ * 收藏的专辑，各家平台合在一起。
+ *
+ * 遍历所有「有这条通道」的 provider：定义过 `collectedAlbums` 且这一家登录过，
+ * 就取一份。哪家没有这种关系就自然不出现——不再按平台名字写分支，加一家平台
+ * 只需要它在自己的 provider 里实现方法。
+ */
+async function loadCollectedAlbums(signed: Record<string, boolean>): Promise<CollectedAlbum[]> {
   const loads: Promise<CollectedAlbum[]>[] = []
 
-  const netease = window.aurora?.netease
-  if (withNetease && netease?.albumSublist) {
+  for (const provider of listAvailableProviders()) {
+    if (!provider.collectedAlbums || !signed[provider.id]) continue
     loads.push(
-      netease
-        .albumSublist()
+      provider
+        .collectedAlbums()
         .then((list) =>
           list.map((album) => ({
-            key: 'netease:' + album.id,
-            providerId: 'netease' as ProviderId,
-            providerLabel: '网易云音乐',
+            key: provider.id + ':' + album.id,
+            providerId: provider.id,
+            providerLabel: provider.displayName,
             id: album.id,
             name: album.name,
             coverUrl: album.coverUrl,
             artistName: album.artistName,
             artistId: album.artistId,
             year: album.year,
-            songCount: album.songCount
-          }))
-        )
-        .catch(() => [])
-    )
-  }
-
-  const qq = window.aurora?.qq
-  if (withQq && qq?.collectedAlbums) {
-    loads.push(
-      qq
-        .collectedAlbums()
-        .then((list) =>
-          list.map((album) => ({
-            key: 'qq:' + album.id,
-            providerId: 'qq' as ProviderId,
-            providerLabel: 'QQ 音乐',
-            id: album.id,
-            name: album.name,
-            coverUrl: album.coverUrl,
-            artistName: album.artistName,
-            /* QQ 只回艺人 mid，没有数字 id，而艺人页按数字 id 打开：
-               这一家的收藏卡上名字先只是文字，等按 mid 反查接通再补。 */
-            year: album.year ?? 0,
             songCount: album.songCount
           }))
         )
@@ -141,9 +112,9 @@ async function loadCollectedAlbums(withNetease: boolean, withQq: boolean): Promi
 /**
  * 收藏的专辑，各家平台合在一起。
  *
- * 只有网易云和 QQ 有这条通道：酷狗和汽水没有「收藏专辑」这种关系，未登录的
- * 平台也交不出任何东西。拿不到的平台直接不出现，而不是占一块写着「暂无」的
- * 空位——那会让「本来就没有」看起来像「没加载出来」。
+ * 只有「定义过 collectedAlbums」的平台会给出东西，未登录的平台也交不出任何东西。
+ * 拿不到的平台直接不出现，而不是占一块写着「暂无」的空位——那会让「本来就没有」
+ * 看起来像「没加载出来」。
  */
 export function useCollectedAlbums(): CollectedAlbum[] {
   const signed = useSignedInPlatforms()
@@ -154,19 +125,19 @@ export function useCollectedAlbums(): CollectedAlbum[] {
    * 等于白白多等一次登录状态往返，页面先空几秒。这里只问「有没有登录过」——
    * 那句话是读本地会话，几十毫秒就回来了。
    */
-  const withNetease = Boolean(signed?.netease)
-  const withQq = Boolean(signed?.qq)
   const [rows, setRows] = useState<CollectedAlbum[]>([])
 
   useEffect(() => {
     let alive = true
-    if (!signed || (!withNetease && !withQq)) {
+    if (!signed || !Object.values(signed).some(Boolean)) {
       setRows([])
       return
     }
-    void sharedFetch('collected:' + withNetease + ':' + withQq, () =>
-      loadCollectedAlbums(withNetease, withQq)
-    )
+    const key = Object.keys(signed)
+      .filter((id) => signed[id])
+      .sort()
+      .join(',')
+    void sharedFetch('collected:' + key, () => loadCollectedAlbums(signed))
       .then((list) => {
         if (alive) setRows(list)
       })
@@ -176,46 +147,28 @@ export function useCollectedAlbums(): CollectedAlbum[] {
     return () => {
       alive = false
     }
-  }, [signed, withNetease, withQq])
+  }, [signed])
 
   return rows
 }
 
-async function loadFollowedArtists(
-  withNetease: boolean,
-  withQq: boolean
-): Promise<FollowedArtist[]> {
+/**
+ * 关注的艺人，各家平台合在一起。
+ *
+ * 同收藏专辑：遍历「定义过 followedArtists」的 provider，登录过才取。
+ */
+async function loadFollowedArtists(signed: Record<string, boolean>): Promise<FollowedArtist[]> {
   const loads: Promise<FollowedArtist[]>[] = []
 
-  const netease = window.aurora?.netease
-  if (withNetease && netease?.artistSublist) {
+  for (const provider of listAvailableProviders()) {
+    if (!provider.followedArtists || !signed[provider.id]) continue
     loads.push(
-      netease
-        .artistSublist()
-        .then((list) =>
-          list.map((artist) => ({
-            key: 'netease:' + artist.id,
-            providerId: 'netease' as ProviderId,
-            id: artist.id,
-            name: artist.name,
-            avatarUrl: artist.avatarUrl,
-            albumCount: artist.albumCount,
-            musicCount: artist.musicCount
-          }))
-        )
-        .catch(() => [])
-    )
-  }
-
-  const qq = window.aurora?.qq
-  if (withQq && qq?.followedArtists) {
-    loads.push(
-      qq
+      provider
         .followedArtists()
         .then((list) =>
           list.map((artist) => ({
-            key: 'qq:' + artist.id,
-            providerId: 'qq' as ProviderId,
+            key: provider.id + ':' + artist.id,
+            providerId: provider.id,
             id: artist.id,
             name: artist.name,
             avatarUrl: artist.avatarUrl,
@@ -235,24 +188,24 @@ async function loadFollowedArtists(
 /**
  * 关注的艺人，各家平台合在一起。
  *
- * 网易云与 QQ 都有「关注歌手」这条通道；酷狗和汽水没有这种关系。未登录的平台
- * 交不出任何东西，所以直接不出现。
+ * 有这条通道的平台都算（当前是网易云与 QQ）；酷狗和汽水没有这种关系，未登录的
+ * 平台交不出任何东西，所以直接不出现。
  */
 export function useFollowedArtists(): FollowedArtist[] {
   const signed = useSignedInPlatforms()
-  const withNetease = Boolean(signed?.netease)
-  const withQq = Boolean(signed?.qq)
   const [rows, setRows] = useState<FollowedArtist[]>([])
 
   useEffect(() => {
     let alive = true
-    if (!signed || (!withNetease && !withQq)) {
+    if (!signed || !Object.values(signed).some(Boolean)) {
       setRows([])
       return
     }
-    void sharedFetch('artists:' + withNetease + ':' + withQq, () =>
-      loadFollowedArtists(withNetease, withQq)
-    )
+    const key = Object.keys(signed)
+      .filter((id) => signed[id])
+      .sort()
+      .join(',')
+    void sharedFetch('artists:' + key, () => loadFollowedArtists(signed))
       .then((list) => {
         if (alive) setRows(list)
       })
@@ -262,7 +215,24 @@ export function useFollowedArtists(): FollowedArtist[] {
     return () => {
       alive = false
     }
-  }, [signed, withNetease, withQq])
+  }, [signed])
 
   return rows
+}
+
+/**
+ * 有这条通道的平台里，有没有哪一家登录了。
+ *
+ * 空态文案据此分两种说法：一家都没登录说「还没有登录」，登录了却仍然空说「可能
+ * 是登录过期」。只看「有通道」的那几家——酷狗登录了也交不出关注艺人，不能算数。
+ */
+export function anySourceSigned(
+  kind: 'collectedAlbums' | 'followedArtists',
+  signed: Record<string, boolean> | null
+): boolean {
+  if (!signed) return false
+  return listAvailableProviders().some((provider) => {
+    const has = kind === 'collectedAlbums' ? provider.collectedAlbums : provider.followedArtists
+    return typeof has === 'function' && Boolean(signed[provider.id])
+  })
 }

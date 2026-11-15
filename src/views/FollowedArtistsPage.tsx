@@ -1,5 +1,5 @@
 import type { ShellRoute } from '../app/shell'
-import { useFollowedArtists, useSignedInPlatforms } from '../features/online/platform-collections'
+import { anySourceSigned, useFollowedArtists, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
@@ -28,7 +28,7 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
    * 但文案里不点名平台——用户看到的是「关注艺人」这一页，不是「某家关注艺人」。
    */
   if (artists.length === 0) {
-    const anySigned = Boolean(signed?.netease || signed?.qq)
+    const anySigned = anySourceSigned('followedArtists', signed)
     return (
       <div className="pg-empty">
         <h2>{anySigned ? '没读到关注的艺人' : '还没有登录'}</h2>

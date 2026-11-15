@@ -1,5 +1,5 @@
 import type { ShellRoute } from '../app/shell'
-import { useCollectedAlbums, useSignedInPlatforms } from '../features/online/platform-collections'
+import { anySourceSigned, useCollectedAlbums, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineAlbum } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
@@ -28,7 +28,7 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
    * 不该让用户在空页上学一遍哪些平台支持收藏。
    */
   if (albums.length === 0) {
-    const anySigned = Boolean(signed?.netease || signed?.qq)
+    const anySigned = anySourceSigned('collectedAlbums', signed)
     return (
       <div className="pg-empty">
         <h2>{anySigned ? '没读到收藏的专辑' : '还没有登录'}</h2>
