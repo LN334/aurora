@@ -127,6 +127,26 @@ interface Upstream {
 let upstream: Upstream | null = null
 
 /**
+ * 上游包在模块顶层调 `require('dotenv').config()`（`song_url_v1.js:14`、`server.js:1`），
+ * 会把工作目录下的 `.env` 灌进 `process.env`。那等于让一个第三方包决定
+ * `AURORA_PROFILE`（切 userData 目录）、`AURORA_FFMPEG` 这类开关。
+ *
+ * 它用的是自己嵌套安装的那一份 dotenv（17.x），所以在仓库根 mute 掉没用——要按包内
+ * 解析到的路径把 `config` 换成空壳。只换这一个方法，其余导出保持原样，免得包里的
+ * 其它用法炸掉；解析不到就跳过，平台照常起来。
+ */
+function muteNestedDotenv(): void {
+  try {
+    const apiEntry = require.resolve(API_PACKAGE)
+    const dotenvPath = require.resolve('dotenv', { paths: [path.dirname(apiEntry)] })
+    const loaded = require(dotenvPath) as { config?: unknown }
+    loaded.config = () => ({ parsed: {} })
+  } catch {
+    // 布局变了就不管：宁可让上游读它自己的 .env，也不能因为加固而让平台起不来。
+  }
+}
+
+/**
  * Require the upstream package, creating the token file it demands first.
  *
  * The empty file is not a placeholder for later: the package's own `main.js`
@@ -137,6 +157,7 @@ let upstream: Upstream | null = null
 function loadUpstream(): Upstream {
   if (upstream) return upstream
   if (!fs.existsSync(TOKEN_PATH)) fs.writeFileSync(TOKEN_PATH, '', 'utf-8')
+  muteNestedDotenv()
   upstream = require(API_PACKAGE) as Upstream
   return upstream
 }
