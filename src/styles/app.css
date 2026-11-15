@@ -1742,22 +1742,27 @@ input::placeholder {
   height: 100%;
   border: 0;
   object-fit: cover;
-  /* Slightly overscanned so a drifting video never exposes an edge. */
-  transform: scale(1.06);
+  /*
+   * 不再过度放大。
+   *
+   * 这里的 scale(1.06) 原本是给「静图漂移」留边距用的：图往四个方向缓缓平移，
+   * 不放大就会在边上露出底色。漂移删掉之后这个放大只剩副作用——cover 已经把
+   * 图裁到刚好铺满，再放大 6% 等于把四周裁掉一圈，用户看到的就是「壁纸莫名其妙
+   * 被裁了一刀」。
+   */
+  transform: none;
 }
 
-/* A still preview standing in for a scene drifts, so it does not read as frozen. */
+/*
+ * 静图替身不飘。
+ *
+ * 以前这里挂了一条 60 秒的 wallpaper-drift（缓慢平移 ±1.5%），想法是「静图别
+ * 看着像卡住」。但壁纸在玻璃下面，任何位移都会让 backdrop-filter 每帧重采一次
+ * 背景：图在动、玻璃的浓度也跟着变，用户看到的是壁纸「一会儿放大一会儿缩小」，
+ * 字一时清楚一时糊，边上还被裁掉一圈。背景要稳。
+ */
 .wallpaper--scene .wallpaper__media {
-  animation: wallpaper-drift 60s ease-in-out infinite alternate;
-}
-
-@keyframes wallpaper-drift {
-  from {
-    transform: scale(1.06) translate3d(-1.5%, -1%, 0);
-  }
-  to {
-    transform: scale(1.06) translate3d(1.5%, 1%, 0);
-  }
+  animation: none;
 }
 
 /*
