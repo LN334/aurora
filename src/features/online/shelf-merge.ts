@@ -12,6 +12,13 @@ import type { ProviderId } from './types'
  * 拿 id 合并等于不合并。名字归一化去掉空白与大小写差异，别让一个尾随空格
  * 把同一张专辑拆成两条。
  */
+/*
+ * 排名字用：中文按拼音、英文按字母、数字按大小（「第 2 张」排在「第 10 张」前）。
+ * 不排的话顺序是平台遍历顺序——网易云的 290 张全垫在前面，QQ 与酷狗的十几张
+ * 沉在最后，看起来像三个互不相干的列表拼起来。
+ */
+const collator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' })
+
 export function mergeShelves<T extends { name: string; providerId: ProviderId }>(
   items: readonly T[]
 ): (T & { providers: ProviderId[] })[] {
@@ -25,7 +32,7 @@ export function mergeShelves<T extends { name: string; providerId: ProviderId }>
     }
     if (!seen.providers.includes(item.providerId)) seen.providers.push(item.providerId)
   }
-  return [...merged.values()]
+  return [...merged.values()].sort((a, b) => collator.compare(a.name, b.name))
 }
 
 /** 比名字时用的归一化：去掉所有空白、统一小写。中文用不上大小写，但专辑名里常夹英文。 */

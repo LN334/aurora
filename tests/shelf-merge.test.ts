@@ -9,8 +9,23 @@ test('同名合并成一行，平台按出现顺序收集', () => {
     { name: '陈粒', providerId: 'netease' as const }
   ])
   assert.equal(rows.length, 2)
-  assert.deepEqual(rows[0].providers, ['netease', 'qq'])
-  assert.deepEqual(rows[1].providers, ['netease'])
+  const eason = rows.find((row) => row.name === '陈奕迅')
+  assert.deepEqual(eason?.providers, ['netease', 'qq'])
+  const chenli = rows.find((row) => row.name === '陈粒')
+  assert.deepEqual(chenli?.providers, ['netease'])
+})
+
+test('按名字排序：英文按字母、数字按大小', () => {
+  const rows = mergeShelves([
+    { name: 'Track 10', providerId: 'netease' as const },
+    { name: 'banana', providerId: 'netease' as const },
+    { name: 'Track 2', providerId: 'netease' as const },
+    { name: 'Apple', providerId: 'netease' as const }
+  ])
+  assert.deepEqual(
+    rows.map((row) => row.name),
+    ['Apple', 'banana', 'Track 2', 'Track 10']
+  )
 })
 
 test('同一家重复出现不重复收集平台', () => {
