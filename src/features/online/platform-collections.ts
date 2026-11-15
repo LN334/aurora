@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { bridge } from '../../bridge'
 import { useOnlineStore } from './store'
 import type { ProviderId } from './types'
 
@@ -11,6 +12,46 @@ import type { ProviderId } from './types'
  *
  * 关系只存在于平台账号里，所以这些数据一律按账号来，未登录就是空。
  */
+
+/**
+ * 进这一页时才把「登录过的那几家」的后端拉起来。
+ *
+ * 启动阶段现在只把会话指过去（rebind），不拉后端——这样游客冷启动不会为了
+ * 一个用不到的平台付出上百 MB。但收藏页读的是账号里的关系，后端没起来时
+ * `account` 是空的，页面就一直是「还没有收藏」。所以在这里按需 init：
+ * 先用主进程的「谁登录过」（纯读会话、零加载）挑，再去 init，没登录过的
+ * 平台一个都不碰。
+ */
+function useEnsureSignedInBackends(ids: string): void {
+  const [signed, setSigned] = useState<Record<string, boolean> | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void bridge.platforms
+      .signedIn()
+      .then((map) => {
+        if (alive) setSigned(map)
+      })
+      .catch(() => {
+        if (alive) setSigned({})
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!signed) return
+    /* 依赖用拼出来的字符串，避免调用方每次渲染都传一个新数组、把 init 打上十遍。 */
+    for (const id of ids.split(',') as ProviderId[]) {
+      if (!signed[id]) continue
+      void useOnlineStore(id)
+        .getState()
+        .init()
+        .catch(() => undefined)
+    }
+  }, [ids, signed])
+}
 
 interface CollectedAlbum {
   key: string
@@ -118,6 +159,7 @@ async function loadCollectedAlbums(neteaseId: number, qqId: number): Promise<Col
  * 空位——那会让「本来就没有」看起来像「没加载出来」。
  */
 export function useCollectedAlbums(): CollectedAlbum[] {
+  useEnsureSignedInBackends('netease,qq')
   /*
    * 只认账号 id，不认账号对象。
    *
@@ -155,6 +197,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
  * 酷狗与汽水也没有这种关系——所以这里只问一家，拿不到就是空。
  */
 export function useFollowedArtists(): FollowedArtist[] {
+  useEnsureSignedInBackends('netease')
   const neteaseId = useOnlineStore('netease')((state) => state.account?.id ?? 0)
   const [rows, setRows] = useState<FollowedArtist[]>([])
 
