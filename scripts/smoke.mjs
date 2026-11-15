@@ -1117,6 +1117,15 @@ async function main() {
         'document.querySelector(".trk .trk__title") ? document.querySelector(".trk .trk__title").innerText.trim() : ""'
       )
       /*
+       * 「bar 上是不是刚点的那首」不能靠标题相等来验：行里印的是完整标题，
+       * bar 上可能被裁短（「夜 (Live)」显示成「夜」），一字之差就假红。
+       * 改成看它有没有换成另一首。
+       */
+      const barBefore = await evaluate(
+        cdp,
+        "document.querySelector('.pb-title') ? document.querySelector('.pb-title').innerText.trim() : ''"
+      )
+      /*
        * 真的鼠标点一下，而不是 element.click()。
        *
        * Chromium 只把手势当用户意图，脚本点击拿不到播放许可：歌能加载出总时长
@@ -1206,10 +1215,18 @@ async function main() {
       const shown = String(title || '').split('\n')[0].trim()
       /*
        * 离网时播放器拿不到流，切歌可能会退回去，bar 上未必是刚点的那一首。
-       * 这两条都只在联网时要求 —— 否则「这台机器没网」会被报成「播放器坏了」。
+       * 这条只在联网时要求 —— 否则「这台机器没网」会被报成「播放器坏了」。
        */
-      if (!NO_NETWORK && (!shown || !bar.includes(shown))) {
-        problems.push('the player bar does not show the track that was started')
+      if (!NO_NETWORK) {
+        const barTitle = await evaluate(
+          cdp,
+          "document.querySelector('.pb-title') ? document.querySelector('.pb-title').innerText.trim() : ''"
+        )
+        if (!barTitle) {
+          problems.push('the player bar has no title after starting "' + shown + '"')
+        } else if (barTitle === barBefore) {
+          problems.push('the player bar still shows "' + barTitle + '" after starting "' + shown + '"')
+        }
       }
       if (!shotOk) problems.push('screenshot failed')
       if (logged.length) problems.push(logged.length + ' console error(s)')
