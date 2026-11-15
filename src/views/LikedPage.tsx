@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
-import { likedTracks, useFavorites } from '../features/favorites/store'
+import { useFavorites } from '../features/favorites/store'
+import { newestFirst, likeSourceOf } from '../features/favorites/like-source'
+import { useLikes } from '../features/favorites/likes'
 import { lyricsTextFor } from '../features/library/hooks'
 import { pickLyricExcerpt } from '../features/lyrics/excerpt'
 import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
@@ -48,10 +50,25 @@ export function LikedPage({
    */
   const { tracks: platformLiked, loading: platformLoading } = usePlatformLiked()
   const order = useMemo(() => sourceOrder(), [])
-  const tracks = useMemo(
-    () => mergeVersions([...likedTracks(liked), ...platformLiked], order),
-    [liked, platformLiked, order]
-  )
+  /*
+   * 一条时间线，不是两块拼起来：本地点心带 `at`，平台那份带我们点红心的时刻
+   * （`useLikes.stamps`）。以前本地整块在前、平台整块在后，于是刚在首页点红的
+   * 在线歌不会出现在最上面——看着像「没收进去」。
+   */
+  const stamps = useLikes((state) => state.stamps)
+  const tracks = useMemo(() => {
+    const rows = [
+      ...liked.map((entry) => ({ track: entry.track, at: entry.at })),
+      ...platformLiked.map((track) => ({
+        track,
+        at: stamps[likeSourceOf(track) + ':' + track.id] ?? 0
+      }))
+    ]
+    return mergeVersions(
+      newestFirst(rows).map((row) => row.track),
+      order
+    )
+  }, [liked, platformLiked, stamps, order])
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
 
   /* 网络慢的时候干等会让人以为卡死：八秒后给一句实话和一个重试。 */

@@ -40,6 +40,14 @@ interface LikeToggleResult {
 
 interface LikesState {
   sources: Record<string, LikeSourceSlice>
+  /**
+   * 我们点红心的时刻，键是 `source:id`。
+   *
+   * 平台接口只给一份「喜欢了哪些」的列表，不保证顺序、也带不回时间；喜欢页要
+   * 把「刚点的那首排最前」就只能自己记一笔。本地文件不用它（`useFavorites`
+   * 里已经有 `at`），只记在线这一半。
+   */
+  stamps: Record<string, number>
   /** force 为真时忽略「已就绪」，手动刷新走这条。 */
   refresh(source: LikeSource, force?: boolean): Promise<void>
   refreshAll(force?: boolean): Promise<void>
@@ -85,6 +93,26 @@ const emptySlice = (state: LikeSourceState, error: string | null = null): LikeSo
   error
 })
 
+/**
+ * 给平台拉回来的一批喜欢补时间戳：我们点过的那些留着原值，没点过的（历史收藏）
+ * 记 0。记 0 而不是「现在」，是因为它们真的不老——喜欢页排序时它们排最后，
+ * 但彼此保持接口给的顺序。
+ */
+function withStamps(
+  stamps: Record<string, number>,
+  source: LikeSource,
+  tracks: readonly Track[]
+): Record<string, number> {
+  let next: Record<string, number> | null = null
+  for (const track of tracks) {
+    const key = source + ':' + track.id
+    if (stamps[key] !== undefined) continue
+    next ??= { ...stamps }
+    next[key] = 0
+  }
+  return next ?? stamps
+}
+
 function backendOf(provider: OnlineMusicProvider | null): PlatformBackend | null {
   return provider?.backend ? (provider.backend as PlatformBackend) : null
 }
@@ -98,6 +126,7 @@ export function likeProviders(): OnlineMusicProvider[] {
 
 export const useLikes = create<LikesState>()((set, get) => ({
   sources: {},
+  stamps: {},
 
   async refresh(source, force = false) {
     // 本地的真相在 useFavorites 里，这里没有可拉的。
@@ -129,7 +158,10 @@ export const useLikes = create<LikesState>()((set, get) => ({
       }
       const songs = await provider.likes.list()
       const tracks = songs.map((song) => backend.toTrack(song))
-      set((state) => ({ sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } } }))
+      set((state) => ({
+        sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } },
+        stamps: withStamps(state.stamps, source, tracks)
+      }))
     } catch {
       set((state) => ({ sources: { ...state.sources, [source]: emptySlice('error', '拉取喜欢的歌失败，稍后再试') } }))
     }
@@ -142,7 +174,8 @@ export const useLikes = create<LikesState>()((set, get) => ({
   seed(source, tracks) {
     if (source === 'local') return
     set((state) => ({
-      sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } }
+      sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } },
+      stamps: withStamps(state.stamps, source, tracks)
     }))
   },
 
@@ -174,16 +207,24 @@ export const useLikes = create<LikesState>()((set, get) => ({
      * 先改界面再发请求。心形按钮是逐行点的小动作，等一趟网络才变色会让人以为
      * 没点上、于是再点一次——两次请求互相抵消。失败时下面整段回滚。
      */
-    set((state) => ({
-      sources: {
-        ...state.sources,
-        [source]: {
-          tracks: applyLiked(previous, track, next),
-          state: 'ready',
-          error: null
-        }
+    const stampKey = source + ':' + track.id
+    const previousStamp = get().stamps[stampKey]
+    set((state) => {
+      const stamps = { ...state.stamps }
+      if (next) stamps[stampKey] = Date.now()
+      else delete stamps[stampKey]
+      return {
+        sources: {
+          ...state.sources,
+          [source]: {
+            tracks: applyLiked(previous, track, next),
+            state: 'ready',
+            error: null
+          }
+        },
+        stamps
       }
-    }))
+    })
 
     let written = false
     try {
@@ -196,9 +237,15 @@ export const useLikes = create<LikesState>()((set, get) => ({
       return { ok: true, liked: next }
     }
 
-    set((state) => ({
-      sources: { ...state.sources, [source]: { ...(state.sources[source] ?? emptySlice('ready')), tracks: previous } }
-    }))
+    set((state) => {
+      const stamps = { ...state.stamps }
+      if (previousStamp === undefined) delete stamps[stampKey]
+      else stamps[stampKey] = previousStamp
+      return {
+        sources: { ...state.sources, [source]: { ...(state.sources[source] ?? emptySlice('ready')), tracks: previous } },
+        stamps
+      }
+    })
 
     const signedIn = provider.auth ? await provider.auth.loginStatus().catch(() => null) : null
     const name = provider.shortName ?? provider.displayName

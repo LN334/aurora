@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
@@ -12,6 +12,9 @@ import { MODE_TEXT, modeOf } from '../features/player/mode'
 import { Bar, useProgressPosition } from '../features/player/Bar'
 import { wheelVolume } from '../features/player/volume'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
+import { likeTargets } from '../features/favorites/like-targets'
+import { useLikeMenu } from '../features/favorites/like-menu'
+import { showFlash } from '../ui/flash'
 import { artworkFor } from '../features/library/source'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
@@ -309,6 +312,12 @@ export function NowPlayingPage({
   onOpenStage
 }: NowPlayingProps) {
   const likedIds = useLikedIds()
+  /*
+   * 这一首能收到哪些地方：本机收藏、以及挂着版本的平台。一个落点时按钮直接切换，
+   * 多落点时弹菜单——但两种都要能让用户看出会写到哪家，所以 title 与点击后的
+   * 提示都从这里取名字。
+   */
+  const targets = useMemo(() => (track ? likeTargets(track) : []), [track])
   const volume = usePlayer((state) => state.volume)
   const muted = usePlayer((state) => state.muted)
   const shuffle = usePlayer((state) => state.shuffle)
@@ -388,9 +397,36 @@ export function NowPlayingPage({
             <button
               type="button"
               className={`np__like${liked ? ' is-on' : ''}`}
-              onClick={() => void toggleLiked(track)}
+              onClick={(event) => {
+                /*
+                 * 与列表行同一个规矩：一个落点就直接写，写完说清写进了哪家；
+                 * 一首歌挂着两家版本时先问落到哪儿。这里以前直接
+                 * `toggleLiked(track)`——只写主版本、没有任何提示，用户不知道
+                 * 网易云和 QQ 到底哪家收了。
+                 */
+                if (targets.length > 1) {
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
+                  return
+                }
+                const target = targets[0]
+                const name = target?.label ?? '这一家'
+                void toggleLiked(target?.track ?? track).then((result) => {
+                  if (!result.ok) {
+                    if (result.message) showFlash(result.message)
+                    return
+                  }
+                  showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+                })
+              }}
               aria-pressed={liked}
-              title={liked ? '取消喜欢' : '喜欢'}
+              title={
+                liked
+                  ? '取消喜欢'
+                  : targets.length > 1
+                    ? '喜欢到哪儿…'
+                    : `喜欢到${targets[0]?.label ?? '这一家'}`
+              }
             >
               <Heart size={18} />
             </button>

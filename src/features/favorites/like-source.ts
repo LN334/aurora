@@ -27,3 +27,15 @@ export function applyLiked(rows: Track[], track: Track, liked: boolean): Track[]
   const without = rows.filter((row) => row.id !== track.id)
   return liked ? [track, ...without] : without
 }
+
+/**
+ * 按「点红心的时刻」从新到旧。
+ *
+ * 喜欢页要把本地收藏和四家平台的红心拼成一条时间线：本地那份自带 `at`，平台
+ * 那份靠 `useLikes.stamps` 记我们点过的时刻（平台接口不按时间给）。没有时间的
+ * 历史收藏是 0，排在最后，彼此保持接口原来的顺序——`sort` 在 ES2019 起是稳定
+ * 的，所以只比 `at` 就够。
+ */
+export function newestFirst<T extends { at: number }>(rows: readonly T[]): T[] {
+  return [...rows].sort((left, right) => right.at - left.at)
+}

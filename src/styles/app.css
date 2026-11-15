@@ -1595,11 +1595,36 @@ input::placeholder {
 .badge.trk__src {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding-left: 3px;
+  gap: 4px;
+  padding: 0 4px;
   background: none;
   border-color: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-low);
+}
+
+/*
+ * 最前面那颗点就是「这一版来自哪家」，颜色与左栏来源点、账号页一致。
+ * 徽章只有四个像素宽的字，光靠文字认平台太费劲；一个色点能让人扫一眼就分出来。
+ */
+.badge.trk__src::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--src-dot, rgb(var(--tint-rgb) / 0.4));
+}
+.badge.trk__src--netease {
+  --src-dot: #d9524e;
+}
+.badge.trk__src--qq {
+  --src-dot: #3fa86a;
+}
+.badge.trk__src--kugou {
+  --src-dot: #2f8fe0;
+}
+.badge.trk__src--qishui {
+  --src-dot: #7c8798;
 }
 /*
  * 徽章上那枚心：只在「这家收过」时出现。

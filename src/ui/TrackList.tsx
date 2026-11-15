@@ -119,22 +119,9 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   const order = useSourceOrder()
 
   /*
-   * Whether a row needs to say where it came from.
-   *
-   * A screen of files, or a screen of one platform's songs, is already answered by
-   * its own title; a badge on every row there is furniture. A list that genuinely
-   * mixes origins - a playlist, the queue, cross-platform search - is the case the
-   * README used to describe as unsolved, and there every row (the files too) gets
-   * one label so the column reads as an answer rather than a scattering.
+   * 平台标识的规则写在各行的渲染里：在线歌必标自己属于哪家，本机文件不标。
+   * 这个列表本身不再判断「是不是混合来源」——判断错了会让整列徽章忽有忽无。
    */
-  const origins = new Set(
-    tracks.flatMap((track) =>
-      track.versions?.length
-        ? sourcesOf(track, order)
-        : [Boolean(track.source) && track.source !== 'local' ? (track.source as string) : 'local']
-    )
-  )
-  const mixed = origins.size > 1
 
   /*
    * Keep the playing track on screen.
@@ -225,7 +212,16 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
          * 来，用户一眼看到「这首歌这儿也能听」。整张列表只有一个来源时仍不印，
          * 页头已经说了。
          */
-        const platforms = track.versions?.length ? sourcesOf(track, order) : mixed ? [track.source ?? 'local'] : []
+        /*
+         * 平台标识：有合并版本时列出全部（这一行能从哪几家播）；没有合并版本的
+         * 在线歌也标出自己属于哪家——「这是哪来的」不该只在混合列表里才说。
+         * 本机文件不标：一屏几十行都挂「本机」只会白占宽。
+         */
+        const platforms = track.versions?.length
+          ? sourcesOf(track, order)
+          : track.source && track.source !== 'local'
+            ? [track.source]
+            : []
         const refs = refOfTrack(track)
         /*
          * 早期版本给「没有专辑」的在线歌曲塞过一个 "?" 占位符，已经落进用户
@@ -483,7 +479,13 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                   const target = targets[0]
                   likeAt(target, target?.label ?? '这一家')
                 }}
-                title={isLiked ? `已喜欢：${likedLabel}` : '喜欢'}
+                title={
+                  isLiked
+                    ? `已喜欢：${likedLabel}`
+                    : targets.length > 1
+                      ? '喜欢到哪儿…'
+                      : `喜欢到${targets[0]?.label ?? '这一家'}`
+                }
                 aria-label={(isLiked ? '取消喜欢 ' : '喜欢 ') + track.title}
                 aria-pressed={isLiked}
               >
