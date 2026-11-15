@@ -206,6 +206,63 @@ async function shoot(cdp, filePath) {
 }
 
 /**
+ * A two-second silent WAV.
+ *
+ * The scanner only reads the header, so the audio content does not matter; what
+ * matters is that the walk gets a real file with a real duration.
+ */
+function silentWav() {
+  const rate = 8000
+  const samples = rate * 2
+  const data = Buffer.alloc(samples * 2)
+  const header = Buffer.alloc(44)
+  header.write('RIFF', 0)
+  header.writeUInt32LE(36 + data.length, 4)
+  header.write('WAVE', 8)
+  header.write('fmt ', 12)
+  header.writeUInt32LE(16, 16)
+  header.writeUInt16LE(1, 20)
+  header.writeUInt16LE(1, 22)
+  header.writeUInt32LE(rate, 24)
+  header.writeUInt32LE(rate * 2, 28)
+  header.writeUInt16LE(2, 32)
+  header.writeUInt16LE(16, 34)
+  header.write('data', 36)
+  header.writeUInt32LE(data.length, 40)
+  return Buffer.concat([header, data])
+}
+
+/*
+ * 带词级标签的歌词：喜欢页那张卡要摘三行词，没词就只能验到「空卡」那条分支。
+ * 第一行用增强 LRC，顺带让逐字解析也走一遍真实文件。
+ */
+const SEED_LYRICS = [
+  '[ti:夜行]',
+  '[ar:测试]',
+  '[00:00.10]<00:00.10>把窗推开一点<00:00.90>风从北边来',
+  '[00:01.20]路灯把影子拉长',
+  '[00:01.70]我沿着河走',
+  ''
+].join('\n')
+
+/**
+ * Write the throwaway library the seeded walk runs against.
+ *
+ * Generated instead of checked in: three files with lyrics are exactly what the
+ * populated pages need, and a binary fixture would be bigger than the code that
+ * writes it.
+ */
+function seedLibrary(dir) {
+  fs.mkdirSync(dir, { recursive: true })
+  for (const index of [1, 2, 3]) {
+    const base = path.join(dir, '曲目' + index)
+    fs.writeFileSync(base + '.wav', silentWav())
+    fs.writeFileSync(base + '.lrc', SEED_LYRICS)
+  }
+  console.log('smoke: wrote a synthetic library to ' + dir)
+}
+
+/**
  * Subresource failures the application expects, counted instead of failed.
  *
  * Two of them, both 404s Chromium logs as errors:
@@ -250,7 +307,7 @@ async function main() {
    * configured and the index is empty, which is exactly this state.
    */
   if (LIBRARY) {
-    if (!fs.existsSync(LIBRARY)) fail('library folder not found: ' + LIBRARY)
+    if (!fs.existsSync(LIBRARY)) seedLibrary(LIBRARY)
     fs.writeFileSync(
       path.join(PROFILE, 'settings.json'),
       // trayHintShown has to be here: a settings file without it is treated as
@@ -423,6 +480,9 @@ async function main() {
       if (LIBRARY && step.view === 'liked') {
         if (!(await evaluate(cdp, 'Boolean(document.querySelector(".lk-hero"))'))) {
           problems.push('liked page has no lyric card')
+        } else if ((await evaluate(cdp, 'document.querySelectorAll(".lk-hero__line").length')) === 0) {
+          // 播种的每首歌都带歌词，卡上却没有词，说明摘词那一路断了。
+          problems.push('liked page card has no lyric lines')
         }
       }
       if (LIBRARY && step.view === 'recent') {
