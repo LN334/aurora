@@ -369,6 +369,40 @@ export function readUserPlaylists(raw: unknown): RawPlaylist[] {
   })
 }
 
+/**
+ * `/user/follow` 的返回**已实测**（2026-11-15 真机）：`data = { total, list_ver, lists }`。
+ *
+ * `lists` 里混着两类关注对象，用 `iden_type` 区分：`0` 是酷狗用户（`userid`），`1`
+ * 是歌手（`singerid`），歌手行还带 `source_desc: "歌手"`。所以这里只挑歌手——关注了
+ * 多少用户与「我关注的艺人」无关。
+ */
+export function readFollowedSingers(raw: unknown): RawFollowedSinger[] {
+  const root = asRecord(raw)
+  const data = asRecord(root.data)
+  const rows = asArray(data.lists ?? data.list ?? data.info)
+
+  return rows.map(asRecord).flatMap((row) => {
+    if (numberOr(row.iden_type, 0) !== 1) return []
+    // 上游的 singerid / userid 是数字，不是字符串，所以用 numberOr 再转。
+    const id = numberOr(row.singerid, numberOr(row.userid, 0))
+    const name = asString(row.nickname)
+    if (!id || !name) return []
+    return [
+      {
+        id: String(id),
+        name,
+        avatarUrl: sizedImage(asString(row.pic) || null, 240)
+      }
+    ]
+  })
+}
+
+export interface RawFollowedSinger {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
 interface RawPlaylist {
   /** 上游歌单身份（字符串），主进程给它配数字别名。 */
   globalId: string

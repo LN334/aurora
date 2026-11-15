@@ -247,6 +247,25 @@ const kugouProvider: OnlineMusicProvider = {
   available: () => previewBackendsForced() || client() !== null,
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
+
+  /**
+   * 我关注的歌手。
+   *
+   * 酷狗没有单独的「关注歌手」接口：关注对象和用户混在同一个列表里，主进程按
+   * `iden_type` 把歌手挑出来（见 `readFollowedSingers`）。上游不给专辑数与歌曲数。
+   */
+  followedArtists: async () => {
+    const api = client()
+    if (!api) return []
+    const list = await api.followedArtists()
+    return list.map((artist) => ({
+      id: Number(artist.id),
+      name: artist.name,
+      avatarUrl: artist.avatarUrl,
+      albumCount: 0,
+      musicCount: 0
+    }))
+  },
   qualityTiers: TIERS,
   getQuality: kugouBackend.getQuality,
   setQuality: kugouBackend.setQuality,

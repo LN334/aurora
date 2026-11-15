@@ -8,6 +8,7 @@ import {
   kugouArtistAlbums,
   kugouArtistSongs,
   kugouDailyRecommend,
+  kugouFollowedArtists,
   kugouGetQuality,
   kugouLike,
   kugouLikes,
@@ -111,6 +112,10 @@ export function registerKugouIpc(): void {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 60) : 20
     return await guard('newSongs', [], async () => kugouNewSongs(count))
   })
+
+  ipcMain.handle('kugou:followedArtists', async () =>
+    await guard('followedArtists', [], async () => kugouFollowedArtists())
+  )
 
   ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => {
     const params = asRecord(input)

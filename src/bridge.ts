@@ -416,7 +416,8 @@ const webFallback: AuroraApi = {
     artist: async () => null,
     artistSongs: async () => [],
     artistAlbums: async () => [],
-    dailyRecommend: async () => []
+    dailyRecommend: async () => [],
+    followedArtists: async () => []
   },
   qishui: {
     /*

@@ -20,6 +20,7 @@ import {
   readArtistDetail,
   readDailySongs,
   readFavoriteList,
+  readFollowedSingers,
   readNewSongs,
   readPlaylistCreator,
   readPlaylistRawSongs,
@@ -38,6 +39,7 @@ import {
   setBaseUrl,
   tierLadder
 } from './transport'
+import type { RawFollowedSinger } from './transport'
 import type {
   KugouAccount,
   KugouAlbumBundle,
@@ -514,6 +516,31 @@ async function favoritePlaylist(): Promise<{ listId: string; globalId: string } 
   } catch (error) {
     write(`[kugou] favorite playlist failed: ${messageOf(error)}`)
     return null
+  }
+}
+
+/**
+ * 我关注的歌手。
+ *
+ * 酷狗没有单独的「关注歌手」接口：关注对象和用户混在同一个列表里（`/user/follow`），
+ * 靠 `iden_type` 分辨歌手，解析见 `readFollowedSingers`。未登录或服务没起时返回空。
+ */
+export async function kugouFollowedArtists(): Promise<RawFollowedSinger[]> {
+  const state = readState(activeProfileId)
+  if (!state.token) return []
+  if (!(await ensureServer())) return []
+
+  try {
+    const response = await request('/user/follow', {
+      method: 'POST',
+      cookie: cookieHeader(state)
+    })
+    const list = readFollowedSingers(response.body)
+    write(`[kugou] followed singers=${list.length}`)
+    return list
+  } catch (error) {
+    write(`[kugou] followed singers failed: ${messageOf(error)}`)
+    return []
   }
 }
 

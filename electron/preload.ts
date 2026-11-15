@@ -530,7 +530,8 @@ const api = {
       ipcRenderer.invoke('kugou:artistSongs', { id, limit, offset }),
     artistAlbums: (id: number, limit?: number, offset?: number) =>
       ipcRenderer.invoke('kugou:artistAlbums', { id, limit, offset }),
-    dailyRecommend: () => ipcRenderer.invoke('kugou:dailyRecommend')
+    dailyRecommend: () => ipcRenderer.invoke('kugou:dailyRecommend'),
+    followedArtists: () => ipcRenderer.invoke('kugou:followedArtists')
   },
 
   /*

@@ -1219,6 +1219,15 @@ export interface KugouApi {
   artistAlbums(id: number, limit?: number, offset?: number): Promise<KugouAlbumEntry[]>
   /** 每日推荐 30 首；不需要登录。 */
   dailyRecommend(): Promise<KugouSong[]>
+  /** 我关注的歌手。酷狗把关注对象混在一个列表里，主进程只挑出歌手。 */
+  followedArtists(): Promise<KugouFollowedArtist[]>
+}
+
+/** 酷狗「我关注的歌手」。没有专辑数/歌曲数，字段就是上游给的三样。 */
+interface KugouFollowedArtist {
+  id: string
+  name: string
+  avatarUrl: string | null
 }
 
 // --- 汽水音乐（抖音，第三方逆向接口 + npm SDK）-------------------------------
