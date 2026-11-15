@@ -368,12 +368,17 @@ function isHiddenProperty(name: string): boolean {
  * 同一个「国内微信赞助码」在这张图上叫 `bigweixinbrimgsrchttp…`，在别的图上
  * 又是另一串哈希。按名字过滤必然漏，只能看文案。
  *
- * 这里只挡两类：赞助 / 求支持 / 求好评 / 二维码横幅，以及壁纸自带音乐那一套
- * （音乐大小、鼠标尾迹这类没有任何东西可调）。音频监听、视差、播放速度、
- * 对齐这些真正的开关不动。
+ * 这里挡三类：
+ *
+ * - 赞助 / 求支持 / 求好评 / 二维码横幅，以及作者自己的主页、原画师、求三连；
+ * - 壁纸自带音乐那一套（音乐大小、鼠标尾迹这类没有任何东西可调）；
+ * - 播放器里没意义的展示项：鼠标视差要在窗口上一直划鼠标才看得出来，时间 /
+ *   日期 / 星期 / 早中晚是场景自带的装饰文字，玩家调它的兴趣远小于画面参数。
+ *
+ * 音频监听、播放速度、对齐、镜头与组件的位置大小这些真正的开关不动。
  */
 const HIDDEN_LABEL =
-  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我/i
+  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我|鼠标视差|mouse parallax|早中晚|时间组件|日期组件|星期组件|time component|date component|week component/i
 
 /** 属性名与文案两重过滤；任一命中就不显示。 */
 function isHiddenControl(name: string, label: string): boolean {

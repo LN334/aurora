@@ -254,10 +254,29 @@ test('editableProperties drops sponsorship banners and wallpaper music rows by l
     mousetrail: { type: 'bool', value: true, text: '鼠标尾迹 Mouse Trail' },
     musicsize: { type: 'slider', value: 1, min: 0, max: 1, text: '音乐大小 Music Size' },
     parallax: { type: 'bool', value: true, text: '🔘鼠标视差效果 Mouse Parallax Effect' },
+    meteor: { type: 'bool', value: true, text: '🔘流星 Meteor' },
     speed: { type: 'slider', value: 1, min: 0, max: 2, text: '播放速度 Playback speed' }
   }
   const names = editableProperties(properties).map((property) => property.name)
-  assert.deepEqual(names, ['parallax', 'speed'])
+  assert.deepEqual(names, ['meteor', 'speed'])
+})
+
+test('editableProperties drops mouse parallax and the clock decorations', () => {
+  // 播放器窗口里鼠标不会一直划，视差看不出来；时间 / 日期 / 星期 / 早中晚是场景
+  // 自带的装饰文字，玩家调它的兴趣远小于画面参数。
+  const properties = {
+    a: { type: 'bool', value: true, text: '🔘鼠标视差效果 Mouse Parallax Effect' },
+    b: { type: 'slider', value: 0, min: -1, max: 1, text: '🔘总组件鼠标视差大小' },
+    c: { type: 'bool', value: true, text: '🔘早中晚显示' },
+    d: { type: 'bool', value: true, text: '🔘时间组件显示Time component display' },
+    e: { type: 'bool', value: true, text: '🔘日期组件显示Date component display' },
+    f: { type: 'bool', value: true, text: '🔘星期组件显示 Week component display' },
+    g: { type: 'bool', value: true, text: '🔘流星 Meteor' }
+  }
+  assert.deepEqual(
+    editableProperties(properties).map((property) => property.name),
+    ['g']
+  )
 })
 
 test('editableProperties drops the author banner rows and survives a missing semicolon', () => {
@@ -464,11 +483,11 @@ test('editableProperties hides the wallpaper audio, music and sponsor panels', (
     media: { type: 'bool', value: true, text: '媒体播放' },
     sponsor: { type: 'bool', value: true, text: '赞助' },
     audio: { type: 'bool', value: true, text: '音频监听' },
-    parallax: { type: 'slider', value: 1, min: 0, max: 2, text: '鼠标视差' }
+    meteor: { type: 'bool', value: true, text: '流星' }
   }
 
   const names = editableProperties(properties).map((property) => property.name)
-  assert.deepEqual(names, ['audio', 'parallax'])
+  assert.deepEqual(names, ['audio', 'meteor'])
 })
 
 
