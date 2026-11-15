@@ -1116,6 +1116,8 @@ export interface WallpaperProperty {
   max?: number
   step?: number
   options?: { label: string; value: string }[]
+  /** 不在设置页出现，但仍按固定值交给引擎（音频感应、自定义文字、帧率显示）。 */
+  muted?: boolean
 }
 
 /** 壁纸库里的一项。URL 已经是 `aurora-wallpaper://` 地址，渲染层不碰文件系统。 */

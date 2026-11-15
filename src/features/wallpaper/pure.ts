@@ -146,6 +146,18 @@ export function propertyValues(
         : property.value
     const value = coercePropertyValue(property, raw) ?? coercePropertyValue(property, property.value)
     if (value !== null) out[property.name] = value
+    // 静音项用户改不了，也不能让工程默认的 true 漏过去。
+    // 开关一律关；滑杆拉到最小值（这类场景里最小值就是「取消」）。
+    if (property.muted) {
+      const muted =
+        property.type === 'bool'
+          ? false
+          : property.type === 'slider'
+            ? (property.min ?? 0)
+            : property.value
+      const coerced = coercePropertyValue(property, muted)
+      if (coerced !== null) out[property.name] = coerced
+    }
   }
   return out
 }

@@ -260,6 +260,45 @@ test('editableProperties drops sponsorship banners and wallpaper music rows by l
   assert.deepEqual(names, ['parallax', 'speed'])
 })
 
+test('editableProperties drops the author banner rows and survives a missing semicolon', () => {
+  // 作者常在属性里塞「手机壁纸获取方式」「我的主页」「原画师」，这些不是画面参数；
+  // `&nbsp` 还常常漏掉结尾分号，剥不干净就会顶着 `&nbsp` 显示。
+  const properties = {
+    a: { type: 'bool', value: true, text: '<b>手机壁纸获取方式（点击跳转）' },
+    b: { type: 'bool', value: true, text: '<b>我的个人主页 夜莺Night的个人空间' },
+    c: { type: 'bool', value: true, text: '<b>原画师：奇诺777（点击跳转）' },
+    d: { type: 'slider', value: 0, min: -1, max: 1, text: '&nbsp镜头位置X Lens position X' },
+    e: { type: 'bool', value: true, text: '🔘流星 Meteor' }
+  }
+  const list = editableProperties(properties)
+  assert.deepEqual(
+    list.map((property) => property.text),
+    ['镜头位置X Lens position X', '🔘流星 Meteor']
+  )
+})
+
+test('editableProperties keeps audio, custom text and frame rate rows but marks them muted', () => {  // 播放器里没有壁纸音频、没有自定义文字的输入框、帧率显示是给作者调试的。
+  // 这几项不能只是「藏起来」：工程默认值常常是 true，不传给引擎等于没关。
+  const properties = {
+    _01: { type: 'slider', value: 1.4, min: 0, max: 2, text: '🔘组件随音频感应变化大小（拉至0取消）' },
+    newproperty50: { type: 'bool', value: true, text: '🔘组件自定义文字' },
+    newproperty46: { type: 'bool', value: true, text: '🔘当前帧率显示' },
+    frameratecolor: { type: 'color', value: '1 1 1', text: '帧率显示颜色 Frame rate color' },
+    bigbmeteor: { type: 'bool', value: true, text: '🔘流星 Meteor' }
+  }
+  const list = editableProperties(properties)
+  assert.deepEqual(
+    list.map((property) => [property.name, property.muted === true]),
+    [
+      ['_01', true],
+      ['newproperty50', true],
+      ['newproperty46', true],
+      ['frameratecolor', true],
+      ['bigbmeteor', false]
+    ]
+  )
+})
+
 test('editableProperties reads every control type a wallpaper declares', () => {
   // The shapes below are copied from real Workshop manifests, including the
   // HTML an author writes into a label.
@@ -299,7 +338,7 @@ test('editableProperties reads every control type a wallpaper declares', () => {
       max: 2,
       step: 0.001
     },
-    { name: '_21', type: 'color', text: '自定义文字2颜色', value: '1 1 1' },
+    { name: '_21', type: 'color', text: '自定义文字2颜色', value: '1 1 1', muted: true },
     {
       name: 'b1',
       type: 'combo',

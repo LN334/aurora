@@ -104,3 +104,12 @@ test('propertyValues 对没有属性的工程返回空表', () => {
   assert.deepEqual(propertyValues(undefined, { glow: 1 }), {})
   assert.deepEqual(propertyValues([], undefined), {})
 })
+
+test('propertyValues 把静音项按关传给引擎，覆盖值和工程默认都不作数', () => {
+  // 音频感应、自定义文字、帧率显示：设置页里没有入口，但工程默认常常是 true，
+  // 不显式传 false 等于没关。
+  const mutedFlag = { name: 'customtext', type: 'bool' as const, text: '组件自定义文字', value: true, muted: true }
+  const mutedSlider = { name: 'audioSize', type: 'slider' as const, text: '组件随音频感应变化大小', value: 1.4, min: 0, max: 2, muted: true }
+  const values = propertyValues([mutedFlag, mutedSlider, flag], { customtext: true, audioSize: 1.8 })
+  assert.deepEqual(values, { customtext: false, audioSize: 0, hdr: true })
+})

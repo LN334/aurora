@@ -274,6 +274,11 @@ export interface WallpaperProperty {
   step?: number
   /** A combo's choices, in the order the author wrote them. */
   options?: { label: string; value: string }[]
+  /**
+   * True when the control is not offered in the settings page but still has to be
+   * passed to the engine with a fixed value — see `MUTED_LABEL`.
+   */
+  muted?: boolean
 }
 
 /**
@@ -321,7 +326,11 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
   let position = 0
   for (const [name, entry] of Object.entries(properties)) {
     const property = readProperty(name, entry)
-    if (property) ordered.push({ property, order: orderOf(asRecord(entry), position) })
+    if (property) {
+      // 静音项仍然留在表里：引擎要靠收到「关」才会真的关掉。
+      if (isMutedControl(property.text)) property.muted = true
+      ordered.push({ property, order: orderOf(asRecord(entry), position) })
+    }
     position += 1
   }
 
@@ -364,11 +373,29 @@ function isHiddenProperty(name: string): boolean {
  * 对齐这些真正的开关不动。
  */
 const HIDDEN_LABEL =
-  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size/i
+  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我/i
 
 /** 属性名与文案两重过滤；任一命中就不显示。 */
 function isHiddenControl(name: string, label: string): boolean {
   return isHiddenProperty(name) || HIDDEN_LABEL.test(label)
+}
+
+/*
+ * 这些开关在播放器里不该出现，但要**当作关掉**传给引擎。
+ *
+ * - 音频感应：Aurora 不给壁纸音频（`volume: 0`，也没有环回采集），这类控件
+ *   怎么调都不会有反应；
+ * - 自定义文字：文字本身是 textinput，没有输入框可填，剩一个「显示自定义文字」
+ *   的开关没有意义；
+ * - 帧率显示：作者调试用的，普通用户不需要。
+ *
+ * 只从设置页里拿掉是不够的：工程默认值常常是 true，不传值就等于没关。所以
+ * 这几项仍然留在属性表里，带 `muted` 标记，渲染层按「关」传给引擎。
+ */
+const MUTED_LABEL = /音频感应|音频条|自定义文字|帧率显示|帧率.*颜色|audio.*(?:bar|sens)|custom text|frame rate/i
+
+function isMutedControl(label: string): boolean {
+  return MUTED_LABEL.test(label)
 }
 
 
@@ -529,8 +556,9 @@ function looksLikeTagDebris(label: string): boolean {
 /** project.json 里的 `&nbsp;` 之类；设置页按纯文本渲染，实体留着就是字面量。 */
 function decodeEntities(text: string): string {
   return text
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
+    /* 作者常常漏掉结尾的分号，两种都收。 */
+    .replace(/&nbsp;?/gi, ' ')
+    .replace(/&amp;?/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')

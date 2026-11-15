@@ -26,7 +26,8 @@ export function WallpaperProps({
   onChange(name: string, value: PropertyValue): void
   onReset(): void
 }) {
-  const properties = entry.properties ?? []
+  /* 静音项（音频感应、自定义文字、帧率显示）不给入口，但仍然作为「关」传给引擎。 */
+  const properties = (entry.properties ?? []).filter((property) => !property.muted)
   if (properties.length === 0) return null
 
   const changed = Boolean(values && Object.keys(values).length > 0)
