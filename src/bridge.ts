@@ -242,7 +242,8 @@ const webFallback: AuroraApi = {
     clean: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 }),
     // 备份要读写数据目录，浏览器里没有这个东西 —— 明说，不假装写成功。
     exportBackup: async () => ({ ok: false as const, reason: '浏览器里没有本地数据目录' }),
-    restoreBackup: async () => ({ ok: false as const, reason: '浏览器里没有本地数据目录' })
+    restoreBackup: async () => ({ ok: false as const, reason: '浏览器里没有本地数据目录' }),
+    openDataDir: async () => undefined
   },
   player: {
     reportState: async () => true,

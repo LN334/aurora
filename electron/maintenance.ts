@@ -1,4 +1,4 @@
-import { app, session } from 'electron'
+import { app, session, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -352,4 +352,16 @@ export async function sweepPendingJunk(): Promise<void> {
   if (left.files.length > 0 || left.dirs.length > 0) {
     console.error('[aurora] some junk is still in use at startup', left.files.length + left.dirs.length)
   }
+}
+
+/**
+ * 在资源管理器里打开数据目录。
+ *
+ * 设置页会把路径显示出来，但要手工拼一条路径再粘进地址栏太别扭 —— 看备份落在
+ * 哪里、确认导入前的旧文件还在，都得进这个目录。路径来自 app.getPath，不接受
+ * 外部传入，不存在打开任意目录的入口。
+ */
+export async function openDataDirectory(): Promise<void> {
+  const error = await shell.openPath(app.getPath('userData'))
+  if (error) throw new Error(error)
 }

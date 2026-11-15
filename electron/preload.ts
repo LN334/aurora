@@ -225,7 +225,8 @@ const api = {
      */
     exportBackup: (storage: Record<string, string>) =>
       ipcRenderer.invoke('backup:export', storage) as Promise<BackupExportResult>,
-    restoreBackup: () => ipcRenderer.invoke('backup:restore') as Promise<BackupRestoreResult>
+    restoreBackup: () => ipcRenderer.invoke('backup:restore') as Promise<BackupRestoreResult>,
+    openDataDir: () => ipcRenderer.invoke('maintenance:openDataDir') as Promise<void>
   },
 
   /**

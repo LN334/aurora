@@ -280,6 +280,8 @@ interface MaintenanceApi {
   exportBackup(storage: Record<string, string>): Promise<BackupExportOutcome>
   /** 导入备份。会话文件不在名单里，登录状态不会跟着搬家。 */
   restoreBackup(): Promise<BackupRestoreOutcome>
+  /** 在资源管理器里打开数据目录；路径固定，不接受外部传入。 */
+  openDataDir(): Promise<void>
 }
 
 export type MediaCommand = 'toggle' | 'next' | 'prev' | 'volume-up' | 'volume-down'

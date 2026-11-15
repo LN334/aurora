@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { exportBackup, restoreBackup } from '../backup'
-import { releaseMemory, scanJunk, sweepJunk } from '../maintenance'
+import { openDataDirectory, releaseMemory, scanJunk, sweepJunk } from '../maintenance'
 
 /** 设置页 05 清理与维护的几个入口。 */
 export function registerMaintenanceIpc(): void {
@@ -19,6 +19,9 @@ export function registerMaintenanceIpc(): void {
   ipcMain.handle('backup:export', (_event, storage: unknown) => exportBackup(readStorage(storage)))
 
   ipcMain.handle('backup:restore', () => restoreBackup())
+
+  // 打开的目录固定是 app.getPath('userData')，渲染层传不进别的路径。
+  ipcMain.handle('maintenance:openDataDir', () => openDataDirectory())
 }
 
 function readStorage(value: unknown): Record<string, string> {

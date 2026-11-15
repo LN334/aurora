@@ -126,6 +126,13 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
                   ? formatBytes(page.storage.userDataBytes)
                   : '…'}
               </span>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => void bridge.maintenance.openDataDir()}
+              >
+                打开
+              </button>
             </Row>
             {junk.cleanedBytes > 0 ? (
               <Row label="已清理">
