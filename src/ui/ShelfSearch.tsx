@@ -42,12 +42,13 @@ export function ShelfSearch({
          * 空着就把 Esc 让出去：这时它表达的是「关掉这层」，不是「清空搜索」。
          * 有内容才接住，并且不让它继续传 —— 否则同一颗 Esc 会顺手把页面也退掉。
          */
-        if (!input.current.value) return
+        const field = input.current
+        if (!field || field.value === '') return
         event.preventDefault()
         // 捕获阶段先接住：全局快捷键也在 window 上，但它注册得更早，冒泡时轮到它就已经把页面退了一层。
         event.stopPropagation()
         handler.current('')
-        input.current.blur()
+        field.blur()
       }
     }
     window.addEventListener('keydown', onKey, true)
