@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
-import { useOnlineStore } from './store'
 import type { ProviderId } from './types'
 
 /**
@@ -14,15 +13,13 @@ import type { ProviderId } from './types'
  */
 
 /**
- * 进这一页时才把「登录过的那几家」的后端拉起来。
+ * 问主进程「谁登录过」。
  *
- * 启动阶段现在只把会话指过去（rebind），不拉后端——这样游客冷启动不会为了
- * 一个用不到的平台付出上百 MB。但收藏页读的是账号里的关系，后端没起来时
- * `account` 是空的，页面就一直是「还没有收藏」。所以在这里按需 init：
- * 先用主进程的「谁登录过」（纯读会话、零加载）挑，再去 init，没登录过的
- * 平台一个都不碰。
+ * 纯读会话、不拉起任何后端，所以页面一挂载就能问。收藏页按这个结果决定问哪
+ * 几家；以前是等渲染层的 init 把账号取回来，等于多等一个登录状态往返，页面
+ * 就会先空上几秒。
  */
-function useEnsureSignedInBackends(ids: string): void {
+function useSignedInPlatforms(): Record<string, boolean> | null {
   const [signed, setSigned] = useState<Record<string, boolean> | null>(null)
 
   useEffect(() => {
@@ -40,17 +37,7 @@ function useEnsureSignedInBackends(ids: string): void {
     }
   }, [])
 
-  useEffect(() => {
-    if (!signed) return
-    /* 依赖用拼出来的字符串，避免调用方每次渲染都传一个新数组、把 init 打上十遍。 */
-    for (const id of ids.split(',') as ProviderId[]) {
-      if (!signed[id]) continue
-      void useOnlineStore(id)
-        .getState()
-        .init()
-        .catch(() => undefined)
-    }
-  }, [ids, signed])
+  return signed
 }
 
 interface CollectedAlbum {
@@ -96,11 +83,11 @@ function sharedFetch<T>(key: string, load: () => Promise<T>): Promise<T> {
   return promise
 }
 
-async function loadCollectedAlbums(neteaseId: number, qqId: number): Promise<CollectedAlbum[]> {
+async function loadCollectedAlbums(withNetease: boolean, withQq: boolean): Promise<CollectedAlbum[]> {
   const loads: Promise<CollectedAlbum[]>[] = []
 
   const netease = window.aurora?.netease
-  if (neteaseId && netease?.albumSublist) {
+  if (withNetease && netease?.albumSublist) {
     loads.push(
       netease
         .albumSublist()
@@ -123,7 +110,7 @@ async function loadCollectedAlbums(neteaseId: number, qqId: number): Promise<Col
   }
 
   const qq = window.aurora?.qq
-  if (qqId && qq?.collectedAlbums) {
+  if (withQq && qq?.collectedAlbums) {
     loads.push(
       qq
         .collectedAlbums()
@@ -159,25 +146,27 @@ async function loadCollectedAlbums(neteaseId: number, qqId: number): Promise<Col
  * 空位——那会让「本来就没有」看起来像「没加载出来」。
  */
 export function useCollectedAlbums(): CollectedAlbum[] {
-  useEnsureSignedInBackends('netease,qq')
+  const signed = useSignedInPlatforms()
   /*
-   * 只认账号 id，不认账号对象。
+   * 不等渲染层的账号对象。
    *
-   * 以前依赖的是 account 这个对象本身：启动阶段 loginStatus 会写好几次状态，
-   * 每次都换一个新对象，于是 effect 每次都重跑，一次冷启动能把 albumSublist
-   * 打十几遍。id 变了才代表「换了一个人」，那才是真的需要重取。
+   * 收藏列表在平台上，主进程拿到会话就能回答；等 store 把 account 拉回来再取，
+   * 等于白白多等一次登录状态往返，页面先空几秒。这里只问「有没有登录过」——
+   * 那句话是读本地会话，几十毫秒就回来了。
    */
-  const neteaseId = useOnlineStore('netease')((state) => state.account?.id ?? 0)
-  const qqId = useOnlineStore('qq')((state) => state.account?.id ?? 0)
+  const withNetease = Boolean(signed?.netease)
+  const withQq = Boolean(signed?.qq)
   const [rows, setRows] = useState<CollectedAlbum[]>([])
 
   useEffect(() => {
     let alive = true
-    if (!neteaseId && !qqId) {
+    if (!signed || (!withNetease && !withQq)) {
       setRows([])
       return
     }
-    void sharedFetch('collected:' + neteaseId + ':' + qqId, () => loadCollectedAlbums(neteaseId, qqId))
+    void sharedFetch('collected:' + withNetease + ':' + withQq, () =>
+      loadCollectedAlbums(withNetease, withQq)
+    )
       .then((list) => {
         if (alive) setRows(list)
       })
@@ -187,7 +176,7 @@ export function useCollectedAlbums(): CollectedAlbum[] {
     return () => {
       alive = false
     }
-  }, [neteaseId, qqId])
+  }, [signed, withNetease, withQq])
 
   return rows
 }
@@ -197,18 +186,18 @@ export function useCollectedAlbums(): CollectedAlbum[] {
  * 酷狗与汽水也没有这种关系——所以这里只问一家，拿不到就是空。
  */
 export function useFollowedArtists(): FollowedArtist[] {
-  useEnsureSignedInBackends('netease')
-  const neteaseId = useOnlineStore('netease')((state) => state.account?.id ?? 0)
+  const signed = useSignedInPlatforms()
+  const withNetease = Boolean(signed?.netease)
   const [rows, setRows] = useState<FollowedArtist[]>([])
 
   useEffect(() => {
     let alive = true
     const netease = window.aurora?.netease
-    if (!neteaseId || !netease?.artistSublist) {
+    if (!withNetease || !netease?.artistSublist) {
       setRows([])
       return
     }
-    void sharedFetch('artists:' + neteaseId, () =>
+    void sharedFetch('artists', () =>
       netease
         .artistSublist()
         .then((list) =>
@@ -232,7 +221,7 @@ export function useFollowedArtists(): FollowedArtist[] {
     return () => {
       alive = false
     }
-  }, [neteaseId])
+  }, [withNetease])
 
   return rows
 }

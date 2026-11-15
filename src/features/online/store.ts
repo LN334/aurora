@@ -559,10 +559,18 @@ function createOnlineStore(providerId: ProviderId) {
        */
       async rebind(profileId: string) {
         if (profileId === boundProfile) return
-        boundProfile = profileId
-        reset()
+        /*
+         * 后端还没就绪就先别记账。
+         *
+         * 原来把 `boundProfile` 前的判断放在取 backend 之前，backend 不存在时提前
+         * return，却已经把这个档案记成「已绑定」；之后真正的 init 不会再来一次
+         * rebind，这个平台就一直停在旧档案上——主进程那边看到的是默认档案，
+         * 会话读不到，收藏与关注列表于是永远是空的。
+         */
         const platform = backend()
         if (!platform) return
+        boundProfile = profileId
+        reset()
         await platform.bindProfile?.(profileId).catch(() => undefined)
       },
 

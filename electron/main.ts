@@ -15,6 +15,7 @@ import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
 import { registerWarmUpIpc } from './warmup'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
+import { applyStartupProfile } from './startup-profile'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
 import {
   configureProgressTransport,
@@ -747,6 +748,15 @@ if (!app.requestSingleInstanceLock()) {
     write(`userData=${app.getPath('userData')}`)
     write(`appPath=${app.getAppPath()}`)
     write(`argv=${process.argv.slice(1).join(' ')}`)
+    /*
+     * 先把活动档案交给四家平台，再建窗口。
+     *
+     * 渲染层也会绑一次，但它可能在 provider 还没接好时提前返回；那次跳过之后
+     * 主进程就停在 'default'，而 'default' 没有会话文件——用户明明登录过，
+     * 收藏与关注列表却是空的。
+     */
+    const startupProfile = applyStartupProfile()
+    write(`startup profile=${startupProfile || '(none)'}`)
     //
     // 上次清理时被占用、没删掉的垃圾在这里补删。必须赶在窗口建起来之前：
     // 一旦渲染进程启动，Chromium 又会把那些缓存文件重新打开并锁住。
