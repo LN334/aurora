@@ -103,7 +103,9 @@ export function TrackView({
                 <button
                   className="dp__link"
                   type="button"
-                  onClick={() => openOnlineArtist(source, refs.artist as number)}
+                  onClick={(event) =>
+                    openOnlineArtist(source, refs.artist as number, event.currentTarget)
+                  }
                   title={`去 ${track.artist} 的页面`}
                 >
                   {track.artist}
@@ -117,7 +119,9 @@ export function TrackView({
                 <button
                   className="dp__link"
                   type="button"
-                  onClick={() => openOnlineAlbum(source, refs.album as number)}
+                  onClick={(event) =>
+                    openOnlineAlbum(source, refs.album as number, event.currentTarget)
+                  }
                   title={`去《${track.album}》`}
                 >
                   {track.album}
@@ -199,7 +203,9 @@ export function TrackView({
                 <button
                   className="dp__link"
                   type="button"
-                  onClick={() => openOnlineAlbum(source, refs.album as number)}
+                  onClick={(event) =>
+                    openOnlineAlbum(source, refs.album as number, event.currentTarget)
+                  }
                 >
                   {track.album}
                 </button>
@@ -213,7 +219,9 @@ export function TrackView({
                 <button
                   className="dp__link"
                   type="button"
-                  onClick={() => openOnlineArtist(source, refs.artist as number)}
+                  onClick={(event) =>
+                    openOnlineArtist(source, refs.artist as number, event.currentTarget)
+                  }
                 >
                   {track.artist}
                 </button>

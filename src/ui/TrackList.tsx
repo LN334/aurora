@@ -397,7 +397,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                               className="trk__ref"
                               onClick={(event) => {
                                 event.stopPropagation()
-                                openOnlineArtist(track.source ?? '', person.id)
+                                openOnlineArtist(track.source ?? '', person.id, event.currentTarget)
                               }}
                               title={`去 ${person.name} 的页面`}
                             >
@@ -414,7 +414,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                       className="trk__ref"
                       onClick={(event) => {
                         event.stopPropagation()
-                        openOnlineArtist(track.source ?? '', refs.artist as number)
+                        openOnlineArtist(track.source ?? '', refs.artist as number, event.currentTarget)
                       }}
                       title={`去 ${track.albumArtist || track.artist} 的页面`}
                     >
@@ -442,7 +442,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                     className="trk__ref"
                     onClick={(event) => {
                       event.stopPropagation()
-                      openOnlineAlbum(track.source ?? '', refs.album as number)
+                      openOnlineAlbum(track.source ?? '', refs.album as number, event.currentTarget)
                     }}
                     title={`去《${albumLabel}》`}
                   >

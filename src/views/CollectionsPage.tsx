@@ -43,7 +43,7 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
               className="rh-card"
               type="button"
               key={album.key}
-              onClick={() => openOnlineAlbum(album.providerId, album.id)}
+              onClick={(event) => openOnlineAlbum(album.providerId, album.id, event.currentTarget)}
             >
               <span className="rh-card__art" style={{ background: tint(album.key) }}>
                 <Artwork

@@ -31,11 +31,40 @@ export function backToPlaylists(): void {
   navigate?.({ view: 'playlists' })
 }
 
-export function openOnlineAlbum(providerId: string, id: number): void {
+/**
+ * 让点击来源的封面与详情页的大封面共用同一个名字。
+ *
+ * View Transition 靠名字配对：旧页里带这个名字的元素，会把位置和尺寸插值到新
+ * 页里同名的那个。名字只能同时存在一个，所以这里每次都指向被点的那一张卡。
+ *
+ * 传进来的是被点的元素（常常是标题文字），先往上找到那一行的容器，再在容器里
+ * 找封面——直接在被点元素里找会一个都找不到。
+ */
+function nameCover(origin: HTMLElement | null | undefined): void {
+  const host = origin?.closest<HTMLElement>(
+    '.rh-card, .rh-sc, .rh-alb-row, .pl-card, .ol-alb, .trk, .dp, .lk-card'
+  )
+  const cover = host?.querySelector<HTMLElement>(
+    '.rh-card__art, .rh-alb-row__art, .ol-alb__art, .trk__art, .dp__art, .lk-card__art'
+  )
+  cover?.style.setProperty('view-transition-name', 'playlist-cover')
+}
+
+export function openOnlineAlbum(
+  providerId: string,
+  id: number,
+  origin?: HTMLElement | null
+): void {
+  nameCover(origin)
   navigate?.({ view: 'onlinealbum', id: idOf(providerId, id) })
 }
 
-export function openOnlineArtist(providerId: string, id: number): void {
+export function openOnlineArtist(
+  providerId: string,
+  id: number,
+  origin?: HTMLElement | null
+): void {
+  nameCover(origin)
   navigate?.({ view: 'onlineartist', id: idOf(providerId, id) })
 }
 
@@ -84,9 +113,7 @@ export function openOnlinePlaylist(
       ownership: playlist.ownership
     })
   // 给点击来源的封面命名；详情页的封面使用同名锚点，浏览器会插值两者的位置和尺寸。
-  origin
-    ?.querySelector<HTMLElement>('.rh-card__art')
-    ?.style.setProperty('view-transition-name', 'playlist-cover')
+  nameCover(origin)
   navigate?.({ view: 'onlineplaylist', id: idOf(providerId, playlist.id) })
 }
 

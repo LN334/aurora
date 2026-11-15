@@ -1,4 +1,4 @@
-import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
+﻿import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/navigate'
 import type { Track } from '../types'
 
 /**
@@ -48,7 +48,8 @@ function NameRef({
 }: {
   className?: string
   title: string
-  go: () => void
+  /** 把被点的元素交回去：调用方要拿它找到这一行的封面，做转场配对。 */
+  go: (origin: HTMLElement) => void
   children: string
 }) {
   return (
@@ -59,13 +60,13 @@ function NameRef({
       title={title}
       onClick={(event) => {
         event.stopPropagation()
-        go()
+        go(event.currentTarget)
       }}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return
         event.preventDefault()
         event.stopPropagation()
-        go()
+        go(event.currentTarget)
       }}
     >
       {children}
@@ -92,7 +93,7 @@ export function ArtistName({ track, className, text }: NameProps) {
             {person.id ? (
               <NameRef
                 title={'去 ' + person.name + ' 的页面'}
-                go={() => openOnlineArtist(providerId, person.id)}
+                go={(origin) => openOnlineArtist(providerId, person.id, origin)}
               >
                 {person.name}
               </NameRef>
@@ -109,7 +110,7 @@ export function ArtistName({ track, className, text }: NameProps) {
   const id = refOfTrack(track).artist
   if (!id) return <span className={className}>{label}</span>
   return (
-    <NameRef className={className} title={'去 ' + label + ' 的页面'} go={() => openOnlineArtist(providerId, id)}>
+    <NameRef className={className} title={'去 ' + label + ' 的页面'} go={(origin) => openOnlineArtist(providerId, id, origin)}>
       {label}
     </NameRef>
   )
@@ -122,7 +123,7 @@ export function AlbumName({ track, className, text }: NameProps) {
   const id = refOfTrack(track).album
   if (!id) return <span className={className}>{label}</span>
   return (
-    <NameRef className={className} title={'去《' + label + '》'} go={() => openOnlineAlbum(track.source ?? '', id)}>
+    <NameRef className={className} title={'去《' + label + '》'} go={(origin) => openOnlineAlbum(track.source ?? '', id, origin)}>
       {label}
     </NameRef>
   )
@@ -145,7 +146,7 @@ export function ArtistById({
 }) {
   if (!id) return <span className={className}>{name}</span>
   return (
-    <NameRef className={className} title={'去 ' + name + ' 的页面'} go={() => openOnlineArtist(providerId, id)}>
+    <NameRef className={className} title={'去 ' + name + ' 的页面'} go={(origin) => openOnlineArtist(providerId, id, origin)}>
       {name}
     </NameRef>
   )

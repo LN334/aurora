@@ -115,7 +115,6 @@ function PlaylistPage({
   return (
     <div className="col ol-page">
       <DetailHero
-        playlistTransition
         art={
           summary?.coverUrl ? (
             <img src={remoteImageUrl(sizedImage(summary.coverUrl, 400), 400)} alt="" />
@@ -317,7 +316,9 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
                 <button
                   className="dp__link"
                   type="button"
-                  onClick={() => openOnlineArtist(providerId as ProviderId, person.id)}
+                  onClick={(event) =>
+                    openOnlineArtist(providerId as ProviderId, person.id, event.currentTarget)
+                  }
                 >
                   {person.name}
                 </button>
@@ -621,7 +622,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
                 key={album.id}
                 className="ol-alb"
                 type="button"
-                onClick={() => openOnlineAlbum(providerId, album.id)}
+                onClick={(event) => openOnlineAlbum(providerId, album.id, event.currentTarget)}
                 title={`打开《${album.name}》`}
               >
                 <span className="ol-alb__art">

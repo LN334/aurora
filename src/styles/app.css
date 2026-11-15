@@ -1994,8 +1994,13 @@ input::placeholder {
   view-transition-name: aurora-page;
 }
 
-/* 点击歌单时，让卡片封面直接过渡到详情页的大封面。 */
-.dp__art--playlist-transition {
+/*
+ * 详情页的大封面永远参与转场：点击来源那边给它挂了同名锚点，浏览器就会把封面
+ * 从卡片的位置与尺寸插值到这里。没有来源时（直接进详情页）它只是一张普通封面。
+ *
+ * 名字固定在页头这一张上，所以同一时刻页里不会出现第二个同名元素。
+ */
+.dp__art {
   view-transition-name: playlist-cover;
 }
 

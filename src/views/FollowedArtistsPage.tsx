@@ -44,7 +44,7 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
               className="rh-card"
               type="button"
               key={artist.key}
-              onClick={() => openOnlineArtist('netease', artist.id)}
+              onClick={(event) => openOnlineArtist('netease', artist.id, event.currentTarget)}
             >
               <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
                 <Artwork

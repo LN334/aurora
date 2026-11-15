@@ -788,7 +788,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                     className="rh-alb-row"
                     type="button"
                     key={row.key}
-                    onClick={() => openOnlineAlbum(row.providerId, row.id)}
+                    onClick={(event) => openOnlineAlbum(row.providerId, row.id, event.currentTarget)}
                   >
                     <span className="rh-alb-row__art" style={tintOf(row.key)}>
                       <Artwork
