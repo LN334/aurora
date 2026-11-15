@@ -139,20 +139,6 @@ export interface UpdatePrefs {
   interval: UpdateInterval
   /** Epoch ms of the last completed check, 0 when it has never run. */
   lastCheck: number
-  /**
-   * Download new releases in the background and install them once the player is
-   * idle. On by default: the installers are unsigned, so the one guard left is
-   * "never restart while something is playing".
-   */
-  autoInstall: boolean
-  /**
-   * Whether this build can actually do it.
-   *
-   * False in a development checkout, and false when the optional
-   * `electron-updater` dependency is not part of the build. The settings page
-   * disables the switch and says so instead of offering a no-op.
-   */
-  autoInstallAvailable: boolean
 }
 
 /** 下载：主进程队列，渲染层只发命令、听状态。 */
@@ -220,7 +206,6 @@ interface DownloadsApi {
   open(url: string): Promise<boolean>
   getPrefs(): Promise<UpdatePrefs>
   setInterval(interval: UpdateInterval): Promise<UpdatePrefs>
-  setAutoInstall(enabled: boolean): Promise<UpdatePrefs>
   /** Only meaningful in the `ready` state; quits and installs. */
   install(): Promise<boolean>
   /** Live status: checks, download progress, readiness. */
@@ -403,7 +388,6 @@ export interface AppSettings {
   onlineLyrics: boolean
   updateInterval: UpdateInterval
   updateLastCheck: number
-  autoInstallUpdates: boolean
   desktopLyrics: DesktopLyricsSettings
   /**
    * 点关闭按钮时收进托盘（true）还是退出应用（false）。

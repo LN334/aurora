@@ -22,6 +22,7 @@ export function UpdateToast() {
   const noted = useUpdate((state) => state.noted)
   const busy = useUpdate((state) => state.busy)
   const note = useUpdate((state) => state.note)
+  const openDialog = useUpdate((state) => state.openDialog)
   const download = useUpdate((state) => state.download)
   const install = useUpdate((state) => state.install)
   const open = useUpdate((state) => state.open)
@@ -73,7 +74,7 @@ export function UpdateToast() {
               <Download size={14} />
               立即下载
             </button>
-            <button type="button" className="btn" onClick={() => void open()}>
+            <button type="button" className="btn" onClick={openDialog}>
               查看详情
             </button>
           </div>

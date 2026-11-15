@@ -1991,8 +1991,15 @@ input::placeholder {
    ========================================================================== */
 .main__body {
   scrollbar-gutter: stable;
-  view-transition-name: aurora-page;
 }
+
+/*
+ * 换页的位移交给 .main__body.is-enter 上的动画，不再让 View Transition 拍整页快照。
+ *
+ * 快照那条路是把滚动容器的内容拍成一张大图再交叉溶解：新旧页的 scrollTop 不同，
+ * 两张图对不齐，屏幕上就是「上半截新页、下半截旧页」的重影（2026-11-15 截图里
+ * 能直接看到）。封面飞入不依赖它，仍然保留。
+ */
 
 /*
  * 详情页的大封面永远参与转场：点击来源那边给它挂了同名锚点，浏览器就会把封面
@@ -2060,23 +2067,21 @@ html.is-resizing {
  * 播放条先出来，正文那块黑着，200ms 后才亮」——就是他说的「打开时闪一下」。
  */
 .main__body.is-enter {
-  animation: pageIn 200ms var(--ease-out) both;
+  animation: pageIn 320ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
 }
 
-/* Route snapshots keep the transition off the live scroll container. */
+/*
+ * root 快照整页透明：换页的位移由 .main__body 上的 pageIn 动画逐帧画，如果 root
+ * 快照不透明就会把实时页面盖住 320ms，那条动画等于白播。封面（playlist-cover）
+ * 是独立的伪元素，不受这里影响，仍然从来源卡片飞到页头。
+ */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
+  opacity: 0;
 }
-::view-transition-group(root),
-::view-transition-group(aurora-page) {
+::view-transition-group(root) {
   animation: none;
-}
-::view-transition-old(aurora-page) {
-  animation: pageSnapshotOut 160ms var(--ease-out) both;
-}
-::view-transition-new(aurora-page) {
-  animation: pageSnapshotIn 240ms var(--ease-out) both;
 }
 ::view-transition-group(playlist-cover) {
   overflow: hidden;
@@ -2098,25 +2103,19 @@ html.is-resizing {
   to { opacity: 1; }
 }
 /*
- * 换成位移：原来只有 7px，配上 200ms 的淡入，屏幕上几乎看不出「换了一页」，
- * 观感就是「内容闪了一下」。现在旧页往左退、新页从右进，位移看得出来但不夸张。
- */
-@keyframes pageSnapshotOut {
-  to { opacity: 0; transform: translateX(-22px); }
-}
-@keyframes pageSnapshotIn {
-  from { opacity: 0; transform: translateX(26px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/*
- * 只做透明度，不做位移：动画 fill-mode 为 both 时，transform 即使落到 none 也会
- * 以矩阵形式留在计算样式里，把 .main__body 变成 fixed 子元素的定位祖先——
- * 长列表右下角那两颗按钮会跟着内容滚出视口。淡入本身已经够「顺」。
+ * 换页：照 WinUI 的「页面刷新」（page refresh）做——新页从下方 28px 处滑上来并淡入。
+ *
+ * 之前让 View Transition 拍整页快照再左右推，两个问题：横向 26px 只占 2%，被淡入
+ * 盖住看不出；快照又按滚动容器的内容拍，新旧页 scrollTop 不同就对不齐，屏幕上是
+ * 「上半截新页、下半截旧页」。现在快照不参与换页（没有 aurora-page 这个 name），
+ * 位移作用在真实内容上，一眼能看出翻页。
+ *
+ * fill-mode 用 backwards 而不是 both：动画结束后 transform 回到 none，不会把
+ * .main__body 一直留成 fixed 子元素的定位祖先（长列表右下角那两颗按钮会跑）。
  */
 @keyframes pageIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
 }
 
 /*

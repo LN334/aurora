@@ -32,7 +32,6 @@ let previewSettings: AppSettings = {
   onlineLyrics: false,
   updateInterval: 'manual',
   updateLastCheck: 0,
-  autoInstallUpdates: false,
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,
@@ -46,8 +45,8 @@ let previewSettings: AppSettings = {
 /**
  * Update preferences for the preview.
  *
- * `autoInstallAvailable: false` is the honest answer in a browser: there is no
- * installer to run, so the settings page renders that switch disabled.
+ * 浏览器里没有安装器可跑，所以这里只回答「多久查一次」；下载与安装两个动作
+ * 在预览里如实返回 false，而不是假装成功。
  */
 let previewDownloadPrefs: DownloadPrefs = {
   dir: '',
@@ -59,9 +58,7 @@ let previewDownloadPrefs: DownloadPrefs = {
 
 let previewPrefs: UpdatePrefs = {
   interval: 'manual',
-  lastCheck: 0,
-  autoInstall: false,
-  autoInstallAvailable: false
+  lastCheck: 0
 }
 
 const webFallback: AuroraApi = {
@@ -178,7 +175,6 @@ const webFallback: AuroraApi = {
     open: async () => false,
     getPrefs: async () => previewPrefs,
     setInterval: async (interval) => (previewPrefs = { ...previewPrefs, interval }),
-    setAutoInstall: async (enabled) => (previewPrefs = { ...previewPrefs, autoInstall: enabled }),
     install: async () => false,
     onStatus: () => () => undefined,
     onAvailable: () => () => undefined

@@ -8,7 +8,7 @@ import {
 } from '../updates'
 import { saveSettings } from '../settings'
 
-/** Release checks, the interval/auto-install preferences, and installing. */
+/** Release checks, the check interval, and installing. */
 export function registerUpdatesIpc(): void {
   ipcMain.handle('updates:check', () => checkForUpdate())
 
@@ -26,11 +26,6 @@ export function registerUpdatesIpc(): void {
     const next =
       interval === 'manual' || interval === 'daily' || interval === 'weekly' ? interval : 'daily'
     saveSettings({ updateInterval: next })
-    return updatePrefs()
-  })
-
-  ipcMain.handle('updates:setAutoInstall', (_event, enabled: unknown) => {
-    saveSettings({ autoInstallUpdates: Boolean(enabled) })
     return updatePrefs()
   })
 

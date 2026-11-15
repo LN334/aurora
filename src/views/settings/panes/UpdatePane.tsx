@@ -17,7 +17,10 @@ import {
 /**
  * 04 更新与关于。
  *
- * 两条路：手动那条每一步都要按；自动那条按下面的频率自己查、下、换好。版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
+ * 自动只做到「替你查一下」：查到新版本弹一张「发现新版本」，下载与安装都得
+ * 自己按。这样界面上写着的每一件事都真的会发生，也不会有后台悄悄把 136 MB
+ * 拉回来、再找时机换掉进程。
+ * 版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
  * 数据与缓存搬到了 05 清理与维护，因为那里还有释放内存，两件事该放在一起。
  */
 export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
@@ -28,43 +31,49 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
       <Sub title="更新">
         <UpdatePanel />
         <Rows>
+          {/*
+           * 「自动检查」和「检查频率」原来并排两行：频率里又有一个「手动」档，
+           * 跟上面那颗「检查更新」按钮说的是同一件事，读起来像三个开关管一件事
+           * （2026-11-15 用户原话：「更新和自动更已经是一个功能了」）。
+           *
+           * 现在合成一个：开关管「要不要自己查」，频率只在开着时出现。
+           */}
           <Row
-            label="检查频率"
+            label="自动检查"
             hint={
               updateInterval === 'manual'
-                ? undefined
+                ? '关掉后只在你点「检查更新」时查。'
                 : `上次检查：${formatCheckedAt(page.prefs.lastCheck)}`
             }
           >
-            <div className="seg">
-              {(
-                [
-                  ['manual', '手动'],
-                  ['daily', '每天'],
-                  ['weekly', '每周']
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  className={updateInterval === value ? 'is-active' : ''}
-                  disabled={page.busy}
-                  onClick={() => void page.setUpdateInterval(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </Row>
-          <Row
-            label="自动更新"
-          >
             <Toggle
-              checked={page.prefs.autoInstall}
-              disabled={page.busy || !page.prefs.autoInstallAvailable}
-              label="自动更新"
-              onChange={(next) => void page.setAutoInstall(next)}
+              checked={updateInterval !== 'manual'}
+              disabled={page.busy}
+              label="自动检查"
+              onChange={(next) => void page.setUpdateInterval(next ? 'daily' : 'manual')}
             />
           </Row>
+          {updateInterval !== 'manual' ? (
+            <Row label="检查频率">
+              <div className="seg">
+                {(
+                  [
+                    ['daily', '每天'],
+                    ['weekly', '每周']
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    className={updateInterval === value ? 'is-active' : ''}
+                    disabled={page.busy}
+                    onClick={() => void page.setUpdateInterval(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Row>
+          ) : null}
         </Rows>
       </Sub>
 

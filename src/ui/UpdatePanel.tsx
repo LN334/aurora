@@ -7,18 +7,14 @@ import { Refresh } from './icons'
 /**
  * 设置页的更新面板。
  *
- * 这一屏是手动那条路：
+ * 三步都由人按：
  * 1. 检查更新——只问 GitHub 一句，不下载、不安装；
  * 2. 下载——把文件取回来，进度显示在下面；
- * 3. 重启并安装——由人按。
+ * 3. 重启并安装。
  *
- * 自动那条路不经过这里的按钮：主进程按设置的频率自己查、自己下，下好之后
- * 由 src/features/updates/auto-restart.ts 在没放歌时装上并重启。两条路共用下面
- * 的状态，因为它们回答的是同一个问题（有没有新版、下到哪了），各存一份就会
- * 出现「后面说下载完了，这里还在让我下载」。
- *
- * 唯一由这里决定的是「现在装」：自动那条可能还在等一首歌放完，用户想立刻装
- * 时按这个按钮就行。
+ * 主进程的定时检查只负责把「有新版本」这件事推到界面上（右下角提示条 +
+ * 「发现新版本」对话框），它既不下文件也不换进程。所以这一屏没有任何开关会
+ * 让应用在用户不知情的时候被替换。
  */
 export function UpdatePanel() {
   const [version, setVersion] = useState('—')
@@ -64,6 +60,11 @@ export function UpdatePanel() {
                 有新版本 <strong>{result.info.version}</strong>
                 {result.info.size > 0 ? ` · ${formatBytes(result.info.size)}` : ''}
               </p>
+              {/*
+               * 发布说明只露三行，多出来的用省略号收掉：想先知道这版改了什么，
+               * 三行够判断「要不要现在下」；要全文就去更新公告或发布页。
+               */}
+              {result.info.notes ? <p className="update__notes">{result.info.notes}</p> : null}
               <div className="update__actions">
                 <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
                   下载 {result.info.version}

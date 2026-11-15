@@ -69,9 +69,9 @@
     },
     "nsis": {
       "include": "build/installer-custom.nsh",
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "createDesktopShortcut": "always",
+      "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Aurora",
       "deleteAppDataOnUninstall": false,
@@ -81,7 +81,9 @@
       "installerHeaderIcon": "build/icon.ico",
       "installerSidebar": "build/installerSidebar.bmp",
       "uninstallerSidebar": "build/uninstallerSidebar.bmp",
-      "installerHeader": "build/installerHeader.bmp"
+      "installerHeader": "build/installerHeader.bmp",
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
     },
     "extraResources": [
       {

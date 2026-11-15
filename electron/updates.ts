@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { appSettings, loadSettings, saveSettings, type UpdateInterval } from './settings'
+import { loadSettings, saveSettings, type UpdateInterval } from './settings'
 import { applyUpdaterProxy } from './proxy'
 import { write } from './startup-log'
 import { isNewer } from './pure/version'
@@ -21,12 +21,9 @@ export type { UpdateInterval }
  * check below - so the news and the binary can never disagree.
  *
  * - Manual: check, then download, then install. Every step is a user action.
- *   Nothing in this module starts one of them on its own.
- * - Automatic: the scheduled check downloads by itself, and
- *   `src/features/updates/auto-restart.ts` installs once nothing is playing.
- *   Every result this module pushes carries `origin`, so the renderer can tell
- *   the two downloads apart and never auto-install a file the user fetched by
- *   hand.
+ * - Automatic: the scheduled check only *reports*. It never fetches the file
+ *   and never replaces the running build; those two stay user decisions, the
+ *   same way LightC and Ghost Downloader do it.
  *
  * Installation is still never decided here: `autoInstallOnAppQuit` stays off,
  * and quitting does not replace the running build.
@@ -36,24 +33,13 @@ export type { UpdateInterval }
 export interface UpdatePrefs {
   interval: UpdateInterval
   lastCheck: number
-  autoInstall: boolean
-  /**
-   * Whether automatic installation can work *in this build*.
-   *
-   * False in a dev checkout and false when the optional `electron-updater`
-   * package is not installed. The settings page uses it to disable the switch
-   * rather than offering something that silently does nothing.
-   */
-  autoInstallAvailable: boolean
 }
 
 export async function updatePrefs(): Promise<UpdatePrefs> {
   const settings = loadSettings()
   return {
     interval: settings.updateInterval,
-    lastCheck: settings.lastUpdateCheck,
-    autoInstall: settings.autoInstallUpdates,
-    autoInstallAvailable: await autoInstallAvailable()
+    lastCheck: settings.lastUpdateCheck
   }
 }
 
@@ -275,32 +261,26 @@ export async function autoCheck(onResult: (result: UpdateResult) => void): Promi
     onResult(result)
     // The settings page shows progress, so it needs the same news the toast got.
     broadcast(result)
-    if (shouldAutoDownload(result)) void downloadInBackground(result, 'auto')
+    /*
+     * 只报到，不下载。
+     *
+     * 更新走的是「查到 → 用户按下载 → 下好 → 用户按重启」这条线，和 LightC、
+     * Ghost Downloader 一致：后台悄悄把 136 MB 拉回来、再找时机把进程换掉，
+     * 用户既不知道发生了什么，也没法拒绝一次具体的替换。自动这件事只做到
+     * 「替你查一下」为止。
+     */
   } finally {
     checkInFlight = false
   }
 }
 
 /**
- * Should this result be downloaded and installed without asking?
- *
- * Both conditions matter. `autoInstallUpdates` is the user's explicit consent,
- * and `app.isPackaged` is the difference between a real installation and a dev
- * checkout, where there is no installer to replace and the updater would only
- * produce errors.
- */
- function shouldAutoDownload(result: UpdateResult): boolean {
-  return result.state === 'available' && appSettings().autoInstallUpdates && app.isPackaged
-}
-
-/**
  * Download the pending release and hand it to the installer.
  *
- * `electron-updater` is loaded dynamically so that a user who never turns the
- * option on does not pay for loading it at startup. It is a real dependency now,
- * so `autoInstallAvailable` normally reports true - but the dynamic form stays,
- * because a packaged build can still be missing it and the settings page must be
- * able to say so instead of throwing.
+ * `electron-updater` is loaded dynamically so that a user who never opens the
+ * update page does not pay for loading it at startup. It is a real dependency
+ * now, but the dynamic form stays: a packaged build can still be missing it, and
+ * the failure has to be a message instead of a throw at import time.
  *
  * The GitHub check above remains the source of truth for *whether* there is an
  * update; this only fetches the file. That is why the update info shown here is
@@ -403,12 +383,6 @@ async function loadUpdater(): Promise<AutoUpdaterLike | null> {
     console.error('[aurora] electron-updater is unavailable', error)
     return null
   }
-}
-
-/** Whether this build can download and install by itself. */
-export async function autoInstallAvailable(): Promise<boolean> {
-  if (!app.isPackaged) return false
-  return (await loadUpdater()) !== null
 }
 
 let installing = false

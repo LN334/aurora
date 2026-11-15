@@ -377,17 +377,20 @@ function isHiddenProperty(name: string): boolean {
  * 同一个「国内微信赞助码」在这张图上叫 `bigweixinbrimgsrchttp…`，在别的图上
  * 又是另一串哈希。按名字过滤必然漏，只能看文案。
  *
- * 这里挡三类：
+ * 这里挡四类：
  *
  * - 赞助 / 求支持 / 求好评 / 二维码横幅，以及作者自己的主页、原画师、求三连；
  * - 壁纸自带音乐那一套（音乐大小、鼠标尾迹这类没有任何东西可调）；
  * - 播放器里没意义的展示项：鼠标视差要在窗口上一直划鼠标才看得出来，时间 /
- *   日期 / 星期 / 早中晚是场景自带的装饰文字，玩家调它的兴趣远小于画面参数。
+ *   日期 / 星期 / 早中晚是场景自带的装饰文字，玩家调它的兴趣远小于画面参数；
+ * - 场景里那层「组件」的参数（总组件开关、大小、位置、倒影）。组件的内容
+ *   大多是上面那批装饰文字，内容已经不在，单独调它的大小位置只会让人以为
+ *   坏了。
  *
- * 音频监听、播放速度、对齐、镜头与组件的位置大小这些真正的开关不动。
+ * 音频监听、播放速度、对齐、镜头的位置大小这些真正的开关不动。
  */
 const HIDDEN_LABEL =
-  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我|鼠标视差|mouse parallax|早中晚|时间组件|日期组件|星期组件|time component|date component|week component|微信|B站|bilibili|up主|鞭策/i
+  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我|鼠标视差|mouse parallax|早中晚|时间|时段|星期|日期|背景音乐|bgm|颜文字|emoticon|time component|date component|week component|time interval|微信|B站|bilibili|up主|鞭策|总组件|组件倒影|component/i
 
 /** 属性名与文案两重过滤；任一命中就不显示。 */
 function isHiddenControl(name: string, label: string): boolean {
@@ -398,7 +401,7 @@ function isHiddenControl(name: string, label: string): boolean {
  * 这些开关在播放器里不该出现，但要**当作关掉**传给引擎。
  *
  * - 音频感应：Aurora 不给壁纸音频（`volume: 0`，也没有环回采集），这类控件
- *   怎么调都不会有反应；
+ *   怎么调都不会有反应；「音频圈」是同一回事的可视化，一并关掉；
  * - 自定义文字：文字本身是 textinput，没有输入框可填，剩一个「显示自定义文字」
  *   的开关没有意义；
  * - 帧率显示：作者调试用的，普通用户不需要。
@@ -406,7 +409,8 @@ function isHiddenControl(name: string, label: string): boolean {
  * 只从设置页里拿掉是不够的：工程默认值常常是 true，不传值就等于没关。所以
  * 这几项仍然留在属性表里，带 `muted` 标记，渲染层按「关」传给引擎。
  */
-const MUTED_LABEL = /音频感应|音频条|自定义文字|帧率显示|帧率.*颜色|audio.*(?:bar|sens)|custom text|frame rate/i
+const MUTED_LABEL =
+  /音频感应|音频条|音频圈|自定义文字|帧率显示|帧率.*颜色|audio.*(?:bar|sens|ring)|custom text|frame rate/i
 
 function isMutedControl(label: string): boolean {
   return MUTED_LABEL.test(label)

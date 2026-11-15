@@ -262,8 +262,6 @@ const api = {
     getPrefs: () => ipcRenderer.invoke('updates:getPrefs') as Promise<UpdatePrefs>,
     setInterval: (interval: UpdateInterval) =>
       ipcRenderer.invoke('updates:setInterval', interval) as Promise<UpdatePrefs>,
-    setAutoInstall: (enabled: boolean) =>
-      ipcRenderer.invoke('updates:setAutoInstall', enabled) as Promise<UpdatePrefs>,
     install: () => ipcRenderer.invoke('updates:install') as Promise<boolean>,
     /** Fires for every transition: check result, download progress, readiness. */
     onStatus: (handler: (result: UpdateResult) => void) => {

@@ -17,7 +17,6 @@ export interface AppSettings {
   onlineLyrics: boolean
   updateInterval: UpdateInterval
   updateLastCheck: number
-  autoInstallUpdates: boolean
   desktopLyrics: { size: number; min: number; max: number }
   /** 点窗口的关闭按钮时收进托盘，而不是退出应用。默认 true。 */
   closeToTray: boolean
@@ -68,17 +67,6 @@ export interface Settings {
   updateInterval: UpdateInterval
   /** Epoch ms of the last completed update check. */
   lastUpdateCheck: number
-  /**
-   * Update in the background instead of waiting to be asked.
-   *
-   * On by default, and it covers the whole sequence: the daily check finds a
-   * release, the file is fetched, and once nothing is playing the new build is
-   * installed and the app comes back on it. The one thing this flag never
-   * touches is the manual 「检查更新」 button - that press only asks GitHub a
-   * question, because "check" and "replace my running app" are two different
-   * decisions. Turning it off makes every step manual.
-   */
-  autoInstallUpdates: boolean
   /**
    * Font size of the desktop lyric strip.
    *
@@ -149,12 +137,6 @@ const DEFAULTS: Settings = {
   autoCheckUpdates: true,
   updateInterval: 'daily',
   lastUpdateCheck: 0,
-  /*
-   * 默认只检查、不自己装。检查更新是问一句，换掉正在运行的版本是另一回事：
-   * 静默装完如果被权限、杀软或单实例锁挡住，用户看到的就是「每次打开都要
-   * 重装一遍」。这个开关还在，想全自动的人自己打开。
-   */
-  autoInstallUpdates: false,
   trayHintShown: false,
   desktopLyricsSize: 34,
   onlineLyrics: false,
@@ -186,12 +168,6 @@ export function loadSettings(): Settings {
     delete parsed.excluded
     delete parsed.rootsDiscovered
     const raw = parsed as Partial<Settings>
-    /*
-     * 这份文件写在「自动安装默认开」的时候：它没有 trayHintShown 这个后加的
-     * 字段。那种配置正是「每次打开都要重装」的受害对象，读到时把自动安装
-     * 关掉一次，并立刻写回；之后以用户在设置页选的为准。
-     */
-    const legacyAutoInstall = !Object.prototype.hasOwnProperty.call(parsed, 'trayHintShown')
     cache = {
       // Spread first so keys this version does not know about survive a
       // read-write cycle instead of being silently dropped.
@@ -213,10 +189,8 @@ export function loadSettings(): Settings {
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
       downloadBitrate: clampBitrate(raw.downloadBitrate),
-      mediaCacheLimitMb: clampMediaCacheLimit(raw.mediaCacheLimitMb),
-      autoInstallUpdates: legacyAutoInstall ? false : raw.autoInstallUpdates === true
+      mediaCacheLimitMb: clampMediaCacheLimit(raw.mediaCacheLimitMb)
     }
-    if (legacyAutoInstall) saveSettings({ autoInstallUpdates: false })
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
     cache = { ...DEFAULTS }
@@ -269,7 +243,6 @@ export function appSettings(): AppSettings {
     onlineLyrics: settings.onlineLyrics,
     updateInterval: settings.updateInterval,
     updateLastCheck: settings.lastUpdateCheck,
-    autoInstallUpdates: settings.autoInstallUpdates,
     closeToTray: settings.closeToTray !== false,
     launchAtLogin: settings.launchAtLogin === true,
     preventSleepWhilePlaying: settings.preventSleepWhilePlaying !== false,

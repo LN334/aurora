@@ -26,6 +26,10 @@ interface UpdateState {
   busy: boolean
   /** 用户已经打开过更新页，左栏那颗点可以收了。 */
   note(): void
+  /** 「发现新版本」那张对话框开着没有。查到新版本会自动打开。 */
+  dialog: boolean
+  openDialog(): void
+  closeDialog(): void
   check(): Promise<void>
   download(): Promise<void>
   install(): Promise<void>
@@ -39,16 +43,30 @@ export const useUpdate = create<UpdateState>()((set, get) => ({
   result: null,
   noted: false,
   busy: false,
+  dialog: false,
 
   note() {
     set({ noted: true })
+  },
+
+  openDialog() {
+    set({ dialog: true })
+  },
+
+  closeDialog() {
+    set({ dialog: false })
   },
 
   async check() {
     if (!isNative || get().busy) return
     set({ busy: true })
     try {
-      set({ result: await bridge.updates.check() })
+      const result = await bridge.updates.check()
+      /*
+       * 查到新版本就弹出来，和 LightC / Ghost Downloader 一致：用户点「检查更新」
+       * 之后总得看到点什么，而不是只换一行小字。
+       */
+      set({ result, dialog: result.state === 'available' })
     } finally {
       set({ busy: false })
     }

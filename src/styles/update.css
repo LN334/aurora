@@ -67,6 +67,22 @@
   color: var(--text-hi);
 }
 
+/*
+ * 发布说明的三行截断。用 line-clamp 而不是手动截字符串：浏览器自己在末尾补
+ * 省略号，中文换行也不会把一句话从中间切断。
+ */
+.update__notes {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-width: 76ch;
+  font-size: var(--fs-meta);
+  line-height: 1.65;
+  color: var(--text-mid);
+  white-space: pre-wrap;
+}
+
 .update__actions {
   display: flex;
   flex-wrap: wrap;
@@ -226,4 +242,59 @@
   font-size: var(--fs-meta);
   line-height: 1.65;
   color: var(--text-mid);
+}
+
+/* --- 发现新版本 ---------------------------------------------------------- */
+
+/*
+ * 照 LightC / Ghost Downloader 的版本：标题、旧版 → 新版、一块可滚动的
+ * 更新内容，底下两个按钮。内容来自 GitHub 的 release body，长度不可控，
+ * 所以滚动交给中间那块，弹窗本身不长过窗口。
+ */
+.nm.updlg {
+  width: 520px;
+  max-width: calc(100vw - 48px);
+}
+.updlg__versions {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 0 14px;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+.updlg__size {
+  margin-left: auto;
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.updlg__head {
+  margin: 0 0 6px;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-low);
+}
+.updlg__notes {
+  max-height: min(46vh, 340px);
+  margin: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border-radius: var(--r-control);
+  background: rgb(var(--tint-rgb) / 0.04);
+  font-family: inherit;
+  font-size: var(--fs-meta);
+  line-height: 1.65;
+  color: var(--text-mid);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.updlg__empty {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed rgb(var(--tint-rgb) / 0.12);
+  border-radius: var(--r-control);
+  font-size: var(--fs-meta);
+  color: var(--text-low);
 }

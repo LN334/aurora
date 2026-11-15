@@ -25,7 +25,6 @@ const FALLBACK_SETTINGS: AppSettings = {
   onlineLyrics: false,
   updateInterval: 'daily',
   updateLastCheck: 0,
-  autoInstallUpdates: false,
   desktopLyrics: { size: 34, min: 18, max: 64 },
   closeToTray: true,
   launchAtLogin: false,
@@ -55,7 +54,6 @@ const FALLBACK_SETTINGS: AppSettings = {
   setOnlineLyrics(enabled: boolean): Promise<void>
   setLyricsSize(size: number): Promise<void>
   setUpdateInterval(interval: UpdateInterval): Promise<void>
-  setAutoInstall(enabled: boolean): Promise<void>
   /** 关闭按钮：收进托盘（true）或退出应用（false）。 */
   setCloseToTray(enabled: boolean): Promise<void>
   /** 开机自启。主进程负责系统登录项，未打包时只保存意愿。 */
@@ -81,9 +79,7 @@ export function useSettingsPage(): SettingsPage {
   const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS)
   const [prefs, setPrefs] = useState<UpdatePrefs>({
     interval: 'manual',
-    lastCheck: 0,
-    autoInstall: false,
-    autoInstallAvailable: false
+    lastCheck: 0
   })
   const [storage, setStorage] = useState<StorageUsage | null>(null)
   const [clearing, setClearing] = useState(false)
@@ -172,12 +168,6 @@ export function useSettingsPage(): SettingsPage {
           // 这一页的选中态读的是 settings，只写 prefs 会让按钮点完看着没动。
           setSettings((prev) => ({ ...prev, updateInterval: next.interval }))
         }
-      ),
-
-    setAutoInstall: (enabled) =>
-      write(
-        () => bridge.updates.setAutoInstall(enabled),
-        (next) => setPrefs(next)
       ),
 
     /*

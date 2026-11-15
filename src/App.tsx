@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
 import { AccountPage } from './views/AccountPage'
 import { useCollectedAlbums, useFollowedArtists } from './features/online/platform-collections'
 import { CollectionsPage } from './views/CollectionsPage'
@@ -13,7 +12,6 @@ import { LocalPage } from './views/LocalPage'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
 import { bindUpdateEvents } from './features/updates/store'
-import { armAutoRestart } from './features/updates/auto-restart'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
 import { useOnboarded, setOnboarded } from './features/settings/onboarding'
@@ -35,6 +33,7 @@ import { TitleBar } from './app/TitleBar'
 import type { TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
 import { UpdateToast } from './ui/UpdateToast'
+import { UpdateDialog } from './ui/UpdateDialog'
 import { WhatsNew } from './views/WhatsNew'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
@@ -125,10 +124,6 @@ import { Refraction } from './features/glass/Refraction'
  */
 let appRenders = 0
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => { finished: Promise<void> }
-}
-
 /**
  * The screens that show files on this disk.
  *
@@ -149,25 +144,19 @@ export function App() {  if (!isNative) {
 
   const [stack, setStack] = useState<ShellRoute[]>(() => [initialShell()])
   const [cursor, setCursor] = useState(0)
-  const viewTransitionActive = useRef(false)
   const commitPageChange = useCallback((update: () => void) => {
-    const start = (document as ViewTransitionDocument).startViewTransition
-    if (!start || document.documentElement.classList.contains('is-reduced-motion')) {
-      update()
-      return
-    }
-
-    viewTransitionActive.current = true
-    try {
-      const transition = start.call(document, () => flushSync(update))
-      void transition.finished.then(
-        () => { viewTransitionActive.current = false },
-        () => { viewTransitionActive.current = false }
-      )
-    } catch {
-      viewTransitionActive.current = false
-      update()
-    }
+    /*
+     * 换页不再包 View Transition。
+     *
+     * 包着的时候旧页/新页各拍一张整页快照再交叉溶解：滚动容器的 scrollTop 不同，
+     * 两张图对不齐，屏幕上是「上半截新页、下半截旧页」；而且回调里那次 flushSync
+     * 一旦没在同一个任务里提交完，快照阶段会一直挂着（实测 ready 不 resolve），
+     * 页面切换被推迟到超时，观感就是「点了没反应」。
+     *
+     * 现在换页是普通的一次 update：内容立刻换掉，位移交给 .main__body 上那条
+     * pageIn 动画（见 app.css）。封面飞入的锚点保留着，将来要恢复转场时不用重做。
+     */
+    update()
   }, [])
   /** 外壳路由：人在哪一页。左栏高亮、页头标题、地址栏都由它决定。 */
   const shell = stack[cursor] ?? { view: 'home' as ShellView }
@@ -433,7 +422,6 @@ export function App() {  if (!isNative) {
   // 更新状态由主进程推来（启动那次静默检查、下载进度、下载完成），这里把通道接上。
   useEffect(() => {
     bindUpdateEvents()
-    armAutoRestart()
   }, [])
 
   // 下载列表同样归主进程：面板关掉了任务也得继续跑。
@@ -462,21 +450,26 @@ export function App() {  if (!isNative) {
   }, [shell])
 
   /*
-   * 换页淡入只在「真的换了一页」时播，启动那次不播。
+   * 换页动画只在「真的换了一页」时播，启动那次不播。
    *
    * 动画本身在 app.css 里，由 .is-enter 触发：首帧没有这个类，正文一上来就是
    * 可见的。类用 DOM 直接加而不是走 state，是因为 key 已经把整块内容重挂过，
    * 这里只需要让浏览器重算一次动画；再引一个 state 只会多一次渲染。
+   *
+   * 这里不再跳过「正在做 View Transition」的情况：页面快照已经退出换页（见
+   * app.css 里 .main__body 那条注释），位移只能靠这条来做，跳过就等于没有动画。
    */
   const lastRoute = useRef<string | null>(null)
   useEffect(() => {
     const key = shell.view + ':' + (shell.id ?? '')
     const body = document.querySelector<HTMLElement>('.main__body')
-    if (body && !viewTransitionActive.current && lastRoute.current !== null && lastRoute.current !== key) {
+    if (body && lastRoute.current !== null && lastRoute.current !== key) {
       body.classList.remove('is-enter')
       // 读一次布局，让上面那次 remove 落地；否则同一帧里加回来不重启动画。
       void body.offsetWidth
       body.classList.add('is-enter')
+      const done = () => body.classList.remove('is-enter')
+      body.addEventListener('animationend', done, { once: true })
     }
     lastRoute.current = key
   }, [shell])
@@ -1230,6 +1223,9 @@ export function App() {  if (!isNative) {
 
           {/* 更新提示住在右下角：不弹模态、不抢焦点，但比左栏那颗点更容易被看见。 */}
           <UpdateToast />
+
+          {/* 「发现新版本」：查到新版弹一次，交代改了什么，下载与否由人按。 */}
+          <UpdateDialog />
 
           {/* 升级后第一次启动把这一版的改动摆出来，看过一次就不再出现。 */}
           <WhatsNew />
