@@ -726,6 +726,19 @@
   font-size: var(--fs-meta);
 }
 
+/* 「我喜欢的音乐」的搜索行：框在左，命中数在右。 */
+.lk-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s3) 0 var(--s4);
+}
+.lk-search__count {
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+}
+
 .rh-more {
   display: inline-flex;
   align-items: center;

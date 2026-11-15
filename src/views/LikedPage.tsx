@@ -12,6 +12,7 @@ import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { formatSpan } from '../ui/format'
 import { Play, Shuffle } from '../ui/icons'
+import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
 const SOURCES: Record<string, string> = {
@@ -70,6 +71,18 @@ export function LikedPage({
     )
   }, [liked, platformLiked, stamps, order])
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
+
+  /*
+   * 收藏到六百多首以后，找一首只能靠滚。搜索只筛列表，不动上面那张词卡：
+   * 卡是「你收藏的这些歌」的表情，筛到只剩三首时换一张脸反而像换了页面。
+   * 播放全部与随机也跟着筛后的列表走 —— 搜到了却播不到，是这个框最没用的状态。
+   */
+  const [query, setQuery] = useState('')
+  const shown = useMemo(() => {
+    const text = query.trim()
+    if (!text) return tracks
+    return tracks.filter((track) => shelfMatches(text, track.title, track.artist, track.album ?? ''))
+  }, [tracks, query])
 
   /* 网络慢的时候干等会让人以为卡死：八秒后给一句实话和一个重试。 */
   const [slow, setSlow] = useState(false)
@@ -214,7 +227,7 @@ export function LikedPage({
           <button
             className="rh-btn"
             type="button"
-            onClick={() => player.playQueue(shuffled(tracks), 0)}
+            onClick={() => player.playQueue(shuffled(shown), 0)}
           >
             <Shuffle size={13} />
             随机
@@ -233,13 +246,27 @@ export function LikedPage({
           </button>
         </span>
       </header>
-      <TrackList
-        tracks={tracks}
-        currentId={currentId}
-        playing={playing}
-        onPlayAt={(index) => player.playQueue(tracks, index)}
-        onMenu={onMenu}
-      />
+
+      <div className="lk-search">
+        <ShelfSearch value={query} placeholder="搜歌名、歌手、专辑" onChange={setQuery} />
+        {query.trim() ? (
+          <span className="lk-search__count">
+            {shown.length} / {tracks.length} 首
+          </span>
+        ) : null}
+      </div>
+
+      {shown.length === 0 ? (
+        <p className="shelf-empty">没有匹配的歌。</p>
+      ) : (
+        <TrackList
+          tracks={shown}
+          currentId={currentId}
+          playing={playing}
+          onPlayAt={(index) => player.playQueue(shown, index)}
+          onMenu={onMenu}
+        />
+      )}
     </div>
   )
 }
