@@ -215,6 +215,22 @@ http(s)、data、blob 三种地址。Aurora 的封面走的是应用私有协议
 「200 MB 字节预算」（`electron/pure/cover-cache-rules.ts`）：单张最多 3 MB，4000 个文件的旧口径
 最坏能占十几 G。
 
+## 平台 SDK 什么时候进内存
+
+四家平台的上游 SDK 不是小东西：网易云那个包实测常驻 RSS **+93 MB**，四家加起来 +102 MB。
+所以它们不该在启动路径上被无理由地拉起来。
+
+- **切档案只做 rebind。** `src/App.tsx` 的档案切换 effect 走 `useOnlineStore(id).rebind(profileId)`，
+  它只把会话指到新档案、丢掉上一个账号的歌单与收藏，**不问登录状态**。问登录状态才需要后端，
+  这一步由真正要数据的钩子自己调 `init`（例如 `src/features/online/daily.ts:70` 每家取数前
+  先 `init()`）。
+- **四家一视同仁。** 没有 `if (id === 'netease')`：谁被勾选谁才预热，谁要用数据谁才 `init`。
+  加第五家平台时，启动路径不用改。
+- **预热推到首帧之后。** `warmChosenPlatforms()` 原来发在 `render()` 之前，和首屏抢时间；
+  现在挂在双 `requestAnimationFrame` 的首帧回调里，等画面上了屏再拉起用户勾选的那几家。
+- **实测**（`scripts/probe-lazy-platforms.mjs`，同一台机器两轮）：默认四家全勾，主进程 383 MB；
+  只勾汽水，主进程 235 MB——差 148 MB。这就是「不用就不加载」的份量。
+
 ## 真实窗口巡检
 
 测试只覆盖纯逻辑，所以界面另有一条走真实 Electron 窗口的巡检：

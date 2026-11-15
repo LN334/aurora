@@ -208,6 +208,8 @@ export interface OnlineStore {
   loadingTracks: boolean
 
   init(): Promise<void>
+  /** Point the session at another profile without asking the backend anything. */
+  rebind(profileId: string): Promise<void>
   setQuality(quality: QualityTier): Promise<void>
   setQuery(query: string): void
   setSearchKind(kind: OnlineSearchKind): void
@@ -545,6 +547,23 @@ function createOnlineStore(providerId: ProviderId) {
         } finally {
           initInflight.delete(providerId)
         }
+      },
+
+      /**
+       * 切档案时只把会话指过去，不问登录状态。
+       *
+       * `init` 里的 `loginStatus` 会拉起平台后端：网易云那一步要 require 上游
+       * API 包（实测常驻 RSS +93 MB），QQ 要读 SDK，酷狗要 spawn 服务。切档案
+       * 本身只是一句「以后用这个账号」，不需要这些。真正要用数据时再由取数钩子
+       * 调 `init`，那时该加载的才加载。
+       */
+      async rebind(profileId: string) {
+        if (profileId === boundProfile) return
+        boundProfile = profileId
+        reset()
+        const platform = backend()
+        if (!platform) return
+        await platform.bindProfile?.(profileId).catch(() => undefined)
       },
 
       async setQuality(quality) {

@@ -60,14 +60,6 @@ setActiveStorageProfile(useAccounts.getState().activeId)
  */
 const openingProfile = useAccounts.getState().activeId
 if (openingProfile) void bridge.library.useProfile(openingProfile)
-/*
- * 开屏期间把用户勾选的推流平台先热起来。
- *
- * 发在 render 之前，和首屏绘制并行：酷狗要 spawn 本地服务、网易云要完成设备
- * 握手，等首页挂载后再踢就晚了一步。主进程只做与账号无关的冷启动，登录态和
- * 歌单仍由组件里的 init 去问，这里只把「等后端起来」那段挪进开屏里。
- */
-warmChosenPlatforms()
 
 const container = document.getElementById('root')
 if (!container) throw new Error('Root container #root is missing from index.html')
@@ -89,6 +81,14 @@ console.log('[boot] render dispatched', Math.round(performance.now()))
 requestAnimationFrame(() => {
   requestAnimationFrame(() => {
     console.log('[boot] first frame painted', Math.round(performance.now()))
-    // HomePage dismisses the animated cover after its initial content has settled.
+    /*
+     * 首帧之后才预热。
+     *
+     * 预热会把用户勾选的平台后端拉起来——网易云那一步要 require 上游 API 包，
+     * 实测常驻 RSS +93 MB——放在 render 之前等于让它和首屏抢同一段时间。推到
+     * 首帧之后，冷启动那段窗口期就不再被它拖长；用户点进漫游或搜索时，它多半
+     * 已经跑完了。
+     */
+    warmChosenPlatforms()
   })
 })

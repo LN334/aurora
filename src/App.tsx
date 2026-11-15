@@ -51,7 +51,8 @@ import { driver } from './features/player/driver'
 import { loadProfilePlayerPrefs, usePlayer } from './features/player/store'
 import { loadProfilePlaylists, usePlaylists } from './features/playlists/store'
 import { useAccounts } from './features/accounts/store'
-import { useNetease } from './features/netease/store'
+import { listProviders } from './features/online/registry'
+import { useOnlineStore } from './features/online/store'
 import { DesktopLyricsBridge } from './overlay/DesktopLyricsBridge'
 import { SettingsPage } from './views/settings/SettingsPage'
 import { useWindowVisibility } from './visibility'
@@ -736,12 +737,15 @@ export function App() {  if (!isNative) {
      */
     void loadProfilePlayerPrefs(activeAccountId)
     /*
-     * The online account is part of the profile too, so it is rebound on the
-     * same switch. `init` notices the profile changed, drops the previous
-     * account's playlists and collection, and asks the main process to point the
-     * session at this profile.
+     * The online account is part of the profile too, so every platform is
+     * rebound on the same switch. `rebind` only points the session at the new
+     * profile; it does not ask the backend for login status, because that is
+     * what pulls each platform's SDK into memory (netease alone is ~93 MB).
+     * Whoever needs real data calls `init` on its own.
      */
-    void useNetease.getState().init()
+    for (const provider of listProviders()) {
+      void useOnlineStore(provider.id).getState().rebind(activeAccountId ?? '')
+    }
     /*
      * Folders and the scan index are per profile as well. The main process is
      * told which profile before the index is read: doing both at once would
