@@ -19,7 +19,7 @@ import type { ProviderId } from './types'
  * 几家；以前是等渲染层的 init 把账号取回来，等于多等一个登录状态往返，页面
  * 就会先空上几秒。
  */
-function useSignedInPlatforms(): Record<string, boolean> | null {
+export function useSignedInPlatforms(): Record<string, boolean> | null {
   const [signed, setSigned] = useState<Record<string, boolean> | null>(null)
 
   useEffect(() => {

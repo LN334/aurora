@@ -1,5 +1,5 @@
 import type { ShellRoute } from '../app/shell'
-import { useFollowedArtists } from '../features/online/platform-collections'
+import { useFollowedArtists, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
@@ -16,14 +16,27 @@ import { User } from '../ui/icons'
  */
 export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const artists = useFollowedArtists()
+  const signed = useSignedInPlatforms()
 
+  /*
+   * 空页要说清是哪一种空。
+   *
+   * 这条通道只有网易云有，所以只看网易云：没登录时什么都不该显示；登录了却仍然
+   * 空，多半是会话过期（文件还在、能解密，服务端却已经不认了），这时只说「还没
+   * 有关注」等于把问题推回给用户。
+   */
   if (artists.length === 0) {
+    const netease = Boolean(signed?.netease)
     return (
       <div className="pg-empty">
-        <h2>还没有关注艺人</h2>
-        <p>在网易云音乐关注的艺人会出现在这里。</p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
-          去推荐页看看
+        <h2>{netease ? '没读到关注的艺人' : '还没有登录网易云'}</h2>
+        <p>
+          {netease
+            ? '如果确实在网易云关注过艺人，可能是登录过期了，重新登录一次就会回来。'
+            : '关注的艺人存在网易云账号里，登录之后这里才有东西可看。'}
+        </p>
+        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+          {netease ? '去重新登录' : '去登录'}
         </button>
       </div>
     )

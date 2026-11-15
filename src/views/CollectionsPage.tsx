@@ -1,5 +1,5 @@
 import type { ShellRoute } from '../app/shell'
-import { useCollectedAlbums } from '../features/online/platform-collections'
+import { useCollectedAlbums, useSignedInPlatforms } from '../features/online/platform-collections'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineAlbum } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
@@ -15,14 +15,27 @@ import { Note } from '../ui/icons'
  */
 export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const albums = useCollectedAlbums()
+  const signed = useSignedInPlatforms()
 
+  /*
+   * 空页要说清是哪一种空。
+   *
+   * 「还没有收藏专辑」在三种情况下都是同一句话：没登录、登录过期、真的没收藏。
+   * 前两种用户其实什么都没做错，只说「还没有」等于把问题丢回给他——所以按登录
+   * 状态分开说，并给出下一步该点哪里。
+   */
   if (albums.length === 0) {
+    const anySigned = Boolean(signed?.netease || signed?.qq)
     return (
       <div className="pg-empty">
-        <h2>还没有收藏专辑</h2>
-        <p>在平台上收藏的专辑会出现在这里。</p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
-          去推荐页看看
+        <h2>{anySigned ? '没读到收藏的专辑' : '还没有登录平台'}</h2>
+        <p>
+          {anySigned
+            ? '如果确实在网易云或 QQ 收藏过专辑，可能是登录过期了，重新登录一次就会回来。'
+            : '收藏的专辑存在平台账号里，登录网易云或 QQ 之后这里才有东西可看。'}
+        </p>
+        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+          {anySigned ? '去重新登录' : '去登录'}
         </button>
       </div>
     )
