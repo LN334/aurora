@@ -2068,10 +2068,10 @@ html.is-resizing {
   animation: none;
 }
 ::view-transition-old(aurora-page) {
-  animation: pageSnapshotOut 150ms var(--ease-out) both;
+  animation: pageSnapshotOut 160ms var(--ease-out) both;
 }
 ::view-transition-new(aurora-page) {
-  animation: pageSnapshotIn 220ms var(--ease-out) both;
+  animation: pageSnapshotIn 240ms var(--ease-out) both;
 }
 ::view-transition-group(playlist-cover) {
   overflow: hidden;
@@ -2092,11 +2092,15 @@ html.is-resizing {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/*
+ * 换成位移：原来只有 7px，配上 200ms 的淡入，屏幕上几乎看不出「换了一页」，
+ * 观感就是「内容闪了一下」。现在旧页往左退、新页从右进，位移看得出来但不夸张。
+ */
 @keyframes pageSnapshotOut {
-  to { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 0; transform: translateX(-22px); }
 }
 @keyframes pageSnapshotIn {
-  from { opacity: 0; transform: translateX(7px); }
+  from { opacity: 0; transform: translateX(26px); }
   to { opacity: 1; transform: translateX(0); }
 }
 

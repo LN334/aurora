@@ -124,7 +124,13 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    */
 
   /*
-   * Keep the playing track on screen.
+   * Keep the playing track on screen — but only while you stay on the page.
+   *
+   * The first run after mount is skipped on purpose. Every page mounts its own
+   * list, and the queue usually holds a track from somewhere else; following it
+   * on mount meant that opening a five-hundred-song playlist scrolled straight
+   * to the row of whatever was playing (often the last one), so the page looked
+   * like it "jumped to the end" instead of opening at the top.
    *
    * Keyed on the track id, not on render, so this fires when the track actually
    * changes. `block: 'nearest'` is the important part: a row that is already
@@ -137,7 +143,12 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
    * (a minimised window, a reduced-motion setting), and a track you cannot find
    * is worse than a scroll that does not glide.
    */
+  const followCurrent = useRef(false)
   useEffect(() => {
+    if (!followCurrent.current) {
+      followCurrent.current = true
+      return
+    }
     if (!currentId) return
     const index = tracks.findIndex((track) => track.id === currentId)
     // 正在播的那行还没挂上就先把窗口撑到它，下一轮渲染完再滚。
