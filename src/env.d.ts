@@ -1082,7 +1082,7 @@ export interface WallpaperInfo {
 export type WallpaperKind = 'none' | 'scene' | 'video' | 'web' | 'image'
 
 /** 壁纸自带的可调项类型。只剩这四种是真正能改的控件，其余在解析层就被丢掉了。 */
-export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo'
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo' | 'textinput'
 
 /**
  * Wallpaper Engine 工程自带的一项自定义设置（project.json 的 general.properties）。

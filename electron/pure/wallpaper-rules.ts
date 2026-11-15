@@ -250,7 +250,7 @@ export function parseLibraryFolders(vdfText: string): string[] {
  * There is no `textinput`: a free-text field needs a text box, and this page has
  * none. Those properties are dropped here rather than drawn as a dead row.
  */
-export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo'
+export type WallpaperPropertyType = 'slider' | 'bool' | 'color' | 'combo' | 'textinput'
 
 /**
  * One customizable option a wallpaper declares for itself.
@@ -294,7 +294,7 @@ export interface WallpaperProperty {
  * app does not implement. Showing a control that cannot work is worse than not
  * showing it.
  */
-const EDITABLE_PROPERTY_TYPES = new Set<string>(['slider', 'bool', 'color', 'combo'])
+const EDITABLE_PROPERTY_TYPES = new Set<string>(['slider', 'bool', 'color', 'combo', 'textinput'])
 
 /**
  * Wallpaper Engine's own colour scheme, which is not a wallpaper setting.
@@ -334,6 +334,11 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
     if (property) {
       // 静音项仍然留在表里：引擎要靠收到「关」才会真的关掉。
       if (isMutedControl(property.text)) property.muted = true
+      // 文本框一律清空：设置页没有输入框，留着非空值只会在画面上多一行字。
+      if (property.type === 'textinput') {
+        property.muted = true
+        property.mutedValue = ''
+      }
       if (isMarketingSwitch(property.text)) {
         property.muted = true
         property.mutedValue = true
@@ -403,14 +408,15 @@ function isHiddenControl(name: string, label: string): boolean {
  * - 音频感应：Aurora 不给壁纸音频（`volume: 0`，也没有环回采集），这类控件
  *   怎么调都不会有反应；「音频圈」是同一回事的可视化，一并关掉；
  * - 自定义文字：文字本身是 textinput，没有输入框可填，剩一个「显示自定义文字」
- *   的开关没有意义；
+ *   的开关没有意义；有些工程把它写成「壁纸文字」「Moving Text」，也是同一类
+ *   作者写在画面上的字，一并关掉；
  * - 帧率显示：作者调试用的，普通用户不需要。
  *
  * 只从设置页里拿掉是不够的：工程默认值常常是 true，不传值就等于没关。所以
  * 这几项仍然留在属性表里，带 `muted` 标记，渲染层按「关」传给引擎。
  */
 const MUTED_LABEL =
-  /音频感应|音频条|音频圈|自定义文字|帧率显示|帧率.*颜色|audio.*(?:bar|sens|ring)|custom text|frame rate/i
+  /音频感应|音频条|音频圈|自定义文字|壁纸文字|动态文字|文字动画|文字开关|文字颜色|帧率显示|帧率.*颜色|audio.*(?:bar|sens|ring)|custom text|wallpaper text|moving text|text color|frame rate/i
 
 function isMutedControl(label: string): boolean {
   return MUTED_LABEL.test(label)
@@ -478,6 +484,16 @@ function readProperty(name: string, entry: unknown): WallpaperProperty | null {
       if (options.length === 0) return null
       return { name, type, text, value: String(value), options }
     }
+    /*
+     * 文本框收进来只为把它清空。
+     *
+     * 设置页没有输入框，这些字段永远不显示；但很多工程把作者写的字直接放在
+     * `value` 里，场景脚本看到非空字符串就往画面上写字——光关掉「显示自定义
+     * 文字」那个开关，字还在（有的工程根本没有那个开关）。所以把 textinput
+     * 也读进属性表、标成静音项，交给引擎时统一传空串。
+     */
+    case 'textinput':
+      return { name, type, text, value: typeof value === 'string' ? value : String(value ?? '') }
   }
 
   return null

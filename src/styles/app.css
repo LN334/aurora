@@ -1832,6 +1832,25 @@ input::placeholder {
   height: 100% !important;
 }
 
+/*
+ * 重建场景时垫在下面的最后一帧。
+ *
+ * 旧 canvas 被原样搬进这一层（见 Backdrop.tsx 的 cleanup），新场景出第一帧后
+ * 再清空。它只在重建的那一两百毫秒里有内容，平时是空的。
+ */
+.wallpaper__frozen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wallpaper__frozen canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 
 /* --- 标签页（来源 / 栏目） ---------------------------------------------- */
 

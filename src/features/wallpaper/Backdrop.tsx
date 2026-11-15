@@ -47,10 +47,26 @@ interface SceneInstance {
  */
 let firstMountDone = false
 
+/**
+ * 属性变化后重建场景。
+ *
+ * 保留重建是因为 WE 的场景脚本通常只在初始化时读一次 `general.properties`，
+ * 热推对多数壁纸没有反应；重建期间的黑帧由上面那个「冻结最后一帧」的层盖住。
+ */
+const REBUILD_ON_PROPS = true
+
 export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const instanceRef = useRef<SceneInstance | null>(null)
+  /*
+   * 重建场景时垫在下面的最后一帧。
+   *
+   * 改属性会重建场景（解包 + 挂载约 0.1–2 秒），旧 canvas 一销毁、新 canvas 还
+   * 没画出来，中间就是黑的；用户拖一次滑杆连着重几次，看到的就是「背景一直闪黑」。
+   * 这里把旧 canvas 原样挪进这层，等新场景出第一帧再撤掉。
+   */
+  const frozenRef = useRef<HTMLDivElement>(null)
   const [sceneFailed, setSceneFailed] = useState(false)
   const [sceneReady, setSceneReady] = useState(false)
   const runsScene = entry?.kind === 'scene' && entry.hasPackage
@@ -172,6 +188,8 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
           instanceRef.current = null
         } else {
           setSceneReady(true)
+          /* 新场景已经出帧，垫在下面的最后一帧可以撤了。 */
+          frozenRef.current?.replaceChildren()
           if (document.visibilityState === 'hidden') {
             // 挂载发生在隐藏状态（启动时窗口就最小化）：先别开始出帧。
             instance.pause?.()
@@ -198,7 +216,17 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       }
       instance = null
       instanceRef.current = null
-      host.replaceChildren()
+      /*
+       * 把旧 canvas 挪到冻结层再清空 host：新场景要重理解包，这中间不能让用户
+       * 看到一块黑。
+       */
+      const canvas = host.querySelector('canvas')
+      const frozen = frozenRef.current
+      if (canvas && frozen) {
+        frozen.replaceChildren(canvas)
+      } else {
+        host.replaceChildren()
+      }
     }
   }, [runsScene, entry?.id, entry?.sourceUrl, quality, revision])
 
@@ -214,6 +242,14 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
     if (lastProps.current === props) return
     lastProps.current = props
     if (!instanceRef.current) return
+    /*
+     * 暂时只热推、不重建，先验证 setProperties 到底管不管用。
+     *
+     * 之前判定「热推无效」是在玻璃把壁纸糊住的条件下量的，那个结论站不住；
+     * 现在调属性时玻璃会变薄，同样的一次对比能给出真答案。若热推够用，
+     * 重建这条路连同它带来的黑帧就一起删掉。
+     */
+    if (!REBUILD_ON_PROPS) return
     const timer = window.setTimeout(() => setRevision((value) => value + 1), 400)
     return () => window.clearTimeout(timer)
   }, [props])
@@ -243,6 +279,7 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       data-title={entry.title}
     >
       {runsScene && !sceneFailed ? <div className="wallpaper__scene" ref={hostRef} /> : null}
+      {runsScene && !sceneFailed ? <div className="wallpaper__frozen" ref={frozenRef} /> : null}
 
       {sceneFallback && entry.previewUrl ? (
         <img className="wallpaper__media" src={entry.previewUrl} alt="" />

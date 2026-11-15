@@ -510,3 +510,21 @@ test('editableProperties hides the wallpaper audio, music and sponsor panels', (
 })
 
 
+
+test('editableProperties clears text inputs instead of showing them', () => {
+  /*
+   * 设置页没有输入框，文本框永远不显示；但工程里作者把字直接写在 value 里，
+   * 场景脚本看到非空就画字。所以它要进表、标静音、并且传空串——只把控件藏起来
+   * 是不会让画面上那行字消失的。
+   */
+  const properties = {
+    text_1: { type: 'textinput', value: '早安，打工人', text: '自定义文字' },
+    meteor: { type: 'bool', value: true, text: '流星' }
+  }
+
+  const list = editableProperties(properties)
+  const text = list.find((property) => property.name === 'text_1')
+  assert.ok(text)
+  assert.equal(text.muted, true)
+  assert.equal(text.mutedValue, '')
+})
