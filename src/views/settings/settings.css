@@ -679,6 +679,11 @@
   min-width: 0;
 }
 
+.wp-prop__text {
+  width: 240px;
+  max-width: 100%;
+}
+
 /* 宽屏下小节之间也只用线与留白分开，不再套一层卡片。 */
 @media (min-width: 1080px) {
   .set-part__body {

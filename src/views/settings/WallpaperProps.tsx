@@ -125,6 +125,20 @@ function PropertyRow({
             ))}
           </select>
         ) : null}
+        {property.type === 'textinput' ? (
+          /*
+           * 作者把字写在默认值里，场景一挂载就画上去；这个框是唯一能改它的地方。
+           * 输入框改一下就立刻写回 store，Backdrop 会把它热推给正在跑的实例。
+           */
+          <input
+            type="text"
+            className="input wp-prop__text"
+            aria-label={property.text || property.name}
+            placeholder="改掉作者写的字；清空会回到默认"
+            value={String(value)}
+            onChange={(event) => onChange(event.currentTarget.value)}
+          />
+        ) : null}
       </div>
     </div>
   )

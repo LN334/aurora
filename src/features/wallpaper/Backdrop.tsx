@@ -47,26 +47,10 @@ interface SceneInstance {
  */
 let firstMountDone = false
 
-/**
- * 属性变化后重建场景。
- *
- * 保留重建是因为 WE 的场景脚本通常只在初始化时读一次 `general.properties`，
- * 热推对多数壁纸没有反应；重建期间的黑帧由上面那个「冻结最后一帧」的层盖住。
- */
-const REBUILD_ON_PROPS = true
-
 export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const instanceRef = useRef<SceneInstance | null>(null)
-  /*
-   * 重建场景时垫在下面的最后一帧。
-   *
-   * 改属性会重建场景（解包 + 挂载约 0.1–2 秒），旧 canvas 一销毁、新 canvas 还
-   * 没画出来，中间就是黑的；用户拖一次滑杆连着重几次，看到的就是「背景一直闪黑」。
-   * 这里把旧 canvas 原样挪进这层，等新场景出第一帧再撤掉。
-   */
-  const frozenRef = useRef<HTMLDivElement>(null)
   const [sceneFailed, setSceneFailed] = useState(false)
   const [sceneReady, setSceneReady] = useState(false)
   const runsScene = entry?.kind === 'scene' && entry.hasPackage
@@ -84,8 +68,6 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
    */
   const propsRef = useRef(props)
   propsRef.current = props
-  /* 属性变化后用来触发一次重挂载；见下面「属性改了要重建场景」那段。 */
-  const [revision, setRevision] = useState(0)
   const lastProps = useRef(props)
 
   /**
@@ -188,8 +170,6 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
           instanceRef.current = null
         } else {
           setSceneReady(true)
-          /* 新场景已经出帧，垫在下面的最后一帧可以撤了。 */
-          frozenRef.current?.replaceChildren()
           if (document.visibilityState === 'hidden') {
             // 挂载发生在隐藏状态（启动时窗口就最小化）：先别开始出帧。
             instance.pause?.()
@@ -217,50 +197,32 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       instance = null
       instanceRef.current = null
       /*
-       * 把旧 canvas 挪到冻结层再清空 host：新场景要重理解包，这中间不能让用户
-       * 看到一块黑。
+       * 直接清空。
+       *
+       * 试过把旧 canvas 挪到一个冻结层里垫着，结果更糟：WebGL 上下文一销毁，
+       * canvas 就剩一张透明图，垫在下面等于露出壁纸层的底色，浅色主题下变成
+       * 「闪白」。所以不垫 canvas，改由 `.wallpaper` 自己垫一张 preview 图。
        */
-      const canvas = host.querySelector('canvas')
-      const frozen = frozenRef.current
-      if (canvas && frozen) {
-        frozen.replaceChildren(canvas)
-      } else {
-        host.replaceChildren()
-      }
+      host.replaceChildren()
     }
-  }, [runsScene, entry?.id, entry?.sourceUrl, quality, revision])
+  }, [runsScene, entry?.id, entry?.sourceUrl, quality])
 
   /*
-   * 属性改了要重建场景，只把新值推给实例是不够的。
+   * 属性改了只热推，绝不重挂场景。
    *
-   * WE 的场景脚本通常只在初始化时读一次 general.properties（作者把它当常量接进
-   * 着色器），热推新值对大多数壁纸没有任何反应——用户在设置页拖滑杆、拨开关，
-   * 画面一动不动，看起来就像「这些设置是假的」。重建一次要重新解包整个 pkg
-   * （144 MB 实测 83 ms），可以接受；拖滑杆会连续触发，所以等手停下 400ms。
-   */
-  useEffect(() => {
-    if (lastProps.current === props) return
-    lastProps.current = props
-    if (!instanceRef.current) return
-    /*
-     * 暂时只热推、不重建，先验证 setProperties 到底管不管用。
-     *
-     * 之前判定「热推无效」是在玻璃把壁纸糊住的条件下量的，那个结论站不住；
-     * 现在调属性时玻璃会变薄，同样的一次对比能给出真答案。若热推够用，
-     * 重建这条路连同它带来的黑帧就一起删掉。
-     */
-    if (!REBUILD_ON_PROPS) return
-    const timer = window.setTimeout(() => setRevision((value) => value + 1), 400)
-    return () => window.clearTimeout(timer)
-  }, [props])
-
-  /*
-   * 先把新值推给已挂载的实例：支持热更的场景会立刻响应，不支持的也没坏处，
-   * 反正 400ms 后还会重建一次。
+   * 0.8.3 / 0.8.4 为了「让属性真的生效」在属性变化后重挂过一次场景，代价是
+   * canvas 清空到新场景出帧之间有一到两帧空白：深色主题看着是闪黑，浅色主题
+   * 看着是闪白。用户的原话是「之前几个版本都没有这个问题的」——那几版不重挂，
+   * 所以不闪。壁纸是背景，稳定比「每个开关都生效」重要，重挂这条路撤掉。
+   *
+   * 热推对只在初始化时读一次属性的场景无效（实测初音那张），这是引擎侧的
+   * 限制；宁可某个开关没反应，也不要背景闪。
    */
   useEffect(() => {
     const instance = instanceRef.current
     if (!instance?.setProperties) return
+    if (lastProps.current === props) return
+    lastProps.current = props
     try {
       instance.setProperties(props)
     } catch {
@@ -277,9 +239,17 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       className={`wallpaper wallpaper--${sceneFallback ? 'scene' : entry.kind}${sceneReady ? ' is-ready' : ''}`}
       aria-hidden="true"
       data-title={entry.title}
+      /*
+       * 场景重挂或首帧没出来时，canvas 是透明的。底下垫一层这张壁纸自带的
+       * preview —— 同色系、本来就是他自己的画面，糊一下总比整块黑或整块白好。
+       */
+      style={
+        entry.kind === 'scene' && entry.previewUrl
+          ? { backgroundImage: `url("${entry.previewUrl}")` }
+          : undefined
+      }
     >
       {runsScene && !sceneFailed ? <div className="wallpaper__scene" ref={hostRef} /> : null}
-      {runsScene && !sceneFailed ? <div className="wallpaper__frozen" ref={frozenRef} /> : null}
 
       {sceneFallback && entry.previewUrl ? (
         <img className="wallpaper__media" src={entry.previewUrl} alt="" />

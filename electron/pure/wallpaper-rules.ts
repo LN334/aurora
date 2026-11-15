@@ -333,12 +333,9 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
     const property = readProperty(name, entry)
     if (property) {
       // 静音项仍然留在表里：引擎要靠收到「关」才会真的关掉。
-      if (isMutedControl(property.text)) property.muted = true
-      // 文本框一律清空：设置页没有输入框，留着非空值只会在画面上多一行字。
-      if (property.type === 'textinput') {
-        property.muted = true
-        property.mutedValue = ''
-      }
+      // 文本框例外：用户要能自己改字（默认值里的那行作者签名没法在别处关掉），
+      // 所以它永远显示，哪怕文案里带「自定义文字」这种会被静音规则命中的词。
+      if (property.type !== 'textinput' && isMutedControl(property.text)) property.muted = true
       if (isMarketingSwitch(property.text)) {
         property.muted = true
         property.mutedValue = true

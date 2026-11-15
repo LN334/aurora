@@ -1728,6 +1728,9 @@ input::placeholder {
   overflow: hidden;
   pointer-events: none;
   background: var(--ink-1000);
+  /* 场景 canvas 重挂期间是透明的，底图由 Backdrop 的 inline style 提供。 */
+  background-position: center;
+  background-size: cover;
 }
 
 .wallpaper__media {
@@ -1827,25 +1830,6 @@ input::placeholder {
 }
 
 .wallpaper__scene canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/*
- * 重建场景时垫在下面的最后一帧。
- *
- * 旧 canvas 被原样搬进这一层（见 Backdrop.tsx 的 cleanup），新场景出第一帧后
- * 再清空。它只在重建的那一两百毫秒里有内容，平时是空的。
- */
-.wallpaper__frozen {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.wallpaper__frozen canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;

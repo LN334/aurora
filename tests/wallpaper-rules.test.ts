@@ -511,11 +511,13 @@ test('editableProperties hides the wallpaper audio, music and sponsor panels', (
 
 
 
-test('editableProperties clears text inputs instead of showing them', () => {
+test('editableProperties keeps text inputs editable even when the label looks muted', () => {
   /*
-   * 设置页没有输入框，文本框永远不显示；但工程里作者把字直接写在 value 里，
-   * 场景脚本看到非空就画字。所以它要进表、标静音、并且传空串——只把控件藏起来
-   * 是不会让画面上那行字消失的。
+   * 文本框必须留在面板里、而且不能被静音规则吞掉。
+   *
+   * 作者常把「自定义文字」这种字样写进标签，正好会被 HIDDEN/MUTED 的文案规则命中；
+   * 但作者又把默认文字写进 value，场景一挂载就画上去——面板里没有输入框的话，
+   * 用户永远没法把那行字改掉。所以 textinput 优先于静音规则。
    */
   const properties = {
     text_1: { type: 'textinput', value: '早安，打工人', text: '自定义文字' },
@@ -525,6 +527,6 @@ test('editableProperties clears text inputs instead of showing them', () => {
   const list = editableProperties(properties)
   const text = list.find((property) => property.name === 'text_1')
   assert.ok(text)
-  assert.equal(text.muted, true)
-  assert.equal(text.mutedValue, '')
+  assert.equal(text.muted, undefined)
+  assert.equal(text.value, '早安，打工人')
 })
