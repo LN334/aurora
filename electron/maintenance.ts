@@ -60,7 +60,10 @@ export interface JunkScan {
 }
 
 const JUNK_LABELS: Record<JunkId, string> = {
-  cache: '缓存',
+  // 「缓存」这个词在应用里已经被在线音频缓存占用了（设置 → 下载）。这一项删的是
+  // Chromium 自己那些 Cache / Code Cache / GPUCache，删掉只会让下次开页慢一点，
+  // 与听过的歌在不在本机无关，所以名字要分开。
+  cache: '界面缓存',
   logs: '日志',
   crashes: '崩溃转储'
 }

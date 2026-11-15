@@ -42,7 +42,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         </Rows>
       </Sub>
 
-      <Sub title="垃圾文件" hint="缓存、日志与崩溃转储，不影响曲库与登录。">
+      <Sub title="垃圾文件" hint="界面缓存、日志与崩溃转储。听过的歌留在「下载」那边的在线缓存里，这里不动它。">
         {junk ? (
           <Rows>
             {junk.parts.map((part) => (
@@ -55,7 +55,8 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
             </Row>
             <Row
               label="整个数据目录"
-              hint={page.storage?.userData ?? '曲库、封面缓存、登录状态与日志都在这里。'}
+              hint="曲库、歌单、登录状态、在线缓存与日志都在这里。"
+              title={page.storage?.userData}
             >
               <span className="settings__number">
                 {page.storage?.userDataBytes != null
@@ -86,7 +87,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         {confirming ? (
           <>
             <p className="settings__confirm">
-              立即删除日志与崩溃转储；缓存下次启动前清掉。曲库与登录状态不受影响。
+              立即删除日志与崩溃转储；界面缓存下次启动前清掉。曲库、登录状态与在线缓存的歌都不受影响。
             </p>
             <div className="settings__danger">
               <button
