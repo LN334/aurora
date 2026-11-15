@@ -77,17 +77,12 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
                */
               const routeId = Number(artist.id)
               const openable = Number.isFinite(routeId) && routeId > 0
-              return (
-                <button
-                  className="rh-card"
-                  type="button"
-                  key={artist.key}
-                  onClick={
-                    openable
-                      ? (event) => openOnlineArtist(artist.providerId, routeId, event.currentTarget)
-                      : undefined
-                  }
-                >
+              /*
+               * 不可点的那几张（QQ 只给 mid，转不成路由用的数字 id）不做成按钮：
+               * 按钮点了没反应，比不是按钮更让人以为界面坏了。
+               */
+              const body = (
+                <>
                   <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
                     <Artwork
                       src={artist.avatarUrl ? remoteImageUrl(sizedImage(artist.avatarUrl, 300), 300) : null}
@@ -103,7 +98,22 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
                   </span>
                   <span className="rh-card__title">{artist.name}</span>
                   <span className="rh-card__sub">{subtitle(artist)}</span>
+                </>
+              )
+
+              return openable ? (
+                <button
+                  className="rh-card"
+                  type="button"
+                  key={artist.key}
+                  onClick={(event) => openOnlineArtist(artist.providerId, routeId, event.currentTarget)}
+                >
+                  {body}
                 </button>
+              ) : (
+                <div className="rh-card rh-card--still" key={artist.key} title="这一家没有可打开的艺人页">
+                  {body}
+                </div>
               )
             })}
           </div>

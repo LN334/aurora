@@ -805,6 +805,11 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 26px rgb(var(--shade-rgb) / 0.4);
 }
+/* 不可点的卡不跟着抬：抬起来却不响应，像是坏了。 */
+.rh-card--still:hover .rh-card__art {
+  transform: none;
+  box-shadow: 0 8px 20px rgb(var(--shade-rgb) / 0.32);
+}
 
 .rh-card__title {
   margin-top: var(--s3);
