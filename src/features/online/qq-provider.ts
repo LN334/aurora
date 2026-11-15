@@ -282,7 +282,7 @@ const qqBackend: PlatformBackend = {
   available: () => previewBackendsForced() || client() !== null,
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
-  // 收藏专辑与关注歌手都是账号里的关系；没有后端时 client() 是 null，两条如实缺席。
+  // 收藏专辑是账号里的关系；没有后端时 client() 是 null，这条如实缺席。
   collectedAlbums: async () => {
     const api = client()
     if (!api) return []
@@ -290,11 +290,10 @@ const qqBackend: PlatformBackend = {
     // QQ 的年份是「有就带上」，共用形状里按 0 表示不知道。
     return list.map((album) => ({ ...album, year: album.year ?? 0 }))
   },
-  followedArtists: async () => {
-    const api = client()
-    if (!api) return []
-    return api.followedArtists()
-  },
+  // 关注歌手这一条先不挂：上游 fcg_order_singer_getlist.fcg 现在对任何 g_tk 都回
+  // HTTP 500（不带 g_tk 则 1006 g_token is wrong），网页版 cookie 里也没有 skey。
+  // 底层的 transport/normalize/client/ipc 都留着，抓到真实请求后在这里加回一行即可。
+  // 不挂比挂着好——挂着就是给用户看一条永远为空的通道。
   qualityTiers: TIERS,
   getQuality: qqBackend.getQuality,
   setQuality: qqBackend.setQuality,
