@@ -34,6 +34,7 @@ import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
 import type { TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
+import { UpdateToast } from './ui/UpdateToast'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
 import { ChevronLeft, Close, Expand, Plus, Queue, Refresh } from './ui/icons'
@@ -1225,6 +1226,9 @@ export function App() {  if (!isNative) {
               </button>
             </div>
           ) : null}
+
+          {/* 更新提示住在右下角：不弹模态、不抢焦点，但比左栏那颗点更容易被看见。 */}
+          <UpdateToast />
 
           {/* 换页时换 key：新内容整块重挂，入场动画才会播（.main__body 上那条 pageIn）。 */}
           <div className="main__body" key={shell.view + ':' + (shell.id ?? '')}>{body()}</div>

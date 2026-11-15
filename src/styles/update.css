@@ -87,3 +87,105 @@
   color: var(--text-mid);
   user-select: text;
 }
+
+/* =============================================================================
+   右下角的更新提示条
+   ========================================================================== */
+
+/*
+ * 一条常驻但不抢焦点的提示：不弹模态、不自动消失、不挡播放条。
+ * bottom 让出播放条的高度，右侧留 16px；宽 316 是能放下「发现新版本 0.8.1」和
+ * 两颗按钮的最小宽度，再窄按钮就会换行。
+ */
+.uptoast {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--player-h) + 16px);
+  z-index: 60;
+  width: 316px;
+  padding: 14px 16px 12px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
+  border-radius: var(--r-panel);
+  background: rgb(var(--plane-rgb) / 0.94);
+  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: 0 18px 44px -18px rgb(var(--shade-rgb) / 0.5);
+  /*
+   * 用 @starting-style 做入场，不用 keyframes：动画帧在窗口被遮挡时不会推进，
+   * 一旦停在第一帧，提示条会长时间是透明的（探针截图就撞上过）。transition 的
+   * 起始值只在插入那一帧生效，元素本身的计算值一直是 1。
+   */
+  transition: opacity var(--dur-3) var(--ease-out), translate var(--dur-3) var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+.uptoast__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-low);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.uptoast__close:hover {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+
+.uptoast__title {
+  margin: 0 26px 4px 0;
+  font-size: var(--fs-body);
+  color: var(--text-hi);
+}
+.uptoast__title strong {
+  font-weight: 600;
+}
+
+.uptoast__meta {
+  margin: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.uptoast__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: 10px;
+}
+/* 「立即下载」在左、且两颗按钮一样高，比一主一次挤成一行更清楚。 */
+.uptoast__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uptoast__bar {
+  position: relative;
+  height: 3px;
+  margin: 8px 0 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.12);
+}
+.uptoast__bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uptoast {
+    transition: none;
+  }
+}

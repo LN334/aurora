@@ -297,6 +297,15 @@ export const Refresh = (p: IconProps) => (
   </Svg>
 )
 
+/** 下载（更新提示条上的「立即下载」）。 */
+export const Download = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4v11" />
+    <path d="M7.5 10.5 12 15l4.5-4.5" />
+    <path d="M5 19.5h14" />
+  </Svg>
+)
+
 /** 喜欢（我喜欢的歌曲、收藏页的一级入口）。 */
 export const Heart = (p: IconProps) => (
   <Svg {...p}>
