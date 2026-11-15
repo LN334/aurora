@@ -239,7 +239,10 @@ const webFallback: AuroraApi = {
     // 而不是编一个「已释放 0 B」让人以为清理过了。
     memory: async () => ({ freedBytes: 0, processes: 0 }),
     scan: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 }),
-    clean: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 })
+    clean: async () => ({ parts: [], totalBytes: 0, deferredBytes: 0, cleanedBytes: 0 }),
+    // 备份要读写数据目录，浏览器里没有这个东西 —— 明说，不假装写成功。
+    exportBackup: async () => ({ ok: false as const, reason: '浏览器里没有本地数据目录' }),
+    restoreBackup: async () => ({ ok: false as const, reason: '浏览器里没有本地数据目录' })
   },
   player: {
     reportState: async () => true,

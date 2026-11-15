@@ -1,9 +1,32 @@
 import { useState } from 'react'
 import type { JunkId } from '../../../env'
 import { formatBytes, useSettingsPage } from '../../../features/settings/store'
+import { bridge } from '../../../bridge'
 import { Actions, Row, Rows, Sub } from '../parts'
 
 const ALL_JUNK: JunkId[] = ['cache', 'logs', 'crashes']
+
+/**
+ * 只收自己的持久化键。
+ *
+ * localStorage 里可能还躺着别的东西（调试插件、主题试色），备份不该把它们
+ * 当成「用户数据」一起带走。
+ */
+function storageSnapshot(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index)
+    if (!key || !key.startsWith('aurora')) continue
+    const value = localStorage.getItem(key)
+    if (value != null) out[key] = value
+  }
+  return out
+}
+
+function fileName(path: string): string {
+  const parts = path.split(/[\\/]/)
+  return parts[parts.length - 1] || path
+}
 
 /**
  * 05 清理与维护。
@@ -13,8 +36,48 @@ const ALL_JUNK: JunkId[] = ['cache', 'logs', 'crashes']
  */
 export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const [confirming, setConfirming] = useState(false)
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backupNote, setBackupNote] = useState('')
   const junk = page.junk
   const memory = page.memory
+
+  async function runExport() {
+    setBackupBusy(true)
+    try {
+      const result = await bridge.maintenance.exportBackup(storageSnapshot())
+      setBackupNote(
+        result.ok ? `已保存 ${fileName(result.path)} · ${result.summary}` : `没有导出：${result.reason}`
+      )
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  async function runRestore() {
+    setBackupBusy(true)
+    try {
+      const result = await bridge.maintenance.restoreBackup()
+      if (!result.ok) {
+        setBackupNote(`没有导入：${result.reason}`)
+        return
+      }
+      let written = 0
+      for (const [key, value] of Object.entries(result.storage)) {
+        try {
+          localStorage.setItem(key, value)
+          written += 1
+        } catch {
+          // 配额满了就停下：写进去一半比完全不写更难看懂。
+          break
+        }
+      }
+      setBackupNote(
+        `已导入 ${result.summary}，写回 ${written} 项；重启后生效。导入前的旧数据留在 backup-before-restore。`
+      )
+    } finally {
+      setBackupBusy(false)
+    }
+  }
 
   return (
     <>
@@ -121,6 +184,28 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
             ) : null}
           </Actions>
         )}
+      </Sub>
+
+      <Sub
+        title="备份"
+        hint="把设置、曲库、歌单与收听记录打进一个文件。登录状态不进备份 —— 换了机器重新登录就行。"
+      >
+        <Rows>
+          <Row label="导出备份" hint="选个位置存下来，文件名带时间。">
+            <button className="btn" disabled={backupBusy} onClick={() => void runExport()}>
+              {backupBusy ? '请稍候' : '导出'}
+            </button>
+          </Row>
+          <Row
+            label="导入备份"
+            hint="会覆盖当前数据；导入前旧文件自动留在 backup-before-restore 里。"
+          >
+            <button className="btn" disabled={backupBusy} onClick={() => void runRestore()}>
+              {backupBusy ? '请稍候' : '导入'}
+            </button>
+          </Row>
+        </Rows>
+        {backupNote ? <p className="settings__hint">{backupNote}</p> : null}
       </Sub>
     </>
   )

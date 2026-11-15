@@ -10,6 +10,7 @@ import type { MediaCommand } from './tray'
 import type { WindowVisibilityState } from './pure/scan-progress'
 import type { WallpaperEntry, WallpaperInfo } from './wallpaper'
 import type { JunkId, JunkScan, MemoryRelease } from './maintenance'
+import type { BackupExportResult, BackupRestoreResult } from './backup'
 
 /**
  * The only surface the renderer gets. Everything crossing this bridge is an
@@ -214,7 +215,17 @@ const api = {
     memory: () => ipcRenderer.invoke('maintenance:memory') as Promise<MemoryRelease>,
     scan: () => ipcRenderer.invoke('maintenance:scan') as Promise<JunkScan>,
     clean: (ids: JunkId[]) =>
-      ipcRenderer.invoke('maintenance:clean', ids) as Promise<JunkScan>
+      ipcRenderer.invoke('maintenance:clean', ids) as Promise<JunkScan>,
+
+    /*
+     * 备份与恢复。
+     *
+     * 持久化键由渲染层打包交给主进程（localStorage 只有渲染层拿得到），
+     * 主进程负责选路径、写文件与校验格式。
+     */
+    exportBackup: (storage: Record<string, string>) =>
+      ipcRenderer.invoke('backup:export', storage) as Promise<BackupExportResult>,
+    restoreBackup: () => ipcRenderer.invoke('backup:restore') as Promise<BackupRestoreResult>
   },
 
   /**

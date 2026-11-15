@@ -257,11 +257,29 @@ export interface JunkScan {
   cleanedBytes: number
 }
 
+/** 备份的结果：成功时给出一句话摘要，失败时给出能读的原因。 */
+type BackupExportOutcome =
+  | { ok: true; path: string; summary: string }
+  | { ok: false; reason: string }
+
+type BackupRestoreOutcome =
+  | { ok: true; storage: Record<string, string>; summary: string; kept: string }
+  | { ok: false; reason: string }
+
 /** 维护：只动本应用自己的进程与目录，不接受任何外部路径。 */
 interface MaintenanceApi {
   memory(): Promise<MemoryRelease>
   scan(): Promise<JunkScan>
   clean(ids: JunkId[]): Promise<JunkScan>
+  /**
+   * 导出备份。
+   *
+   * 持久化键由渲染层打包传进去 —— localStorage 只有渲染层读得到；主进程
+   * 负责选路径、写文件，并按白名单决定哪些文件进备份。
+   */
+  exportBackup(storage: Record<string, string>): Promise<BackupExportOutcome>
+  /** 导入备份。会话文件不在名单里，登录状态不会跟着搬家。 */
+  restoreBackup(): Promise<BackupRestoreOutcome>
 }
 
 export type MediaCommand = 'toggle' | 'next' | 'prev' | 'volume-up' | 'volume-down'
