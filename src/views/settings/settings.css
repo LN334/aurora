@@ -75,7 +75,18 @@
   width: 100%;
   max-width: none;
   margin-inline: 0;
-  padding: var(--s2) 0 var(--s6);
+  /*
+   * 整列一块玻璃。
+   *
+   * 行表本身是透明的（只有发丝线），壁纸一花，标题与说明就直接压在画面上了——
+   * 实测在亮色场景壁纸下几乎读不出来。所以底色挪到这里：整列一层，行与行之间
+   * 不再各包一张卡。
+   */
+  padding: var(--s5) var(--s6) var(--s6);
+  border-radius: var(--r-panel);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  background: rgb(var(--plane-rgb) / 0.58);
+  backdrop-filter: blur(18px) saturate(1.1);
 }
 
 
@@ -718,24 +729,6 @@
   margin-bottom: 30px;
 }
 
-.settings__row {
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  /*
-   * 卡片自己带一层可读底色。
-   *
-   * 之前只有 4.5% 的前景色，壁纸一亮（比如亮色场景壁纸）标题就跟背景糊在一起。
-   * 现在是 62% 的背景色加一层模糊：浅色主题是白卡，深色主题是深灰卡，两边的
-   * 正文都压得住底图。
-   */
-  background: rgb(var(--plane-rgb) / 0.62);
-  backdrop-filter: blur(10px);
-}
-.settings__row:hover {
-  background: rgb(var(--plane-rgb) / 0.74);
-}
-
 .set-rows {
   display: flex;
   flex-direction: column;
@@ -854,34 +847,14 @@
   width: 100%;
 }
 
-/* 行卡以前是很淡的一层（白 3.5%），亮壁纸下文字直接压在建筑上，读起来像和背景
-   叠在一起。换成与首页卡片同一配方：白 5.5% + 模糊，壁纸再亮也有一层底。 */
-.settings__row {
-  background: rgb(var(--tint-rgb) / 0.055);
-  backdrop-filter: blur(14px) saturate(1.15);
-}
-.settings__row:hover {
-  background: rgb(var(--tint-rgb) / 0.085);
-}
-
 /* 行卡不用模糊（壁纸一亮，backdrop-filter 会把背后糊成一片白雾），但也不用厚底：
-   整页的大板去掉之后，0.62 的实底会让每一行变成一条悬着的横条。降到 0.34 只当轻托底，
-   分隔交给发丝线，压文字交给字色。悬停时再抬一点点。 */
-.settings__row {
-  background: rgb(10 12 16 / 0.34);
-  backdrop-filter: none;
-  border-color: rgb(var(--tint-rgb) / 0.075);
-}
-.settings__row:hover {
-  background: rgb(10 12 16 / 0.46);
-}
+   整页的大板去掉之后，0.62 的实底会让每一行变成一条悬着的横条。这里只留行表本身，
+   可读性交给 .settings__body 那一块整底的玻璃。 */
 
 /*
  * 分段之内不再各包一张卡：那样一层套一层，像表格叠表格。分段之间只留一条发丝线。
  *
- * 整页不再垫一层大玻璃板：行走过一轮之后已经是不透明的深底（上面那条 rgb(10 12 16 / 0.62)），
- * 大板叠在下面只会把整页压成一层灰膜，边界也露在内容外面，看着像贴了块脏玻璃。
- * 现在留白就是留白，压得住文字的是行卡自己。
+ * 可读性交给外层的 .settings__body：整列一块玻璃，行卡保持通透的行表。
  */
 .set-part__body {
   padding: 0;
