@@ -473,8 +473,9 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                     return
                   }
                   /*
-                   * 只有一个版本时直接写，但只写能写的：主行是 QQ（没有收藏接口）
-                   * 而这一版就是它时，给一句实话，而不是发一个注定失败的请求。
+                   * 只有一个版本时直接写；写不了的那家（没实现 likes 的平台）给一句
+                   * 实话，而不是发一个注定失败的请求。四家现在都实现了收藏，这条
+                   * 兜底是留给以后新接的平台。
                    */
                   const target = targets[0]
                   likeAt(target, target?.label ?? '这一家')
