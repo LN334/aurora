@@ -147,7 +147,8 @@ export function LikedPage({
   return (
     <div className="col">
       <button
-        className="lk-hero"
+        // 一首带歌词的都没有时这张卡就只剩「播放全部」的用处，收成一条安静的入口条。
+        className={excerpt.length === 0 ? 'lk-hero is-quiet' : 'lk-hero'}
         type="button"
         onClick={() => player.playQueue(tracks, 0)}
         title={`播放全部 ${tracks.length} 首`}
@@ -156,13 +157,15 @@ export function LikedPage({
           * 词在上、标题在下。不铺封面：这三行词本身就是卡面，铺一张图反而要
           * 压暗、要挑有封面的歌，浅色主题里还会像一块贴错地方的深色板。
           */}
-        <span className="lk-hero__words">
-          {excerpt.map((line, index) => (
-            <span className="lk-hero__line" key={`${index}-${line}`}>
-              {line}
-            </span>
-          ))}
-        </span>
+        {excerpt.length > 0 ? (
+          <span className="lk-hero__words">
+            {excerpt.map((line, index) => (
+              <span className="lk-hero__line" key={`${index}-${line}`}>
+                {line}
+              </span>
+            ))}
+          </span>
+        ) : null}
         <span className="lk-hero__foot">
           <span className="lk-hero__titles">
             <span className="lk-hero__title">我喜欢的音乐</span>

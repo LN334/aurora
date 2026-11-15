@@ -285,12 +285,37 @@ export function appSettings(): AppSettings {
   }
 }
 
+/**
+ * The pre-profile folder list still sitting in `settings.json`.
+ *
+ * `library-paths.ts` moves these keys into the first profile that asks, and that
+ * request only happens after the renderer has named its profile. The update
+ * check can run before it and rewrite this file; without carrying the keys over,
+ * that write would delete the old folder list before anyone adopted it.
+ */
+function legacyLibraryKeys(): Record<string, unknown> {
+  try {
+    const raw = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as Record<string, unknown>
+    const kept: Record<string, unknown> = {}
+    for (const key of ['roots', 'excluded', 'rootsDiscovered']) {
+      if (key in raw) kept[key] = raw[key]
+    }
+    return kept
+  } catch {
+    return {}
+  }
+}
+
 export function saveSettings(patch: Partial<Settings>): Settings {
   const next: Settings = { ...loadSettings(), ...patch }
   cache = next
   try {
     fs.mkdirSync(path.dirname(settingsFile()), { recursive: true })
-    fs.writeFileSync(settingsFile(), JSON.stringify(next, null, 2), 'utf8')
+    fs.writeFileSync(
+      settingsFile(),
+      JSON.stringify({ ...legacyLibraryKeys(), ...next }, null, 2),
+      'utf8'
+    )
   } catch (error) {
     console.error('[aurora] could not persist settings', error)
   }

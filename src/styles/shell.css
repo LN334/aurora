@@ -462,6 +462,13 @@
   outline-offset: 2px;
 }
 
+/* 没有歌词可摘时，卡只剩入口的作用：收成一条，不要留一大块空白。 */
+.lk-hero.is-quiet {
+  min-height: 84px;
+  gap: var(--s2);
+  padding: var(--s4) var(--s5);
+}
+
 .lk-hero__words {
   position: relative;
   display: flex;

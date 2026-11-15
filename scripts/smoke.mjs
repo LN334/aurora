@@ -253,7 +253,16 @@ async function main() {
     if (!fs.existsSync(LIBRARY)) fail('library folder not found: ' + LIBRARY)
     fs.writeFileSync(
       path.join(PROFILE, 'settings.json'),
-      JSON.stringify({ roots: [LIBRARY], rootsDiscovered: true }, null, 2)
+      // trayHintShown has to be here: a settings file without it is treated as
+      // pre-0.3 and rewritten on load, which would drop the folder list before
+      // the profile adopts it.
+      // The folder list is validated as absolute paths on the main side, so a
+      // relative --library has to be resolved here or the seed is silently dropped.
+      JSON.stringify(
+        { trayHintShown: false, roots: [path.resolve(LIBRARY)], rootsDiscovered: true },
+        null,
+        2
+      )
     )
     console.log('smoke: seeded library root ' + LIBRARY)
   }
@@ -262,9 +271,18 @@ async function main() {
   delete env.ELECTRON_RUN_AS_NODE
 
   const command = EXE ?? path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe')
-  const argv = EXE
-    ? ['--remote-debugging-port=' + PORT, '--user-data-dir=' + PROFILE, '--disable-gpu']
-    : ['.', '--remote-debugging-port=' + PORT, '--user-data-dir=' + PROFILE, '--disable-gpu']
+  /*
+   * Windows 的遮挡检测会在窗口被别的窗口盖住时停画，CDP 截图于是拿到最后一帧
+   * 提交前的旧画面（开屏页）。巡检窗口从不在前台，必须把这个关掉，否则截图
+   * 与断言对不上：断言读的是 DOM，图却是开屏。
+   */
+  const windowArgs = [
+    '--remote-debugging-port=' + PORT,
+    '--user-data-dir=' + PROFILE,
+    '--disable-gpu',
+    '--disable-features=CalculateNativeWinOcclusion'
+  ]
+  const argv = EXE ? windowArgs : ['.', ...windowArgs]
 
   console.log('smoke: launching ' + path.basename(command) + ' on port ' + PORT)
   const child = spawn(command, argv, { cwd: ROOT, env, stdio: 'ignore' })
@@ -306,14 +324,25 @@ async function main() {
        * 先等后台扫描结束（扫描中会在页面上写「正在扫描」），再切回首页确认索引真的
        * 长成了行 —— 这一步同时是「播种曲库确实被读到」的断言。
        */
+      /*
+       * 首页「现在」在空档案下没有歌曲行，播种的落点是「本机」。先等后台扫描
+       * 把索引写出来 —— 这比等页面上出现「正在扫描」准，页面重绘有延迟。
+       */
       const scanDeadline = Date.now() + 180000
+      let indexed = 0
       while (Date.now() < scanDeadline) {
-        const scanning = await evaluate(cdp, '(document.body.innerText || "").includes("正在扫描")')
-        if (!scanning) break
-        await sleep(500)
+        indexed = await evaluate(
+          cdp,
+          '(async () => (await window.aurora.library.getIndex()).tracks.length)()'
+        )
+        if (indexed > 0) break
+        await sleep(400)
       }
-      await clickStep(cdp, { view: 'now', kind: 'rail', label: '现在', title: '推荐' })
-      await sleep(600)
+      if (indexed === 0) fail('the seeded library was never indexed')
+      console.log('smoke: indexed ' + indexed + ' tracks')
+
+      await clickStep(cdp, { kind: 'rail', label: '本机' })
+      await sleep(400)
       const rowsDeadline = Date.now() + 30000
       let rendered = 0
       while (Date.now() < rowsDeadline) {
@@ -323,6 +352,24 @@ async function main() {
       }
       if (rendered === 0) fail('the seeded library rendered no rows')
       console.log('smoke: library rendered ' + rendered + ' rows')
+
+      /*
+       * 喜欢页与最近播放空档案下只有空态，新加的词卡与按天分组看不出对不对。
+       * 点几颗心、播一首，这两页才有东西可验；下面走 JOURNEY 时补两条断言。
+       */
+      const likedSeeded = await evaluate(
+        cdp,
+        [
+          '(() => {',
+          '  const hearts = Array.from(document.querySelectorAll(".trk__like")).slice(0, 3)',
+          '  for (const heart of hearts) heart.click()',
+          '  return hearts.length',
+          '})()'
+        ].join('\n')
+      )
+      console.log('smoke: seeded ' + likedSeeded + ' likes')
+      await evaluate(cdp, 'document.querySelector(".trk__hit")?.click()')
+      await sleep(2500)
     }
 
     // 首次启动的引导会挡住列表点击，先收起来再走。
@@ -371,6 +418,18 @@ async function main() {
       if (logged.length) problems.push(logged.length + ' console error(s)')
       if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
       if (probe.brokenCount && !NO_NETWORK) problems.push(probe.brokenCount + ' broken image(s)')
+
+      // 播种过曲库时，这两页不该是空态；空态说明词卡或分组没渲染出来。
+      if (LIBRARY && step.view === 'liked') {
+        if (!(await evaluate(cdp, 'Boolean(document.querySelector(".lk-hero"))'))) {
+          problems.push('liked page has no lyric card')
+        }
+      }
+      if (LIBRARY && step.view === 'recent') {
+        if ((await evaluate(cdp, 'document.querySelectorAll(".rv-day").length')) === 0) {
+          problems.push('recent page has no day groups')
+        }
+      }
 
       rows.push({
         ...step,
