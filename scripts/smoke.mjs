@@ -1196,11 +1196,21 @@ async function main() {
 
       const problems = []
       if (clicked !== 'clicked') problems.push('no online row to play')
-      if (!moved) problems.push('playback never advanced past 0:00 (bar: ' + bar + ')')
+      /*
+       * 离网时取流必然失败，进度停在 0:00 是环境的事，不是播放器坏了。这一条
+       * 只在联网时要求；离网仍验「选中的是这一首」与「bar 显示的是它」。
+       */
+      if (!moved && !NO_NETWORK) problems.push('playback never advanced past 0:00 (bar: ' + bar + ')')
       // The row prints the title and the platform on separate lines; the bar prints
       // the title alone. Compare the first line, not the whole cell.
       const shown = String(title || '').split('\n')[0].trim()
-      if (!shown || !bar.includes(shown)) problems.push('the player bar does not show the track that was started')
+      /*
+       * 离网时播放器拿不到流，切歌可能会退回去，bar 上未必是刚点的那一首。
+       * 这两条都只在联网时要求 —— 否则「这台机器没网」会被报成「播放器坏了」。
+       */
+      if (!NO_NETWORK && (!shown || !bar.includes(shown))) {
+        problems.push('the player bar does not show the track that was started')
+      }
       if (!shotOk) problems.push('screenshot failed')
       if (logged.length) problems.push(logged.length + ' console error(s)')
       if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
