@@ -38,12 +38,14 @@
 }
 
 .settings__tab:hover {
-  background: color-mix(in oklab, var(--text-hi) 6%, transparent);
+  /* 不用 color-mix：浅色主题下 --text-hi 是近黑，混出来的底在浅背景上
+     偏重，看起来像「只有这一块还是深色」。墨色 token 深浅各一套，稳。 */
+  background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-hi);
 }
 
 .settings__tab.is-active {
-  background: color-mix(in oklab, var(--text-hi) 10%, transparent);
+  background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
   font-weight: 600;
 }

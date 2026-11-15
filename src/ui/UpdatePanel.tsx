@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../bridge'
+import { formatBytes } from '../features/settings/store'
 import { useUpdate } from '../features/updates/store'
 import { Refresh } from './icons'
 
@@ -54,13 +55,15 @@ export function UpdatePanel() {
             <p>已是最新版本 {version}</p>
           ) : result.state === 'available' ? (
             <>
+              {/*
+               * 手动这条路只回答两件事：哪一版、多大。发布说明有一整页，塞进
+               * 设置页会把「要不要现在下」这个决定淹掉；想看内容去更新公告或
+               * 发布页。
+               */}
               <p className="update__headline">
                 有新版本 <strong>{result.info.version}</strong>
-                {result.info.name && result.info.name !== `Aurora ${result.info.version}`
-                  ? ` · ${result.info.name}`
-                  : ''}
+                {result.info.size > 0 ? ` · ${formatBytes(result.info.size)}` : ''}
               </p>
-              {result.info.notes ? <pre className="update__notes">{result.info.notes}</pre> : null}
               <div className="update__actions">
                 <button className="btn btn--accent" onClick={() => void download()} disabled={busy}>
                   下载 {result.info.version}

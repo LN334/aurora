@@ -77,6 +77,8 @@ export interface UpdateInfo {
   notes: string
   url: string
   publishedAt: string
+  /** 安装包字节数；发布页没附安装包时为 0，界面上就不写大小。 */
+  size: number
 }
 
 /**
@@ -126,6 +128,13 @@ function publishTarget(): { owner: string; repo: string } | null {
   }
 }
 
+/** 安装包大小：发布页上第一个 `.exe` 附件的字节数，没有就是 0。 */
+function setupSize(assets: GithubRelease['assets']): number {
+  const setup = assets?.find((asset) => /\.exe$/i.test(asset.name ?? ''))
+  const size = Number(setup?.size ?? 0)
+  return Number.isFinite(size) && size > 0 ? size : 0
+}
+
 /** Markdown to something readable in a narrow panel. Approximate on purpose. */
 function plainNotes(markdown: string): string {
   return markdown
@@ -148,6 +157,8 @@ interface GithubRelease {
   published_at?: string
   draft?: boolean
   prerelease?: boolean
+  /** 发布页上的附件；安装包大小就取这里，界面上要写「多大」。 */
+  assets?: Array<{ name?: string; size?: number }>
 }
 
 /** The release the last check found, so a manual download can reuse it. */
@@ -227,7 +238,8 @@ async function probeRelease(): Promise<UpdateResult> {
         name: release.name?.trim() || `Aurora ${latest}`,
         notes: plainNotes(release.body ?? ''),
         url,
-        publishedAt: release.published_at ?? ''
+        publishedAt: release.published_at ?? '',
+        size: setupSize(release.assets)
       }
     }
   } catch (error) {

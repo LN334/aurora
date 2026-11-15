@@ -935,14 +935,15 @@ input::placeholder {
 .settings__notice {
   margin: 0 0 var(--s4);
   padding: var(--s3);
-  border: var(--line-soft);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-left: 2px solid var(--ink-500);
   border-radius: 0 var(--r-panel) var(--r-panel) 0;
-  background: var(--ink-850);
+  background: rgb(var(--tint-rgb) / 0.05);
   font-size: var(--fs-meta);
   line-height: 1.7;
   color: var(--text-mid);
-  max-width: 76ch;
+  /* 这句是一整句话，中间断开会让「重要数据」被拆成两行；按内容宽度放宽。 */
+  max-width: 96ch;
 }
 .settings__notice strong {
   color: var(--text-hi);

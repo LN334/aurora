@@ -47,8 +47,10 @@
   gap: var(--s3);
   padding: var(--s3) var(--s4);
   border-radius: var(--r-panel);
-  background: var(--ink-850);
-  border: var(--line-soft);
+  /* 用一层淡淡的墨色，而不是页面底色：`--ink-850` 在浅色主题下几乎等于白，
+     在深色主题下又只比页面深一点，两边都像「多画了一条横杠」。 */
+  background: rgb(var(--tint-rgb) / 0.06);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   font-size: var(--fs-meta);
   color: var(--text-mid);
 }
@@ -188,4 +190,39 @@
   .uptoast {
     transition: none;
   }
+}
+
+/*
+ * 升级公告：比普通弹窗宽一点，内容自己滚。
+ *
+ * 一版往往有六七条改动，全部铺开会把弹窗顶出屏幕；给正文一个上限高度，
+ * 剩下的交给滚动，标题与按钮始终留在原位。
+ */
+.wnew {
+  width: 520px;
+  max-width: calc(100vw - 48px);
+}
+.wnew__body {
+  max-height: min(56vh, 460px);
+  margin: 14px 0 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.wnew__group + .wnew__group {
+  margin-top: 16px;
+}
+.wnew__head {
+  margin: 0 0 6px;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-low);
+}
+.wnew__list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--fs-meta);
+  line-height: 1.65;
+  color: var(--text-mid);
 }

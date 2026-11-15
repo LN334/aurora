@@ -100,6 +100,8 @@ export interface UpdateInfo {
   notes: string
   url: string
   publishedAt: string
+  /** 安装包字节数；发布页没有安装包附件时为 0。 */
+  size: number
 }
 
 /**
