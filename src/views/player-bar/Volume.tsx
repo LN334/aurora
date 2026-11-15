@@ -29,6 +29,13 @@ export function Volume({
         label={muted ? '取消静音' : '静音'}
         tip={text}
         onClick={onToggleMute}
+        /*
+         * 滚轮在静音键上也调音量。
+         *
+         * 只挂在滑条上时，鼠标得先精确落到那条 84px 的线上才滚得动；人从
+         * 静音键上滚一下没反应，会以为滚轮坏了。
+         */
+        onWheel={(event) => onVolume(wheelVolume(effective, event.deltaY > 0 ? -1 : 1))}
       >
         {effective === 0 ? <VolumeMute size={18} /> : <VolumeIcon size={18} />}
       </ControlButton>

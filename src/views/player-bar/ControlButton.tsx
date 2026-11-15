@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, WheelEvent } from 'react'
 
 /**
  * 播放条上的每一颗图标键。
@@ -19,6 +19,8 @@ interface ControlButtonProps {
   /** 原生 title：要带快捷键时用它，气泡仍旧是 tip 那个短词。 */
   hint?: string
   onClick(): void
+  /** 滚轮：静音键那种「人在键上就想滚一下」的场景。 */
+  onWheel?(event: WheelEvent<HTMLButtonElement>): void
   disabled?: boolean
   /** 开关型按钮：打开时点亮。 */
   active?: boolean
@@ -36,6 +38,7 @@ export function ControlButton({
   tip,
   hint,
   onClick,
+  onWheel,
   disabled,
   active,
   pressed,
@@ -53,6 +56,7 @@ export function ControlButton({
       type="button"
       className={classes.join(' ')}
       onClick={onClick}
+      onWheel={onWheel}
       disabled={disabled}
       title={hint ?? tip ?? label}
       data-tip={tip}

@@ -493,6 +493,17 @@ export function NowPlayingPage({
                 onClick={() => player.toggleMute()}
                 title={muted ? '取消静音' : '静音'}
                 aria-label={muted ? '取消静音' : '静音'}
+                /*
+                 * 滚轮挂在按键上，不只挂在滑条上。
+                 *
+                 * 滑条平时是浮层，鼠标得先探到它上面才滚得动；而人是先看到
+                 * 静音键、顺手就滚的。两处走同一个换算，音量不会因为入口
+                 * 不同而一格大一格小。
+                 */
+                onWheel={(event) => {
+                  if (muted) player.toggleMute()
+                  player.setVolume(wheelVolume(muted ? 0 : volume, event.deltaY > 0 ? -1 : 1))
+                }}
               >
                 {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
               </button>
@@ -500,7 +511,6 @@ export function NowPlayingPage({
                 <span className="np__vol-val">{muted ? '静音' : Math.round(volume * 100)}</span>
                 <Bar
                   className="np__vol-bar"
-                  vertical
                   value={muted ? 0 : volume}
                   onChange={(next) => {
                     // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。

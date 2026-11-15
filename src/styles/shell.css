@@ -1811,28 +1811,30 @@
 .np__vol::before {
   content: '';
   position: absolute;
-  right: -14px;
+  left: 50%;
   bottom: 100%;
-  width: 58px;
+  width: 132px;
   height: 24px;
+  transform: translateX(-50%);
 }
 .np__vol-pop {
   position: absolute;
-  right: -8px;
+  left: 50%;
   bottom: calc(100% + 6px);
   display: flex;
-  flex-direction: column;
+  /* 横向：数值在左、滑条在右，浮在静音键正上方。竖条会把这一行顶得很高。 */
   align-items: center;
-  gap: 6px;
-  padding: 8px 9px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 12px;
   background: rgb(10 13 18 / 0.62);
   box-shadow:
     0 18px 40px -18px rgb(0 0 0 / 0.72),
     inset 0 0 0 1px rgb(255 255 255 / 0.1);
   backdrop-filter: blur(16px) saturate(120%);
+  white-space: nowrap;
   opacity: 0;
-  transform: translateY(6px);
+  transform: translate(-50%, 6px);
   pointer-events: none;
   transition:
     opacity 160ms var(--ease-out),
@@ -1841,7 +1843,7 @@
 .np__vol:hover .np__vol-pop,
 .np__vol:focus-within .np__vol-pop {
   opacity: 1;
-  transform: none;
+  transform: translate(-50%, 0);
   pointer-events: auto;
 }
 .np__vol-val {
@@ -1849,10 +1851,12 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-mid);
   line-height: 1;
+  min-width: 18px;
+  text-align: center;
 }
 .np__vol-bar {
-  width: 20px;
-  height: 58px;
+  width: 96px;
+  height: 18px;
 }
 
 /* —— 歌词 —— */
