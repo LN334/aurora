@@ -282,12 +282,23 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
   缓存 30 秒，全程只读：不启动、不修改 Wallpaper Engine。
 - **协议**（`aurora-wallpaper://wp/<id>/<相对路径>`）：把 id 映射回扫描到的项目目录、拒绝
   越界（`isInside`）、支持 Range 206，缩略图和视频都从这条协议取。
+- **场景包不走 fetch**：`scene.pkg` 动辄 100–300 MB，而自定义协议的 `fetch` 在这套 Electron
+  里会直接 `Failed to fetch`（`<img>` 正常，但 `webwallgl` 的 `httpSource` 走 fetch）。因此
+  主进程加了 `wallpaper:scenePkg` 频道，`Backdrop.tsx` 把引擎的 `source.scenePkg()` 接到
+  `bridge.wallpaper.scenePkg(id)` 上，一次 IPC 把整包读过去（144 MB 实测 83 ms）。引擎拿不到
+  包时会退回 `preview.gif`——那张图通常只有两三百像素，看起来就是「壁纸很糊、还不动」。
+- **不让背景自己动**：`.wallpaper__media` 不加 `scale`、不加 keyframes。场景/视频自身的动画
+  已经够，外面再套一层缓动只会让静态预览图看起来在「莫名裁切」，也会让 `backdrop-filter`
+  每帧重采样、玻璃后面的字时清时糊。
 - **渲染层**（`src/features/wallpaper/`）：`pure.ts` 是选择规则的纯函数（存了什么、跟随当前、
   项目里挑哪个入口文件），`store.ts` 把开关/选择/可见度写进 localStorage
   （`aurora.backdrop.wallpaper`、`.id`、`.strength`），`Backdrop.tsx` 对场景壁纸动态
   `import('webwallgl')` 挂载 `.pkg`，其余 kind 直接出 `<video>` / `<iframe>` / `<img>`。
   外壳加 `has-wallpaper` 类，CSS 用 `--wp-level` 把 rail / main / player 的底色改成半透明，
   再用一层 veil 压暗背景，保证文字对比不被壁纸吃掉。
+- **可见属性**：`wallpaper-rules.ts` 的 `editableProperties` 只留下音频监听、播放速度、鼠标
+  视差、对齐、位置、翻转、图片筛选器；`volume` / `music` / `media` / `sponsor` 与 `schemecolor`
+  一律不显示——音量对没有自带播放器的壁纸永远是 0，后两个是作者面板与赞助入口。
 - **CSP**：`index.html` 的 `img-src` / `media-src` / `connect-src` 必须列出
   `aurora-wallpaper:`，否则 Chromium 在协议处理器之前就拒绝缩略图、视频与场景包的 fetch。
   场景里动态加载的字体是 `blob:`，所以 `font-src` 要带上 `blob:`。
