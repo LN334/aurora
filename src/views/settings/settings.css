@@ -360,7 +360,7 @@
   margin-inline: auto;
   min-height: 78px;
   padding: var(--s4) var(--s5);
-  border: 1px dashed rgb(255 255 255 / 0.18);
+  border: 1px dashed rgb(var(--tint-rgb) / 0.18);
   border-radius: var(--r-panel);
   background: rgb(0 0 0 / 0.22);
   color: var(--text-hi);
@@ -564,9 +564,9 @@
   height: 24px;
   padding: 0 7px;
   border-radius: 6px;
-  border: 1px solid rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
   border-bottom-width: 2px;
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   font: inherit;
   font-size: var(--fs-meta);
   line-height: 1;
@@ -702,11 +702,11 @@
 .settings__row {
   padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid rgb(255 255 255 / 0.075);
-  background: rgb(255 255 255 / 0.045);
+  border: 1px solid rgb(var(--tint-rgb) / 0.075);
+  background: rgb(var(--tint-rgb) / 0.045);
 }
 .settings__row:hover {
-  background: rgb(255 255 255 / 0.065);
+  background: rgb(var(--tint-rgb) / 0.065);
 }
 
 .set-rows {
@@ -715,7 +715,7 @@
   gap: 8px;
 }
 .set-rows > .settings__row:first-child {
-  border-top: 1px solid rgb(255 255 255 / 0.06);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.06);
 }
 
 .settings__label {
@@ -745,9 +745,9 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border: 1px solid rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
   border-radius: 10px;
-  background: rgb(255 255 255 / 0.03);
+  background: rgb(var(--tint-rgb) / 0.03);
 }
 
 .settings__order-index {
@@ -771,7 +771,7 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-radius: 7px;
   background: none;
   color: var(--text-mid);
@@ -785,7 +785,7 @@
 }
 
 .settings__order-move:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.08);
+  background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
 }
 
@@ -830,11 +830,11 @@
 /* 行卡以前是很淡的一层（白 3.5%），亮壁纸下文字直接压在建筑上，读起来像和背景
    叠在一起。换成与首页卡片同一配方：白 5.5% + 模糊，壁纸再亮也有一层底。 */
 .settings__row {
-  background: rgb(255 255 255 / 0.055);
+  background: rgb(var(--tint-rgb) / 0.055);
   backdrop-filter: blur(14px) saturate(1.15);
 }
 .settings__row:hover {
-  background: rgb(255 255 255 / 0.085);
+  background: rgb(var(--tint-rgb) / 0.085);
 }
 
 /* 行卡不用模糊（壁纸一亮，backdrop-filter 会把背后糊成一片白雾），但也不用厚底：
@@ -843,7 +843,7 @@
 .settings__row {
   background: rgb(10 12 16 / 0.34);
   backdrop-filter: none;
-  border-color: rgb(255 255 255 / 0.075);
+  border-color: rgb(var(--tint-rgb) / 0.075);
 }
 .settings__row:hover {
   background: rgb(10 12 16 / 0.46);
@@ -863,7 +863,7 @@
 .settings__row {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 0;
   padding: 14px 2px;
   /* 行卡悬停只提亮一点点底色，没有过渡时整片页面扫过去像在闪开关。 */
@@ -877,7 +877,7 @@
   border-top: 0;
 }
 .settings__row:hover {
-  background: rgb(255 255 255 / 0.025);
+  background: rgb(var(--tint-rgb) / 0.025);
 }
 
 .set-rows {
@@ -888,7 +888,7 @@
 .set-sub + .set-sub {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px solid rgb(255 255 255 / 0.07);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
 }
 
 /* 快捷键行以前直接压在壁纸上。放进分区卡之后补一条线和内边距，和上面的行同一节奏。 */
@@ -897,7 +897,7 @@
   align-items: center;
   gap: var(--s4);
   padding: 9px 2px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.06);
 }
 .set-keygroup:last-of-type .set-keyrow:last-child {
   border-bottom: 0;
@@ -913,7 +913,7 @@
 .settings__order-item {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.07);
   border-radius: 0;
   padding: 10px 2px;
 }
@@ -962,8 +962,8 @@
   flex: none;
   border-radius: 11px;
   object-fit: cover;
-  background: rgb(255 255 255 / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
 }
 
 .set-icon__notice {
