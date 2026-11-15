@@ -279,6 +279,11 @@ export interface WallpaperProperty {
    * passed to the engine with a fixed value — see `MUTED_LABEL`.
    */
   muted?: boolean
+  /**
+   * The value a muted control gets. Defaults to false for switches and the slider
+   * minimum, but a "hide the author's banner" switch has to be turned *on*.
+   */
+  mutedValue?: boolean | number | string
 }
 
 /**
@@ -329,6 +334,10 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
     if (property) {
       // 静音项仍然留在表里：引擎要靠收到「关」才会真的关掉。
       if (isMutedControl(property.text)) property.muted = true
+      if (isMarketingSwitch(property.text)) {
+        property.muted = true
+        property.mutedValue = true
+      }
       ordered.push({ property, order: orderOf(asRecord(entry), position) })
     }
     position += 1
@@ -378,7 +387,7 @@ function isHiddenProperty(name: string): boolean {
  * 音频监听、播放速度、对齐、镜头与组件的位置大小这些真正的开关不动。
  */
 const HIDDEN_LABEL =
-  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我|鼠标视差|mouse parallax|早中晚|时间组件|日期组件|星期组件|time component|date component|week component/i
+  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size|手机壁纸|获取方式|个人主页|原画师|三连|BV号|动态制作|交流群|粉丝群|关注我|订阅我|鼠标视差|mouse parallax|早中晚|时间组件|日期组件|星期组件|time component|date component|week component|微信|B站|bilibili|up主|鞭策/i
 
 /** 属性名与文案两重过滤；任一命中就不显示。 */
 function isHiddenControl(name: string, label: string): boolean {
@@ -401,6 +410,17 @@ const MUTED_LABEL = /音频感应|音频条|自定义文字|帧率显示|帧率.
 
 function isMutedControl(label: string): boolean {
   return MUTED_LABEL.test(label)
+}
+
+/*
+ * 有些作者给了一个「关闭作者营销词」的开关：打开它，场景里的横幅就收起来。
+ * 这种开关本身是正经功能，但对玩家来说只有一个正确答案 —— 收起来。所以不给入口，
+ * 直接按「打开」传给引擎（注意方向：它要的是 true，不是 false）。
+ */
+const MARKETING_SWITCH = /关闭.*营销|隐藏.*营销|hide marketing|disable marketing/i
+
+function isMarketingSwitch(label: string): boolean {
+  return MARKETING_SWITCH.test(label)
 }
 
 

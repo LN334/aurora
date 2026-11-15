@@ -279,6 +279,25 @@ test('editableProperties drops mouse parallax and the clock decorations', () => 
   )
 })
 
+test('editableProperties hides the author link rows and force-enables the marketing switch', () => {
+  // 「微信」「鞭策up主的B站」这类只跳转不调画面的行直接藏掉；
+  // 「关闭作者营销词」是正经开关，但只有一个正确答案——打开它。
+  const properties = {
+    a: { type: 'bool', value: true, text: '微信' },
+    b: { type: 'bool', value: true, text: '❤鞭策up主~~❤ 输了去路广的B站 (点击跳转)' },
+    c: { type: 'bool', value: false, text: '关闭作者营销词 Hide marketing words' },
+    d: { type: 'bool', value: true, text: '🔘流星 Meteor' }
+  }
+  const list = editableProperties(properties)
+  assert.deepEqual(
+    list.map((property) => [property.name, property.muted ?? false, property.mutedValue ?? null]),
+    [
+      ['c', true, true],
+      ['d', false, null]
+    ]
+  )
+})
+
 test('editableProperties drops the author banner rows and survives a missing semicolon', () => {
   // 作者常在属性里塞「手机壁纸获取方式」「我的主页」「原画师」，这些不是画面参数；
   // `&nbsp` 还常常漏掉结尾分号，剥不干净就会顶着 `&nbsp` 显示。
