@@ -289,10 +289,10 @@
   cursor: default;
 }
 
-/* 模式键比传输键再轻半档：图标小一号，视觉上退到第二层。 */
+/* 模式键与视图键同高：一排放着，差两像素会让整排读起来歪。 */
 .pb-btn--mode {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
 }
 
 /*
@@ -412,7 +412,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 2px;
+  gap: 4px;
 }
 
 /* 视图键与音量不是一个层级，用一根发丝线分开。 */

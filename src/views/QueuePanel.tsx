@@ -6,6 +6,7 @@ import type { Track } from '../types'
 import { useRoam } from '../features/player/roam-session'
 import { formatTime } from '../ui/format'
 import { ArtistName } from '../ui/NameRef'
+import { sourceLabelById } from '../features/online/registry'
 import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
 import { usePresence } from '../ui/presence'
 
@@ -52,6 +53,15 @@ function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, onJump,
             </span>
           ) : null}
           <span className="queue-row__title-text">{track.title || '（无标题）'}</span>
+          {/*
+            队列常常是几家混在一起排的，所以在标题后标一下来源；本机文件不标，
+            面板本来就窄，一列「本机」只会挤掉标题。
+          */}
+          {track.source && track.source !== 'local' ? (
+            <span className={`badge trk__src queue-row__src trk__src--${track.source}`}>
+              {sourceLabelById(track.source)}
+            </span>
+          ) : null}
         </span>
         <span className="queue-row__artist"><ArtistName track={track} /></span>
         <span className="queue-row__time tnum">{formatTime(track.duration)}</span>

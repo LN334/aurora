@@ -336,6 +336,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 队列面板窄，来源徽章压到 9.5px，只当注脚。 */
+.queue-row__src {
+  flex: none;
+  font-size: 9.5px;
+  padding: 0 3px;
+}
 
 .queue-row__artist {
   min-width: 0;

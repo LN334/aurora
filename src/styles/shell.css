@@ -1724,10 +1724,35 @@
 }
 
 /* —— 操作行 —— */
+/*
+ * 一行三组：左边这一首的操作（喜欢、播放模式），中间传输键，右边音量。
+ *
+ * 以前七个按钮平铺、间距一样，喜欢和「上一首」隔着同样的 8px，看起来像同一
+ * 组；播放键也因此被左右不等宽的邻居挤得偏一点。两侧给同样的固定宽度，播放
+ * 键才正好落在封面中线上。
+ */
 .np__acts {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: var(--s3);
+}
+.np__acts-side {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 78px;
+}
+.np__acts-side--start {
+  justify-content: flex-end;
+}
+.np__acts-side--end {
+  justify-content: flex-start;
+}
+.np__acts-transport {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .np__like,
@@ -1755,6 +1780,12 @@
   color: var(--accent-strong);
 }
 
+/*
+ * 播放键：底用「最亮的前景色」，图标用「最暗的背景色」。
+ *
+ * 原来图标写死 #10131a。深色主题下底是白、图标黑，没问题；浅色主题下
+ * --text-hi 本身是近黑，底和图标一起变黑，整个键就成了一颗黑洞。
+ */
 .np__play {
   width: 54px;
   height: 54px;
@@ -1764,7 +1795,7 @@
   border-radius: 50%;
   margin: 0 6px;
   background: var(--text-hi);
-  color: #10131a;
+  color: var(--ink-1000);
   box-shadow: 0 10px 26px -10px rgb(var(--shade-rgb) / 0.7);
 }
 .np__play:hover {
@@ -2117,14 +2148,37 @@
 
 /* 来源徽标进歌曲信息行，不再单独占一条顶部栏。 */
 .np__badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-right: 8px;
-  padding: 1px 7px;
+  padding: 1px 7px 1px 6px;
   border-radius: 999px;
   background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-low);
   font-size: 10.5px;
   vertical-align: 1px;
+}
+/* 与列表徽章同一套色点：一看颜色就知道这一首从哪家来。 */
+.np__badge::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--src-dot, rgb(var(--tint-rgb) / 0.4));
+}
+.np__badge--netease {
+  --src-dot: #d9524e;
+}
+.np__badge--qq {
+  --src-dot: #3fa86a;
+}
+.np__badge--kugou {
+  --src-dot: #2f8fe0;
+}
+.np__badge--qishui {
+  --src-dot: #7c8798;
 }
 
 /* 顶部那行搬去外壳页头后，主体自己撑开垂直空间。 */
@@ -3051,6 +3105,39 @@
   min-width: 0;
   align-items: center;
   gap: var(--s4);
+}
+
+/*
+ * 本机页的四视图切换。
+ *
+ * 原来是四枚各自带底的 chip 并排——四个白药丸占了一整条，选中的那枚又突然
+ * 变成深色，读起来像一排按钮而不是一组互斥的视图。改成一段分槽：外圈一层
+ * 淡底，选中项只是比邻居亮一档。
+ */
+.lm-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.06);
+}
+.lm-tabs .chip {
+  height: 24px;
+  padding: 0 var(--s3);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-low);
+}
+.lm-tabs .chip:hover {
+  color: var(--text-hi);
+}
+.lm-tabs .chip.is-active {
+  background: rgb(var(--plane-rgb) / 0.94);
+  box-shadow:
+    0 1px 2px rgb(var(--shade-rgb) / 0.16),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
 }
 .lm-order {
   flex: none;

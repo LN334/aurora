@@ -5,6 +5,7 @@ import type { Track } from '../types'
 import { formatSpan, formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
 import { artworkFor } from '../features/library/source'
+import { sourceLabelById } from '../features/online/registry'
 import { Artwork } from '../ui/Artwork'
 import { Note, Play, Trash, Wave } from '../ui/icons'
 import { DetailHero } from './DetailHero'
@@ -224,6 +225,12 @@ export function PlaylistDetailPage({
                       </span>
                     ) : null}
                     <span className="pl-track__title-text">{track.title || '（无标题）'}</span>
+                    {/* 歌单常把几家平台的歌混在一起，标题后标一下来源。 */}
+                    {track.source && track.source !== 'local' ? (
+                      <span className={`badge trk__src pl-track__src trk__src--${track.source}`}>
+                        {sourceLabelById(track.source)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="pl-track__muted"><ArtistName track={track} /></span>
                   <span className="pl-track__muted pl-track__album"><AlbumName track={track} /></span>

@@ -16,6 +16,7 @@ import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { showFlash } from '../ui/flash'
 import { artworkFor } from '../features/library/source'
+import { sourceLabelById } from '../features/online/registry'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
@@ -359,7 +360,12 @@ export function NowPlayingPage({
   }
 
   const art = artworkFor(track)
-  const origin = track.source && track.source !== 'local' ? track.source : '本机'
+  /*
+   * 以前这里直接写 source 的 id（netease/qq/…），页面上就是四个英文词。来源标签
+   * 跟列表、搜索页统一成中文名，颜色也统一用那颗小色点。
+   */
+  const originSource = track.source && track.source !== 'local' ? track.source : 'local'
+  const originLabel = originSource === 'local' ? '本机' : sourceLabelById(originSource)
 
   return (
     <div className="np">
@@ -382,7 +388,7 @@ export function NowPlayingPage({
               {track.title}
             </h1>
             <div className="np__sub">
-              <span className="np__badge">{origin}</span>
+              <span className={`np__badge np__badge--${originSource}`}>{originLabel}</span>
               <ArtistName track={track} text={track.artist || '未知艺人'} />
               {track.album ? <span className="np__dot">·</span> : null}
               {track.album ? (
@@ -394,7 +400,8 @@ export function NowPlayingPage({
           </div>
 
           <div className="np__acts">
-            <button
+            <div className="np__acts-side np__acts-side--start">
+              <button
               type="button"
               className={`np__like${liked ? ' is-on' : ''}`}
               onClick={(event) => {
@@ -454,7 +461,9 @@ export function NowPlayingPage({
                 )}
               </button>
             )}
-            <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
+            </div>
+            <div className="np__acts-transport">
+              <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
               <Prev size={20} />
             </button>
             <button
@@ -468,6 +477,8 @@ export function NowPlayingPage({
             <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
               <Next size={20} />
             </button>
+            </div>
+            <div className="np__acts-side np__acts-side--end">
             {/*
              * 音量：一颗静音键，滑条藏在它上面，鼠标移上来才浮出来。
              *
@@ -504,6 +515,7 @@ export function NowPlayingPage({
                   }}
                 />
               </div>
+            </div>
             </div>
           </div>
         </div>

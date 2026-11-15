@@ -640,26 +640,37 @@ input::placeholder {
   gap: var(--s2);
 }
 
+/*
+ * 分段选择器：一个槽里放一个滑块。
+ *
+ * 以前是「灰底槽 + 更浅一档的灰块」，两种灰差得太少，选中项只像稍微亮了一
+ * 点，一眼扫过去分不出选了哪个。现在选中项用浮动面（plane）做白/深滑块，加
+ * 一道 1px 内描边与轻投影，和槽彻底分开；未选项退成纯文字。
+ */
 .seg {
   display: flex;
   padding: 2px;
   border-radius: var(--r-control);
-  background: var(--ink-800);
+  background: rgb(var(--tint-rgb) / 0.06);
 }
 .seg button {
   height: 26px;
   padding: 0 var(--s3);
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: var(--fs-meta);
-  color: var(--text-mid);
+  color: var(--text-low);
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
 }
 .seg button:hover {
   color: var(--text-hi);
 }
 .seg button.is-active {
-  background: var(--ink-600);
+  background: rgb(var(--plane-rgb) / 0.94);
+  box-shadow:
+    0 1px 2px rgb(var(--shade-rgb) / 0.16),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
+  font-weight: 600;
 }
 
 .main__body {

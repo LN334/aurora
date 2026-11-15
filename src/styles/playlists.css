@@ -179,6 +179,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pl-track__src {
+  flex: none;
+}
 .pl-track__muted {
   min-width: 0;
   white-space: nowrap;
