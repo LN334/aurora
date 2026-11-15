@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Search } from './icons'
 
 /**
@@ -19,10 +20,45 @@ export function ShelfSearch({
   placeholder: string
   onChange(next: string): void
 }) {
+  const input = useRef<HTMLInputElement>(null)
+  /*
+   * 回调每次渲染都是新的，但监听只该挂一次 —— 所以把它放进 ref，
+   * 免得每敲一个字就把 window 上的 keydown 拆了重装。
+   */
+  const handler = useRef(onChange)
+  handler.current = onChange
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        // 列表在手边却要滚着找，是最常见的抱怨；Ctrl+F 直接落进这个框。
+        event.preventDefault()
+        input.current?.focus()
+        input.current?.select()
+        return
+      }
+      if (event.key === 'Escape' && document.activeElement === input.current) {
+        /*
+         * 空着就把 Esc 让出去：这时它表达的是「关掉这层」，不是「清空搜索」。
+         * 有内容才接住，并且不让它继续传 —— 否则同一颗 Esc 会顺手把页面也退掉。
+         */
+        if (!input.current.value) return
+        event.preventDefault()
+        // 捕获阶段先接住：全局快捷键也在 window 上，但它注册得更早，冒泡时轮到它就已经把页面退了一层。
+        event.stopPropagation()
+        handler.current('')
+        input.current.blur()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
   return (
     <div className="shelf-search">
       <Search size={14} />
       <input
+        ref={input}
         type="text"
         value={value}
         placeholder={placeholder}
