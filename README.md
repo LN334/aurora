@@ -292,7 +292,7 @@ electron_mirror=https://npmmirror.com/mirrors/electron/
 | `npm test` | 测试 |
 | `npm run typecheck` | 类型检查 |
 | `npm run check` | 类型检查 + 测试 + 四项审计（可达性 / 死选择器 / 失效路径 / 多余导出） |
-| `npm run smoke` | 真实窗口巡检：逐页截图、联网搜索、在线播放、（有 Wallpaper Engine 时）壁纸背景。失败返回 1 |
+| `npm run smoke` | 真实窗口巡检：逐页截图、九个设置分区与清理扫描、播放页歌词、联网搜索、在线播放、（有 Wallpaper Engine 时）壁纸背景。失败返回 1 |
 | `npm run perf` | 运行时占用测量 |
 | `npm run scan -- <文件夹>` | 只跑扫描器，打印每个文件被读成了什么 |
 | `npm run clean` | 清构建产物与巡检截图；`npm run clean -- --all` 连安装包与探针账号副本一起清 |
@@ -342,7 +342,7 @@ id / name / summary / online / streamUrl(track) / artUrl(track) / lyrics(track)
 
 `npm test` 跑 583 个用例，覆盖不依赖 Electron 的纯逻辑：LRC 解析（含行内词级时间）、歌词匹配打分、m3u 编解码、队列推进、文件夹树、版本比较、档案隔离、协议路径校验、扫描节流、在线缓存淘汰与 Range 解析、封面缓存预算、本机库排序、网易云相关纯函数、搜索默认来源、来源标签规则、壁纸选择与画质换算、播放历史按日累计与最多播放统计。
 
-界面有真实窗口巡检验证：`npm run smoke` 用 Electron 起一个独立窗口（独立 user-data-dir，不动你正在用的配置），从侧栏逐页点过去，收集控制台报错、破图和未捕获异常，然后联网搜一次、点开一首在线歌确认播放条真的走过了 0:00。装了 Wallpaper Engine 时还会真的选一张壁纸，确认背景挂上了场景 canvas 并连拍两帧确认它在动。任何一步失败都以退出码 1 结束，截图留在 `shots/smoke/`。
+界面有真实窗口巡检验证：`npm run smoke` 用 Electron 起一个独立窗口（独立 user-data-dir，不动你正在用的配置），从侧栏逐页点过去，收集控制台报错、破图和未捕获异常。带 `--library` 时它自己造三首两秒的静音曲和配套歌词，先把它们收藏、再播一遍，所以「我喜欢的」和「最近播放」是按天分组的真实数据而不是空态；设置页会走完九个分区并真的点一次清理扫描。然后进播放页确认歌词渲染出了行、有当前行、带词级标签的行被切成了小段，再联网搜一次、点开一首在线歌确认播放条真的走过了 0:00。装了 Wallpaper Engine 时还会真的选一张壁纸，确认背景挂上了场景 canvas 并连拍两帧确认它在动。任何一步失败都以退出码 1 结束，截图留在 `shots/smoke/`。
 
 三个审计脚本接在 `npm run check` 里：可达性（从真实入口走 import 图找无法加载的文件）、CSS 死选择器、指向已不存在文件的路径引用。
 
