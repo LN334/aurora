@@ -438,7 +438,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: var(--s2);
-  scrollbar-width: thin;
 }
 
 .wp-card {
@@ -614,7 +613,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: var(--s2);
-  scrollbar-width: thin;
+  /* 这里以前写了 scrollbar-width: thin —— 它在 Chromium 里会盖过全局的
+   * 隐藏规则，把那条带上下三角的灰杠画出来。 */
 }
 
 .wp-prop {
