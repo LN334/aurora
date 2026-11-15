@@ -2329,6 +2329,20 @@ html.is-resizing {
 }
 
 /*
+ * 调壁纸属性时把玻璃调薄。
+ *
+ * 平时 20px 模糊会把场景压成一片色，站在属性面板上调「雾气」「粒子」看不出
+ * 区别，用户会以为这些开关是假的。这一段只在那份面板挂着的时候生效（body 上
+ * 有 `is-tuning-wallpaper`），离开设置页立刻恢复用户设的模糊。
+ */
+body.is-tuning-wallpaper .shell.has-wallpaper > .main,
+body.is-tuning-wallpaper .shell.has-wallpaper > .rail,
+body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
+  background: rgb(var(--plane-rgb) / 0.34);
+  backdrop-filter: blur(2px) saturate(1.1);
+}
+
+/*
  * 播放条和主区是同一块玻璃。
  *
  * 之前让它比主区再实 0.08 个白、加圆角与投影，结果是底栏看起来像另一块板子
