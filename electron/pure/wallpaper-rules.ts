@@ -346,11 +346,31 @@ export function editableProperties(raw: unknown): WallpaperProperty[] {
  * Everything else (theme colour, speed, parallax, alignment, position, flip,
  * image filter, ...) is a real knob the renderer reads.
  */
-const HIDDEN_PROPERTY = /^(volume|music|media|sponsor)/i
+const HIDDEN_PROPERTY = /^(volume|music|media|sponsor|mousetrail|musicsize)/i
 
 function isHiddenProperty(name: string): boolean {
   return HIDDEN_PROPERTY.test(name)
 }
+
+/*
+ * 还有一层按「文案」的过滤。
+ *
+ * 属性名不可靠：作者在编辑器里拖动文本框时，WE 会用那串文案生成 key，于是
+ * 同一个「国内微信赞助码」在这张图上叫 `bigweixinbrimgsrchttp…`，在别的图上
+ * 又是另一串哈希。按名字过滤必然漏，只能看文案。
+ *
+ * 这里只挡两类：赞助 / 求支持 / 求好评 / 二维码横幅，以及壁纸自带音乐那一套
+ * （音乐大小、鼠标尾迹这类没有任何东西可调）。音频监听、视差、播放速度、
+ * 对齐这些真正的开关不动。
+ */
+const HIDDEN_LABEL =
+  /赞助|sponsor|支持一下|打赏|donat|好评|thumb up|thank you|鼠标尾迹|mouse trail|音乐大小|music size/i
+
+/** 属性名与文案两重过滤；任一命中就不显示。 */
+function isHiddenControl(name: string, label: string): boolean {
+  return isHiddenProperty(name) || HIDDEN_LABEL.test(label)
+}
+
 
 /** One property, or null when it is not a control this app can show. */
 function readProperty(name: string, entry: unknown): WallpaperProperty | null {
@@ -375,6 +395,7 @@ function readProperty(name: string, entry: unknown): WallpaperProperty | null {
   // A label that is only the debris of an <img> tag is decoration, not a control
   // name; there is nothing useful to show next to the widget.
   if (text === null) return null
+  if (isHiddenControl(name, text)) return null
 
   switch (type) {
     case 'slider': {

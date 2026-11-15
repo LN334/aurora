@@ -68,6 +68,9 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
    */
   const propsRef = useRef(props)
   propsRef.current = props
+  /* 属性变化后用来触发一次重挂载；见下面「属性改了要重建场景」那段。 */
+  const [revision, setRevision] = useState(0)
+  const lastProps = useRef(props)
 
   /**
    * 窗口藏起来的时候不要继续画。
@@ -197,11 +200,27 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       instanceRef.current = null
       host.replaceChildren()
     }
-  }, [runsScene, entry?.id, entry?.sourceUrl, quality])
+  }, [runsScene, entry?.id, entry?.sourceUrl, quality, revision])
 
   /*
-   * 拖动滑杆改属性时不用重建场景，直接把新值推给已挂载的实例。
-   * 挂载完成前 instanceRef 是空的，那一次由 mount 的 options 带上。
+   * 属性改了要重建场景，只把新值推给实例是不够的。
+   *
+   * WE 的场景脚本通常只在初始化时读一次 general.properties（作者把它当常量接进
+   * 着色器），热推新值对大多数壁纸没有任何反应——用户在设置页拖滑杆、拨开关，
+   * 画面一动不动，看起来就像「这些设置是假的」。重建一次要重新解包整个 pkg
+   * （144 MB 实测 83 ms），可以接受；拖滑杆会连续触发，所以等手停下 400ms。
+   */
+  useEffect(() => {
+    if (lastProps.current === props) return
+    lastProps.current = props
+    if (!instanceRef.current) return
+    const timer = window.setTimeout(() => setRevision((value) => value + 1), 400)
+    return () => window.clearTimeout(timer)
+  }, [props])
+
+  /*
+   * 先把新值推给已挂载的实例：支持热更的场景会立刻响应，不支持的也没坏处，
+   * 反正 400ms 后还会重建一次。
    */
   useEffect(() => {
     const instance = instanceRef.current

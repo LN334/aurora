@@ -226,13 +226,38 @@ test('editableProperties drops labels that are only image-tag debris', () => {
       value: true,
       text: '<img src="https://photogz.photo.store.qq.com/psc?/V12uhwit/abc&viewer_4&width=2000&height=200'
     },
-    real: { type: 'bool', value: true, text: '<b>显示赞助信息 Display sponsorship information</b>' },
+    real: { type: 'bool', value: true, text: '<b>显示帧率 Frame rate display</b>' },
     tabs: { type: 'slider', value: 3, min: 1, max: 6, text: '&nbsp;&nbsp;&nbsp;镜头位置X Lens position' }
   }
   const names = editableProperties(properties).map((property) => property.name)
   assert.deepEqual(names, ['real', 'tabs'])
   const tabs = editableProperties(properties).find((property) => property.name === 'tabs')
   assert.equal(tabs?.text, '镜头位置X Lens position')
+})
+
+test('editableProperties drops sponsorship banners and wallpaper music rows by label', () => {
+  // 属性名是 WE 用文案生成的哈希（`bigweixinbrimgsrchttp…`、`hrb`），挡不住任何人；
+  // 只能按文案过滤。下面这几条照抄「初音未来 光与影」那张图的 project.json。
+  const properties = {
+    bbyy: { type: 'bool', value: false, text: '<br/><big><b>显示赞助信息<br>Display sponsorship information' },
+    hrb: { type: 'bool', value: true, text: '<hr><b>喜欢的话，可以小小支持一下吗？你们的支持就是我更新最大的动力' },
+    bigweixinbrimgsrchttpmqpiccnpsc: {
+      type: 'bool',
+      value: true,
+      text: '<hr/><big><b>国内微信赞助码<br/>Domestic sponsorship code'
+    },
+    imgsrcfilecusersasusdesktop: {
+      type: 'bool',
+      value: true,
+      text: '<img src="http://m.qpic.cn/psc?/V54UQdlK3n"><br/><big><b>可以给个好评收藏支持一下吗？<br/><big><b>Thank You！'
+    },
+    mousetrail: { type: 'bool', value: true, text: '鼠标尾迹 Mouse Trail' },
+    musicsize: { type: 'slider', value: 1, min: 0, max: 1, text: '音乐大小 Music Size' },
+    parallax: { type: 'bool', value: true, text: '🔘鼠标视差效果 Mouse Parallax Effect' },
+    speed: { type: 'slider', value: 1, min: 0, max: 2, text: '播放速度 Playback speed' }
+  }
+  const names = editableProperties(properties).map((property) => property.name)
+  assert.deepEqual(names, ['parallax', 'speed'])
 })
 
 test('editableProperties reads every control type a wallpaper declares', () => {
