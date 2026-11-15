@@ -491,6 +491,94 @@ async function main() {
         }
       }
 
+      /*
+       * 设置页有九个分区，巡检只停在一个分区等于其余八个没人看。
+       * 这里挨个点开，只断言"分区里有内容"——具体文案各有各的用处，钉死了反而脆。
+       * 走完切回外观与桌面，后面壁纸那步要在这一区里找行。
+       */
+      if (step.view === 'settings') {
+        const tabs = await evaluate(
+          cdp,
+          `Array.from(document.querySelectorAll('.settings__tab')).map((el) => (el.textContent || '').trim())`
+        )
+        const thin = []
+        const sections = []
+        if (tabs.length < 8) problems.push('settings has only ' + tabs.length + ' sections')
+        for (const label of tabs) {
+          const opened = await evaluate(
+            cdp,
+            `(() => {
+              const tab = Array.from(document.querySelectorAll('.settings__tab')).find(
+                (el) => (el.textContent || '').trim() === ${JSON.stringify(label)}
+              )
+              if (!tab) return false
+              tab.click()
+              return true
+            })()`
+          )
+          if (!opened) continue
+          await sleep(350)
+          let filled = await evaluate(
+            cdp,
+            `(() => {
+              const body = document.querySelector('.settings__body')
+              if (!body) return 0
+              return (body.innerText || '').trim().length
+            })()`
+          )
+          if (filled < 40) thin.push(label + '(' + filled + ')')
+
+          /*
+           * 清理与维护是这九区里唯一"要先量一次才出表格"的：没点扫描时只有一句
+           * 还没测量。点一次，等合计行出来，才算真的走通磁盘测量那一路。
+           */
+          if (label === '清理与维护') {
+            await evaluate(
+              cdp,
+              `(() => {
+                const btn = Array.from(document.querySelectorAll('.settings__body .btn')).find((el) => {
+                  const text = (el.textContent || '').trim()
+                  return text === '扫描' || text === '重新扫描'
+                })
+                if (btn) btn.click()
+                return true
+              })()`
+            )
+            let measured = false
+            for (let attempt = 0; attempt < 40 && !measured; attempt += 1) {
+              await sleep(250)
+              measured = await evaluate(
+                cdp,
+                `(document.querySelector('.settings__body').innerText || '').includes('合计')`
+              )
+            }
+            if (!measured) problems.push('maintenance scan never produced a total row')
+            else await shoot(cdp, path.join(SHOTS, '08c-settings-maintenance.png'))
+            filled = await evaluate(
+              cdp,
+              `(() => {
+                const body = document.querySelector('.settings__body')
+                return body ? (body.innerText || '').trim().length : 0
+              })()`
+            )
+          }
+          sections.push(label + ' ' + filled)
+        }
+        if (thin.length > 0) problems.push('thin settings sections: ' + thin.join(', '))
+        console.log('smoke: settings sections ' + sections.join(' | '))
+        await evaluate(
+          cdp,
+          `(() => {
+            const tab = Array.from(document.querySelectorAll('.settings__tab')).find(
+              (el) => (el.textContent || '').trim() === '外观与桌面'
+            )
+            if (tab) tab.click()
+            return true
+          })()`
+        )
+        await sleep(350)
+      }
+
       rows.push({
         ...step,
         ok: problems.length === 0,
