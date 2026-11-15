@@ -106,3 +106,15 @@ release-*/
 
 
 .commit-msg.txt
+
+# 一次性迁移分析稿与本地助手的工作目录。
+#
+# 这些是决定「留在 Electron 还是换 Tauri」时翻的底稿，结论已经落进
+# docs/architecture.md 与 docs/roadmap.md。留着会让人以为仓库里有两套互相打架的
+# 架构说法，所以只在本机留档。
+.workbuddy/
+/ARCHITECTURE_REDESIGN.md
+/FUNCTION_MAPPING_ANALYSIS.md
+/MIGRATION_COST_ANALYSIS.md
+/MIGRATION_ROADMAP.md
+/TAURI_VS_ELECTRON_DETAILED.md
