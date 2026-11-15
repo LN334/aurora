@@ -82,6 +82,8 @@ export interface WindowVisibilityState {
  interface AppApi {
   /** 在系统浏览器里打开外链；主进程只放行 GitHub。 */
   openExternal(url: string): Promise<boolean>
+  /** 重启应用（导入备份之后要让新的数据重新加载一次）。 */
+  relaunch(): Promise<void>
   getVisibility(): Promise<WindowVisibilityState>
   onVisibility(handler: (state: WindowVisibilityState) => void): () => void
   /** 窗口正被拖着改大小；true 期间界面该关掉毛玻璃这类重采样效果。 */

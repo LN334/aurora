@@ -38,6 +38,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
   const [confirming, setConfirming] = useState(false)
   const [backupBusy, setBackupBusy] = useState(false)
   const [backupNote, setBackupNote] = useState('')
+  const [restartReady, setRestartReady] = useState(false)
   const junk = page.junk
   const memory = page.memory
 
@@ -74,6 +75,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
       setBackupNote(
         `已导入 ${result.summary}，写回 ${written} 项；重启后生效。导入前的旧数据留在 backup-before-restore。`
       )
+      setRestartReady(true)
     } finally {
       setBackupBusy(false)
     }
@@ -213,6 +215,13 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           </Row>
         </Rows>
         {backupNote ? <p className="settings__hint">{backupNote}</p> : null}
+        {restartReady ? (
+          <Actions>
+            <button className="btn" type="button" onClick={() => void bridge.app.relaunch()}>
+              立即重启
+            </button>
+          </Actions>
+        ) : null}
       </Sub>
     </>
   )

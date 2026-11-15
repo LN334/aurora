@@ -98,6 +98,10 @@ const webFallback: AuroraApi = {
       window.open(url, '_blank', 'noreferrer')
       return true
     },
+    // 浏览器里「重启」就是刷新页面。
+    relaunch: async () => {
+      window.location.reload()
+    },
     // A browser tab is never minimised to a tray, so Chromium's own answer is
     // the accurate one here; the visibility hook reads `document.hidden` too.
     getVisibility: async () => ({

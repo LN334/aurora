@@ -21,6 +21,17 @@ export function registerAppIpc(deps: WindowSource): void {
   ipcMain.handle('app:visibility', () => mainWindowVisibility(deps.window()))
 
   /*
+   * 重启。
+   *
+   * 导入备份之后数据换了一份，进程里已经加载的偏好、曲库与缓存都还是旧的，
+   * 只能重开。让用户自己关掉再开太麻烦，直接替他重启。
+   */
+  ipcMain.handle('app:relaunch', () => {
+    app.relaunch()
+    app.quit()
+  })
+
+  /*
    * 打开外部链接：只放行 GitHub。
    *
    * 关于页的仓库与反馈按钮走这里。渲染层永远拿不到 shell，白名单放在主进程，
