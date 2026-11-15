@@ -33,9 +33,9 @@
   var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   /*
    * 最短停留：只够让这张静态画面被看见。真正的入场动画在 splash.html 里，这里
-   * 多待一秒只会让「点开图标到能操作」变长。
+   * 多待一秒只会让「点开图标到能操作」变长。首帧已经画完，再等就纯是延迟。
    */
-  var min = calm ? 120 : 260
+  var min = calm ? 80 : 120
   var finished = false
 
   function dismiss() {
@@ -45,9 +45,10 @@
     window.setTimeout(
       function () {
         el.classList.add('is-out')
+        // 与样式表里的淡出时长对齐：慢于此值会留一帧半透明的空壳。
         window.setTimeout(function () {
           if (el.parentNode) el.parentNode.removeChild(el)
-        }, 420)
+        }, 260)
       },
       wait > 0 ? wait : 0
     )

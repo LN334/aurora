@@ -55,14 +55,18 @@
         /*
          * 退场只改透明度。整层 fixed + 内含 SVG 滤镜，再叠一个 scale 会让
          * Chromium 把这一层重新栅格化一次，正好撞上首页首帧，看起来就是
-         * 「动画最后卡一下」。
+         * 「动画最后卡一下」。这里曾经写过一个 scale(1.015)，和这段注释打架，
+         * 已删掉：淡出要的是快，不是花。
+         *
+         * will-change 把这一层提前提成合成层，淡出期间只需要改一个不透明度，
+         * 不会跟着首页的布局与图片解码一起重绘。
          */
-        transition: opacity 340ms ease-out;
+        transition: opacity 220ms ease-out;
+        will-change: opacity;
       }
 
       #boot-splash.is-out {
         opacity: 0;
-        transform: scale(1.015);
         pointer-events: none;
       }
 
@@ -131,7 +135,7 @@
       @media (prefers-color-scheme: light) {
         #boot-splash {
           --boot-line: 0 0 0;
-          background: #f4f6f9;
+          background: #f1f4f8;
         }
         #boot-splash .boot-splash__glow {
           background: radial-gradient(
@@ -148,7 +152,7 @@
 
       html[data-theme='light'] #boot-splash {
         --boot-line: 0 0 0;
-        background: #f4f6f9;
+        background: #f1f4f8;
       }
 
       /* 系统深色 + 手动选深色：上面那条媒体查询不该把开屏翻成浅色。 */

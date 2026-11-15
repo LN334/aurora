@@ -1291,6 +1291,153 @@ async function main() {
         shot: path.relative(ROOT, shotPath)
       })
     }
+    /*
+     * 歌单里的排序。
+     *
+     * 五档顺序各自怎么排，由 library-views 的纯函数测试钉住；这里验两件只有真机
+     * 才能成立的事：点「标题」之后列表真的换了顺序，以及这份顺序被写回歌单
+     * （重开之后还是它，而排序方式本身不落库）。
+     *
+     * 歌单是灌进 localStorage 的：界面里新建一首一首加进来太慢，也会顺带考验
+     * 编辑器而不是排序。注入之后必须重载一次，store 才会重新 hydrate。
+     */
+    if (LIBRARY) {
+      const mark = cdp.events.length
+      const injected = await evaluate(
+        cdp,
+        `(async () => {
+          const index = await window.aurora.library.getIndex()
+          const ids = index.tracks.slice(0, 3).map((track) => track.id)
+          if (ids.length < 3) return null
+          const marker = Object.keys(localStorage).find((key) => key.startsWith('aurora.favorites::'))
+          if (!marker) return null
+          const suffix = marker.slice('aurora.favorites::'.length)
+          const now = Date.now()
+          // 故意不按标题序放，点「标题」才有顺序可换。
+          const shuffled = [ids[1], ids[0], ids[2]]
+          localStorage.setItem(
+            'aurora.playlists::' + suffix,
+            JSON.stringify({
+              state: {
+                playlists: [
+                  { id: 'pl_smoke', name: '巡检歌单', trackIds: shuffled, createdAt: now, updatedAt: now }
+                ]
+              },
+              version: 1
+            })
+          )
+          return { first: shuffled[0], second: shuffled[1] }
+        })()`
+      )
+
+      const problems = []
+      /** 重载之后每步都要重新等页面，等法一样，抽一下。 */
+      const waitUntil = async (expression, timeoutMs = 25000) => {
+        const deadline = Date.now() + timeoutMs
+        while (Date.now() < deadline) {
+          if (await evaluate(cdp, expression)) return true
+          await sleep(200)
+        }
+        return false
+      }
+      if (!injected) {
+        problems.push('could not seed a playlist')
+      } else {
+        await cdp.send('Page.reload')
+        await sleep(1600)
+        cdp.close()
+        const targets = await listTargets(PORT)
+        const page = targets.find((target) => target.type === 'page')
+        cdp = await Cdp.connect(page.webSocketDebuggerUrl, { callTimeoutMs: 30000 })
+        await cdp.send('Page.enable')
+        await cdp.send('Runtime.enable')
+        if (!(await waitUntil(`!document.getElementById('boot-splash')`))) {
+          problems.push('the app never finished booting after a reload')
+        }
+        await evaluate(cdp, `location.hash = '#playlist/pl_smoke'`)
+        if (!(await waitUntil(`!!document.querySelector('.pl-detail__sort')`))) {
+          problems.push('the playlist page never opened')
+        }
+        await sleep(500)
+
+        // 歌单详情用自己的行组件（可拖拽那套），不是列表页的 .trk。
+        const readOrder = () =>
+          evaluate(
+            cdp,
+            `Array.from(document.querySelectorAll('.pl-track__title-text')).map((el) => (el.textContent || '').trim())`
+          )
+        const before = await readOrder()
+        const clicked = await evaluate(
+          cdp,
+          `(() => {
+            const button = Array.from(document.querySelectorAll('.pl-detail__sort button')).find((el) => (el.textContent || '').trim() === '标题')
+            if (!button) return false
+            button.click()
+            return true
+          })()`
+        )
+        await sleep(500)
+        const after = await readOrder()
+        if (!clicked) problems.push('the playlist has no sort switch')
+        else if (before.join('|') === after.join('|')) {
+          problems.push('sorting the playlist by title changed nothing')
+        }
+
+        /*
+         * 重开一次：排好的顺序应该已经是歌单的「手动顺序」。
+         * 排序方式本身不落库，切回来是「手动顺序」是设计，不是丢失。
+         */
+        await cdp.send('Page.reload')
+        await sleep(1600)
+        cdp.close()
+        const again = await listTargets(PORT)
+        const againPage = again.find((target) => target.type === 'page')
+        cdp = await Cdp.connect(againPage.webSocketDebuggerUrl, { callTimeoutMs: 30000 })
+        await cdp.send('Page.enable')
+        await cdp.send('Runtime.enable')
+        if (!(await waitUntil(`!document.getElementById('boot-splash')`))) {
+          problems.push('the app never finished booting after the second reload')
+        }
+        await evaluate(cdp, `location.hash = '#playlist/pl_smoke'`)
+        if (!(await waitUntil(`!!document.querySelector('.pl-detail__sort')`))) {
+          problems.push('the playlist page never reopened')
+        }
+        await sleep(400)
+        const reopened = await readOrder()
+        if (reopened.join('|') !== after.join('|')) {
+          problems.push('the sorted order was not saved to the playlist')
+        }
+        console.log(
+          'smoke: playlist ' + JSON.stringify(before) + ' -> ' + JSON.stringify(after) + ' -> ' + JSON.stringify(reopened)
+        )
+      }
+
+      await sleep(300)
+      const shotPath = path.join(SHOTS, '15-playlist-sort.png')
+      const shotOk = await shoot(cdp, shotPath)
+      if (!shotOk) problems.push('screenshot failed')
+
+      const fresh = cdp.events.slice(mark)
+      const logged = fresh
+        .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
+        .filter((event) => !isQuietMiss(event))
+        .map((event) => event.params.entry.text)
+      quietMisses += fresh.filter(isQuietMiss).length
+      errors.push(...logged)
+      if (logged.length) problems.push(logged.length + ' console error(s)')
+
+      rows.push({
+        view: 'playlist-sort',
+        label: '歌单排序',
+        ok: problems.length === 0,
+        why: problems.join('; '),
+        images: 0,
+        broken: 0,
+        brokenSrcs: [],
+        shot: path.relative(ROOT, shotPath)
+      })
+    }
+
     // The player bar is on every screen; a walk that never sees it would still
     // pass every step above, so it gets its own check.
     if (!(await evaluate(cdp, "Boolean(document.querySelector('.player'))"))) {

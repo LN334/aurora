@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, screen, shell } from 'electron'
+import { app, BrowserWindow, globalShortcut, nativeTheme, screen, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { loadSettings, saveSettings } from './settings'
@@ -344,7 +344,13 @@ function createWindow(): void {
      * 不到十个数得完的 DOM），它一上屏就显示窗口，应用页随后在它背后加载。
      */
     show: false,
-    backgroundColor: '#0d1013',
+    /*
+     * 窗口底色：开屏页与首页都会自己铺满底色，这一层只在导航换页的那一两帧里
+     * 露出来。以前固定深色，浅色主题的用户在这两帧里会看到一下深底，像开屏
+     * 「没盖住」。主进程读不到渲染层的主题设置（它存在 localStorage 里），所以
+     * 退一步跟系统走——大多数人选的就是系统那套。
+     */
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d1013' : '#f1f4f8',
     // 用户设过自定义图标时用它，否则用 assets 里那张；任务栏与 Alt+Tab 都认这个。
     icon: windowIconPath(),
     // Custom chrome: we draw the title bar ourselves, while Windows keeps the
@@ -404,12 +410,12 @@ function createWindow(): void {
   /*
    * 开屏页至少演多久再让位给应用页。
    *
-   * 这是一个实测值，不是估的：描边动画 620ms 加右腿 90ms 错位，本身要 710ms；
-   * 而窗口显示之前那几帧动画时钟还没走，所以从 show 到画完要按 800ms 算。再留
-   * 300ms 让人看清这是个完整的标志，才切到应用页。短于这个数，用户看到的是
-   * 「线条画到一半就跳主页了」。
+   * 描边动画 620ms 加右腿 90ms 错位，本身要 710ms。窗口显示之后动画时钟才走，
+   * 所以留到 760ms 正好让「两条腿画完」这一下被看见，多出来的时间它也只是停在
+   * 那里等——而应用页自己还要加载近两秒，光晕与扫光会在第二层接着演，不需要
+   * 在第一层多等。之前这里写的是 1100ms，用户反馈「开屏太久」，那 340ms 是白等的。
    */
-  const SPLASH_MIN_MS = 1100
+  const SPLASH_MIN_MS = 760
   let splashShownAt = 0
 
   /*
