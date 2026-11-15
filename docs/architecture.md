@@ -320,6 +320,22 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
 - `JunkScan` 因此带两个数字：`cleanedBytes`（两次测量真实下降的量）与 `deferredBytes`
   （排进下次启动、取清理后缓存总量）。两者互为补数，界面上写「已清理」和「下次启动再清」，
   不会同一批字节既算清掉又算没清。
+- **数据目录**：`openDataDirectory()` 就是 `shell.openPath(app.getPath('userData'))`，
+  返回空串才算成功（它把错误当成字符串返回，不 throw）。
+
+### 备份与恢复
+
+`electron/pure/backup-rules.ts` 定格式，`electron/backup.ts` 动文件，渲染层只负责把
+`localStorage` 交出去。
+
+- 包体是 `{format:'aurora-backup', version:1, at, storage, files}`；白名单固定四份
+  ——`settings.json`、`library.json`、`window-state.json`、`qishui-refs.json`；上限 64 MB。
+- **登录凭据不进备份**：各家 `*-session*.bin` 是 `safeStorage` 加密的 cookie，换一台机器
+  既解不开也用不上，顺手带上等于把登录态摊开。备份里没有它们，恢复后重新登录一次就好。
+- 导入前把现有四份整份写进 `userData/backup-before-restore/`，再按白名单写回；写完要求
+  重启（`app:relaunch`），因为设置与曲库在启动时读一次。
+- 渲染层的 `storage` 只收 `key.startsWith('aurora')` 的项；主进程 `readStorage()` 仍会把
+  入参洗成 `Record<string, string>` —— IPC 的另一头永远不可信。
 
 ## 踩过的坑（避免重复）
 
@@ -332,6 +348,16 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
   会误报（被打包的 JS 里也有同样的字符串）。
 - **PowerShell 5.1**：不支持 `??`；`Set-Content -Encoding UTF8` 会写入 BOM（JSON 会解析
   失败），需要无 BOM 时用 Node 写文件。
+- **圆形封面会裁掉角上的子元素**：`.rh-card__art--round` 带 `border-radius:50%` 加
+  `overflow:hidden`，徽章式色点放在它的左下角会被切掉。改子元素的 `position` 没有用，
+  得把它挪出那个容器。
+- **别用「具体值相等」去证明「变了」**：smoke 里「bar 上是刚点的那首」原先靠
+  `bar.includes(标题)`，一旦 bar 把「夜 (Live)」显示成「夜」就假红；改成点前点后各读一次
+  `.pb-title`、要求它换了。同类还有「离网时进度不推进」被报成播放器坏了 —— 断言要对着
+  环境无关的那件事说。
+- **同一张截图读一次就够**：连着 `read_image` 同一张图只是在烧上下文，看起来还像卡住。
+- **`ELECTRON_RUN_AS_NODE` 赋值空串没用**：只要这个变量存在，`electron.exe` 就按 Node 跑
+  （报 `bad option: --remote-debugging-port=…`），必须 `delete env.ELECTRON_RUN_AS_NODE`。
 
 ## 尚待完成
 
