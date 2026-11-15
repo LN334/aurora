@@ -591,6 +591,96 @@ async function main() {
     }
 
     /*
+     * 播放页的歌词。
+     *
+     * 播种的每首歌都带一份增强 LRC（行内带 <mm:ss.xx> 词级标签），所以这一屏
+     * 能一次验三件事：歌词解析出了行、当前行有高亮、带词标签的行被切成了小段。
+     * 三段里任一断掉，页面上都只是"少点什么"，不报错、不白屏，只有数得出来的
+     * 节点数能抓住它。
+     */
+    if (LIBRARY) {
+      const mark = cdp.events.length
+      await evaluate(cdp, `location.hash = '#nowplaying'`)
+      let ready = false
+      for (let attempt = 0; attempt < 40 && !ready; attempt += 1) {
+        await sleep(250)
+        ready = await evaluate(cdp, `document.querySelectorAll('.np__line').length > 0`)
+      }
+      const readLyrics = () =>
+        evaluate(
+          cdp,
+          `(() => ({
+            lines: document.querySelectorAll('.np__line').length,
+            active: document.querySelectorAll('.np__line.is-active').length,
+            words: document.querySelectorAll('.np__line-words > span').length,
+            lit: document.querySelectorAll('.np__line-words > span[data-lit]').length,
+            nolyrics: Boolean(document.querySelector('.np__nolyrics'))
+          }))()`
+        )
+
+      /*
+       * 播种的曲子只有两秒，走到这一屏时多半已经播完、进度归零，所有行的
+       * 时间都在 0 之后，于是没有一行是当前行。这不是歌词坏了，是没在播；
+       * 点一下播放让它从头再过一遍，高亮才有东西可看。
+       */
+      let probe = await readLyrics()
+      if (probe.active === 0) {
+        await evaluate(
+          cdp,
+          `(() => {
+            const button = document.querySelector('.np__play')
+            if (button) button.click()
+            return Boolean(button)
+          })()`
+        )
+        await sleep(1000)
+        probe = await readLyrics()
+      }
+      await sleep(300)
+      const shotPath = path.join(SHOTS, '09-nowplaying.png')
+      const shotOk = await shoot(cdp, shotPath)
+
+      const fresh = cdp.events.slice(mark)
+      const logged = fresh
+        .filter((event) => event.method === 'Log.entryAdded' && event.params.entry.level === 'error')
+        .filter((event) => !isQuietMiss(event))
+        .map((event) => event.params.entry.text)
+      quietMisses += fresh.filter(isQuietMiss).length
+      const thrown = fresh
+        .filter((event) => event.method === 'Runtime.exceptionThrown')
+        .map(
+          (event) =>
+            event.params.exceptionDetails.exception?.description ?? event.params.exceptionDetails.text
+        )
+      errors.push(...logged, ...thrown)
+
+      const problems = []
+      if (!shotOk) problems.push('screenshot failed')
+      if (probe.lines === 0) problems.push('now playing shows no lyric lines')
+      if (probe.active === 0) problems.push('no lyric line is marked active')
+      if (probe.words === 0) problems.push('the word-timed line was not split into spans')
+      if (logged.length) problems.push(logged.length + ' console error(s)')
+      if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
+
+      console.log(
+        'smoke: lyrics lines=' + probe.lines + ', active=' + probe.active +
+          ', word spans=' + probe.words + ' (' + probe.lit + ' lit)' +
+          (probe.nolyrics ? ', renders the empty state' : '')
+      )
+
+      rows.push({
+        view: 'nowplaying',
+        label: '播放页歌词',
+        ok: problems.length === 0,
+        why: problems.join('; '),
+        images: 0,
+        broken: 0,
+        brokenSrcs: [],
+        shot: path.relative(ROOT, shotPath)
+      })
+    }
+
+    /*
      * The wallpaper backdrop, when this machine can offer one.
      *
      * Wallpaper Engine is optional and Windows-only, so this is a conditional
