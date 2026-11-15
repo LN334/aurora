@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useDownloads } from '../../../features/downloads/store'
+import { cacheLimitLabel, cacheSizeLabel } from '../../../features/settings/cache-format'
 import type { useSettingsPage } from '../../../features/settings/store'
 import { bridge } from '../../../bridge'
 import type { DownloadFormat, MediaCacheStats } from '../../../env'
@@ -21,20 +22,6 @@ const BITRATES = [128, 192, 256, 320]
  * 点，也更好解释「不缓存」这个真实存在的选项。
  */
 const CACHE_LIMITS = [0, 512, 1024, 2048, 5120, 10_240]
-
-function limitLabel(megabytes: number): string {
-  if (megabytes === 0) return '不缓存'
-  return megabytes >= 1024 ? `${megabytes / 1024} GB` : `${megabytes} MB`
-}
-
-/** 占用按「1.2 GB / 36 MB / 101 KB」报；这里不追求精确到小数第二位。 */
-function sizeLabel(bytes: number): string {
-  if (bytes <= 0) return '0 MB'
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
-  // 短音频、试听片段只有几十上百 KB，按 MB 报会四舍五入成 0，看着像没缓存。
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`
-}
 
 /**
  * 09 下载。
@@ -189,7 +176,7 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
               disabled={cacheBusy || page.busy}
               onClick={() => void changeCacheLimit(megabytes)}
             >
-              {limitLabel(megabytes)}
+              {cacheLimitLabel(megabytes)}
             </button>
           ))}
         </div>
@@ -202,7 +189,7 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
       >
         <div className="dlp__dir">
           <span className="dlp__path" title={cache?.directory}>
-            {cache ? `${cache.entries} 首 · ${sizeLabel(cache.bytes)}` : '读取中…'}
+            {cache ? `${cache.entries} 首 · ${cacheSizeLabel(cache.bytes)}` : '读取中…'}
           </span>
           <button
             className="btn btn--ghost"
