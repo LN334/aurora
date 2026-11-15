@@ -52,26 +52,20 @@ body {
   color: var(--text-hi);
 }
 
-/* --- scrollbars: present, but not a piece of furniture -------------------- */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* --- scrollbars: not drawn at all ---------------------------------------- */
+/*
+ * 滚动条不画出来。
+ *
+ * 之前画成一条 4px 的细杠，但 Chromium 默认样式会在某些容器上原样露出来 ——
+ * 就是那条带上下三角的灰杠。内容仍然能滚（滚轮、触摸板、键盘都行），只是不占
+ * 宽度，也不再出现那条看着像老式控件的条。
+ */
+* {
+  scrollbar-width: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--ink-600);
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-500);
-  background-clip: content-box;
-}
-::-webkit-scrollbar-corner {
-  background: transparent;
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* --- focus: always visible, never removed -------------------------------- */

@@ -5,14 +5,14 @@
  * 一条常驻的槽——壁纸铺满整个窗口的时候，那条槽比任何内容都显眼。
  */
 * {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 /*
@@ -883,16 +883,6 @@
   to {
     opacity: 1;
   }
-}
-.rh-fresh__list::-webkit-scrollbar {
-  width: 4px;
-}
-.rh-fresh__list::-webkit-scrollbar-thumb {
-  border-radius: 2px;
-  background: rgb(var(--tint-rgb) / 0.16);
-}
-.rh-fresh__list::-webkit-scrollbar-track {
-  background: transparent;
 }
 .rh-fresh__row {
   display: grid;
