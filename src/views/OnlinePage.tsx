@@ -22,6 +22,8 @@ import { NameModal } from './NameModal'
 import { formatSpan } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
+import { ShelfSearch } from '../ui/ShelfSearch'
+import { filterPlaylistRows } from '../features/library/playlist-filter'
 import { DetailHero } from './DetailHero'
 import type { Track } from '../types'
 
@@ -98,6 +100,13 @@ function PlaylistPage({
   )
   const currentId = currentTrack && provider && currentTrack.source === provider.id ? currentTrack.id : null
   const total = rows.reduce((sum, track) => sum + (track.duration ?? 0), 0)
+  /*
+   * 五百多首的歌单也只能滚着找。筛出来的是「看哪首」，`filterPlaylistRows` 带着
+   * 每行在 `songs` 里的原始下标，点一行播的还是那首。
+   */
+  const [query, setQuery] = useState('')
+  const filtering = query.trim() !== ''
+  const visible = useMemo(() => filterPlaylistRows(rows, query), [rows, query])
   // 推荐位上的单子不在「我的歌单」里，名字和封面靠点卡片时记下的那份脸。
   const summary = state.knownPlaylists[playlistId] ?? state.playlists.find((item) => item.id === playlistId)
 
@@ -161,11 +170,22 @@ function PlaylistPage({
       />
 
       {rows.length > 0 ? (
+        <div className="lk-search">
+          <ShelfSearch value={query} placeholder="在这个歌单里找" onChange={setQuery} />
+          <span className="lk-search__count">
+            {filtering ? `${visible.length} / ${rows.length} 首` : `${rows.length} 首`}
+          </span>
+        </div>
+      ) : null}
+
+      {rows.length > 0 && visible.length === 0 ? (
+        <p className="shelf-empty">没有匹配的歌。</p>
+      ) : rows.length > 0 ? (
         <TrackList
-          tracks={rows}
+          tracks={visible.map((row) => row.track)}
           currentId={currentId}
           playing={playing}
-          onPlayAt={(index) => void store.getState().playAt(songs, index)}
+          onPlayAt={(index) => void store.getState().playAt(songs, visible[index].index)}
           onMenu={
             onMenu
               ? (request) =>
@@ -178,6 +198,21 @@ function PlaylistPage({
         />
       ) : state.loadingTracks ? (
         <p className="pg-note">正在读取这一张…</p>
+      ) : state.fail ? (
+        /*
+         * 「平台这次没给」和「这张里真的没有」是两件事。把它写成后者，用户会以为
+         * 歌单空了 —— 五百多首的歌单因为一次 502 显示成 0 首，比报错更让人慌。
+         */
+        <div className="pg-empty">
+          <h2>没读到这张歌单</h2>
+          <p>
+            {state.fail.message ? state.fail.message + '。' : ''}
+            多半是网络或平台接口的一时问题，过一会儿再试。
+          </p>
+          <button className="rh-btn" type="button" onClick={() => void store.getState().openPlaylist(playlistId)}>
+            重试
+          </button>
+        </div>
       ) : (
         <p className="pg-note">这一张里没有能播的歌。</p>
       )}
