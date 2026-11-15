@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { artworkFor } from '../features/library/source'
 import { groupAlbums, groupArtists, useLibrary } from '../features/library/store'
+import { shelfMatches } from '../features/library/playlist-filter'
+import { ShelfSearch } from '../ui/ShelfSearch'
 import { buildFolderTree } from '../features/library/tree'
 import { orderTracks, playCounts, type SongOrder } from '../features/library/views'
 import { player } from '../features/player/actions'
@@ -50,6 +52,7 @@ export function LocalPage({
   const scanning = useLibrary((state) => state.scanning)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'songs')
   const [order, setOrder] = useState<SongOrder>('default')
+  const [query, setQuery] = useState('')
 
   /*
    * 「最多播放」直接读播放明细，不另存一份计数：历史本身已经保留 180 天，
@@ -58,6 +61,17 @@ export function LocalPage({
   const plays = usePlayEntries()
   const counts = useMemo(() => playCounts(plays), [plays])
   const shown = useMemo(() => orderTracks(tracks, order, counts), [tracks, order, counts])
+  /*
+   * 本机库九百多首也是只能滚。筛选排在排序之后：先按用户选的方式排好，再按词收窄，
+   * 这样「最近添加」里搜出来的顺序仍是最近的在前。
+   */
+  const rows = useMemo(
+    () =>
+      query.trim()
+        ? shown.filter((track) => shelfMatches(query, track.title, track.artist, track.album ?? ''))
+        : shown,
+    [shown, query]
+  )
 
   const albums = useMemo(() => groupAlbums(tracks), [tracks])
   const artists = useMemo(() => groupArtists(tracks), [tracks])
@@ -128,12 +142,27 @@ export function LocalPage({
         </span>
       </header>
 
+      {tab === 'songs' && tracks.length > 0 ? (
+        <div className="lk-search">
+          <ShelfSearch value={query} placeholder="搜标题、歌手、专辑" onChange={setQuery} />
+          {query.trim() ? (
+            <span className="lk-search__count">
+              {rows.length} / {shown.length} 首
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tab === 'songs' && rows.length === 0 && query.trim() ? (
+        <p className="shelf-empty">没有匹配的歌。</p>
+      ) : null}
+
       {tab === 'songs' ? (
         <TrackList
-          tracks={shown}
+          tracks={rows}
           currentId={currentId}
           playing={playing}
-          onPlayAt={(index) => player.playQueue(shown, index)}
+          onPlayAt={(index) => player.playQueue(rows, index)}
           onMenu={onMenu}
         />
       ) : null}
