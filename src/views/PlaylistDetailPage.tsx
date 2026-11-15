@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Playlist } from '../features/playlists/store'
 import type { PlaylistOrder } from '../features/library/views'
 import type { Track } from '../types'
@@ -7,6 +7,8 @@ import { AlbumName, ArtistName } from '../ui/NameRef'
 import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
 import { Artwork } from '../ui/Artwork'
+import { ShelfSearch } from '../ui/ShelfSearch'
+import { filterPlaylistRows } from '../features/library/playlist-filter'
 import { Note, Play, Trash, Wave } from '../ui/icons'
 import { DetailHero } from './DetailHero'
 
@@ -54,6 +56,17 @@ export function PlaylistDetailPage({
    * 正是它。把排序方式也持久化会多一个状态，还得处理「改了排序但没保存」。
    */
   const [order, setOrder] = useState<PlaylistOrder>('manual')
+  const [query, setQuery] = useState('')
+
+  /*
+   * 筛的是「看哪首」，不是「歌单里有哪首」：`filterPlaylistRows` 给每一行都带上
+   * 原始下标，点一行播的还是那首，不会因为前面被筛掉而串位。
+   *
+   * 筛选期间把拖拽关掉 —— 在筛过的列表里把第 3 行拖到第 1 行，与「在歌单里
+   * 把它移到最前」不是一回事，容易做成人没想到的操作。
+   */
+  const filtering = query.trim() !== ''
+  const rows = useMemo(() => filterPlaylistRows(tracks, query), [tracks, query])
 
   const total = tracks.reduce((sum, track) => sum + track.duration, 0)
 
@@ -123,24 +136,36 @@ export function PlaylistDetailPage({
       ) : null}
 
       {tracks.length > 0 ? (
-        <div className="pl-detail__sort">
-          <div className="seg" role="group" aria-label="歌单顺序">
-            {SORTS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={order === key ? 'is-active' : ''}
-                onClick={() => {
-                  setOrder(key)
-                  onSort(key)
-                }}
-              >
-                {label}
-              </button>
-            ))}
+        <>
+          <div className="pl-detail__sort">
+            <div className="seg" role="group" aria-label="歌单顺序">
+              {SORTS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={order === key ? 'is-active' : ''}
+                  onClick={() => {
+                    setOrder(key)
+                    onSort(key)
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="pl-detail__note">
+              {filtering
+                ? '筛选时不能改顺序，清空搜索就行'
+                : '拖一行就能改顺序，或按住 Alt 用上下方向键'}
+            </span>
           </div>
-          <span className="pl-detail__note">拖一行就能改顺序，或按住 Alt 用上下方向键</span>
-        </div>
+          <div className="lk-search">
+            <ShelfSearch value={query} placeholder="在这个歌单里找" onChange={setQuery} />
+            <span className="lk-search__count">
+              {filtering ? `${rows.length} / ${tracks.length} 首` : `${tracks.length} 首`}
+            </span>
+          </div>
+        </>
       ) : null}
 
       {tracks.length === 0 ? (
@@ -150,15 +175,17 @@ export function PlaylistDetailPage({
           </div>
           <h2>这个播放列表还是空的</h2>
         </div>
+      ) : rows.length === 0 ? (
+        <p className="shelf-empty">没有匹配的歌。</p>
       ) : (
         <ol className="pl-tracks">
-          {tracks.map((track, index) => {
+          {rows.map(({ track, index }) => {
             const isCurrent = track.id === currentId
             const classes = [
               'pl-track',
               isCurrent ? 'is-current' : '',
-              dragFrom === index ? 'is-dragging' : '',
-              dragOver === index && dragFrom !== index ? 'is-over' : ''
+              !filtering && dragFrom === index ? 'is-dragging' : '',
+              !filtering && dragOver === index && dragFrom !== index ? 'is-over' : ''
             ]
               .filter(Boolean)
               .join(' ')
@@ -167,7 +194,7 @@ export function PlaylistDetailPage({
               <li
                 key={`${track.id}-${index}`}
                 className={classes}
-                draggable
+                draggable={!filtering}
                 onDragStart={(event) => {
                   setDragFrom(index)
                   event.dataTransfer.effectAllowed = 'move'
@@ -203,7 +230,8 @@ export function PlaylistDetailPage({
                   onClick={() => onPlayAt(index)}
                   onKeyDown={(event) => {
                     // Keyboard equivalent of dragging, so reordering is not
-                    // mouse-only.
+                    // mouse-only. Off while filtering, same as dragging.
+                    if (filtering) return
                     if (!event.altKey) return
                     if (event.key === 'ArrowUp' && index > 0) {
                       event.preventDefault()

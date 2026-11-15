@@ -75,16 +75,8 @@ export function ShelfSearch({
   )
 }
 
-/**
- * 这一行是否匹配查询。
- *
- * 按词拆开、全部命中才算：搜「陈 奕迅」能同时找到名字里带「陈」与「奕迅」的那一条，
- * 而搜「陈奕迅 演唱会」不会因为中间有空格就全落空。大小写不敏感——中文用不上，
- * 但专辑名里常夹英文。
+/*
+ * 匹配规则的实现在 `features/library/playlist-filter.ts`：它是纯函数，歌单筛选也在用，
+ * 且 `node --test` 只进得去不碰 JSX 的文件。这里转出去，调用方照旧写 `from '../ui/ShelfSearch'`。
  */
-export function shelfMatches(query: string, ...fields: (string | null | undefined)[]): boolean {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return true
-  const haystack = fields.filter(Boolean).join(' ').toLowerCase()
-  return words.every((word) => haystack.includes(word))
-}
+export { shelfMatches } from '../features/library/playlist-filter'
