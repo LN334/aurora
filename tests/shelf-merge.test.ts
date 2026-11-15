@@ -59,3 +59,19 @@ test('空列表返回空，归一化只去空白与大小写', () => {
   assert.deepEqual(mergeShelves([]), [])
   assert.equal(normalizeTitle('  A  b '), 'ab')
 })
+
+test('给了认领函数时，同名但不同歌手的专辑不算同一张', () => {
+  const key = (album: { name: string; artistName: string }) =>
+    normalizeTitle(album.name) + '|' + normalizeTitle(album.artistName)
+  const rows = mergeShelves(
+    [
+      { name: '精选集', artistName: '周杰伦', providerId: 'netease' as const },
+      { name: '精选集', artistName: '陈奕迅', providerId: 'qq' as const },
+      { name: '精选集', artistName: '周杰伦', providerId: 'qq' as const }
+    ],
+    key
+  )
+  assert.equal(rows.length, 2)
+  const jay = rows.find((row) => row.artistName === '周杰伦')
+  assert.deepEqual(jay?.providers, ['netease', 'qq'])
+})

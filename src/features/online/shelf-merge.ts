@@ -20,11 +20,17 @@ import type { ProviderId } from './types'
 const collator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' })
 
 export function mergeShelves<T extends { name: string; providerId: ProviderId }>(
-  items: readonly T[]
+  items: readonly T[],
+  /*
+   * 认哪条算「同一张」。默认只比名字（艺人同名即同一人，这是安全的）；
+   * 专辑要把歌手一起比 —— 两张都叫《精选集》的不同歌手专辑并成一行，
+   * 点进去只会放其中一张，另一张就此消失，比不合并坏得多。
+   */
+  keyOf: (item: T) => string = (item) => normalizeTitle(item.name)
 ): (T & { providers: ProviderId[] })[] {
   const merged = new Map<string, T & { providers: ProviderId[] }>()
   for (const item of items) {
-    const key = normalizeTitle(item.name)
+    const key = keyOf(item)
     const seen = merged.get(key)
     if (!seen) {
       merged.set(key, { ...item, providers: [item.providerId] })

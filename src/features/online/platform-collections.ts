@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
 import { listAvailableProviders } from './registry'
-import { mergeShelves } from './shelf-merge'
+import { mergeShelves, normalizeTitle } from './shelf-merge'
 import type { ProviderCollectedAlbum, ProviderFollowedArtist, ProviderId } from './types'
 
 /**
@@ -113,7 +113,7 @@ async function loadCollectedAlbums(signed: Record<string, boolean>): Promise<Col
 
   if (loads.length === 0) return []
   const groups = await Promise.all(loads)
-  return mergeShelves(groups.flat())
+  return mergeShelves(groups.flat(), (album) => normalizeTitle(album.name) + '|' + normalizeTitle(album.artistName))
 }
 
 /**
