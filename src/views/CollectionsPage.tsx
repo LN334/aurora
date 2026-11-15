@@ -23,16 +23,19 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
    * 「还没有收藏专辑」在三种情况下都是同一句话：没登录、登录过期、真的没收藏。
    * 前两种用户其实什么都没做错，只说「还没有」等于把问题丢回给他——所以按登录
    * 状态分开说，并给出下一步该点哪里。
+   *
+   * 文案里不点名平台：收藏是「平台账号」里的关系，四家谁有这条通道是接口的事，
+   * 不该让用户在空页上学一遍哪些平台支持收藏。
    */
   if (albums.length === 0) {
     const anySigned = Boolean(signed?.netease || signed?.qq)
     return (
       <div className="pg-empty">
-        <h2>{anySigned ? '没读到收藏的专辑' : '还没有登录平台'}</h2>
+        <h2>{anySigned ? '没读到收藏的专辑' : '还没有登录'}</h2>
         <p>
           {anySigned
-            ? '如果确实在网易云或 QQ 收藏过专辑，可能是登录过期了，重新登录一次就会回来。'
-            : '收藏的专辑存在平台账号里，登录网易云或 QQ 之后这里才有东西可看。'}
+            ? '如果在平台上收藏过专辑，可能是登录过期了，重新登录一次就会回来。'
+            : '收藏的专辑存在平台账号里，登录之后这里才有东西可看。'}
         </p>
         <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
           {anySigned ? '去重新登录' : '去登录'}
