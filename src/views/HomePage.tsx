@@ -656,7 +656,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           onClick={() => onNavigate({ view: 'playlists' })}
         />
         {/*
-         * 一张卡，里面两个入口：收藏歌单与收藏专辑分开走。
+         * 一张卡，三处入口：收藏歌单、收藏专辑、关注艺人各走各的。
          *
          * 本机音乐不再占这一格——这是各平台的客户端，本机文件在左栏留着就够了。
          * 收藏也不做聚合页：进来还是各看各的，只是入口并在一张卡里。
@@ -682,6 +682,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             </button>
             <button type="button" onClick={() => onNavigate({ view: 'collections' })}>
               收藏专辑
+              <ChevronRight size={12} />
+            </button>
+            <button type="button" onClick={() => onNavigate({ view: 'followedartists' })}>
+              关注艺人
               <ChevronRight size={12} />
             </button>
           </div>
