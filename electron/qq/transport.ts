@@ -279,6 +279,7 @@ interface QqServices {
   getNewSongs: (areaId?: number, limit?: number) => Promise<unknown>
   getUserLikedSongs: (params: Record<string, unknown>) => Promise<unknown>
   getUserCollectedAlbums: (params: Record<string, unknown>) => Promise<unknown>
+  getUserFollowSingers: (params: Record<string, unknown>) => Promise<unknown>
   getAlbumInfo: (params: Record<string, unknown>) => Promise<unknown>
   getAlbumSongs: (params: Record<string, unknown>) => Promise<unknown>
 }
@@ -967,6 +968,27 @@ export async function requestCollectedAlbums(params: {
     uin: params.uin,
     page: params.page ?? 1,
     limit: params.limit ?? 60,
+    cookie: params.cookie
+  })
+}
+
+/**
+ * Singers this profile follows on the platform.
+ *
+ * 上游是 `/rsc/fcgi-bin/fcg_order_singer_getlist.fcg`：`g_tk` 由包里写死成 5381、
+ * cookie 走整个会话串。登录失效时它回 `{code:1000, msg:"not login"}`，normalize
+ * 会把这种情况当成空列表，不抛。
+ */
+export async function requestFollowedArtists(params: {
+  uin: string
+  cookie: string
+  page?: number
+  limit?: number
+}): Promise<unknown> {
+  return await loadServices().getUserFollowSingers({
+    uin: params.uin,
+    page: params.page ?? 1,
+    limit: params.limit ?? 100,
     cookie: params.cookie
   })
 }

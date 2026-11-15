@@ -181,23 +181,15 @@ export function useCollectedAlbums(): CollectedAlbum[] {
   return rows
 }
 
-/**
- * 关注的艺人。目前只有网易云有「关注歌手」这条通道：QQ 音乐没有对应接口，
- * 酷狗与汽水也没有这种关系——所以这里只问一家，拿不到就是空。
- */
-export function useFollowedArtists(): FollowedArtist[] {
-  const signed = useSignedInPlatforms()
-  const withNetease = Boolean(signed?.netease)
-  const [rows, setRows] = useState<FollowedArtist[]>([])
+async function loadFollowedArtists(
+  withNetease: boolean,
+  withQq: boolean
+): Promise<FollowedArtist[]> {
+  const loads: Promise<FollowedArtist[]>[] = []
 
-  useEffect(() => {
-    let alive = true
-    const netease = window.aurora?.netease
-    if (!withNetease || !netease?.artistSublist) {
-      setRows([])
-      return
-    }
-    void sharedFetch('artists', () =>
+  const netease = window.aurora?.netease
+  if (withNetease && netease?.artistSublist) {
+    loads.push(
       netease
         .artistSublist()
         .then((list) =>
@@ -211,6 +203,55 @@ export function useFollowedArtists(): FollowedArtist[] {
             musicCount: artist.musicCount
           }))
         )
+        .catch(() => [])
+    )
+  }
+
+  const qq = window.aurora?.qq
+  if (withQq && qq?.followedArtists) {
+    loads.push(
+      qq
+        .followedArtists()
+        .then((list) =>
+          list.map((artist) => ({
+            key: 'qq:' + artist.id,
+            providerId: 'qq' as ProviderId,
+            id: artist.id,
+            name: artist.name,
+            avatarUrl: artist.avatarUrl,
+            albumCount: artist.albumCount,
+            musicCount: artist.musicCount
+          }))
+        )
+        .catch(() => [])
+    )
+  }
+
+  if (loads.length === 0) return []
+  const groups = await Promise.all(loads)
+  return groups.flat()
+}
+
+/**
+ * 关注的艺人，各家平台合在一起。
+ *
+ * 网易云与 QQ 都有「关注歌手」这条通道；酷狗和汽水没有这种关系。未登录的平台
+ * 交不出任何东西，所以直接不出现。
+ */
+export function useFollowedArtists(): FollowedArtist[] {
+  const signed = useSignedInPlatforms()
+  const withNetease = Boolean(signed?.netease)
+  const withQq = Boolean(signed?.qq)
+  const [rows, setRows] = useState<FollowedArtist[]>([])
+
+  useEffect(() => {
+    let alive = true
+    if (!signed || (!withNetease && !withQq)) {
+      setRows([])
+      return
+    }
+    void sharedFetch('artists:' + withNetease + ':' + withQq, () =>
+      loadFollowedArtists(withNetease, withQq)
     )
       .then((list) => {
         if (alive) setRows(list)
@@ -221,7 +262,7 @@ export function useFollowedArtists(): FollowedArtist[] {
     return () => {
       alive = false
     }
-  }, [withNetease])
+  }, [signed, withNetease, withQq])
 
   return rows
 }

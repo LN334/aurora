@@ -851,6 +851,13 @@ export interface QqApi {
   /** 收藏的专辑（需要登录；未登录返回空数组）。 */
   collectedAlbums(limit?: number): Promise<QqCollectedAlbum[]>
   /**
+   * 关注的歌手（需要登录；未登录或登录过期都返回空数组）。
+   *
+   * 上游只保证 id 与名字，封面和两个计数是「有就带上」——页面要按「没有封面」
+   * 与 0 处理。
+   */
+  followedArtists(limit?: number): Promise<QqFollowedArtist[]>
+  /**
    * 一张专辑：抬头 + 曲目。
    *
    * QQ 的专辑详情只认 albummid，而页面按数字 id 寻址；主进程会从最近读过的
@@ -869,6 +876,16 @@ export interface QqCollectedAlbum {
   artistMid: string | null
   year: number | null
   songCount: number
+}
+
+/** 关注歌手的一行。QQ 这边只有 id 与名字是稳的。 */
+export interface QqFollowedArtist {
+  id: number
+  mid: string
+  name: string
+  avatarUrl: string | null
+  albumCount: number
+  musicCount: number
 }
 
 /** 一张 QQ 专辑的抬头。 */

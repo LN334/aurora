@@ -384,6 +384,7 @@ const webFallback: AuroraApi = {
     playlistRename: async () => false,
     playlistTracksEdit: async () => false,
     collectedAlbums: async () => [],
+    followedArtists: async () => [],
     album: async () => null
   },
   kugou: {

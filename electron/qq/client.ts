@@ -4,6 +4,7 @@ import {
   normalizeAlbumInfo,
   normalizeAlbumSongs,
   normalizeCollectedAlbums,
+  normalizeFollowedArtists,
   normalizeLyrics,
   normalizeNewSongs,
   normalizePlaylistTracks,
@@ -31,6 +32,7 @@ import {
   requestCollectedAlbums,
   requestDailyPlaylistId,
   requestDailyRecommend,
+  requestFollowedArtists,
   requestLikedSongs,
   requestLoginQr,
   requestLoginQrCheck,
@@ -57,6 +59,7 @@ import type {
   QqAccount,
   QqAlbumBundle,
   QqCollectedAlbum,
+  QqFollowedArtist,
   QqPlaylistSummary,
   QqQuality,
   QqQrResult,
@@ -667,6 +670,28 @@ export async function qqCollectedAlbums(limit = 200): Promise<QqCollectedAlbum[]
     return albums
   } catch (error) {
     console.error('[aurora] qq album shelf failed', messageOf(error))
+    return []
+  }
+}
+
+/**
+ * Singers this profile follows, or an empty list.
+ *
+ * 登录失效时上游回 `code:1000`，normalize 认不出行、给空数组——这里不当错误，
+ * 页面会落到「没读到关注」那一种说法上。字段名也还没被真机确认过，见
+ * `normalizeFollowedArtists` 的说明。
+ */
+export async function qqFollowedArtists(limit = 100): Promise<QqFollowedArtist[]> {
+  const state = readState(activeProfileId)
+  if (!state.cookie) return []
+  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
+  if (!uin) return []
+
+  try {
+    const response = await requestFollowedArtists({ uin, cookie: state.cookie, limit })
+    return normalizeFollowedArtists(response)
+  } catch (error) {
+    console.error('[aurora] qq followed artists failed', messageOf(error))
     return []
   }
 }

@@ -11,8 +11,8 @@ import { User } from '../ui/icons'
  * 这一页是平台账号里的关系，不是本机曲库：本机那些艺术家在「本机音乐」的艺人
  * 标签里，两件事不该挤在一个入口。
  *
- * 目前只有网易云有「关注歌手」这条通道——QQ 音乐没有对应接口，酷狗与汽水也
- * 没有这种关系。所以卡片不按平台分段，一行字说明来源就够了。
+ * 网易云与 QQ 都有「关注歌手」这条通道，酷狗与汽水没有这种关系。卡片不按平台
+ * 分段，一行字说明来源就够了。
  */
 export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRoute): void }) {
   const artists = useFollowedArtists()
@@ -21,24 +21,24 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
   /*
    * 空页要说清是哪一种空。
    *
-   * 这条通道只有网易云有（QQ 无对应接口，酷狗与汽水没有这种关系），所以「登录了
-   * 没有」只看网易云；登录了却仍然空，多半是会话过期（文件还在、能解密，服务端
-   * 却已经不认了），这时只说「还没有关注」等于把问题推回给用户。
+   * 「登录了没有」看所有有这条通道的平台（网易云与 QQ）；都登录了却仍然空，多半
+   * 是会话过期（文件还在、能解密，服务端却已经不认了），这时只说「还没有关注」
+   * 等于把问题推回给用户。
    *
-   * 但文案里不点名平台——用户看到的是「关注艺人」这一页，不是「网易云关注艺人」。
+   * 但文案里不点名平台——用户看到的是「关注艺人」这一页，不是「某家关注艺人」。
    */
   if (artists.length === 0) {
-    const netease = Boolean(signed?.netease)
+    const anySigned = Boolean(signed?.netease || signed?.qq)
     return (
       <div className="pg-empty">
-        <h2>{netease ? '没读到关注的艺人' : '还没有登录'}</h2>
+        <h2>{anySigned ? '没读到关注的艺人' : '还没有登录'}</h2>
         <p>
-          {netease
+          {anySigned
             ? '如果在平台上关注过艺人，可能是登录过期了，重新登录一次就会回来。'
             : '关注的艺人存在平台账号里，登录之后这里才有东西可看。'}
         </p>
         <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
-          {netease ? '去重新登录' : '去登录'}
+          {anySigned ? '去重新登录' : '去登录'}
         </button>
       </div>
     )
@@ -59,7 +59,7 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
               className="rh-card"
               type="button"
               key={artist.key}
-              onClick={(event) => openOnlineArtist('netease', artist.id, event.currentTarget)}
+              onClick={(event) => openOnlineArtist(artist.providerId, artist.id, event.currentTarget)}
             >
               <span className="rh-card__art rh-card__art--round" style={{ background: tint(artist.key) }}>
                 <Artwork

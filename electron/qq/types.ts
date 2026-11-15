@@ -216,6 +216,21 @@ export interface QqCollectedAlbum {
   songCount: number
 }
 
+/**
+ * One followed singer.
+ *
+ * 上游只保证给 id/mid/name；封面与两个计数是「有就带上」。列表接口不保证返回
+ * 它们，页面要按「没有封面」与 0 处理。
+ */
+export interface QqFollowedArtist {
+  id: number
+  mid: string
+  name: string
+  avatarUrl: string | null
+  albumCount: number
+  musicCount: number
+}
+
 export interface QqAlbumDetail {
   id: number
   mid: string

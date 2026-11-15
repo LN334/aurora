@@ -485,6 +485,7 @@ const api = {
     playlistTracksEdit: (id: number, songIds: number[], add: boolean) =>
       ipcRenderer.invoke('qq:playlistTracksEdit', id, songIds, add),
     collectedAlbums: (limit?: number) => ipcRenderer.invoke('qq:collectedAlbums', limit),
+    followedArtists: (limit?: number) => ipcRenderer.invoke('qq:followedArtists', limit),
     album: (id: number) => ipcRenderer.invoke('qq:album', id)
   },
 

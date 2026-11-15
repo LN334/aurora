@@ -1,4 +1,4 @@
-import type { QqAlbumDetail, QqArtist, QqCollectedAlbum, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
+import type { QqAlbumDetail, QqArtist, QqCollectedAlbum, QqFollowedArtist, QqPlaylistSummary, QqSearchResult, QqSong } from './types'
 
 /**
  * QQ upstream responses -> Aurora's shapes. Pure functions, no Electron, no
@@ -821,6 +821,55 @@ export function normalizeCollectedAlbums(response: unknown): QqCollectedAlbum[] 
   }
   return albums
 }
+/**
+ * The followed-singers shelf.
+ *
+ * 这个接口的响应形状没有被真机验证过（写这段时用户的 QQ 登录态已过期，
+ * `fcg_order_singer_getlist` 只回 `{code:1000,msg:"not login"}`）。所以这里按
+ * 候选名逐个试：信封装在 `body.response.data` 或顶层 `data`，列表可能是
+ * `singer_list` / `list` / `singers` / `follow_list`。字段同理会挑 QQ 的
+ * `singer_id` 与各家常见的 `id`。拿不到 id 或名字的行直接丢，登录失效时自然
+ * 得到一个空数组，不抛。
+ */
+export function normalizeFollowedArtists(response: unknown): QqFollowedArtist[] {
+  const envelope = record(record(response).body ?? response)
+  const inner = record(envelope.response)
+  /*
+   * 两种信封都见过：`body.response.data`（多数 fcg 接口）与顶层 `data`（部分
+   * 简化接口）。`record()` 对缺失字段返回 `{}`，所以这里靠「inner 有没有 data」
+   * 判断，不能用 `??`——空对象永远不会被 `??` 换掉。
+   */
+  const data = inner.data ? record(inner.data) : record(envelope.data)
+  const rows =
+    list(data.singer_list).length > 0
+      ? list(data.singer_list)
+      : list(data.list).length > 0
+        ? list(data.list)
+        : list(data.singers).length > 0
+          ? list(data.singers)
+          : list(data.follow_list)
+  const artists: QqFollowedArtist[] = []
+  for (const row of rows) {
+    const entry = record(row)
+    const id = integer(
+      pick(entry, 'singer_id', 'singerid', 'singerID', 'singerId', 'id')
+    )
+    const name = text(pick(entry, 'singer_name', 'singername', 'name', 'title'))
+    if (!id || !name) continue
+    artists.push({
+      id,
+      mid: text(pick(entry, 'singer_mid', 'singermid', 'singerMID', 'mid')),
+      name,
+      avatarUrl: text(pick(entry, 'singer_pic', 'singerpic', 'pic', 'avatar', 'logo')) || null,
+      albumCount: integer(pick(entry, 'album_num', 'albumnum', 'album_count', 'albumSize')),
+      musicCount: integer(
+        pick(entry, 'song_num', 'songnum', 'song_count', 'music_num', 'musicSize')
+      )
+    })
+  }
+  return artists
+}
+
 /**
  * One album's head.
  *

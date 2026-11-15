@@ -7,6 +7,7 @@ import type {
   QqAccount,
   QqAlbumBundle,
   QqCollectedAlbum,
+  QqFollowedArtist,
   QqPlaylistSummary,
   QqQuality,
   QqQrResult,
@@ -283,6 +284,11 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) => {
     const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 200
     return guard<QqCollectedAlbum[]>('collectedAlbums', [], () => client.qqCollectedAlbums(limit))
+  })
+
+  ipcMain.handle('qq:followedArtists', (_event, value: unknown) => {
+    const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 100
+    return guard<QqFollowedArtist[]>('followedArtists', [], () => client.qqFollowedArtists(limit))
   })
 
   ipcMain.handle('qq:album', (_event, value: unknown) => {
