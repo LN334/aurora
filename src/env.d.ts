@@ -1143,6 +1143,14 @@ interface WallpaperApi {
   info(force?: boolean): Promise<WallpaperInfo>
   /** 全部可用的工程，设置页的壁纸库用它铺格子。 */
   list(force?: boolean): Promise<WallpaperEntry[]>
+  /**
+   * 场景包（`scene.pkg`）的字节。
+   *
+   * 场景引擎是用 `fetch` 读这个文件的，而渲染层对 `aurora-wallpaper://` 的
+   * `fetch` 会被拒（图片和视频没事，只有 `fetch` 不行），于是几百 MB 的场景
+   * 永远挂不起来、只能显示 230px 的预览图。改由主进程读出来、经 IPC 交给引擎。
+   */
+  scenePkg(id: string): Promise<Uint8Array | null>
 }
 
 /** 窗口层面的动作：全屏不落盘，下次启动回到普通窗口。 */

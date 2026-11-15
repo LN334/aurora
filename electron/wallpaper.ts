@@ -636,6 +636,31 @@ function projectDirectory(id: string): ScannedProject | null {
   return projects.find((project) => project.id === id) ?? null
 }
 
+/**
+ * The bytes of a scene wallpaper's `scene.pkg`, for the renderer to hand to the
+ * WebGL engine directly.
+ *
+ * Why not just let the engine fetch the package over `aurora-wallpaper://`?
+ * Because it cannot: `fetch` against that scheme fails in the renderer even
+ * though `<img>`/`<video>` load from it, so a 144 MB scene never mounts and the
+ * backdrop silently falls back to the small preview image. Reading it here and
+ * shipping the bytes over IPC skips the protocol stack entirely; the engine
+ * wants an ArrayBuffer anyway, so the memory cost is the same.
+ */
+export async function wallpaperScenePkg(id: string): Promise<Buffer | null> {
+  const project = projectDirectory(id)
+  if (!project) return null
+  const target = path.resolve(project.dir, 'scene.pkg')
+  if (!isInside(project.dir, target)) return null
+  try {
+    const stat = await fs.promises.stat(target)
+    if (!stat.isFile()) return null
+    return await fs.promises.readFile(target)
+  } catch {
+    return null
+  }
+}
+
 /** The slice of Electron's protocol module this file uses. */
 interface ElectronProtocol {
   registerSchemesAsPrivileged(schemes: { scheme: string; privileges: Record<string, boolean> }[]): void

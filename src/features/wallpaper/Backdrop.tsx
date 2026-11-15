@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WallpaperEntry } from '../../env'
+import { bridge } from '../../bridge'
 import { propertyValues, sceneRenderOptions } from './pure'
 import type { PropertyValue } from './pure'
 import { useWallpaper } from './store'
@@ -135,10 +136,23 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
 
     const start = async () => {
       try {
-        const { mount, httpSource } = await import('webwallgl')
+        const { mount } = await import('webwallgl')
         if (disposed) return
         instance = await mount(host, {
-          source: httpSource(entry.sourceUrl),
+          /*
+           * 不用库自带的 `httpSource`：它在内部 `fetch` 场景包，而渲染层对
+           * `aurora-wallpaper://` 的 `fetch` 会被拒（`<img>`/`<video>` 却正常），
+           * 几百 MB 的 pkg 于是永远拿不到、只能回退到 230px 的预览图。这里自己
+           * 实现 Source，字节从主进程经 IPC 拿；引擎要的本来就是一个 ArrayBuffer，
+           * 内存开销一样，只是换了一条能走通的通道。
+           */
+          source: {
+            scenePkg: async () => {
+              const bytes = await bridge.wallpaper.scenePkg(entry.id)
+              if (!bytes) throw new Error('scene.pkg 读取失败')
+              return bytes
+            }
+          },
           fit: 'cover',
           // 帧率跟着画质档走；均衡档的 30 fps 就是背景该有的样子。
           fps,

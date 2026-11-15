@@ -106,7 +106,13 @@ const api = {
       ipcRenderer.invoke('wallpaper:info', force === true) as Promise<WallpaperInfo>,
     /** The tiled library: every project Wallpaper Engine has installed. */
     list: (force?: boolean) =>
-      ipcRenderer.invoke('wallpaper:list', force === true) as Promise<WallpaperEntry[]>
+      ipcRenderer.invoke('wallpaper:list', force === true) as Promise<WallpaperEntry[]>,
+    /**
+     * A scene container's bytes. The WebGL engine fetches this file, and
+     * `fetch` against `aurora-wallpaper://` is refused by the renderer, so the
+     * main process reads it and hands the bytes over instead.
+     */
+    scenePkg: (id: string) => ipcRenderer.invoke('wallpaper:scenePkg', id) as Promise<Uint8Array | null>
   },
 
   library: {

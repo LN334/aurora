@@ -462,7 +462,9 @@ const webFallback: AuroraApi = {
       note: '浏览器预览模式没有主进程，读不到 Wallpaper Engine。',
       engineDir: null
     }),
-    list: async () => []
+    list: async () => [],
+    /* 浏览器里没有 Wallpaper Engine，场景包自然也没有。 */
+    scenePkg: async () => null
   },
 
   /*
