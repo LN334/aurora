@@ -1351,7 +1351,7 @@ async function main() {
         cdp = await Cdp.connect(page.webSocketDebuggerUrl, { callTimeoutMs: 30000 })
         await cdp.send('Page.enable')
         await cdp.send('Runtime.enable')
-        if (!(await waitUntil(`!document.getElementById('boot-splash')`))) {
+        if (!(await waitUntil(`!!document.querySelector('.rail')`))) {
           problems.push('the app never finished booting after a reload')
         }
         await evaluate(cdp, `location.hash = '#playlist/pl_smoke'`)
@@ -1395,7 +1395,7 @@ async function main() {
         cdp = await Cdp.connect(againPage.webSocketDebuggerUrl, { callTimeoutMs: 30000 })
         await cdp.send('Page.enable')
         await cdp.send('Runtime.enable')
-        if (!(await waitUntil(`!document.getElementById('boot-splash')`))) {
+        if (!(await waitUntil(`!!document.querySelector('.rail')`))) {
           problems.push('the app never finished booting after the second reload')
         }
         await evaluate(cdp, `location.hash = '#playlist/pl_smoke'`)

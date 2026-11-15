@@ -45,7 +45,7 @@ import { applyBackdrop, readBackdrop } from './features/settings/backdrop'
 applyReduceMotion(readReduceMotion())
 applyLyricSize(readLyricSize())
 applyRowDensity(readRowDensity())
-/* public/boot.js 已经在首帧前落过一次；这里补一次，兜住「系统在这之间翻了」。 */
+/* 首帧之前就要把主题落到 <html> 上，否则会用浏览器默认色闪一下。 */
 applyTheme(readTheme())
 /* 背景材质与模糊半径，同样只落一次，之后由设置页改。 */
 applyBackdrop(readBackdrop())

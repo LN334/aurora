@@ -336,19 +336,15 @@ function createWindow(): void {
     minWidth: sized ? 520 : 940,
     minHeight: sized ? 420 : 620,
     /*
-     * 先不显示，等开屏那一页画出来（见下面的 showSplash）。
+     * 先不显示，等首帧画好（ready-to-show）再 show。
      *
-     * 应用页太重：Vite 的 bundle、首页几十张图、动态壁纸，实测第一个像素要 1.5
-     * 秒。窗口若在这时就显示，用户先看到的是浏览器底色，然后开屏才姗姗来迟——
-     * 也就是「开场动画后于主页出现」。改成先加载 public/splash.html（内联 CSS，
-     * 不到十个数得完的 DOM），它一上屏就显示窗口，应用页随后在它背后加载。
+     * 开屏页已经去掉：现在是窗口一起就是首页，代价是应用页加载的那一会儿会看到
+     * 一层纯底色。底色跟系统主题走，所以看起来像「窗口先空着」，不再是两块画面交接。
      */
     show: false,
     /*
-     * 窗口底色：开屏页与首页都会自己铺满底色，这一层只在导航换页的那一两帧里
-     * 露出来。以前固定深色，浅色主题的用户在这两帧里会看到一下深底，像开屏
-     * 「没盖住」。主进程读不到渲染层的主题设置（它存在 localStorage 里），所以
-     * 退一步跟系统走——大多数人选的就是系统那套。
+     * 窗口底色：开屏页没有了，这一层就是首屏之前唯一可见的东西。主进程读不到
+     * 渲染层的主题设置（存在 localStorage 里），所以退一步跟系统走。
      */
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d1013' : '#f1f4f8',
     // 用户设过自定义图标时用它，否则用 assets 里那张；任务栏与 Alt+Tab 都认这个。
@@ -407,35 +403,13 @@ function createWindow(): void {
   mainWindow.on('leave-full-screen', () => setOverlaySuppressed(false))
 
   const bootAt = Date.now()
-  /*
-   * 开屏页至少演多久再让位给应用页。
-   *
-   * 描边动画 620ms 加右腿 90ms 错位，本身要 710ms。窗口显示之后动画时钟才走，
-   * 所以留到 760ms 正好让「两条腿画完」这一下被看见，多出来的时间它也只是停在
-   * 那里等——而应用页自己还要加载近两秒，光晕与扫光会在第二层接着演，不需要
-   * 在第一层多等。之前这里写的是 1100ms，用户反馈「开屏太久」，那 340ms 是白等的。
-   */
-  const SPLASH_MIN_MS = 760
-  let splashShownAt = 0
-
-  /*
-   * 显示窗口。开屏页的 DOM 一就绪就能看，不必等 ready-to-show——那张页面里没有
-   * 脚本要执行，dom-ready 与首帧之间只差一次样式计算。
-   */
-  const showSplash = (): void => {
-    const window = mainWindow
-    if (!window || window.isDestroyed() || window.isVisible()) return
-    splashShownAt = Date.now()
-    window.show()
-    write(`splash shown +${Date.now() - bootAt}ms`)
-  }
-
   mainWindow.once('ready-to-show', () => {
     const window = mainWindow
     if (!window) return
     // 「打开多久才看见东西」就是这一段：ready-to-show 之后才 show。
     write(`ready-to-show +${Date.now() - bootAt}ms`)
-    showSplash()
+    window.show()
+    write(`window shown +${Date.now() - bootAt}ms`)
     installThumbar(window, lastPlaying, sendMediaCommand)
   })
 
@@ -534,28 +508,12 @@ function createWindow(): void {
   })
 
   /*
-   * 打包版先上开屏页，隔着一段时间再导航到应用页。
-   *
-   * 开发版与截图验收都直接进应用页：前者的模块由 Vite 现编，等它反而更慢；后者
-   * 要截的正是应用本身，多一张开屏只会挡路。
+   * 直接进应用页。没有开屏页要等：窗口在 ready-to-show 时显示，用户看到的就是
+   * 首页的第一帧。开发版走 Vite，截图验收也要截应用本身，都不需要额外的中转页。
    */
-  const useSplash = !isDev && !captureArg
   const appUrl = `${APP_ORIGIN}/index.html`
 
-  if (useSplash) {
-    const splashUrl = `${APP_ORIGIN}/splash.html`
-    write(`loading ${splashUrl}`)
-    void mainWindow.loadURL(splashUrl)
-    mainWindow.webContents.once('did-finish-load', () => {
-      const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - (splashShownAt || Date.now())))
-      write(`splash ready +${Date.now() - bootAt}ms, navigating in ${wait}ms`)
-      setTimeout(() => {
-        if (!mainWindow || mainWindow.isDestroyed()) return
-        write(`loading ${appUrl}`)
-        void mainWindow.loadURL(appUrl)
-      }, wait)
-    })
-  } else if (isDev) {
+  if (isDev) {
     write(`loading ${DEV_URL}`)
     void mainWindow.loadURL(DEV_URL)
     if (!captureArg) mainWindow.webContents.openDevTools({ mode: 'detach' })
@@ -566,9 +524,6 @@ function createWindow(): void {
     write(`loading ${appUrl}`)
     void mainWindow.loadURL(appUrl)
   }
-
-  // 开屏页的 DOM 一到就显示窗口；应用页那一次 dom-ready 会被这里跳过（窗口已可见）。
-  mainWindow.webContents.once('dom-ready', showSplash)
 
   if (captureArg) {
     const out = captureArg.slice('--capture='.length)

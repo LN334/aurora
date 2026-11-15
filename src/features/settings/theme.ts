@@ -7,9 +7,8 @@ import { useSyncExternalStore } from 'react'
  * 三件事——把选择记进 localStorage、写 data-theme、以及在「跟随系统」时听
  * Windows 那边的明暗切换。
  *
- * 冷启动这段还有一份更早的实现：public/boot.js。它必须在 React 起来之前就把
- * data-theme 落好，否则浅色用户会先看到一帧深色界面。两处读同一个键，改键名
- * 要一起改。
+ * React 起来之前没有别的脚本读这个键了（boot.js 随开屏一起删掉了），首帧由
+ * main.tsx 在 render 之前调用 applyTheme；窗口底色则由主进程按系统主题铺。
  */
 
 const KEY = 'aurora.theme'
