@@ -71,7 +71,7 @@
       "include": "build/installer-custom.nsh",
       "oneClick": false,
       "perMachine": false,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": false,
       "createStartMenuShortcut": true,
       "shortcutName": "Aurora",
       "deleteAppDataOnUninstall": false,
