@@ -58,15 +58,18 @@ export function LikedPage({
    */
   const stamps = useLikes((state) => state.stamps)
   const tracks = useMemo(() => {
-    const rows = [
-      ...liked.map((entry) => ({ track: entry.track, at: entry.at })),
-      ...platformLiked.map((track) => ({
-        track,
-        at: stamps[likeSourceOf(track) + ':' + track.id] ?? 0
-      }))
-    ]
+    /*
+     * 平台在前、本机在后。同一首歌两边都有时本来就会并成一行、主版本按音源优先级
+     * 取（本机排在最后），但不同的歌之间也该是平台优先 —— 本机收藏是这一页的补充，
+     * 不该和账号里的红心抢位置。两块各自按时间倒序，所以刚点的仍然在最前面。
+     */
+    const platformRows = platformLiked.map((track) => ({
+      track,
+      at: stamps[likeSourceOf(track) + ':' + track.id] ?? 0
+    }))
+    const localRows = liked.map((entry) => ({ track: entry.track, at: entry.at }))
     return mergeVersions(
-      newestFirst(rows).map((row) => row.track),
+      [...newestFirst(platformRows), ...newestFirst(localRows)].map((row) => row.track),
       order
     )
   }, [liked, platformLiked, stamps, order])

@@ -47,5 +47,7 @@ export function likeTargets(track: Track): LikeTarget[] {
     })
   }
 
+  // 平台在前、本机最后：本机收藏是补位，不该排在「收藏到网易云」前面。
+  out.sort((a, b) => Number(a.source === 'local') - Number(b.source === 'local'))
   return out
 }
