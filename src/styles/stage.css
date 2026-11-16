@@ -130,9 +130,12 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--s4);
-  /* 右侧这条缝是 Windows 画最小化/最大化/关闭的地方：标题栏让出 148px，
-     舞台是全屏覆盖层，同样得让，否则「正在播放」会压在按钮底下。 */
-  padding: var(--s5) 148px 0 var(--s5);
+  /*
+   * 左右内边距必须相等，否则中间那一列不是屏幕的中点：原来右边留 148px
+   * 给 Windows 的窗口按钮，结果歌名整体左偏了半个 148（窗口越宽越明显）。
+   * 让位改由右边的样式开关自己用 margin 让，中间列就回到真正的正中。
+   */
+  padding: var(--s5) var(--s5) 0;
 }
 
 .stage__back {
@@ -716,6 +719,8 @@
   /* 顶栏是网格，落在第三列；让出 148px 是窗口按钮的位置 */
   grid-column: 3;
   justify-self: end;
+  /* 窗口按钮占右边 148px：让位从内边距挪到这儿，中间那列才能真居中 */
+  margin-right: calc(148px - var(--s5));
   display: flex;
   align-items: center;
   gap: 2px;
