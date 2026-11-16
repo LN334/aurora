@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Route } from '../app/routing'
 import { hydrateArtistRefs } from '../features/online/hydrate'
 import { player } from '../features/player/actions'
-import { groupPlaysByDay } from '../features/player/history'
+import { groupPlaysByDay, type PlayEntry } from '../features/player/history'
 import { useHistoryState, usePlayEntries, useRecentEntries } from '../features/player/history-store'
 import { hourLabel, summarizeListening } from '../features/player/stats'
+import { shelfMatches } from '../features/library/playlist-filter'
 import { usePlayer } from '../features/player/store'
 import type { Track } from '../types'
 import { formatSpan } from '../ui/format'
+import { ShelfSearch } from '../ui/ShelfSearch'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -42,6 +44,7 @@ export function RecentPage({
   const currentId = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index]?.id ?? null) : null))
   const playing = usePlayer((state) => state.playing)
   const [scope, setScope] = useState<Scope>('week')
+  const [query, setQuery] = useState('')
 
   const history = useHistoryState()
 
@@ -62,12 +65,27 @@ export function RecentPage({
   }, [])
 
   const groups = useMemo(() => {
+    /*
+     * 搜索只筛「这一条记录」，不筛日期分组：筛完某天可能一条不剩，
+     * 那一天就自然不出现，而不是留个空标题。
+     *
+     * `plays` 与 `recent` 是同一个 `RecentEntry` 形状；真正决定那一行能不能
+     * 显示的是 `track` 快照（没有快照的记录下方列表本来就会跳过），所以这里
+     * 也只在有快照的记录上匹配。
+     */
+    const q = query.trim()
+    const keep = (entry: PlayEntry) => {
+      if (!q) return true
+      const track = entry.track
+      if (!track) return false
+      return shelfMatches(q, track.title, track.artist)
+    }
     if (plays.length) {
       const cutoff = scope === 'week' ? startOfToday - (WEEK_DAYS - 1) * DAY_MS : 0
-      return groupPlaysByDay(plays.filter((entry) => entry.at >= cutoff))
+      return groupPlaysByDay(plays.filter((entry) => entry.at >= cutoff && keep(entry)))
     }
-    return recent.length ? [{ day: '', entries: recent }] : []
-  }, [plays, recent, scope, startOfToday])
+    return recent.length ? [{ day: '', entries: recent.filter(keep) }] : []
+  }, [plays, recent, scope, startOfToday, query])
 
   const flat = useMemo(
     () =>
@@ -189,6 +207,19 @@ export function RecentPage({
           </p>
         </section>
       ) : null}
+
+      {plays.length || recent.length ? (
+        <div className="lk-search">
+          <ShelfSearch value={query} placeholder="搜标题、歌手" onChange={setQuery} />
+          {query.trim() ? (
+            <span className="lk-search__count">
+              {groups.reduce((sum, group) => sum + group.entries.length, 0)} 条
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {days.length === 0 && query.trim() ? <p className="shelf-empty">没有匹配的播放记录。</p> : null}
 
       {days.map((day) => (
         <section className="rv-day" key={day.day || 'recent'}>
