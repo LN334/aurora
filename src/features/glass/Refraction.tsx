@@ -143,15 +143,32 @@ export function Refraction() {
 
     const resize = new ResizeObserver(schedule)
 
-    schedule()
+    // 首帧先让出来：两张贴图是同步逐像素算的（约四十万像素），
+    // 卡在首屏渲染前会把启动拖慢肉眼可见的一截。
+    let boot = requestAnimationFrame(() => {
+      boot = requestAnimationFrame(schedule)
+    })
 
-    // 卡片是「有歌在播」才出现的，弹窗与菜单是点开才有的，创建时都不在 DOM 里。
-    const mutation = new MutationObserver(schedule)
+    // 只有「玻璃元素或壁纸自己增删」才值得重建；list 滚动、图片加载这类
+    // 无关的节点变动不该再跑一遍 getBoundingClientRect（那会强制 layout）。
+    const WANTED = '.wallpaper, .rh-now, .player'
+    const touched = (node: Node) =>
+      node.nodeType === 1 &&
+      ((node as Element).matches(WANTED) || (node as Element).querySelector(WANTED) !== null)
+    const mutation = new MutationObserver((records) => {
+      for (const record of records) {
+        if ([...record.addedNodes, ...record.removedNodes].some(touched)) {
+          schedule()
+          return
+        }
+      }
+    })
     mutation.observe(document.body, { childList: true, subtree: true })
 
     return () => {
       resize.disconnect()
       mutation.disconnect()
+      cancelAnimationFrame(boot)
       if (frame) cancelAnimationFrame(frame)
     }
   }, [])
