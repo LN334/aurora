@@ -1680,7 +1680,12 @@
   border-radius: 12px;
   border: 1px solid rgb(var(--tint-rgb) / 0.08);
   background: rgb(var(--tint-rgb) / 0.05);
-  backdrop-filter: blur(16px) saturate(1.2);
+  /*
+   * 液态玻璃：`--refract` 由 Refraction 组件按这张卡的真实尺寸生成位移贴图后写入。
+   * 没有它（Firefox、或还没算完）时变量为空，整条退化成纯模糊。
+   */
+  -webkit-backdrop-filter: var(--refract, ) blur(16px) saturate(1.2);
+  backdrop-filter: var(--refract, ) blur(16px) saturate(1.2);
 }
 
 .rh-now__art {

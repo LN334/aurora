@@ -1,251 +1,119 @@
-import { useEffect, useRef } from 'react'
-import { displacementMap } from './displacement'
+import { useEffect, useState } from 'react'
+import { buildDisplacementMap } from './displacement'
 
-/*
- * 把液态玻璃挂到现有界面上。
+/**
+ * 液态玻璃的挂载层。
  *
- * 这里不去改各个视图组件，而是集中维护一张选择器表：界面的「玻璃」是少数几个固定
- * 角色（播放条、抽屉、菜单、圆形浮动按钮），角色改了只动这张表，不必挨个组件加属性。
- * 副作用是这些元素必须在 CSS 里留好 --refract 的位置，见 glass.css 顶部说明。
+ * 一张表驱动：哪几个元素要做、边带多宽。组件本体不加属性——用 CSS 的
+ * `backdrop-filter: var(--refract, ) blur(...)` 接上，`--refract` 只由这里写。
+ * 没有 JS（或这张表里没有它）时变量为空，那一整条就退化成纯模糊。
  *
- * 尺寸变了要重算贴图（ResizeObserver），但拖窗口的那几十毫秒不算：html.is-resizing
- * 期间全站的 backdrop-filter 本来就被 !important 关掉（app.css 里有解释），这时候
- * 重建贴图纯属白烧 CPU。
+ * 贴图按元素真实像素生成：卡片宽高会随窗口变，必须跟着重建，否则圆角被拉伸。
  */
+const TARGETS = [{ selector: '.rh-now', edge: 24, id: 'lg-now' }] as const
 
-const SVG_NS = 'http://www.w3.org/2000/svg'
-
-interface Target {
-  selector: string
-  /** 折射圈厚度，CSS px。窄元素会自动收窄（不超过高度的一半）。 */
-  edge: number
-  /** 位移强度。> 0.8 会开始糊，建议 0.45–0.65。 */
-  strength: number
-}
-
-const TARGETS: Target[] = [
-  // 播放条横贯全宽，边缘只在上下一线，圈要宽一点才看得出厚度
-  { selector: '.player', edge: 26, strength: 0.9 },
-  // 抽屉：背后就是内容列表（封面 + 文字，边界清楚），是折射最读得出来的地方，
-  // 所以这一块给得比别处狠；面板正文从 28px 内边距起，22px 的折射带压不到字
-  { selector: '.panel', edge: 22, strength: 0.85 },
-  // 首页的薄玻璃卡片：底色只有 7% 白，背后壁纸全在，位移才看得见
-  { selector: '.rh-sc', edge: 18, strength: 0.8 },
-  { selector: '.rh-daily', edge: 22, strength: 0.7 },
-  // 菜单小，圈只能给到 10 上下；再宽整块就变成一个水珠，文字也跟着晃
-  { selector: '.menu', edge: 10, strength: 0.5 },
-  { selector: '.lk-menu', edge: 10, strength: 0.5 },
-  // 圆形浮动按钮：直径 40，圈 9 已经占掉近半，再大就整颗变成水珠
-  { selector: '.tracks__tool', edge: 9, strength: 0.6 }
-]
-
-/*
- * 刻意没进表的：.nm（确认/命名弹窗）底色 0.96 近不透明，背后什么都看不见，折射
- * 白算一张贴图；首页几个 .rh-* 卡片是内容本身，弯折会让封面图边缘发虚。 */
-
-/*
- * 会跟着指针亮一块的那几块玻璃。比折射的表窄：菜单上再叠一团光会跟菜单项自己的
- * hover 底色打架，而菜单本来就小、一眼看得完，不需要再指路。 */
-const GLOW_SELECTOR = '.player, .panel, .rh-sc, .rh-daily, .tracks__tool'
-
-interface Applied {
-  filterId: string
+interface GlassMap {
+  id: string
   width: number
   height: number
-}
-
-function radiusOf(el: HTMLElement): number {
-  const style = getComputedStyle(el)
-  const parsed = parseFloat(style.borderTopLeftRadius)
-  return Number.isFinite(parsed) ? parsed : 0
+  url: string
+  scale: number
 }
 
 export function Refraction() {
-  const defsRef = useRef<SVGSVGElement>(null)
+  const [maps, setMaps] = useState<GlassMap[]>([])
 
   useEffect(() => {
-    const defs = defsRef.current
-    if (!defs) return
+    let frame = 0
+    const sizes = new Map<string, string>()
 
-    const applied = new Map<HTMLElement, Applied>()
-    const pending = new Map<HTMLElement, number>()
-    let seq = 0
-    let disposed = false
-
-    const drop = (el: HTMLElement) => {
-      const record = applied.get(el)
-      if (!record) return
-      defs.querySelector(`#${record.filterId}`)?.remove()
-      el.style.removeProperty('--refract')
-      applied.delete(el)
-    }
-
-    const paint = (el: HTMLElement, target: Target) => {
-      if (disposed || !el.isConnected) return
-      // 元素刚插进 DOM 时还能是 0 宽（比如抽屉在 hidden 阶段），等下一轮再说
-      const width = el.offsetWidth
-      const height = el.offsetHeight
-      if (width < 12 || height < 12) return
-
-      const previous = applied.get(el)
-      if (previous && previous.width === width && previous.height === height) return
-      if (previous) drop(el)
-
-      const map = displacementMap(width, height, radiusOf(el), target.edge, target.strength)
-      if (!map) return
-
-      const filterId = `refract-${(seq += 1)}`
-      const filter = document.createElementNS(SVG_NS, 'filter')
-      filter.setAttribute('id', filterId)
-      // userSpaceOnUse + 元素本地坐标：原点贴着元素左上角，贴图才能和像素一一对上
-      filter.setAttribute('filterUnits', 'userSpaceOnUse')
-      filter.setAttribute('x', '0')
-      filter.setAttribute('y', '0')
-      filter.setAttribute('width', String(width))
-      filter.setAttribute('height', String(height))
-      filter.setAttribute('colorInterpolationFilters', 'sRGB')
-
-      const image = document.createElementNS(SVG_NS, 'feImage')
-      image.setAttribute('href', map.href)
-      image.setAttribute('result', 'map')
-      // 贴图是按这个尺寸生成的，别再让浏览器等比缩放
-      image.setAttribute('preserveAspectRatio', 'none')
-      image.setAttribute('x', '0')
-      image.setAttribute('y', '0')
-      image.setAttribute('width', String(width))
-      image.setAttribute('height', String(height))
-
-      const redirect = document.createElementNS(SVG_NS, 'feDisplacementMap')
-      redirect.setAttribute('in', 'SourceGraphic')
-      redirect.setAttribute('in2', 'map')
-      redirect.setAttribute('xChannelSelector', 'R')
-      redirect.setAttribute('yChannelSelector', 'G')
-      redirect.setAttribute('scale', String(map.scale))
-
-      filter.append(image, redirect)
-      defs.append(filter)
-
-      el.style.setProperty('--refract', `url(#${filterId})`)
-      applied.set(el, { filterId, width, height })
-    }
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const el = entry.target as HTMLElement
-        const target = TARGETS.find((item) => el.matches(item.selector))
-        if (!target) continue
-        // 拖窗口时跳过，松手后 resize 事件会补一次（见下面的 window 监听）
-        if (document.documentElement.classList.contains('is-resizing')) continue
-        const timer = pending.get(el)
-        if (timer !== undefined) window.clearTimeout(timer)
-        pending.set(
-          el,
-          window.setTimeout(() => {
-            pending.delete(el)
-            paint(el, target)
-          }, 180)
-        )
-      }
-    })
-
-    const observed = new Set<HTMLElement>()
-
-    const scan = () => {
-      if (disposed) return
+    function rebuild() {
+      const next: GlassMap[] = []
       for (const target of TARGETS) {
-        document.querySelectorAll<HTMLElement>(target.selector).forEach((el) => {
-          if (!observed.has(el)) {
-            observed.add(el)
-            observer.observe(el)
-          }
-          paint(el, target)
+        const node = document.querySelector<HTMLElement>(target.selector)
+        if (!node) continue
+
+        const rect = node.getBoundingClientRect()
+        if (rect.width < 8 || rect.height < 8) continue
+
+        // 尺寸没变就不重算：一张 1100×180 的贴图要跑二十万像素。
+        const key = `${Math.round(rect.width)}x${Math.round(rect.height)}`
+        if (sizes.get(target.id) === key) continue
+
+        const radius = Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
+        const map = buildDisplacementMap({
+          width: rect.width,
+          height: rect.height,
+          radius,
+          edge: target.edge
+        })
+        if (!map) continue
+
+        sizes.set(target.id, key)
+        node.style.setProperty('--refract', `url(#${target.id})`)
+        next.push({
+          id: target.id,
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          url: map.url,
+          scale: map.scale
         })
       }
-      // 关掉的抽屉/菜单会留在表里，清掉它们的 filter，别让 defs 无限长
-      for (const el of applied.keys()) {
-        if (!el.isConnected) {
-          drop(el)
-          observed.delete(el)
-        }
-      }
+      if (next.length) setMaps(next)
     }
 
-    scan()
+    function schedule() {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        rebuild()
+      })
+    }
 
-    // 菜单、抽屉、弹窗都是按需插进来的，DOM 一变就得重新认一遍
-    let mutationTimer = 0
-    const mutations = new MutationObserver(() => {
-      if (mutationTimer) return
-      mutationTimer = window.setTimeout(() => {
-        mutationTimer = 0
-        scan()
-      }, 120)
+    schedule()
+
+    const resize = new ResizeObserver(schedule)
+    TARGETS.forEach((target) => {
+      const node = document.querySelector<HTMLElement>(target.selector)
+      if (node) resize.observe(node)
     })
-    mutations.observe(document.body, { childList: true, subtree: true })
 
-    /*
-     * 指针跟随高光。
-     *
-     * 折射在深色壁纸上读不出来，这一层读得出来：光从指针那儿照过来，玻璃表面跟
-     * 着亮一块，就像拿着一块真玻璃对光。坐标写成百分比，元素换尺寸时不用重算。
-     *
-     * 每帧最多处理一次，而且要先把 pointermove 记下来再在 rAF 里读 DOM：事件里
-     * 直接 getBoundingClientRect 会逼一次同步布局。
-     */
-    let pointerFrame = 0
-    let pointerEvent: PointerEvent | null = null
-
-    const paintGlow = () => {
-      pointerFrame = 0
-      const event = pointerEvent
-      pointerEvent = null
-      if (!event) return
-      const element = event.target as Element | null
-      const host = element?.closest<HTMLElement>(GLOW_SELECTOR) ?? null
-      if (!host) return
-      const box = host.getBoundingClientRect()
-      if (box.width < 1 || box.height < 1) return
-      host.style.setProperty('--mx', `${((event.clientX - box.left) / box.width) * 100}%`)
-      host.style.setProperty('--my', `${((event.clientY - box.top) / box.height) * 100}%`)
-    }
-
-    const onPointerMove = (event: PointerEvent) => {
-      // 触屏没有悬停态，跟着手指亮反而像误触
-      if (event.pointerType !== 'mouse') return
-      pointerEvent = event
-      if (pointerFrame) return
-      pointerFrame = window.requestAnimationFrame(paintGlow)
-    }
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true })
-
-    const onResize = () => scan()
-    window.addEventListener('resize', onResize)
+    // 卡片是「有歌在播」才出现的，创建时不在 DOM 里，得等它挂上来。
+    const mutation = new MutationObserver(schedule)
+    mutation.observe(document.body, { childList: true, subtree: true })
 
     return () => {
-      disposed = true
-      mutations.disconnect()
-      observer.disconnect()
-      window.removeEventListener('resize', onResize)
-      window.removeEventListener('pointermove', onPointerMove)
-      if (pointerFrame) window.cancelAnimationFrame(pointerFrame)
-      pending.forEach((timer) => window.clearTimeout(timer))
-      pending.clear()
-      applied.forEach((_record, el) => {
-        el.style.removeProperty('--refract')
-      })
-      applied.clear()
-      defs.replaceChildren()
+      resize.disconnect()
+      mutation.disconnect()
+      if (frame) cancelAnimationFrame(frame)
     }
   }, [])
 
   return (
-    <svg
-      ref={defsRef}
-      aria-hidden="true"
-      width="0"
-      height="0"
-      style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none' }}
-    />
+    <svg width={0} height={0} aria-hidden="true" style={{ position: 'absolute', pointerEvents: 'none' }}>
+      <defs>
+        {maps.map((map) => (
+          <filter
+            key={map.id}
+            id={map.id}
+            filterUnits="userSpaceOnUse"
+            x={0}
+            y={0}
+            width={map.width}
+            height={map.height}
+            colorInterpolationFilters="sRGB"
+          >
+            <feImage href={map.url} result="map" x={0} y={0} width={map.width} height={map.height} preserveAspectRatio="none" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="map"
+              scale={map.scale}
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        ))}
+      </defs>
+    </svg>
   )
 }
