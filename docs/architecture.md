@@ -305,6 +305,33 @@ settings.json 和档案**。播种曲库就是把 `{ roots: [文件夹] }` 写�
 - **体积**：`webwallgl`（约 1.1 MB）只能经 `Backdrop.tsx` 的动态 import 到达；
   `vite.config.ts` 的 manualChunks 明确把它排除在共享 vendor 之外，不用壁纸的人不下载它。
 
+## 液态玻璃
+
+磨砂玻璃是 `backdrop-filter: blur() saturate()`；液态玻璃在此之前多一步：把背景**按边缘曲率推一下**，
+再叠一层高光。实现只有两个文件。
+
+- **位移贴图**（`src/features/glass/displacement.ts`）：`buildDisplacementMap({ width, height, radius, edge })`
+  按元素真实像素画一张 SDF，算出每个像素的内法线，把位移编码进 RGBA
+  （`R = dx / maxScale + 0.5`、`G = dy / maxScale + 0.5`）。三条硬约束：
+  ① SDF **必须内缩**——撑满元素会让位移场恒为 1，归一化后 `scale` 变成 0；
+  ② 位移方向取**内法线**，径向方向会把卡片里的文字横向拽走；
+  ③ 圆角按元素**真实像素**算，上游示例用 300×200 归一化，套到长条上会把圆角拉成极扁的椭圆。
+- **接线**（`src/features/glass/Refraction.tsx`）：`TARGETS` 列出要折射的元素（目前只有 `.rh-now`
+  与 `.player`），每个元素生成一份 `<filter id="lg-…">`，把 `--refract: url(#lg-…)` 写到元素上。
+  CSS 侧写的是 `backdrop-filter: var(--refract, ) blur(16px) saturate(1.2)`——变量为空时
+  自动退化成纯模糊，所以玻璃效果永远有底，不会因为 JS 没跑到而变透明。
+- **只给看得见的两处**：`.panel` 与 `.lk-menu` 的底是 `rgb(var(--ink-850-rgb) / 0.9)`，折射被
+  自己的底色盖住、肉眼看不出来，却要多付一份贴图与一份 filter，所以摘掉了。
+- **性能上的五条减法**（按时间顺序）：
+  ① 没有 `.wallpaper` 就整轮跳过，把贴图与 `--refract` 全卸掉；
+  ② 滚出视口的元素不参与；
+  ③ `MutationObserver` 只在 `.wallpaper` / `.rh-now` / `.player` 增删时才重建——列表滚动、
+     图片加载这类无关变动不再触发 `getBoundingClientRect`（那是强制 layout）；
+  ④ 贴图生成挪到首屏之后（双 rAF）——两张 1100×180 的贴图约四十万像素，同步算会拖慢启动；
+  ⑤ 重建时先把所有几何读完、再统一写 `--refract`——写后再读会把布局拆成 N 次。
+- **边界**：Firefox 不支持 `backdrop-filter: url()`（会退化成纯模糊）；贴图按 CSS 像素生成，
+  1.5×/2× 屏上位移边缘略糊，换来的是生成成本不随 DPR 翻倍。
+
 ## 清理与维护
 
 「设置 → 05 清理与维护」的实现在 `electron/maintenance.ts`，两个动作：
