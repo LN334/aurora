@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getProvider, listAvailableProviders } from '../../../features/online/registry'
+import { getProvider, listAvailableProviders, listProviders } from '../../../features/online/registry'
 import { useOnlineStore } from '../../../features/online/store'
 import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
 import {
@@ -80,9 +80,12 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
  *
  * 音质是按平台分开的：每个平台存自己那一档（QQ 账号的权限与网易云无关），
  * 不声明档位的平台不占一行。这里没有「是哪个平台」的分支——名字、档位与文案都来自 provider。
+ *
+ * 用全量 provider 而不是「此刻可用」的那些：后端还没连上时，这一行也该在，
+ * 只是按钮按不了。让它整行消失，用户看到的就是「没有地方能调音质」。
  */
 function PlatformQualityRows() {
-  const providers = listAvailableProviders().filter(
+  const providers = listProviders().filter(
     (provider) =>
       (provider.qualityTiers?.length ?? 0) > 0 && provider.getQuality && provider.setQuality
   )
