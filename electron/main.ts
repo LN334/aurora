@@ -3,6 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { loadSettings, saveSettings } from './settings'
 import { syncLoginItem } from './login-item'
+import { hideWindowBorder } from './window-border'
 import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
@@ -370,6 +371,9 @@ function createWindow(): void {
       webSecurity: true
     }
   })
+
+  // 去掉 Win11 在窗口顶部画的那条 1px 强调色：四边里只有上边有，很显眼。
+  hideWindowBorder(mainWindow.getNativeWindowHandle())
 
   if (state.maximized) mainWindow.maximize()
 

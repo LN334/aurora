@@ -2116,8 +2116,13 @@ html.is-resizing {
  * fill-mode 用 backwards 而不是 both：动画结束后 transform 回到 none，不会把
  * .main__body 一直留成 fixed 子元素的定位祖先（长列表右下角那两颗按钮会跑）。
  */
+/*
+ * 起点不是 0：舞台退场时它是整层淡出（stage.css 的 stageOut），两条动画会在
+ * 同一段时间里都半透明，露出的就是 body 的底色 —— 看起来是「退出舞台黑一下」。
+ * 从 0.35 起步，交叉那一刻底下始终有东西；位移仍是 28px，翻页感没丢。
+ */
 @keyframes pageIn {
-  from { opacity: 0; transform: translateY(28px); }
+  from { opacity: 0.35; transform: translateY(28px); }
   to { opacity: 1; transform: none; }
 }
 
