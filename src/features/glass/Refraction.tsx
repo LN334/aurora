@@ -14,11 +14,16 @@ import { buildDisplacementMap } from './displacement'
  * 所以每个命中元素各拿一张贴图、各分一个 filter id。元素离开 DOM 后要把它的
  * 贴图与 filter 一起回收，否则右键菜单点一次就多一个 `<filter>`。
  */
+/*
+ * 只给「透得过背景」的整块做折射：首页正在播放条、底部播放条。
+ *
+ * 弹窗（`.panel`）与右键菜单（`.lk-menu`）的底色是 0.9 不透明的墨色 —— 折射
+ * 被自己的底盖住了，肉眼看不出来，却照样要多跑一份贴图加一份 filter。同屏开
+ * 两个菜单就多两份，这笔钱花得完全没有回报，所以它们不在这张表里。
+ */
 const TARGETS = [
   { selector: '.rh-now', edge: 24, prefix: 'lg-now' },
-  { selector: '.player', edge: 24, prefix: 'lg-player' },
-  { selector: '.panel', edge: 20, prefix: 'lg-panel' },
-  { selector: '.lk-menu', edge: 18, prefix: 'lg-menu' }
+  { selector: '.player', edge: 24, prefix: 'lg-player' }
 ] as const
 
 interface GlassMap {
@@ -47,6 +52,18 @@ export function Refraction() {
       const live = new Set<string>()
       const seen = new Set<HTMLElement>()
 
+      // 没开壁纸时玻璃后面是纯底色，折射什么都看不到：这一轮把图全卸掉。
+      if (!document.querySelector('.wallpaper')) {
+        cache.clear()
+        for (const node of observed) {
+          resize.unobserve(node)
+          node.style.removeProperty('--refract')
+        }
+        observed.clear()
+        setMaps([])
+        return
+      }
+
       for (const target of TARGETS) {
         const nodes = document.querySelectorAll<HTMLElement>(target.selector)
         let index = 0
@@ -54,6 +71,15 @@ export function Refraction() {
         for (const node of nodes) {
           const rect = node.getBoundingClientRect()
           if (rect.width < 8 || rect.height < 8) continue
+          // 滚出视口的不参与：列表里同时活着十几个元素时，只给看得见的付钱。
+          if (
+            rect.bottom <= 0 ||
+            rect.top >= window.innerHeight ||
+            rect.right <= 0 ||
+            rect.left >= window.innerWidth
+          ) {
+            continue
+          }
 
           const id = `${target.prefix}-${index}`
           index += 1
@@ -90,11 +116,13 @@ export function Refraction() {
         if (!live.has(id)) cache.delete(key)
       }
 
-      // ResizeObserver 会持有元素引用，消失的要取消观察。
+      // ResizeObserver 会持有元素引用，消失的要取消观察；顺手把变量摘掉，
+      // 免得它继续指向一张已经被回收的 filter。
       for (const node of [...observed]) {
         if (seen.has(node)) continue
         observed.delete(node)
         resize.unobserve(node)
+        node.style.removeProperty('--refract')
       }
       for (const node of seen) {
         if (observed.has(node)) continue
