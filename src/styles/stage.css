@@ -481,11 +481,11 @@
 }
 /*
  * 悬停才出现的横向胶囊：常驻一条会把底栏这一行挤满，而沉浸页里最该省的就是横线。
- * 位置按静音键中线对齐（left: 50% + translateX(-50%)），不按浮层自身宽度摆。
+ * 右对齐而不是居中——静音键本来就贴着窗口右边，居中会让胶囊右半截落到窗外。
  */
 .stage__vol-pop {
   position: absolute;
-  left: 50%;
+  right: 0;
   bottom: calc(100% + 10px);
   z-index: 3;
   display: flex;
@@ -497,7 +497,7 @@
   background: rgb(var(--ink-950) / 0.72);
   backdrop-filter: blur(14px) saturate(1.1);
   opacity: 0;
-  transform: translate(-50%, 6px);
+  transform: translateY(6px);
   pointer-events: none;
   transition:
     opacity 140ms var(--ease-out),
@@ -506,7 +506,7 @@
 .stage__vol:hover .stage__vol-pop,
 .stage__vol:focus-within .stage__vol-pop {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 .stage__vol-val {
