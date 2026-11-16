@@ -462,9 +462,9 @@
 
 /* 音量：在沉浸页里也要能调，否则耳机/音箱切换时得退出两层。 */
 .stage__vol {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--s2);
   flex: none;
 }
 .stage__mute {
@@ -479,31 +479,45 @@
 .stage__mute:hover {
   color: var(--text-hi);
 }
-.stage__vol input[type='range'] {
-  -webkit-appearance: none;
-  appearance: none;
+/*
+ * 悬停才出现的横向胶囊：常驻一条会把底栏这一行挤满，而沉浸页里最该省的就是横线。
+ * 位置按静音键中线对齐（left: 50% + translateX(-50%)），不按浮层自身宽度摆。
+ */
+.stage__vol-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 8px 12px;
+  border: var(--line-soft);
+  border-radius: 999px;
+  background: rgb(var(--ink-950) / 0.72);
+  backdrop-filter: blur(14px) saturate(1.1);
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  pointer-events: none;
+  transition:
+    opacity 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+.stage__vol:hover .stage__vol-pop,
+.stage__vol:focus-within .stage__vol-pop {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.stage__vol-val {
+  min-width: 26px;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.stage__vol-bar {
   width: 96px;
-  height: 18px;
-  background: transparent;
-  cursor: pointer;
-}
-.stage__vol input[type='range']::-webkit-slider-runnable-track {
-  height: 2px;
-  border-radius: 999px;
-  background: rgb(var(--tint-rgb) / 0.18);
-}
-.stage__vol input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 10px;
-  height: 10px;
-  margin-top: -4px;
-  border-radius: 999px;
-  background: var(--text-hi);
-}
-.stage__vol input[type='range']:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 4px;
 }
 
 /*

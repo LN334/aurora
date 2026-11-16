@@ -1,7 +1,8 @@
 import { activeLineAt, spokenWords, type Lyrics } from '../features/lyrics/lrc'
 import type { Palette } from '../features/library/palette'
 import type { Track } from '../types'
-import { useProgressPosition } from '../features/player/Bar'
+import { Bar, useProgressPosition } from '../features/player/Bar'
+import { wheelVolume } from '../features/player/volume'
 import { formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
 import { ChevronLeft, Locate, Note, Next, Pause, Play, Prev, Volume, VolumeMute } from '../ui/icons'
@@ -743,18 +744,36 @@ export function LyricsStage({
             onClick={() => player.toggleMute()}
             aria-label={muted ? '取消静音' : '静音'}
             title={muted ? '取消静音' : '静音'}
+            /*
+             * 滚轮也挂在按键上：底栏那条滑条在舞台里是收起来的，
+             * 鼠标最先落在静音键上，顺手一滚没反应就会被当成坏了。
+             */
+            onWheel={(event) => {
+              if (muted) player.toggleMute()
+              player.setVolume(wheelVolume(muted ? 0 : volume, event.deltaY > 0 ? -1 : 1))
+            }}
           >
             {muted || volume === 0 ? <VolumeMute size={16} /> : <Volume size={16} />}
           </button>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round((muted ? 0 : volume) * 100)}
-            aria-label="音量"
-            onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
-          />
+          {/* 悬停才出现的横向胶囊：常驻一条会把这一行挤满。 */}
+          <div className="stage__vol-pop">
+            <span className="stage__vol-val">{muted ? '静音' : Math.round(volume * 100)}</span>
+            <Bar
+              className="stage__vol-bar"
+              value={muted ? 0 : volume}
+              onChange={(next) => {
+                // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
+                if (muted) player.toggleMute()
+                player.setVolume(next)
+              }}
+              ariaLabel="音量"
+              valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
+              onWheelDelta={(direction) => {
+                if (muted) player.toggleMute()
+                player.setVolume(wheelVolume(muted ? 0 : volume, direction))
+              }}
+            />
+          </div>
         </div>
 
         {/* 翻走歌词之后唯一要做的事：回到正在唱的那句。挨着底栏，视线一带就到。 */}
