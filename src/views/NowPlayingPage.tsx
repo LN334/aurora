@@ -154,8 +154,9 @@ function LyricRoll({
           posRef.current += velRef.current * dt
         } else {
           /* 收尾：跟着播放时用临界阻尼（2*sqrt(190)），一路滑过去不过冲；
-             用户自己拨完才用欠阻尼，留一点弹回来的手感 */
-          const damp = followRef.current ? 27.57 : 14
+             用户自己拨完才用欠阻尼，留一点弹回来的手感。
+             跟着播放时要快一点：慢半拍会让「这一句」的提示看起来比唱得晚。 */
+          const damp = followRef.current ? 39.05 : 14
           const acc = gap * 190 - velRef.current * damp
           velRef.current += acc * dt
           posRef.current += velRef.current * dt
@@ -220,7 +221,11 @@ function LyricRoll({
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return
-    event.currentTarget.setPointerCapture(event.pointerId)
+    /*
+     * 先不抓指针：一旦在按下时就 setPointerCapture，之后 pointerup 也回到这个
+     * 容器，浏览器据此把 click 派发给容器而不是里面那一行歌词 —— 点歌词跳转
+     * 就永远收不到事件。等真的拖出四个像素再抓，拖拽手感不变。
+     */
     dragRef.current = { id: event.pointerId, y: event.clientY, base: posRef.current, moved: false }
     holdRef.current = performance.now() + 4000
   }
@@ -228,8 +233,11 @@ function LyricRoll({
     const drag = dragRef.current
     if (!drag || drag.id !== event.pointerId) return
     const dy = event.clientY - drag.y
-    if (!drag.moved && Math.abs(dy) > 4) drag.moved = true
-    if (!drag.moved) return
+    if (!drag.moved) {
+      if (Math.abs(dy) <= 4) return
+      drag.moved = true
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
     posRef.current = Math.max(0, Math.min(lastRef.current, drag.base - dy / lineH.current))
     aimRef.current = posRef.current
     velRef.current = 0
