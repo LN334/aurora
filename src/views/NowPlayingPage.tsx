@@ -17,6 +17,7 @@ import { useLikeMenu } from '../features/favorites/like-menu'
 import { showFlash } from '../ui/flash'
 import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
+import { useOnlineStore } from '../features/online/store'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
@@ -375,6 +376,23 @@ export function NowPlayingPage({
   const originSource = track.source && track.source !== 'local' ? track.source : 'local'
   const originLabel = originSource === 'local' ? '本机' : sourceLabelById(originSource)
 
+  /*
+   * 这一首实际到手的是什么档。
+   *
+   * 设置里选的是「想要的」，平台不一定给得了：会员过期、这首没有无损、上游临时
+   * 只回 320k。以前这件事只写在 store 里，用户看不到 —— 于是「选了无损」与
+   * 「听起来不像无损」之间没有解释。
+   *
+   * 只在记录里的 songId 就是当前这首时才显示：取流也会为下一首预取，拿别人的
+   * 结论贴在当前这首上是错的。
+   */
+  const onlineStore = originSource === 'local' ? null : useOnlineStore(originSource)
+  const onlineState = onlineStore ? onlineStore.getState() : null
+  const delivered =
+    onlineState && typeof track.onlineId === 'number' && onlineState.deliveredLevelSongId === track.onlineId
+      ? onlineState.delivered
+      : null
+
   return (
     <div className="np">
 
@@ -403,6 +421,17 @@ export function NowPlayingPage({
                 <span className="np__album">
                   <AlbumName track={track} />
                 </span>
+              ) : null}
+              {delivered ? (
+                <>
+                  <span className="np__dot">·</span>
+                  <span
+                    className={`np__tier${onlineState?.deliveredFellBack ? ' is-fell-back' : ''}`}
+                    title={delivered}
+                  >
+                    {delivered.split(' · ')[0]}
+                  </span>
+                </>
               ) : null}
             </div>
           </div>

@@ -1839,6 +1839,18 @@
 .np__album {
   color: var(--text-low);
 }
+/*
+ * 实际到手的档位。它是事实，不是设置：平台给不了你要的那一档时，这个小字
+ * 会说出它真给了什么，悬停能看到整句（含码率与「上游没有更高档」）。
+ */
+.np__tier {
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+.np__tier.is-fell-back {
+  color: rgb(var(--accent-rgb) / 0.92);
+}
 
 /* —— 操作行 —— */
 /*
