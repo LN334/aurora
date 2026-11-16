@@ -1430,8 +1430,12 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  align-self: stretch;
-  justify-content: flex-start;
+  /*
+   * 垂直居中，不跟卡片同高。原来 align-self: stretch + 顶部对齐，文字块从
+   * 卡片顶边开始，右边那面封面墙却是居中的 —— 一块贴顶、一块居中，两个重心
+   * 错开，中间就空出一大片。
+   */
+  justify-content: center;
   min-width: 0;
   max-width: 460px;
   padding: 8px 0;
