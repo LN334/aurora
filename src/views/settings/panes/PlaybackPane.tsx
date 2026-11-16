@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getProvider, listAvailableProviders } from '../../../features/online/registry'
+import { useOnlineStore } from '../../../features/online/store'
 import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
 import {
   QUALITY_LABELS as TIER_LABELS,
@@ -124,12 +125,33 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
 
   const tiers = provider.qualityTiers ?? []
 
+  /*
+   * 改档要同时落到两处：平台后端（主进程存盘、下次启动读它）和平台的播放
+   * store（`ensureStream` 取流时读的就是后者）。只写后端的话，这一局里所有歌
+   * 仍然按旧档取流 —— 用户的感受就是「改了没用」。
+   */
+  const applyTier = (tier: QualityTier) => {
+    setQuality(tier)
+    const store = useOnlineStore(provider.id)
+    if (!store) {
+      void provider.setQuality?.(tier).then(setQuality)
+      return
+    }
+    void store
+      .getState()
+      .setQuality(tier)
+      .then(() => {
+        const applied = store.getState().quality
+        setQuality(applied)
+      })
+  }
+
   return (
     <Row
       label={`${provider.displayName}音质`}
       hint={
         quality
-          ? TIER_LABELS[quality]
+          ? `${TIER_LABELS[quality]} · 换档从下一首起生效，正在播的这首不会中断。`
           : `${provider.displayName}还没有回答当前档位，给不了时会自动回退。`
       }
     >
@@ -138,7 +160,7 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
           <button
             key={tier}
             className={quality === tier ? 'is-active' : ''}
-            onClick={() => void provider.setQuality?.(tier).then(setQuality)}
+            onClick={() => applyTier(tier)}
           >
             {TIER_LABELS[tier].split(' ')[0]}
           </button>
