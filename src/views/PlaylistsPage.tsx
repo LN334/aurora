@@ -142,7 +142,7 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
         </button>
       </div>
       {groups.map((group) => (
-        <section className="rh-sec" key={group.id}>
+        <section className="rh-sec pl-group" key={group.id}>
           <header className="rh-sec__head">
             <button
               className="pl-group__toggle"

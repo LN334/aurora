@@ -2705,6 +2705,14 @@
   font-weight: 600;
   letter-spacing: -0.012em;
 }
+
+/*
+ * 平台分组之间要有一段明显的空。每组是「16px 粗标题 + 一墙卡片」，组与组
+ * 只隔一行卡片的下边距时，下一组的平台名会贴着上一组的字幕，读起来像同一条。
+ */
+.pl-group + .pl-group {
+  margin-top: var(--s6);
+}
 .pl-group__arrow {
   flex: none;
   color: var(--text-low);
