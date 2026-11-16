@@ -64,11 +64,22 @@ export function Refraction() {
         return
       }
 
-      for (const target of TARGETS) {
-        const nodes = document.querySelectorAll<HTMLElement>(target.selector)
-        let index = 0
+      // 先把所有几何读完：写 --refract 之后下一次 getBoundingClientRect
+      // 会被强制同步 layout，像原来那样「读一个、写一个、再读」等于把
+      // 一次布局拆成 N 次。
+      interface Pending {
+        node: HTMLElement
+        id: string
+        width: number
+        height: number
+        radius: number
+        edge: number
+      }
+      const pending: Pending[] = []
+      let index = 0
 
-        for (const node of nodes) {
+      for (const target of TARGETS) {
+        for (const node of document.querySelectorAll<HTMLElement>(target.selector)) {
           const rect = node.getBoundingClientRect()
           if (rect.width < 8 || rect.height < 8) continue
           // 滚出视口的不参与：列表里同时活着十几个元素时，只给看得见的付钱。
@@ -81,33 +92,46 @@ export function Refraction() {
             continue
           }
 
-          const id = `${target.prefix}-${index}`
+          pending.push({
+            node,
+            id: `${target.prefix}-${index}`,
+            width: rect.width,
+            height: rect.height,
+            radius: Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0,
+            edge: target.edge
+          })
           index += 1
-          seen.add(node)
-
-          // 每轮都写：元素被复用时 id 会变，旧值不能留。
-          node.style.setProperty('--refract', `url(#${id})`)
-
-          const width = Math.round(rect.width)
-          const height = Math.round(rect.height)
-          const key = mapKey(id, width, height)
-          live.add(id)
-
-          const hit = cache.get(key)
-          if (hit) {
-            next.push(hit)
-            continue
-          }
-
-          // 尺寸变了才重算：一张 1100×180 的贴图要跑二十万像素。
-          const radius = Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
-          const map = buildDisplacementMap({ width: rect.width, height: rect.height, radius, edge: target.edge })
-          if (!map) continue
-
-          const entry: GlassMap = { id, width, height, url: map.url, scale: map.scale }
-          cache.set(key, entry)
-          next.push(entry)
         }
+      }
+
+      for (const item of pending) {
+        // 每轮都写：元素被复用时 id 会变，旧值不能留。
+        item.node.style.setProperty('--refract', `url(#${item.id})`)
+        seen.add(item.node)
+        live.add(item.id)
+
+        const width = Math.round(item.width)
+        const height = Math.round(item.height)
+        const key = mapKey(item.id, width, height)
+
+        const hit = cache.get(key)
+        if (hit) {
+          next.push(hit)
+          continue
+        }
+
+        // 尺寸变了才重算：一张 1100×180 的贴图要跑二十万像素。
+        const map = buildDisplacementMap({
+          width: item.width,
+          height: item.height,
+          radius: item.radius,
+          edge: item.edge
+        })
+        if (!map) continue
+
+        const entry: GlassMap = { id: item.id, width, height, url: map.url, scale: map.scale }
+        cache.set(key, entry)
+        next.push(entry)
       }
 
       // 回收：不在这一轮里的 id，连同它的贴图一起丢掉。
