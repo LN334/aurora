@@ -10,7 +10,10 @@ import { buildDisplacementMap } from './displacement'
  *
  * 贴图按元素真实像素生成：卡片宽高会随窗口变，必须跟着重建，否则圆角被拉伸。
  */
-const TARGETS = [{ selector: '.rh-now', edge: 24, id: 'lg-now' }] as const
+const TARGETS = [
+  { selector: '.rh-now', edge: 24, id: 'lg-now' },
+  { selector: '.player', edge: 24, id: 'lg-player' }
+] as const
 
 interface GlassMap {
   id: string
