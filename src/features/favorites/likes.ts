@@ -193,9 +193,11 @@ export const useLikes = create<LikesState>()((set, get) => ({
     const source = likeSourceOf(track)
 
     if (source === 'local') {
-      const liked = useFavorites.getState().toggle(track)
-      notifyLikesChanged()
-      return { ok: true, liked }
+      /*
+       * 本机文件没有喜欢。以前这里写进本机收藏，于是同一首歌「本机已喜欢、
+       * 平台没喜欢」，两套状态各说各话；喜欢只发生在平台账号里，本机只管下载。
+       */
+      return { ok: false, liked: false, message: '本机文件没有喜欢，喜欢的都是平台账号里的红心' }
     }
 
     const provider = getProvider(source)

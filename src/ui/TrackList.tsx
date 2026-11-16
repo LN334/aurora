@@ -464,7 +464,12 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
               {/*
                 心形是独立按钮，压在整行点击层之上。已喜欢的常显，未喜欢的
                 悬停才出现——一行里只有它在乎「我喜不喜欢」，不该一直吵。
+
+                本机文件没有心：喜欢是平台账号里的红心，「本地」这件事只有下载，
+                没有收藏。以前这里对本地歌也画一颗心，点下去写进本机收藏，于是
+                同一首歌在本机点过、在平台没点过，界面还都显示成「已喜欢」。
               */}
+              {track.source === 'local' ? null : (
               <button
                 className={'trk__like' + (isLiked ? ' is-liked' : '')}
                 onClick={(event) => {
@@ -503,6 +508,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
               >
                 <Heart size={14} />
               </button>
+              )}
 
               {onMenu ? (
                 <button

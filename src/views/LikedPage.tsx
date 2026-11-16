@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
-import { useFavorites } from '../features/favorites/store'
 import { newestFirst, likeSourceOf } from '../features/favorites/like-source'
 import { useLikes } from '../features/favorites/likes'
 import { lyricsTextFor } from '../features/library/hooks'
@@ -40,7 +39,6 @@ export function LikedPage({
   onNavigate(route: ShellRoute): void
   onMenu(request: TrackMenuRequest): void
 }) {
-  const liked = useFavorites((state) => state.liked)
   const currentId = usePlayer((state) => (state.index >= 0 ? (state.queue[state.index]?.id ?? null) : null))
   const playing = usePlayer((state) => state.playing)
 
@@ -59,20 +57,18 @@ export function LikedPage({
   const stamps = useLikes((state) => state.stamps)
   const tracks = useMemo(() => {
     /*
-     * 平台在前、本机在后。同一首歌两边都有时本来就会并成一行、主版本按音源优先级
-     * 取（本机排在最后），但不同的歌之间也该是平台优先 —— 本机收藏是这一页的补充，
-     * 不该和账号里的红心抢位置。两块各自按时间倒序，所以刚点的仍然在最前面。
+     * 这一页只有平台账号里的红心。本机文件没有喜欢——本地这件事只有下载，
+     * 所以下载下来的歌不会出现在这里，本机收藏也不再混进来。
      */
     const platformRows = platformLiked.map((track) => ({
       track,
       at: stamps[likeSourceOf(track) + ':' + track.id] ?? 0
     }))
-    const localRows = liked.map((entry) => ({ track: entry.track, at: entry.at }))
     return mergeVersions(
-      [...newestFirst(platformRows), ...newestFirst(localRows)].map((row) => row.track),
+      newestFirst(platformRows).map((row) => row.track),
       order
     )
-  }, [liked, platformLiked, stamps, order])
+  }, [platformLiked, stamps, order])
   const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
 
   /*

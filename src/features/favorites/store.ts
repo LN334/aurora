@@ -74,7 +74,4 @@ export const useFavorites = create<FavoritesState>()(
   )
 )
 
-/** 收藏里可播放的曲目，最新在前。 */
-export function likedTracks(entries: LikeEntry[]): Track[] {
-  return entries.map((entry) => entry.track)
-}
+

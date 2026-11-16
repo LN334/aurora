@@ -33,10 +33,12 @@ export function likeTargets(track: Track): LikeTarget[] {
     if (seen.has(source)) continue
     seen.add(source)
 
-    if (source === 'local') {
-      out.push({ source, label: '本机收藏', track: version, writable: true })
-      continue
-    }
+    /*
+     * 本机文件没有喜欢可点。喜欢是平台账号里的红心；本地这件事只有下载，
+     * 不提供收藏。以前这里把「本机收藏」也列成一个落点，于是同一首歌点过之后
+     * 本机亮红、平台那边没有，两处的「已喜欢」对不上。
+     */
+    if (source === 'local') continue
 
     const provider = platforms.get(source)
     out.push({

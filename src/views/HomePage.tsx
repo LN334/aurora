@@ -4,7 +4,7 @@ import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { dailyLabel } from '../features/library/daily-day'
-import { likedTracks, useFavorites } from '../features/favorites/store'
+import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { coverFor } from '../features/library/cover'
 import { artThumbFor, artworkFor } from '../features/library/source'
 import { useLibrary } from '../features/library/store'
@@ -33,6 +33,7 @@ import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { SkeletonAlbums, SkeletonCards, SkeletonFresh } from '../ui/Skeleton'
 import { formatSpan, formatTime } from '../ui/format'
+import { showFlash } from '../ui/flash'
 import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
 /**
@@ -157,7 +158,6 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   const index = usePlayer((state) => state.index)
   const playing = usePlayer((state) => state.playing)
 
-  const liked = useFavorites((state) => state.liked)
   const tracks = useLibrary((state) => state.tracks)
 
   const recent = useRecentEntries()
@@ -292,7 +292,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   const focusArt = focus ? artworkFor(focus) : null
   const isPlayingFocus = Boolean(current)
 
-  const likedIds = useMemo(() => new Set(liked.map((entry) => entry.id)), [liked])
+  const likedIds = useLikedIds()
   const focusLiked = focus ? likedIds.has(focus.id) : false
 
   const recentAll = useMemo(() => {
@@ -319,10 +319,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
 
   const order = useSourceOrder()
 
-  /* 同一首在两个平台都有时并成一行，计数与列表页对得上。 */
+  /* 同一首在两个平台都有时并成一行，计数与列表页对得上。只有平台的红心。 */
   const likedAll = useMemo(
-    () => mergeVersions([...likedTracks(liked), ...platformLiked], order),
-    [liked, platformLiked, order]
+    () => mergeVersions(platformLiked, order),
+    [platformLiked, order]
   )
 
   const { tracks: platformDaily, ready: platformDailyReady, online: dailyOnline } = usePlatformDaily()
@@ -616,7 +616,20 @@ export function HomePage({ onNavigate }: HomeViewProps) {
             <button
               className={'rh-btn' + (focusLiked ? ' is-on' : '')}
               type="button"
-              onClick={() => useFavorites.getState().toggle(focus)}
+              onClick={() => {
+                /*
+                 * 这颗心也走平台那条路。以前它直接写本机收藏，于是首页给一首
+                 * 在线歌点心，写的是本地、平台账号里没有——「本机亮红、手机上看
+                 * 不到」就是这么来的。本机文件没有喜欢可写，会回一句实话。
+                 */
+                void toggleLiked(focus).then((result) => {
+                  if (!result.ok) {
+                    if (result.message) showFlash(result.message)
+                    return
+                  }
+                  showFlash(result.liked ? '已喜欢' : '已取消喜欢')
+                })
+              }}
             >
               <Heart size={15} />
               {focusLiked ? '已喜欢' : '喜欢'}

@@ -1,6 +1,6 @@
 import { useAccounts } from '../features/accounts/store'
 import { useOnlineBindings } from '../features/accounts/bindings'
-import { useFavorites } from '../features/favorites/store'
+import { useLikedIds } from '../features/favorites/likes'
 import { useRecentEntries } from '../features/player/history-store'
 import { useRoam } from '../features/player/roam-session'
 import { useUpdate } from '../features/updates/store'
@@ -102,7 +102,8 @@ export function Rail({
   const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96), 96) : null)
   const fallbackAvatar = <User size={16} />
 
-  const likedCount = useFavorites((state) => state.liked.length)
+  // 喜欢只发生在平台账号里，本机文件没有喜欢可算。
+  const likedCount = useLikedIds().size
   const recentCount = useRecentEntries().length
 
   /*

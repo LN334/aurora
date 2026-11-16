@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useFavorites } from '../features/favorites/store'
+import { useEffect, useState } from 'react'
+import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { usePlayer } from '../features/player/store'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
 import type { Track } from '../types'
@@ -72,7 +72,7 @@ function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, onJump,
       <div className="queue-row__ops">
         <button
           className={`queue-row__op${liked ? ' is-on' : ''}`}
-          onClick={() => useFavorites.getState().toggle(track)}
+          onClick={() => void toggleLiked(track)}
           title={liked ? '取消喜欢' : '喜欢'}
           aria-label={liked ? `取消喜欢 ${track.title}` : `喜欢 ${track.title}`}
         >
@@ -138,10 +138,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
     setShown(PAGE)
   }, [queueLength])
   const mode = modeOf(shuffle, repeat)
-  // 喜欢状态一次算成集合传给行：每行各订阅一次 liked，长队列里每次点心
-  // 都会让整列重新求一遍 some()。
-  const likedEntries = useFavorites((s) => s.liked)
-  const likedIds = useMemo(() => new Set(likedEntries.map((entry) => entry.id)), [likedEntries])
+  // 喜欢状态一次算成集合传给行：每行各订阅一次，长队列里每次点心都会让整列重算。
+  const likedIds = useLikedIds()
   // 关闭时先留着，让抽屉滑出去再卸载。
   const { mounted, closing } = usePresence(open, 320)
 
