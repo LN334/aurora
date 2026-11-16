@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search } from './icons'
+import { readSearchHistory, rememberSearch } from '../features/library/search-history'
 
 /**
  * 书架上的搜索框。
@@ -21,6 +22,7 @@ export function ShelfSearch({
   onChange(next: string): void
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const [recent, setRecent] = useState<string[]>(() => readSearchHistory())
   /*
    * 回调每次渲染都是新的，但监听只该挂一次 —— 所以把它放进 ref，
    * 免得每敲一个字就把 window 上的 keydown 拆了重装。
@@ -57,19 +59,34 @@ export function ShelfSearch({
 
   return (
     <div className="shelf-search">
-      <Search size={14} />
-      <input
-        ref={input}
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      {value ? (
-        <button type="button" className="shelf-search__clear" aria-label="清空" onClick={() => onChange('')}>
-          ×
-        </button>
+      <div className="shelf-search__box">
+        <Search size={14} />
+        <input
+          ref={input}
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            // 敲回车才算「这次搜索用过了」——逐字记录会把历史冲成半截词。
+            if (event.key === 'Enter' && value.trim()) setRecent(rememberSearch(value))
+          }}
+        />
+        {value ? (
+          <button type="button" className="shelf-search__clear" aria-label="清空" onClick={() => onChange('')}>
+            ×
+          </button>
+        ) : null}
+      </div>
+      {!value && recent.length > 0 ? (
+        <div className="shelf-search__recent">
+          {recent.map((word) => (
+            <button key={word} type="button" className="shelf-search__word" onClick={() => onChange(word)}>
+              {word}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   )

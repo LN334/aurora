@@ -7,6 +7,7 @@ import { Artwork } from '../ui/Artwork'
 import { ArtistById } from '../ui/NameRef'
 import { Note } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
+import { sourceLabelById } from '../features/online/registry'
 
 /**
  * 收藏专辑。
@@ -83,10 +84,10 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
                     fallback={<Note size={18} />}
                   />
                 </span>
-                {/* 色点必须在封面外面：圆形封面会把它裁掉。 */}
+                {/* 色点必须在封面外面：圆形封面会把它裁掉。悬停才说名字，不给卡片加高度。 */}
                 <span className="rh-card__dots">
                   {album.providers.map((id) => (
-                    <span key={id} className={'src-dot src-dot--' + id} />
+                    <span key={id} className={'src-dot src-dot--' + id} title={sourceLabelById(id)} />
                   ))}
                 </span>
                 <span className="rh-card__title">{album.name}</span>

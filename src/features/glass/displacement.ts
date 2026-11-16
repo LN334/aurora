@@ -9,14 +9,14 @@
  * 编码（feDisplacementMap 的约定）：位移 = scale × (c / 255 − 0.5)。
  *   R = 128 + dx / max × 127、G = 128 + dy / max × 127、B 不用、A 不透明。
  */
-export interface DisplacementMap {
+interface DisplacementMap {
   /** data:image/png;base64,... */
   url: string
   /** feDisplacementMap 的 scale，等于贴图里最大的像素位移 */
   scale: number
 }
 
-export interface DisplacementInput {
+interface DisplacementInput {
   width: number
   height: number
   /** 圆角，像素 */

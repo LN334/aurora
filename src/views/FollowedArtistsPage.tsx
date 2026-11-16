@@ -6,6 +6,7 @@ import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { User } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
+import { sourceLabelById } from '../features/online/registry'
 
 /**
  * 关注的艺人。
@@ -93,7 +94,7 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
                   {/* 圆形封面会把角上的东西裁掉，所以色点放在外面。 */}
                   <span className="rh-card__dots">
                     {artist.providers.map((id) => (
-                      <span key={id} className={'src-dot src-dot--' + id} />
+                      <span key={id} className={'src-dot src-dot--' + id} title={sourceLabelById(id)} />
                     ))}
                   </span>
                   <span className="rh-card__title">{artist.name}</span>
