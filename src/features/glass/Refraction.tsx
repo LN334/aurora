@@ -4,15 +4,21 @@ import { buildDisplacementMap } from './displacement'
 /**
  * 液态玻璃的挂载层。
  *
- * 一张表驱动：哪几个元素要做、边带多宽。组件本体不加属性——用 CSS 的
+ * 一张表驱动：哪几类元素要做、边带多宽。组件本体不加属性——用 CSS 的
  * `backdrop-filter: var(--refract, ) blur(...)` 接上，`--refract` 只由这里写。
  * 没有 JS（或这张表里没有它）时变量为空，那一整条就退化成纯模糊。
  *
  * 贴图按元素真实像素生成：卡片宽高会随窗口变，必须跟着重建，否则圆角被拉伸。
+ *
+ * 同一个选择器可能命中多个元素（弹窗、右键菜单都是动态创建、同屏可能好几个），
+ * 所以每个命中元素各拿一张贴图、各分一个 filter id。元素离开 DOM 后要把它的
+ * 贴图与 filter 一起回收，否则右键菜单点一次就多一个 `<filter>`。
  */
 const TARGETS = [
-  { selector: '.rh-now', edge: 24, id: 'lg-now' },
-  { selector: '.player', edge: 24, id: 'lg-player' }
+  { selector: '.rh-now', edge: 24, prefix: 'lg-now' },
+  { selector: '.player', edge: 24, prefix: 'lg-player' },
+  { selector: '.panel', edge: 20, prefix: 'lg-panel' },
+  { selector: '.lk-menu', edge: 18, prefix: 'lg-menu' }
 ] as const
 
 interface GlassMap {
@@ -23,46 +29,80 @@ interface GlassMap {
   scale: number
 }
 
+/** 贴图缓存键：同一元素、同一尺寸复用上一次的结果。 */
+function mapKey(id: string, width: number, height: number): string {
+  return `${id}:${width}x${height}`
+}
+
 export function Refraction() {
   const [maps, setMaps] = useState<GlassMap[]>([])
 
   useEffect(() => {
     let frame = 0
-    const sizes = new Map<string, string>()
+    const cache = new Map<string, GlassMap>()
+    const observed = new Set<HTMLElement>()
 
     function rebuild() {
       const next: GlassMap[] = []
+      const live = new Set<string>()
+      const seen = new Set<HTMLElement>()
+
       for (const target of TARGETS) {
-        const node = document.querySelector<HTMLElement>(target.selector)
-        if (!node) continue
+        const nodes = document.querySelectorAll<HTMLElement>(target.selector)
+        let index = 0
 
-        const rect = node.getBoundingClientRect()
-        if (rect.width < 8 || rect.height < 8) continue
+        for (const node of nodes) {
+          const rect = node.getBoundingClientRect()
+          if (rect.width < 8 || rect.height < 8) continue
 
-        // 尺寸没变就不重算：一张 1100×180 的贴图要跑二十万像素。
-        const key = `${Math.round(rect.width)}x${Math.round(rect.height)}`
-        if (sizes.get(target.id) === key) continue
+          const id = `${target.prefix}-${index}`
+          index += 1
+          seen.add(node)
 
-        const radius = Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
-        const map = buildDisplacementMap({
-          width: rect.width,
-          height: rect.height,
-          radius,
-          edge: target.edge
-        })
-        if (!map) continue
+          // 每轮都写：元素被复用时 id 会变，旧值不能留。
+          node.style.setProperty('--refract', `url(#${id})`)
 
-        sizes.set(target.id, key)
-        node.style.setProperty('--refract', `url(#${target.id})`)
-        next.push({
-          id: target.id,
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-          url: map.url,
-          scale: map.scale
-        })
+          const width = Math.round(rect.width)
+          const height = Math.round(rect.height)
+          const key = mapKey(id, width, height)
+          live.add(id)
+
+          const hit = cache.get(key)
+          if (hit) {
+            next.push(hit)
+            continue
+          }
+
+          // 尺寸变了才重算：一张 1100×180 的贴图要跑二十万像素。
+          const radius = Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
+          const map = buildDisplacementMap({ width: rect.width, height: rect.height, radius, edge: target.edge })
+          if (!map) continue
+
+          const entry: GlassMap = { id, width, height, url: map.url, scale: map.scale }
+          cache.set(key, entry)
+          next.push(entry)
+        }
       }
-      if (next.length) setMaps(next)
+
+      // 回收：不在这一轮里的 id，连同它的贴图一起丢掉。
+      for (const key of [...cache.keys()]) {
+        const id = key.slice(0, key.lastIndexOf(':'))
+        if (!live.has(id)) cache.delete(key)
+      }
+
+      // ResizeObserver 会持有元素引用，消失的要取消观察。
+      for (const node of [...observed]) {
+        if (seen.has(node)) continue
+        observed.delete(node)
+        resize.unobserve(node)
+      }
+      for (const node of seen) {
+        if (observed.has(node)) continue
+        observed.add(node)
+        resize.observe(node)
+      }
+
+      setMaps(next)
     }
 
     function schedule() {
@@ -73,15 +113,11 @@ export function Refraction() {
       })
     }
 
+    const resize = new ResizeObserver(schedule)
+
     schedule()
 
-    const resize = new ResizeObserver(schedule)
-    TARGETS.forEach((target) => {
-      const node = document.querySelector<HTMLElement>(target.selector)
-      if (node) resize.observe(node)
-    })
-
-    // 卡片是「有歌在播」才出现的，创建时不在 DOM 里，得等它挂上来。
+    // 卡片是「有歌在播」才出现的，弹窗与菜单是点开才有的，创建时都不在 DOM 里。
     const mutation = new MutationObserver(schedule)
     mutation.observe(document.body, { childList: true, subtree: true })
 
