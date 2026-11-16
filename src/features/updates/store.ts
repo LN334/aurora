@@ -113,11 +113,23 @@ export function bindUpdateEvents(): void {
   if (bound || !isNative) return
   bound = true
   const apply = (result: UpdateResult): void => {
-    useUpdate.setState((state) => ({
-      result,
-      // 只剩「有新版本」值得盯；一变成 current / downloading 就把点收掉。
-      noted: result.state === 'available' ? state.noted : false
-    }))
+    useUpdate.setState((state) => {
+      /*
+       * 自动检查到新版本也要把窗弹出来——之前只更新了 result，于是自动发现新版
+       * 只有右下角的提示条，弹窗得手点「检查更新」才出现。同一个版本重复推送时
+       * 不再弹（用户可能刚把它关掉）。
+       */
+      const repeated =
+        state.result?.state === 'available' &&
+        result.state === 'available' &&
+        state.result.info.version === result.info.version
+      return {
+        result,
+        // 只剩「有新版本」值得盯；一变成 current / downloading 就把点收掉。
+        noted: result.state === 'available' ? state.noted : false,
+        dialog: result.state === 'available' && !repeated ? true : state.dialog
+      }
+    })
   }
   bridge.updates.onAvailable(apply)
   bridge.updates.onStatus(apply)
