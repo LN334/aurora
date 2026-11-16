@@ -24,6 +24,7 @@ import './features/player/netease'
 import './features/online/register'
 import { bridge } from './bridge'
 import { warmChosenPlatforms } from './features/online/push-platforms'
+import { useLikes } from './features/favorites/likes'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
@@ -90,5 +91,11 @@ requestAnimationFrame(() => {
      * 已经跑完了。
      */
     warmChosenPlatforms()
+    /*
+     * 顺手把「我喜欢的」拉一次。心形按钮读的是这份缓存，而它以前只有进过
+     * 「我喜欢的」页才被填上——重启之后先看首页或播放页时，在线歌的心全是灭的，
+     * 要绕一圈才和平台对得上。这里不等它，拉到了自然会重画。
+     */
+    void useLikes.getState().refreshAll()
   })
 })

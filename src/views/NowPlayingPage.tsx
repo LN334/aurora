@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
@@ -328,6 +328,11 @@ export function NowPlayingPage({
    * 提示都从这里取名字。
    */
   const targets = useMemo(() => (track ? likeTargets(track) : []), [track])
+  /*
+   * 心形点亮后弹一下。列表行一直有这个小动画，播放页这颗大的反而只有颜色变化，
+   * 点上去像没按到底——这一颗是页面里唯一大面积的「动作确认」，更该有。
+   */
+  const [likePop, setLikePop] = useState(false)
   const volume = usePlayer((state) => state.volume)
   const muted = usePlayer((state) => state.muted)
   const shuffle = usePlayer((state) => state.shuffle)
@@ -440,8 +445,9 @@ export function NowPlayingPage({
             <div className="np__acts-side np__acts-side--start">
               <button
               type="button"
-              className={`np__like${liked ? ' is-on' : ''}`}
+              className={`np__like${liked ? ' is-on' : ''}${likePop ? ' is-pop' : ''}`}
               onClick={(event) => {
+                setLikePop(true)
                 /*
                  * 与列表行同一个规矩：一个落点就直接写，写完说清写进了哪家；
                  * 一首歌挂着两家版本时先问落到哪儿。这里以前直接
@@ -462,6 +468,18 @@ export function NowPlayingPage({
                   }
                   showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
                 })
+              }}
+              onAnimationEnd={(event) => {
+                if (event.animationName === 'heartPop' || event.animationName === 'likeRing') setLikePop(false)
+              }}
+              /*
+               * 右键 = 换一家收藏。左键永远走「直接落点 / 先问落点」，右键给那些
+               * 明确想收藏到别处的人一条捷径，不必先点开再取消。
+               */
+              onContextMenu={(event) => {
+                event.preventDefault()
+                const rect = event.currentTarget.getBoundingClientRect()
+                useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
               }}
               aria-pressed={liked}
               title={

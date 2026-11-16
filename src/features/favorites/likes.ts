@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import type { Track } from '../../types'
 import type { PlatformBackend } from '../online/store'
 import { getProvider, listProviders } from '../online/registry'
+import { useOnlineStore } from '../online/store'
 import type { OnlineMusicProvider } from '../online/types'
 import { useFavorites } from './store'
 import { applyLiked, likeSourceOf } from './like-source'
@@ -147,6 +148,15 @@ export const useLikes = create<LikesState>()((set, get) => ({
     }))
 
     try {
+      /*
+       * 先把这家后端叫起来。绑定当前档案、读出账号都发生在 init 里，跳过去直接
+       * 问「登录了没有」会拿到未登录——那正是重启之后心形全灭、进过一次「我喜欢的」
+       * 才对上的原因。
+       */
+      await useOnlineStore(source as never)
+        .getState()
+        .init()
+        .catch(() => {})
       /*
        * 先问登录。平台的喜欢列表在未登录时返回空数组，和「一条都没喜欢」长得
        * 一模一样；不查这一步，收藏页会把「没登录」说成「你还没喜欢过」。

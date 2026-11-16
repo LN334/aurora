@@ -1910,6 +1910,34 @@
 }
 
 /*
+ * 点亮那一下：心缩一下再弹回，外面扩一圈淡淡的光。
+ *
+ * 列表行那颗小心形一直有这个小动画（`heartPop`），播放页这颗大的原来只有颜色
+ * 变化——点上去像没按住。只在点击后挂 `.is-pop`，所以进页面时已经喜欢的歌不会
+ * 集体弹一遍。
+ */
+.np__like {
+  position: relative;
+}
+.np__like.is-pop svg {
+  animation: heartPop 460ms var(--ease-spring);
+}
+.np__like.is-pop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: likeRing 460ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+@keyframes likeRing {
+  0% { opacity: 0.75; transform: scale(0.55); }
+  100% { opacity: 0; transform: scale(1.85); }
+}
+
+/*
  * 播放键：底用「最亮的前景色」，图标用「最暗的背景色」。
  *
  * 原来图标写死 #10131a。深色主题下底是白、图标黑，没问题；浅色主题下
