@@ -33,6 +33,8 @@ desktop.ini
 
 # local tooling artifacts
 .dsh-vision-toolkit/
+# 工作区级的 DSH 技能与缓存，属于本机工具，不进仓库。
+.dsh/
 *.tsbuildinfo
 
 # local test output and env files.
