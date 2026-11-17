@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useOnlineStore } from '../online/store'
 import './KugouLogin.css'
@@ -38,6 +38,14 @@ export function KugouLogin({ onClose }: { onClose(): void }) {
   /** Bumped to restart the loop when the code expires. */
   const [nonce, setNonce] = useState(0)
 
+  /*
+   * onClose 是调用点的内联箭头函数，父组件每渲染一次它就换一个新引用。把它挂在
+   * ref 上，finish 才稳定：下面的 effect 依赖 finish，依赖不稳就会在父组件每次更新
+   * 时重跑一遍，把用户可能已经在扫的二维码换掉。
+   */
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   const finish = useCallback(() => {
     /*
      * The session lives in the main process (safeStorage), so the renderer asks
@@ -45,8 +53,8 @@ export function KugouLogin({ onClose }: { onClose(): void }) {
      * show what the side that owns the cookie actually sees.
      */
     void useOnlineStore('kugou').getState().refreshAccount()
-    onClose()
-  }, [onClose])
+    onCloseRef.current()
+  }, [])
 
   useEffect(() => {
     const bridge = window.aurora?.kugou

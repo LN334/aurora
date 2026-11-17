@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useOnlineStore } from '../online/store'
 import './QishuiLogin.css'
@@ -32,14 +32,22 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
   /** 换一个二维码时自增，让 effect 重跑。 */
   const [nonce, setNonce] = useState(0)
 
+  /*
+   * onClose 是调用点的内联箭头函数，父组件每渲染一次它就换一个新引用。把它挂在
+   * ref 上，finish 才稳定：下面的 effect 依赖 finish，依赖不稳就会在父组件每次更新
+   * 时重跑一遍，把用户可能已经在扫的二维码换掉。
+   */
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   const finish = useCallback(() => {
     /*
      * 会话在主进程（safeStorage + 设备 id），所以这里让渲染层重新问一次，
      * 而不是相信轮询的结论：账号那一行要显示的是真正持有凭据的那一侧看到的东西。
      */
     void useOnlineStore('qishui').getState().refreshAccount()
-    onClose()
-  }, [onClose])
+    onCloseRef.current()
+  }, [])
 
   useEffect(() => {
     const bridge = window.aurora?.qishui
