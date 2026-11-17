@@ -193,9 +193,27 @@
 - **登录态需要重扫一次码**。新上游签发自己的会话 token，旧的 QQ 原生 cookie 不被它认。`session.ts` 的存储结构没变，只是 `cookie` 字段现在装的是 token。
 - **搜索的专辑/歌手两栏仍是空的**。新上游的 `/search` 不返 `zhida` 结构，而 UI 目前根本不消费这两栏（`SearchView.tsx` 没读 `albums`/`artists`），所以没做三次请求的聚合。等界面真要用时再开——新上游支持 `type=album` / `type=singer` 真搜索，比旧包强。
 - 首次调用 QQ 会慢约 **7 秒**（spawn 子进程 + 加载包），之后毫秒级。子进程常驻，懒启动一次。
+
+### 上游搜索能搜什么（2026-11-17 实测）
+
+新上游的 `/search` 默认只回歌曲，但 `type` 参数是**真的生效**，四种都能搜。同一个关键词「晴天」的结果：
+
+| type | total | item 里的关键字段 |
+|---|---|---|
+| `song` | 998 | 完整 fcg song 对象（`album.id`/`album.mid`/`album.name`、`bpm`、`pay` 等） |
+| `singer` | 7 | `singerID` / `singerMID` / `singerName` / `singerPic` / `albumNum` / `songNum` |
+| `album` | 838 | `albummid` / `id` / `name` / `pic` / `publish_date` / `singer` / `song_num` |
+| `playlist` | 正常返回 | —— |
+
+四者形状统一：`{ code, type, page, limit, total, more, items[] }`。
+
+本仓目前只用第一种，且是**写死**的：`electron/qq/transport.ts` 的 `requestSearch` 固定发 `type: 'song'`，再把 `items` 包成 `song.list` 交回旧信封。因此 `normalize.normalizeSearch` 永远看不到 `zhida` 块，`artists` 与 `albums` 就恒为空——不是上游不给，是没人要。`electron/qq/client.ts` 里那句 `void type` 说的就是这事；旧注释「upstream has no album or artist search」是换包前的结论，已过期，本轮连同 `normalize.ts` 一起改掉了。
+
+将来要接的话路径很直：`requestSearch` 加一个 `type` 参数透传 → `qqSearch` 不再 `void type` → `normalizeSearch` 按 `type` 走 `items[]` 分支（比旧的 `zhida` 干净得多）。界面那侧才是真成本：`src/app/search/SearchView.tsx` 的设计是「一个词 + 一个音源范围 + 一张 Track 列表」，加「歌曲/专辑/艺人」切换要新的卡片组件，属产品决策，本轮没动。
+
 ### 顺手修的：登录二维码被反复重建（2026-11-17）
 
 - **现象**：打包版打开「账号」页、点 QQ 卡片的「登录」，`startup.log` 里 `qq:qrCreate` 连着调了 4 次。
 - **原因**：`PlatformLoginDialogs` 传给 `<QqLogin onClose={...}>` 的是内联箭头函数，父组件每渲染一次它就换一个新引用；`QqLogin` 里 `finish = useCallback(..., [onClose])` 因此不稳定，而创建二维码的 `useEffect` 依赖 `finish`，于是父组件每更新一次就重跑一遍 effect，把刚出的码换掉——用户若正在扫，扫到的可能是已被替换的那张。
 - **修法**：三处登录弹层（`src/features/qq/QqLogin.tsx`、`src/features/kugou/KugouLogin.tsx`、`src/features/qishui/QishuiLogin.tsx`）把 `onClose` 挂到 ref 上，`finish` 依赖改成空数组。网易云的 `finish` 本来就不依赖 `onClose`，未动。
-- **验证**：开发版探针点开 QQ 登录，`qq:qrCreate` 从 4 次降到 **1 次**，二维码 6 秒内不变；`npm run check` 仍 exit 0（642 测试全过）。
+- **验证**：开发版探针点开 QQ 登录，`qq:qrCreate` 从 4 次降到 **1 次**，二维码 6 秒内不变。酷狗与汽水用干净 profile 各点一次，`startup.log` 里 `kugou:qrCreate ok`、`qishui:qrCreate ok` 各一行，同样没重复。`npm run check` 仍 exit 0（642 测试全过）。

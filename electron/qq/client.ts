@@ -190,10 +190,11 @@ export async function qqSearch(
   for (const song of result.songs) {
     remember(song.id, song.songmid, song.mediaMid, song.paid)
   }
-  // `type` cannot change the upstream query: the service ignores `remoteplace`
-  // and always answers one song list plus one "did you mean" block. The
-  // parameter is accepted because the contract has it; the sections are the
-  // same for every value. See `normalize.normalizeSearch`.
+  // `type` does not reach upstream: `requestSearch` fixes `type: 'song'`
+  // (see transport.ts) and reshapes the answer into the pre-migration
+  // envelope, so the sections are identical for every value. Upstream could
+  // serve the other kinds - /search?type=singer|album|playlist all answer -
+  // but no caller asks for them yet. See `normalize.normalizeSearch`.
   void type
   return result
 }

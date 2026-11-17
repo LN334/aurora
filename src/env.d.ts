@@ -707,7 +707,10 @@ export interface NeteaseApi {
 
 // --- QQ 音乐（第三方逆向接口）---------------------------------------------
 //
-// 与网易云并列的第二个在线平台，走另一套第三方接口（`@sansenjian/qq-music-api`）。
+// 与网易云并列的第二个在线平台，走另一套第三方接口。与网易云不同，这里不直接
+// require 那个包的函数：`@yakult-green-tea/qq-music-api` 是个 Koa 服务，主进程
+// 在 `electron/qq/local-server.ts` 里把它起在 127.0.0.1 的随机端口上，
+// `electron/qq/transport.ts` 再用 HTTP 调它。
 // 这里刻意与 Netease 保持同一套词汇：失败原因复用 `NeteaseFailureReason`，音质复用
 // 同一个四档，播放结果同样是「成功给地址、失败给原因」而不是抛错。
 //

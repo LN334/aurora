@@ -128,18 +128,22 @@ function normalizeArtists(song: Record<string, unknown>): QqArtist[] {
 /**
  * The search response -> the three sections the interface shows.
  *
- * A limitation worth stating plainly: **upstream has no album or artist
- * search.** The package's `search()` sends `remoteplace`, and the live service
- * ignores it - every value returns the same song list plus one `zhida` block
- * whose shape depends on the query (a singer for "周杰伦", an album for
- * "叶惠美"). So:
+ * Upstream *can* search all four kinds. `GET /search?type=song|singer|album|
+ * playlist` answers normally (verified live 2026-11-17: `singer` items carry
+ * `singerID`/`singerMID`/`singerName`/`singerPic`/`albumNum`/`songNum`,
+ * `album` items carry `albummid`/`id`/`name`/`pic`/`publish_date`/`singer`/
+ * `song_num`). Two things still keep this function on the old shape:
  *
- *  - `songs` is the real song result;
- *  - `artists` is the single artist upstream matched, when it matched one;
- *  - `albums` is that artist's hot albums, or the single matched album.
+ *  1. `requestSearch` asks for `type: 'song'` only and reshapes the answer into
+ *     the pre-migration envelope, so the payload arriving here is always a
+ *     song list.
+ *  2. A song list carries no `zhida` block, which is where the artist and
+ *     album sections came from.
  *
- * That is everything the upstream will give, and it is honest: the interface
- * shows a short list rather than an empty screen pretending to be a search.
+ * So in practice `songs` is the whole result while `artists` and `albums` are
+ * empty - not because upstream refused, but because nothing asks for them.
+ * The `zhida` parsing below is kept for a caller that hands over a raw
+ * `remoteplace` answer; it is the only mapping written for those two sections.
  */
 export function normalizeSearch(response: unknown, limit = 50): QqSearchResult {
   const data = record(record(record(response).body).response).data
