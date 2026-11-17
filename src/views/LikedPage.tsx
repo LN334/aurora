@@ -4,6 +4,7 @@ import { newestFirst, likeSourceOf } from '../features/favorites/like-source'
 import { useLikes } from '../features/favorites/likes'
 import { lyricsTextFor } from '../features/library/hooks'
 import { pickLyricExcerpt } from '../features/lyrics/excerpt'
+import { likedReadFailed } from '../features/online/liked-merge'
 import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
 import { mergeVersions, sourcesOf } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
@@ -47,7 +48,11 @@ export function LikedPage({
    * 同一首在两家平台都有时由 mergeVersions 并成一行，两个平台徽章并排，
    * 播的时候按设置里的音源优先级挑一个——收藏页不该出现两行一样的歌名。
    */
-  const { tracks: platformLiked, loading: platformLoading } = usePlatformLiked()
+  const {
+    tracks: platformLiked,
+    loading: platformLoading,
+    failed: platformFailed
+  } = usePlatformLiked()
   const order = useMemo(() => sourceOrder(), [])
   /*
    * 一条时间线，不是两块拼起来：本地点心带 `at`，平台那份带我们点红心的时刻
@@ -157,6 +162,22 @@ export function LikedPage({
         ) : (
           <p className="pg-note">正在读取各平台的收藏…</p>
         )}
+      </div>
+    )
+  }
+
+  /*
+   * 一条都没读到、而这一趟有平台没应答：说「还没有喜欢的歌」是撒谎。
+   * 2026-11-17 网易云接口 502 断了两次，这一页就是这么说的。
+   */
+  if (likedReadFailed(tracks.length, platformFailed)) {
+    return (
+      <div className="pg-empty">
+        <h2>这次没读到各平台的收藏</h2>
+        <p>接口没有应答。你的收藏没被删，再问一次就好。</p>
+        <button className="rh-btn" type="button" onClick={() => invalidatePlatformLiked()}>
+          重新读取
+        </button>
       </div>
     )
   }

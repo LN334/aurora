@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
 import { onLikesChanged, useLikes } from '../favorites/likes'
+import { foldLikedParts, likedCacheTtl, type LikedFold, type LikedPart } from './liked-merge'
 import { getProvider, listAvailableProviders } from './registry'
 import { useOnlineStore, type PlatformBackend } from './store'
 import type { OnlineSong, ProviderId } from './types'
@@ -10,8 +11,8 @@ import type { OnlineSong, ProviderId } from './types'
  *
  * 它和本地点过心的那堆是同一种东西，所以收藏页把两边并成一张列表：平台只当
  * 徽章，不当分区。十分钟缓存一次——上游按账号限流，翻来翻去没必要每次都问。
+ * 有平台没问出来时那份缓存只活三十秒，见 likedCacheTtl。
  */
-const TTL = 10 * 60 * 1000
 
 /*
  * 窗口在后台待了一段时间再回来：用户很可能刚在平台自己的 App 里点过心。
@@ -23,7 +24,7 @@ const FOCUS_TTL = 60 * 1000
  * 按「问了哪几家」分份缓存：收藏页要四家全量，漫游只该拿勾选的那几家。
  * 键 '*' 是全量。
  */
-const cache = new Map<string, { at: number; tracks: Track[] }>()
+const cache = new Map<string, { at: number; tracks: Track[]; failed: number }>()
 
 /*
  * 缓存被作废时要叫醒正在看这一页的人。心形按钮与这一页读的不是同一份数据：
@@ -48,11 +49,17 @@ export function invalidatePlatformLiked(): void {
  *
  * 传了 `platforms` 就只问这几家（漫游只该拿勾选的那几家）；不传是全量。没被问
  * 到的平台连 `init` 都不跑，后端不会为它起来。
+ *
+ * 返回值带一份 `failed`：几家没问出来。空列表有两种意思——「读完了，确实没有」
+ * 与「没读到」，界面必须分得开。2026-11-17 那次就是这样：上游 502 断了两秒，首页
+ * 把「没读到」画成了「我喜欢的音乐 0 首」。
  */
-export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<Track[]> {
+export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<LikedFold> {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const hit = cache.get(key)
-  if (hit && Date.now() - hit.at < TTL) return hit.tracks
+  if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
+    return { tracks: hit.tracks, failed: hit.failed }
+  }
   const wanted = platforms ? new Set(platforms) : null
 
   const providers = listAvailableProviders().filter(
@@ -60,7 +67,7 @@ export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<Track
       Boolean(provider.capabilities.likes) && (wanted === null || wanted.has(provider.id))
   )
   const lists = await Promise.all(
-    providers.map(async (provider) => {
+    providers.map(async (provider): Promise<LikedPart> => {
       try {
         /*
          * 必须先把这家 store 叫起来：绑定当前档案、读出账号都发生在 init 里，
@@ -68,7 +75,8 @@ export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<Track
          */
         await useOnlineStore(provider.id as never).getState().init().catch(() => {})
         const backend = (getProvider(provider.id)?.backend as PlatformBackend | undefined) ?? null
-        if (!backend?.collection) return [] as Track[]
+        // 这家不提供喜欢，是「没有这条通道」，不是「这次没问出来」。
+        if (!backend?.collection) return { tracks: [], failed: false }
         const songs = await backend.collection('likes', 200)
         const tracks = songs.map((song: OnlineSong) => backend.toTrack(song))
         /*
@@ -76,22 +84,27 @@ export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<Track
          * 里的歌在别处（播放条、详情页、跨平台合并的行）看着像没喜欢过。
          */
         useLikes.getState().seed(provider.id, tracks)
-        return tracks
+        return { tracks, failed: false }
       } catch {
-        return [] as Track[]
+        return { tracks: [], failed: true }
       }
     })
   )
 
-  const tracks = lists.flat()
-  cache.set(key, { at: Date.now(), tracks })
-  return tracks
+  const fold = foldLikedParts(lists)
+  cache.set(key, { at: Date.now(), tracks: fold.tracks, failed: fold.failed })
+  return fold
 }
 
-/** 收藏页要区分「还没读完」和「读完了是空的」——两者都长得像空列表，但只有一个该显示空态。 */
+/**
+ * 收藏页要区分三种空：还没读完、读完了是空的、没读到。
+ * 三者都长得像空列表，但只有一个该显示「还没有喜欢的歌」。
+ */
 interface PlatformLikedState {
   tracks: Track[]
   loading: boolean
+  /** 这一趟有几家没问出来。0 才是「真的读完了」。 */
+  failed: number
 }
 
 /**
@@ -102,7 +115,9 @@ export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const [state, setState] = useState<PlatformLikedState>(() => {
     const hit = cache.get(key)
-    return hit ? { tracks: hit.tracks, loading: false } : { tracks: [], loading: true }
+    return hit
+      ? { tracks: hit.tracks, loading: false, failed: hit.failed }
+      : { tracks: [], loading: true, failed: 0 }
   })
 
   useEffect(() => {
@@ -120,18 +135,23 @@ export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
      */
     const read = (keep: boolean): void => {
       const hit = cache.get(key)
-      if (hit && Date.now() - hit.at < TTL) {
-        if (alive) setState({ tracks: hit.tracks, loading: false })
+      if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
+        if (alive) setState({ tracks: hit.tracks, loading: false, failed: hit.failed })
         return
       }
-      if (alive) setState((prev) => ({ tracks: keep ? prev.tracks : [], loading: true }))
+      if (alive) {
+        setState((prev) => ({ tracks: keep ? prev.tracks : [], loading: true, failed: prev.failed }))
+      }
       void loadPlatformLiked(ids)
         .then((next) => {
-          if (alive) setState({ tracks: next, loading: false })
+          if (alive) setState({ tracks: next.tracks, loading: false, failed: next.failed })
         })
         .catch(() => {
-          // 这一次没读到不代表喜欢被删了，保留上一份，别把页面清空。
-          if (alive) setState((prev) => ({ tracks: prev.tracks, loading: false }))
+          /*
+           * 这一次没读到不代表喜欢被删了：保留上一份，并把失败数抬起来，
+           * 让界面说「没读到」而不是「你没有」。
+           */
+          if (alive) setState((prev) => ({ tracks: prev.tracks, loading: false, failed: prev.failed + 1 }))
         })
     }
 

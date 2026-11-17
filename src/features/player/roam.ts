@@ -42,7 +42,9 @@ export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> 
      * 否则用户明明没勾 QQ，漫游里却飘出一首 QQ 的歌，看着像设置没生效。
      * 收藏页那边不传参数，照样四家全量。
      */
-    loadPlatformLiked(platforms).catch(() => [] as Track[]),
+    loadPlatformLiked(platforms)
+      .then((fold) => fold.tracks)
+      .catch(() => [] as Track[]),
     loadPlatformDaily(platforms).catch(() => [] as Track[]),
     loadRoamStream(SLOTS.roam, platforms).catch(() => [] as Track[])
   ])

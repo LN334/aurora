@@ -19,6 +19,7 @@ import { DiscWall } from '../features/discover/DiscWall'
 import { useHomeSections } from '../features/settings/home-sections'
 import { dailyBatch, usePlatformDaily } from '../features/online/daily'
 import { usePlatformNewSongs } from '../features/online/news'
+import { likedCountLabel } from '../features/online/liked-merge'
 import { usePlatformLiked } from '../features/online/platform-liked'
 import { usePushPlatforms } from '../features/online/push-platforms'
 import { useRoamPlatforms } from '../features/player/roam-sources'
@@ -174,7 +175,11 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    * 全拉起来。收藏页那边不传，仍是四家全量。
    */
   const likedPlatforms = usePushPlatforms() ?? []
-  const { tracks: platformLiked, loading: likedLoading } = usePlatformLiked(likedPlatforms)
+  const {
+    tracks: platformLiked,
+    loading: likedLoading,
+    failed: likedFailed
+  } = usePlatformLiked(likedPlatforms)
   const { cards: accountCards, loading: cardsLoading } = useAccountPlaylists()
   const collectedPlaylists = useMemo(() => collectedOnly(accountCards), [accountCards])
   const collectedAlbums = useCollectedAlbums()
@@ -651,7 +656,12 @@ export function HomePage({ onNavigate }: HomeViewProps) {
           icon={<Heart size={16} />}
           art={thumbOf(likedAll[0])}
           label="我喜欢的音乐"
-          count={countsReady ? likedAll.length + ' 首' : '—'}
+          /*
+           * 一首都没读到、而这一趟确实有平台没应答时，写「0 首」是在说假话：
+           * 2026-11-17 网易云那个接口断了两次，卡片就这么写着 0，用户以为收藏没了。
+           * 读失败与读完了空是两件事，卡片上只承认后者。
+           */
+          count={likedCountLabel(countsReady, likedAll.length, likedFailed)}
           onClick={() => onNavigate({ view: 'liked' })}
         />
         <Shortcut
