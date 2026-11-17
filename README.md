@@ -102,12 +102,12 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 | --- | --- |
 | 本机文件 | 可用，电脑上有音乐文件就行 |
 | 网易云音乐 | 可用，不登录也能搜和播一部分 |
-| QQ 音乐 | 可用，不登录多数歌只能试听，建议登录 |
+| QQ 音乐 | 可用，不登录只能播免费歌（会员歌拿不到），建议登录 |
 | 酷狗音乐 | 可用（含概念版签名） |
 | 汽水音乐 | 可用 |
 | Spotify / Apple Music / Navidrome / Jellyfin | 未实现，代码里留了接入位置 |
 
-四个平台都是**非官方接入，没有得到任何授权**。网易云走社区逆向接口 [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，QQ 音乐走 [qq-music-api](https://github.com/Rain120/qq-music-api)，酷狗和汽水照着网页端与 App 的接口自己接。
+四个平台都是**非官方接入，没有得到任何授权**。网易云走社区逆向接口 [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，QQ 音乐走 [@yakult-green-tea/qq-music-api](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api)（[Rain120/qq-music-api](https://github.com/Rain120/qq-music-api) 的活跃分支，在主进程里当本地 Koa 服务跑），酷狗和汽水照着网页端与 App 的接口自己接。
 
 由此带来的限制：
 
@@ -217,7 +217,7 @@ src/stage/          歌词页与可视化
 electron/pure/      零 Electron 依赖、可以在裸 Node 下测试的纯逻辑
 electron/protocols/ 私有协议：aurora-app / aurora-media / aurora-remote / aurora-wallpaper / aurora-cache
 electron/netease/   网易云接口、会话、IPC
-electron/qq/        QQ 音乐接口、会话、传输
+electron/qq/        QQ 音乐接口、会话、传输、本地服务
 electron/kugou/     酷狗接口、会话、签名
 electron/qishui/    汽水接口、会话
 ```
