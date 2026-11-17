@@ -1,5 +1,4 @@
 import type { QqQuality } from './types'
-import { write } from '../startup-log.ts'
 
 /**
  * The QQ wire layer: the two-step vkey exchange, the file-name rules, the
@@ -253,77 +252,101 @@ function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-// --- the upstream package ----------------------------------------------
+// --- the upstream server ------------------------------------------------
 
 /**
- * The slice of `@sansenjian/qq-music-api` this client uses.
+ * 上游现在是一个本地 HTTP 服务，不再是 require 进主进程的纯函数。
  *
- * Required lazily, inside the functions below, for the same reason
- * `electron/netease/client.ts` does it: the package pulls in koa, axios and the
- * whole route table, so loading it must not be part of starting Aurora.
+ * `@yakult-green-tea/qq-music-api` 是 Koa 应用，`electron/qq/local-server.ts` 把它
+ * 起在 127.0.0.1 的一个随机端口上，这里所有请求都走 fetch。换包换掉的正是这一层：
+ * 签名、协议、接口路径全在包里，Aurora 只剩「发请求、包形状、读结论」。
+ *
+ * 认证也不是 QQ 原生 cookie 了。包自己签发会话 token，`session.ts` 里的 `cookie`
+ * 字段现在装的就是它 —— 字段名没变，调用它的十几个地方一行都不用动。
  */
-interface QqSdk {
-  search: (params: Record<string, unknown>) => Promise<unknown>
-  getPlayUrl: (params: Record<string, unknown>) => Promise<unknown>
-  lyric: (params: Record<string, unknown>) => Promise<unknown>
-  getQQLoginQr: () => Promise<unknown>
-  checkQQLoginQr: (params: Record<string, unknown>) => Promise<unknown>
+interface UpstreamResult {
+  status: number
+  body: unknown
 }
-
-interface QqServices {
-  getUserDetail: (params: Record<string, unknown>) => Promise<unknown>
-  getVipInfo: (params: Record<string, unknown>) => Promise<unknown>
-  getUserPlaylists: (params: Record<string, unknown>) => Promise<unknown>
-  songListDetail: (params: Record<string, unknown>) => Promise<unknown>
-  getDailyRecommend: (params: Record<string, unknown>) => Promise<unknown>
-  getNewSongs: (areaId?: number, limit?: number) => Promise<unknown>
-  getUserLikedSongs: (params: Record<string, unknown>) => Promise<unknown>
-  getUserCollectedAlbums: (params: Record<string, unknown>) => Promise<unknown>
-  getUserFollowSingers: (params: Record<string, unknown>) => Promise<unknown>
-  getAlbumInfo: (params: Record<string, unknown>) => Promise<unknown>
-  getAlbumSongs: (params: Record<string, unknown>) => Promise<unknown>
-}
-
-const SDK_PACKAGE = '@sansenjian/qq-music-api/sdk'
-const SERVICES_PACKAGE = '@sansenjian/qq-music-api/services'
-
-let sdk: QqSdk | null = null
-let services: QqServices | null = null
 
 /**
- * Load the SDK, once.
+ * 发一次请求，永远返回 `{ status, body }`。
  *
- * Exported so `status()` can report "the dependency is missing or broken" as a
- * detail string instead of every call failing with an unrelated message.
+ * 不抛错的理由和 `playInfoOf` 那条一样：normalize.ts 的每个读取器都以这个信封为
+ * 输入，而「上游回了 401」和「本地服务没起来」对用户是两种完全不同的失败，必须能
+ * 分开报。status 0 专门表示后者。
  */
-export function loadSdk(): QqSdk {
-  if (!sdk) {
-    sdk = require(SDK_PACKAGE) as QqSdk
-    /* 这一行是「后端被拉起来了」的硬证据，探针靠它判断懒加载有没有漏。 */
-    write('qq: upstream loaded')
+async function call(
+  pathname: string,
+  options: {
+    query?: Record<string, string | number | undefined>
+    token?: string
+    method?: 'GET' | 'POST'
+    body?: unknown
+  } = {}
+): Promise<UpstreamResult> {
+  // 动态 import：这个模块同时被 `node --test` 当 TypeScript 直接加载（见文件头），
+  // 静态 import 一个依赖 electron 的模块会让那些纯函数测试起不来。
+  const { ensureServer } = await import('./local-server.ts')
+  const base = await ensureServer()
+  if (!base) return { status: 0, body: { error: 'qq upstream not running' } }
+
+  const url = new URL(pathname, base)
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined && value !== '') url.searchParams.set(key, String(value))
   }
-  return sdk
+
+  const headers: Record<string, string> = {}
+  // 包的解析顺序是「x-qq-session 头 > ?cookie= > qqmusic_session cookie」。空串会被
+  // 当成「有会话但无效」，所以只有真拿到 token 时才带这个头。
+  if (options.token) headers['x-qq-session'] = options.token
+
+  let payload: string | undefined
+  if (options.body !== undefined) {
+    headers['content-type'] = 'application/json'
+    payload = JSON.stringify(options.body)
+  }
+
+  const response = await fetch(url, { method: options.method ?? 'GET', headers, body: payload })
+  const text = await response.text()
+  let parsed: unknown = text
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    /* 上游偶尔回 HTML 错误页，保留原文比丢成 null 好查 */
+  }
+  return { status: response.status, body: parsed }
 }
 
-/**
- * Load the service bundle, once.
- *
- * `./services` is already in memory by the time `./sdk` is loaded - the SDK is
- * a thin wrapper over it - so this costs nothing extra. It is used for the two
- * calls the SDK does not wrap: the account lookup that doubles as a login
- * liveness probe, and the membership endpoint.
- */
- function loadServices(): QqServices {
-  if (!services) services = require(SERVICES_PACKAGE) as QqServices
-  return services
+/** 把包归一化过的行数组包回旧信封，normalize.ts 因此一行不改。 */
+function wrapResponse(data: Record<string, unknown>): unknown {
+  return { response: { code: 0, data } }
 }
+
+// --- sdk surface --------------------------------------------------------
 
 export async function requestSearch(params: {
   keywords: string
   limit: number
   page?: number
 }): Promise<unknown> {
-  return await loadSdk().search({ key: params.keywords, limit: params.limit, page: params.page ?? 1 })
+  const result = await call('/search', {
+    query: { keyword: params.keywords, type: 'song', limit: params.limit, page: params.page ?? 1 }
+  })
+  const body = asRecord(result.body)
+  /*
+   * 包把搜索结果归一化成 `{code, items}`，而 normalizeSearch 读的是老 fcg 的
+   * `body.response.data.song.list`。包回去比改那个有快照测试的读取器便宜得多，也让
+   * 「相关歌手/相关专辑」这些 zhida 块保持原样往下传。
+   */
+  return {
+    status: result.status,
+    body: wrapResponse({
+      song: { list: asArray(body.items) },
+      zhida: asRecord(body.zhida),
+      hotalbum: asRecord(body.hotalbum)
+    })
+  }
 }
 
 export async function requestPlay(params: {
@@ -332,15 +355,58 @@ export async function requestPlay(params: {
   mediaMid: string
   cookie: string
 }): Promise<unknown> {
-  return await loadSdk().getPlayUrl({
-    songmid: params.songmid,
-    quality: params.quality,
-    // `raw` keeps `midurlinfo` (and therefore `result`) in the response; the
-    // default `play` mode throws it away. See `playInfoOf`.
-    resType: 'raw',
-    mediaId: params.mediaMid,
-    cookie: params.cookie
+  const result = await call('/getMusicPlay', {
+    query: {
+      songmid: params.songmid,
+      quality: params.quality,
+      mediaId: params.mediaMid,
+      // 非 'play' 让匿名分支回完整 musicu 信封；登录分支不看这个参数。
+      resType: 'raw'
+    },
+    token: params.cookie
   })
+
+  const body = asRecord(result.body)
+  const data = asRecord(body.data)
+  // 匿名分支：`req_0.data.midurlinfo` 与 `sip` 原样——playInfoOf 直接能读。
+  if (Object.keys(asRecord(data.req_0)).length > 0) return result
+
+  /*
+   * 登录分支只回 `data.playUrl[songmid] = {url, error, restriction}`，url 已经是拼好
+   * 的完整地址。playInfoOf 认的是「sip + purl」两半，所以拆回两半比改它稳——那个
+   * 函数有快照测试，而且是判断「要会员」还是「真出错」的唯一依据。
+   */
+  const entry = asRecord(asRecord(data.playUrl)[params.songmid])
+  const url = asString(entry.url)
+  let sip = ''
+  let purl = ''
+  if (url) {
+    try {
+      const parsed = new URL(url)
+      sip = parsed.origin
+      purl = parsed.pathname + parsed.search
+    } catch {
+      purl = url
+    }
+  }
+  const restriction = asRecord(entry.restriction)
+  return {
+    status: result.status,
+    body: {
+      data: {
+        code: result.status === 200 ? 0 : result.status,
+        req_0: {
+          code: 0,
+          data: {
+            midurlinfo: [
+              { purl, result: numberOrNull(asRecord(restriction.codes).result), filename: '' }
+            ],
+            sip: sip ? [sip] : []
+          }
+        }
+      }
+    }
+  }
 }
 
 export async function requestLyric(params: {
@@ -349,57 +415,105 @@ export async function requestLyric(params: {
   songid: string
   cookie: string
 }): Promise<unknown> {
-  // `isFormat` stays off so upstream hands back the LRC text itself rather than
-  // a parsed line array, which is what the renderer's lyric parser expects.
-  return await loadSdk().lyric({
-    songmid: params.songmid,
-    songid: params.songid,
-    cookie: params.cookie
+  // normalizeLyrics 读 `body.response`，包回的正是这个形状，直接透传。
+  return await call('/getLyric', {
+    query: { songmid: params.songmid, songid: params.songid, trans: 1 },
+    token: params.cookie
   })
 }
 
 export async function requestLoginQr(): Promise<unknown> {
-  return await loadSdk().getQQLoginQr()
+  // 第一步拿 unikey，第二步用它换二维码图。整条扫码链路都归包管，Aurora 只收两件东西。
+  const key = await call('/login/qr/key', { query: { channel: 'qq' } })
+  const unikey = asString(asRecord(asRecord(key.body).data).unikey)
+  if (!unikey) return { status: key.status, body: { error: 'no unikey', raw: key.body } }
+  const created = await call('/login/qr/create', { query: { key: unikey } })
+  const qrimg = asString(asRecord(asRecord(created.body).data).qrimg)
+  /*
+   * 旧读取器 normalizeQr 认 `{qrsig, ptqrtoken, img}`：前两个是 QQ 网页登录的两步
+   * 令牌，两个都必须非空，否则整张码被判成无效。现在整条链路都归包管，Aurora 只需
+   * 要「凭据」和「图」，所以 unikey 同时占这两个位置——轮询时原样带回即可。
+   */
+  return { status: created.status, body: { qrsig: unikey, ptqrtoken: unikey, img: qrimg } }
 }
 
 export async function requestLoginQrCheck(params: {
   ptqrtoken: string
   qrsig: string
 }): Promise<unknown> {
-  return await loadSdk().checkQQLoginQr({ ptqrtoken: params.ptqrtoken, qrsig: params.qrsig })
+  const result = await call('/login/qr/check', { query: { key: params.qrsig } })
+  const body = asRecord(result.body)
+  const code = numberOrNull(body.code)
+  /*
+   * 包回的是 `{code, cookie}`：803 表示扫码已确认，cookie 里是 `qqmusic_session=<token>`。
+   * token 只有一个来源，所以在这里就抽出来，往上一层不需要知道 cookie 串长什么样。
+   */
+  const token = /qqmusic_session=([^;]+)/.exec(asString(body.cookie))?.[1] ?? ''
+  return {
+    status: result.status,
+    body: {
+      code,
+      message: asString(body.message),
+      // 旧读取器 readQrCheck 读 `isOk`、`refresh` 与 `session.cookie`，三样都得给。
+      isOk: code === 803,
+      // QQ 的过期码是 800；不转成 `refresh` 的话，扫过期的码会一直显示「等待扫码」。
+      refresh: code === 800,
+      session: token ? { cookie: token, uin: '', euin: '' } : null
+    }
+  }
 }
 
+/**
+ * 账号资料，同时充当「这个会话还活着吗」的探针。
+ *
+ * `readAccountProbe` 只认两种结论：`response.code: 0` 是已登录，`1000` 是未登录。
+ * 包改成了 HTTP 语义（200 + `{profile}` / 401 + `{code: 401}`），所以这里翻译一次，
+ * 让「401」与「凭证被上游拒了」在读取器里仍然是那同一个 1000。
+ */
 export async function requestAccount(params: { uin: string; cookie: string }): Promise<unknown> {
-  return await loadServices().getUserDetail({ uin: params.uin, cookie: params.cookie })
+  const result = await call('/user/detail', { token: params.cookie })
+  if (result.status === 200) {
+    const profile = asRecord(asRecord(result.body).profile)
+    return { status: 200, body: { response: { code: 0, data: profile } } }
+  }
+  return { status: result.status, body: { response: { code: 1000 } } }
 }
 
+/**
+ * 会员状态。
+ *
+ * 包回 `{code: 200, isVip, vipLevel, upstream}`，而 `readVipProbe` 读的是老 musicu
+ * 信封 `response.req_1.data.identity`，并且把 `code: 0` 当作「上游确实答了」。所以
+ * 这里把三样旗标摊回身份对象：`isVip` 是主判据，其余原样带着给等级判断用。
+ */
 export async function requestVipInfo(params: { cookie: string }): Promise<unknown> {
-  return await loadServices().getVipInfo({ cookie: params.cookie })
+  const result = await call('/user/vip', { token: params.cookie })
+  const body = asRecord(result.body)
+  const answered = result.status === 200 && numberOrNull(body.code) === 200
+  if (!answered) return { status: result.status, body: { response: { code: -1, req_1: { code: -1 } } } }
+  const identity = {
+    ...asRecord(body.upstream),
+    isVip: body.isVip === true,
+    vipLevel: asString(body.vipLevel)
+  }
+  return {
+    status: 200,
+    body: { response: { code: 0, req_1: { code: 0, data: { identity } } } }
+  }
 }
 
 // --- library ------------------------------------------------------------
 
-/**
- * The profile's own playlists, and the three catalogue reads the bridge needs.
- *
- * All four go through `./services` rather than `./sdk`: the SDK wraps only the
- * seven calls the original web player used, while the service bundle exports the
- * whole client surface. The cookie is passed the way each route reads it -
- * `cookie` for the profile page and the recommend routes, an explicit
- * `option.headers.Cookie` for the playlist detail route, which would otherwise
- * answer an anonymous payload.
- */
+/** 当前账号自己的歌单。包回 `{code, ...}`，读取器有 `body ?? response` 兜底。 */
 export async function requestMyPlaylists(params: {
   uin: string
   cookie: string
   offset?: number
   limit?: number
 }): Promise<unknown> {
-  return await loadServices().getUserPlaylists({
-    uin: params.uin,
-    offset: params.offset ?? 0,
-    limit: params.limit ?? 60,
-    cookie: params.cookie
+  return await call('/user/playlist', {
+    query: { uid: params.uin, offset: params.offset ?? 0, limit: params.limit ?? 60 },
+    token: params.cookie
   })
 }
 
@@ -407,22 +521,63 @@ export async function requestPlaylistTracks(params: {
   disstid: string
   cookie: string
 }): Promise<unknown> {
-  return await loadServices().songListDetail({
-    method: 'get',
-    params: { disstid: params.disstid },
-    option: { headers: { Cookie: params.cookie } }
-  })
+  return await call('/getSongListDetail', { query: { disstid: params.disstid }, token: params.cookie })
+}
+
+/** 新歌速递。normalizeNewSongs 读 `body.response.new_song.data.songlist`，包回这一层。 */
+export async function requestNewSongs(params: { areaId?: number; limit: number }): Promise<unknown> {
+  const result = await call('/recommend/new-songs', { query: { area: params.areaId, limit: params.limit } })
+  const body = asRecord(result.body)
+  return {
+    status: result.status,
+    body: { response: { new_song: { data: { songlist: asArray(body.songs) } } } }
+  }
+}
+
+/** 「我喜欢」的曲目。包回 `{code, songs, total, more}`，行结构与搜索一样。 */
+export async function requestLikedSongs(params: { uin: string; cookie: string }): Promise<unknown> {
+  return await call('/user/liked-songs', { query: { offset: 0, limit: 200 }, token: params.cookie })
 }
 
 /**
- * The new-song shelf.
+ * One album's head.
  *
- * Unlike most of this bundle, `getNewSongs` takes positional arguments
- * (`areaId, limit`) rather than `{ method, params }`. Passing an object there
- * makes the service treat it as an area id and come back empty.
+ * The detail route is keyed by albummid only - the numeric id is not accepted -
+ * so callers resolve mid first and pass it here.
  */
-export async function requestNewSongs(params: { areaId?: number; limit: number }): Promise<unknown> {
-  return await loadServices().getNewSongs(params.areaId, params.limit)
+export async function requestAlbumInfo(params: { albummid: string }): Promise<unknown> {
+  return await call('/getAlbumInfo', { query: { albummid: params.albummid } })
+}
+
+/** One album's tracklist. The package pages this one itself via begin/limit. */
+export async function requestAlbumSongs(params: {
+  albummid: string
+  begin?: number
+  limit?: number
+}): Promise<unknown> {
+  return await call('/getAlbumInfo', {
+    query: {
+      albummid: params.albummid,
+      begin: params.begin ?? 0,
+      limit: params.limit ?? 200
+    }
+  })
+}
+
+/** 这个账号在平台上收藏的专辑。包回 `{code, albums, total, more}`。 */
+export async function requestCollectedAlbums(params: {
+  uin: string
+  cookie: string
+  page?: number
+  limit?: number
+}): Promise<unknown> {
+  return await call('/user/albums', {
+    query: {
+      offset: ((params.page ?? 1) - 1) * (params.limit ?? 60),
+      limit: params.limit ?? 60
+    },
+    token: params.cookie
+  })
 }
 
 /**
@@ -470,32 +625,13 @@ export async function requestDailyRecommend(params: {
   return { status: 200, body: await response.json() }
 }
 
-/**
- * "我喜欢的音乐".
- *
- * 这个接口在 SDK 里读的是包内的全局登录态（`global.userInfo`），完全忽略传进去的
- * cookie；只传 cookie 等于匿名请求，上游一律回 502「获取用户喜欢的歌曲失败」。
- * 所以每次调用前把当前账号的 cookie 塞回那个全局位——覆盖成空也无妨，下一次调用
- * 又会被写成新的那份。
- */
-export async function requestLikedSongs(params: { uin: string; cookie: string }): Promise<unknown> {
-  const scope = globalThis as { userInfo?: Record<string, unknown> }
-  scope.userInfo = {
-    loginUin: params.uin,
-    uin: params.uin,
-    cookie: params.cookie,
-    cookieList: [],
-    cookieObject: {},
-    refreshData: () => ({})
-  }
-  return await loadServices().getUserLikedSongs({ uin: params.uin, cookie: params.cookie })
-}
 
 /**
  * QQ 的「我喜欢」。
  *
- * 包里那一版没有写接口（`@sansenjian/qq-music-api` 只有读），协议抄自
- * `@yakult-green-tea/qq-music-api` 3.3.6 的 songLike 服务：
+ * 这一版直连 musicu，不走包里的路由：登录态与 `comm` 这里本来就有一份，而返回的
+ * `code` 能直接回答「成没成」，不用再翻译一层 HTTP 状态码。协议照
+ * `@yakult-green-tea/qq-music-api` 3.3.x 的 songLike 服务写：
  *
  *   读 `music.musicasset.SongFavRead / IsSongFanByMid`，回 `data.m_fan[mid]`；
  *   写 `music.musicasset.PlaylistDetailWrite / AddSonglist | DelSonglist`，
@@ -816,27 +952,6 @@ export async function requestPlaylistRename(
   return Number(result?.dirId) === target.dirId && Number(result?.tid) === tid
 }
 
-/**
- * One album's head.
- *
- * The detail route is keyed by albummid only - the numeric id is not accepted -
- * so callers resolve mid first and pass it here.
- */
-export async function requestAlbumInfo(params: { albummid: string }): Promise<unknown> {
-  return await loadServices().getAlbumInfo({ method: 'get', params: { albummid: params.albummid } })
-}
-
-/** One album's tracklist, paged because a box set can pass 300 rows. */
-export async function requestAlbumSongs(params: {
-  albummid: string
-  begin?: number
-  limit?: number
-}): Promise<unknown> {
-  return await loadServices().getAlbumSongs({
-    method: 'post',
-    params: { albummid: params.albummid, begin: params.begin ?? 0, limit: params.limit ?? 200 }
-  })
-}
 
 /** Mac 版首页里的一张歌单卡。 */
 interface MacHomePlaylist {
@@ -957,20 +1072,6 @@ async function musicu(payload: Record<string, unknown>): Promise<unknown> {
   return { status: 200, body: await response.json() }
 }
 
-/** Albums this profile collected on the platform. */
-export async function requestCollectedAlbums(params: {
-  uin: string
-  cookie: string
-  page?: number
-  limit?: number
-}): Promise<unknown> {
-  return await loadServices().getUserCollectedAlbums({
-    uin: params.uin,
-    page: params.page ?? 1,
-    limit: params.limit ?? 60,
-    cookie: params.cookie
-  })
-}
 
 /**
  * Singers this profile follows on the platform.

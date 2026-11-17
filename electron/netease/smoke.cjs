@@ -158,7 +158,7 @@ async function run() {
   }
 
   const client = require(path.join(DIST, 'netease', 'client.js'))
-  const { handleRemoteRequest } = require(path.join(DIST, 'remote-protocol.js'))
+  const { handleRemoteRequest } = require(path.join(DIST, 'protocols', 'remote-protocol.js'))
 
   note('diagnostics')
   report.diagnostics = await client.upstreamDiagnostics()

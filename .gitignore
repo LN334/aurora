@@ -45,6 +45,10 @@ coverage/
 .env
 .env.*.local
 
+# 平台登录态与设备指纹缓存（.auth-state/qq-device.json 里有 qimei、sessionVkey 等凭据）。
+# QQ 上游服务把设备态写进工作目录，绝不能入库。
+.auth-state/
+
 # Local npm registry mirror configuration.
 #
 # Deliberately not published: it points npm and the Electron downloader at a

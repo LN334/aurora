@@ -24,7 +24,6 @@ import { clearSession, hasSession, readState, writeState } from './session'
 import {
   TIER_FORMATS,
   cookieValue,
-  loadSdk,
   playInfoOf,
   requestAccount,
   requestAlbumInfo,
@@ -75,10 +74,11 @@ import type {
  *
  * Three things shape this file.
  *
- * 1. **The upstream package is loaded lazily.** It is a koa application with its
- *    whole route table and axios behind it, so `require`-ing it at import time
- *    would put that cost in front of Aurora's first window. It is loaded on the
- *    first real call (see `transport.loadSdk`) and never at module load.
+ * 1. **The upstream service is started lazily.** QQ now runs as a loopback Koa
+ *    server in a child process, and starting it costs a Node boot plus the
+ *    package's own module graph. It is started on the first real call (see
+ *    `local-server.ensureServer`) and never at module load, so Aurora's first
+ *    window never waits for it.
  *
  * 2. **Nothing throws at the renderer.** Every exported method answers with the
  *    contract's shape; a transport failure becomes a classified reason. A
@@ -140,12 +140,26 @@ export function profileHasSession(profileId: string): boolean {
 
 // --- status -------------------------------------------------------------
 
-/** Whether the upstream dependency can be loaded at all. */
+/**
+ * Whether the upstream service is actually reachable.
+ *
+ * 原来是同步的 `require`，换包之后变成「子进程起没起来」，只能异步问一次。结果缓存
+ * 在 `loaded` 里，所以只有第一次调用会等启动；失败不缓存，下一次调用会重新尝试
+ * （`local-server` 自己带 30 秒退避，不会变成忙等）。
+ */
 let loadDetail = ''
+let loaded = false
 
-function ensureLoaded(): boolean {
+async function ensureLoaded(): Promise<boolean> {
+  if (loaded) return true
   try {
-    loadSdk()
+    const { ensureServer } = await import('./local-server.ts')
+    const base = await ensureServer()
+    if (!base) {
+      loadDetail = '本地 QQ 服务没有起来'
+      return false
+    }
+    loaded = true
     loadDetail = ''
     return true
   } catch (error) {
@@ -155,7 +169,7 @@ function ensureLoaded(): boolean {
 }
 
 export async function qqStatus(): Promise<QqStatusResult> {
-  const ready = ensureLoaded()
+  const ready = await ensureLoaded()
   const loggedIn = ready && hasSession(activeProfileId)
   const detail = ready ? '' : `QQ 音乐接口不可用：${loadDetail}`
   return detail ? { ready, loggedIn, detail } : { ready, loggedIn }
@@ -168,7 +182,8 @@ export async function qqSearch(
   type: 'song' | 'album' | 'artist',
   limit = 50
 ): Promise<QqSearchResult> {
-  ensureLoaded()
+  // 真正的等待发生在 requestSearch 里；这里只是尽量把「服务没起来」记下来。
+  void ensureLoaded()
   const response = await requestSearch({ keywords, limit })
   const result = normalizeSearch(response, limit)
 
@@ -331,7 +346,7 @@ let pendingQr: { key: string; ptqrtoken: string; qrsig: string; at: number } | n
 const QR_TTL_MS = 5 * 60 * 1000
 
 export async function qqQrCreate(): Promise<QqQrSession> {
-  ensureLoaded()
+  void ensureLoaded()
   const response = await requestLoginQr()
   const qr = normalizeQr(response)
   if (!qr) return { key: '', imageDataUrl: '' }

@@ -75,7 +75,8 @@
 - **patch / minor**：直接升，跑 `npm run check`；红了就一次只退一个包定位。
 - **major**：单独一个提交，标题写明升了什么、为什么现在升。React、Vite、Electron 的大版本往往要一起改配置，别和功能混在一个提交里。
 - **Electron**：升级后要跑 `npm run smoke` 与 `npm run perf`。它是唯一一个「装得上但界面全白」的依赖。
-- **平台接口包**（`@neteasecloudmusicapienhanced/api`、`@sansenjian/qq-music-api`、`qishui-music-api`）：这些包直接决定能不能搜、能不能放。升级后至少验证：搜索一首、放一首、看一次每日推荐。
+- **平台接口包**（`@neteasecloudmusicapienhanced/api`、`@yakult-green-tea/qq-music-api`、`qishui-music-api`）：这些包直接决定能不能搜、能不能放。升级后至少验证：搜索一首、放一首、看一次每日推荐。
+- **QQ 上游是本地服务**：`@yakult-green-tea/qq-music-api` 不像其余几家是纯函数库，`electron/qq/local-server.ts` 会 spawn 一个子进程把它起在 `127.0.0.1` 的随机端口上，`electron/qq/transport.ts` 再用 HTTP 调它。所以 QQ 出问题先看 `startup.log` 里的 `[qq]`、`[qq:err]` 两行——那里有子进程的输出。
 - 不要为了「版本新」而升。这个项目已经踩过多次「上游改了返回结构」的坑，升级的收益通常不如修一个真实 bug。
 
 ## 平台接口失效了怎么办

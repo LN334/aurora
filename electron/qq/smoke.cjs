@@ -23,7 +23,7 @@ const path = require('node:path')
 const REPO = path.resolve(__dirname, '..', '..')
 const DIST = path.join(REPO, 'dist-electron')
 const DOC_PATH = path.join(REPO, 'docs', 'qq-smoke.md')
-const SDK_PATH = path.join(REPO, 'node_modules', '@sansenjian', 'qq-music-api', 'dist', 'sdk.cjs')
+
 
 const KEYWORDS = process.env.SMOKE_KEYWORDS || '告白气球'
 const CLIP_BYTES = 4096
@@ -72,7 +72,7 @@ async function readRange(url, range) {
 
 async function run() {
   const client = require(path.join(DIST, 'qq', 'client.js'))
-  const { handleRemoteRequest } = require(path.join(DIST, 'remote-protocol.js'))
+  const { handleRemoteRequest } = require(path.join(DIST, 'protocols', 'remote-protocol.js'))
   const { albumCoverUrl } = require(path.join(DIST, 'qq', 'normalize.js'))
 
   note('status')
@@ -221,38 +221,44 @@ async function run() {
   // --- the raw codes, straight from the package --------------------------
 
   note('raw upstream codes for the same tracks')
-  const sdk = require(SDK_PATH)
+  /*
+   * 上游从纯函数包换成了本机 Koa 服务，所以这里不能 require 它的导出，得问它的
+   * HTTP 接口。同一个 `/getMusicPlay`，未登录走匿名分支回的是 musicu 信封
+   * （`data.req_0.data.midurlinfo`），登录后走 `data.playUrl[mid].restriction`。
+   * 两种形状都读，探针才不会因为「有没有账号」而失效。
+   */
+  const { ensureServer } = require(path.join(DIST, 'qq', 'local-server.js'))
+  const base = await ensureServer()
+  if (!check(Boolean(base), 'the local QQ service did not start')) return
+
+  const playRaw = async (songmid, mediaMid, quality = '128') => {
+    const query = new URLSearchParams({ songmid, quality, resType: 'raw' })
+    if (mediaMid) query.set('mediaId', mediaMid)
+    const response = await fetch(`${base}/getMusicPlay?${query.toString()}`)
+    const payload = await response.json()
+    const data = payload.data ?? {}
+    const info = data.req_0?.data?.midurlinfo?.[0] ?? {}
+    const single = data.playUrl?.[songmid] ?? null
+    return {
+      result: info.result ?? single?.restriction?.codes?.result ?? null,
+      purl: info.purl || single?.url || ''
+    }
+  }
+
   const raw = {}
   for (const song of [free, paid].filter(Boolean)) {
     for (const quality of ['128', '320', 'flac']) {
-      const response = await sdk.getPlayUrl({
-        songmid: song.songmid,
-        quality,
-        resType: 'raw',
-        mediaId: song.mediaMid
-      })
-      const data = response.body?.data ?? {}
-      const info = data.req_0?.data?.midurlinfo?.[0] ?? {}
+      const answer = await playRaw(song.songmid, song.mediaMid, quality)
       raw[`${song.songmid}/${quality}`] = {
-        requestCode: data.req_0?.code ?? null,
-        result: info.result ?? null,
-        hasPurl: Boolean(info.purl),
-        filename: info.filename ?? null
+        result: answer.result,
+        hasPurl: Boolean(answer.purl)
       }
     }
   }
   // And the code a numeric id earns when it is used as an identifier, which is
   // why `streamUrl` resolves ids through what this session has seen.
-  const wrongId = await sdk.getPlayUrl({
-    songmid: String(free.songid),
-    quality: '128',
-    resType: 'raw',
-    mediaId: free.mediaMid
-  })
-  raw.numericIdAsSongmid = {
-    result: wrongId.body?.data?.req_0?.data?.midurlinfo?.[0]?.result ?? null,
-    hasPurl: Boolean(wrongId.body?.data?.req_0?.data?.midurlinfo?.[0]?.purl)
-  }
+  const wrongId = await playRaw(String(free.songid), free.mediaMid)
+  raw.numericIdAsSongmid = { result: wrongId.result, hasPurl: Boolean(wrongId.purl) }
   report.rawUpstream = raw
   check(raw.numericIdAsSongmid.hasPurl === false, 'a numeric id unexpectedly resolved')
 }
@@ -265,7 +271,7 @@ function renderMarkdown() {
     `> 由 \`electron/qq/smoke.cjs\` 生成，运行于 ${report.when}。`,
     '> 复现：`npm run build:electron && node electron/qq/smoke.cjs`。',
     '> 探针驱动**编译产物** `dist-electron/qq/client.js` 与',
-    '> `dist-electron/remote-protocol.js`，并另起一段直接问上游包要原始 `result` 码，',
+    '> `dist-electron/remote-protocol.js`，并另起一段直接问上游服务要原始 `result` 码，',
     '> 所以下面的数字既来自真正参与构建的代码，也能与 `reasons.ts` 的判定对照。',
     '> 本机**没有 QQ 音乐账号**：所以 320k / FLAC 需要登录这一档无法在真机上验证，',
     '> 探针只记录实测到的部分。',
