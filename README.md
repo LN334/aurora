@@ -210,12 +210,13 @@ electron_mirror=https://npmmirror.com/mirrors/electron/
 
 ```
 src/app/            外壳：路由、侧栏、标题栏、跨功能 hook
-src/features/       功能模块：accounts library lyrics netease online player playlists settings wallpaper home discover favorites qq
+src/features/       功能模块：accounts discover downloads favorites glass kugou library lyrics netease online overlay perf player playlists qishui qq refs settings updates wallpaper
 src/views/          页面与面板
 src/ui/             共享基元：卡片、封面、图标、列表、时间格式化
 src/stage/          歌词页与可视化
 electron/pure/      零 Electron 依赖、可以在裸 Node 下测试的纯逻辑
 electron/protocols/ 私有协议：aurora-app / aurora-media / aurora-remote / aurora-wallpaper / aurora-cache
+electron/ipc/       通用 IPC：播放器、库、歌词、设置、更新、壁纸、下载、悬浮窗
 electron/netease/   网易云接口、会话、IPC
 electron/qq/        QQ 音乐接口、会话、传输、本地服务
 electron/kugou/     酷狗接口、会话、签名
