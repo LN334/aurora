@@ -56,6 +56,23 @@ const EXAMPLE_FILES = new Set(['scripts/audit-stale-paths.mjs'])
 const PLAN_FILES = new Set(['docs/roadmap.md'])
 
 /*
+ * 两份文档里的路径根本不在本仓库。
+ *
+ * other-players-platform-adapters.md 整篇在讲别的仓库（lx-music、MusicFree、
+ * UnblockNeteaseMusic），里面写成 src/main/modules/userApi/index.ts 的是**人家**
+ * 的文件；guest-playback-and-upstream-plan.md 提的是「将来要新建」的模块，而那份
+ * 方案已被否决。按本仓的文件表解析它们，只会得到十条假阳性——假阳性一多，真失效
+ * 引用就会被淹掉，这才是这份审计存在的意义。
+ *
+ * 代价：这两份文档里若真写了本仓路径、那文件后来又被挪走，这里会漏报。它们只记录
+ * 2026-11-17 的调研和一次撤销的提案，不改任何行为，可以接受。
+ */
+const REFERENCE_FILES = new Set([
+  'docs/other-players-platform-adapters.md',
+  'docs/guest-playback-and-upstream-plan.md'
+])
+
+/*
  * Longest meaningful source path in a string.
  *
  * The extension alternation is written `tsx?`, not `ts|tsx`: this pattern is
@@ -76,7 +93,7 @@ for (const file of scanned) {
     const candidate = match[1]
     if (trackedSet.has(candidate) || dirs.has(candidate)) continue
     const line = text.slice(0, match.index).split('\n').length
-    if (PLAN_FILES.has(file)) continue
+    if (PLAN_FILES.has(file) || REFERENCE_FILES.has(file)) continue
     if (EXAMPLE_FILES.has(file) && /\busage\b|^ \*/i.test(lines[line - 1] ?? '')) continue
     stale.push({ file, line, candidate })
   }
