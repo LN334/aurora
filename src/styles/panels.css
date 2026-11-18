@@ -294,7 +294,11 @@
   color: var(--text-hi);
 }
 .queue-row__op.is-on {
-  color: var(--accent);
+  color: var(--like);
+}
+/* 只换描边颜色，一眼分不出「收藏了」还是「正悬停」；喜欢的心要填实。 */
+.queue-row__op.is-on svg {
+  fill: currentColor;
 }
 
 /* Header actions sit between the count and the close button. */

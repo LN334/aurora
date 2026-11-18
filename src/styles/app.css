@@ -1541,7 +1541,7 @@ input::placeholder {
   color: var(--text-hi);
 }
 .trk__like.is-liked {
-  color: var(--accent);
+  color: var(--like);
 }
 /* fill 覆盖 SVG 上 fill="none" 这个展示属性：喜欢了就把心填实。 */
 .trk__like.is-liked svg {
@@ -1646,7 +1646,7 @@ input::placeholder {
   place-items: center;
   width: 11px;
   height: 11px;
-  color: var(--accent-strong);
+  color: var(--like);
   transition: color 120ms var(--ease-out);
 }
 .trk__src-like svg {

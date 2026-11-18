@@ -258,8 +258,11 @@
   background: var(--accent-strong);
 }
 .rh-btn.is-on {
-  color: var(--accent-strong);
-  border-color: rgb(var(--accent-rgb) / 0.4);
+  color: var(--like);
+  border-color: rgb(var(--like-rgb) / 0.4);
+}
+.rh-btn.is-on svg {
+  fill: currentColor;
 }
 
 /* 四个快捷入口：封面（没有就用图标）+ 名称 + 计数，一行铺满；第四格是两个子入口。 */
@@ -1307,6 +1310,15 @@
 .dbtn:disabled {
   opacity: 0.42;
 }
+/* 详情页这颗心原来没有 is-on 规则：文案变「已喜欢」，颜色一动不动。 */
+.dbtn.is-on {
+  color: var(--like);
+  border-color: rgb(var(--like-rgb) / 0.36);
+  background: rgb(var(--like-rgb) / 0.1);
+}
+.dbtn.is-on svg {
+  fill: currentColor;
+}
 .dbtn--main {
   border-color: transparent;
   background: #f2f4f7;
@@ -1953,9 +1965,15 @@
   background: rgb(var(--tint-rgb) / 0.09);
   color: var(--text-hi);
 }
-.np__like.is-on,
 .np__mode.is-on {
   color: var(--accent-strong);
+}
+/* 喜欢的那颗心填实并固定红：封面取色会把它染成黄、蓝、灰，按了看不出。 */
+.np__like.is-on {
+  color: var(--like);
+}
+.np__like.is-on svg {
+  fill: currentColor;
 }
 
 /*

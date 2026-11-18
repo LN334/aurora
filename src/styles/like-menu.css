@@ -65,7 +65,7 @@
 }
 
 .lk-menu__item.is-liked svg {
-  color: var(--accent-strong);
+  color: var(--like);
   fill: currentColor;
 }
 
