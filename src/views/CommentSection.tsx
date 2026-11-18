@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import type { OnlineComment } from '../env'
 import type { Track } from '../types'
-import { canComment, commentSourceName, fetchComments } from '../features/comments/api'
+import {
+  canComment,
+  canLikeComment,
+  canSendComment,
+  commentSourceName,
+  fetchComments,
+  likeComment,
+  sendComment
+} from '../features/comments/api'
+import { setLoginOpen } from '../features/netease/store'
 import { remoteImageUrl } from '../features/player/urls'
 import { formatSince } from '../ui/format'
 import { Comment as CommentIcon, Heart, User } from '../ui/icons'
 
 /** 每页条数：四家上游都可按页取，20 条正好一屏半，滚动不空。 */
 const PAGE_SIZE = 20
+
+/** 和上游一致的字数上限；输入框自己也截一次，省得写满才知道超了。 */
+const MAX_LENGTH = 140
 
 type Phase = 'loading' | 'ready' | 'failed'
 
@@ -32,12 +44,44 @@ function Avatar({ src }: { src: string | null }) {
   )
 }
 
-function CommentRow({ comment }: { comment: OnlineComment }) {
+function CommentRow({
+  comment,
+  track,
+  canLike
+}: {
+  comment: OnlineComment
+  track: Track
+  canLike: boolean
+}) {
   /*
    * 上游给的是秒（四家接口都是秒，主进程统一过），formatSince 吃毫秒；
    * 没有时间戳的行留空，不编一个「刚刚」出来。
    */
   const when = comment.time ? formatSince(comment.time * 1000) : ''
+  /*
+   * 赞是本地先动、再对账：点下去立刻变样，上游说不行再退回来并说明原因。
+   * 读接口拿不到「我赞过没有」（那要登录态），所以初值一律是没赞。
+   */
+  const [liked, setLiked] = useState(false)
+  const [likes, setLikes] = useState(comment.likes)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+
+  async function toggleLike() {
+    if (!canLike || busy) return
+    const next = !liked
+    setBusy(true)
+    setNote('')
+    const result = await likeComment(track, comment.id, next)
+    setBusy(false)
+    if (!result.ok) {
+      setNote(result.message)
+      return
+    }
+    setLiked(next)
+    setLikes((prev) => Math.max(0, prev + (next ? 1 : -1)))
+  }
+
   return (
     <li className="cmt__item">
       <Avatar src={comment.avatar} />
@@ -48,12 +92,24 @@ function CommentRow({ comment }: { comment: OnlineComment }) {
           {when ? <span className="cmt__time">{when}</span> : null}
         </div>
         <p className="cmt__text">{comment.text}</p>
-        {comment.likes > 0 || comment.replies > 0 ? (
+        {canLike || likes > 0 || comment.replies > 0 ? (
           <div className="cmt__stats">
-            {comment.likes > 0 ? (
+            {canLike ? (
+              <button
+                className={liked ? 'cmt__stat is-liked' : 'cmt__stat'}
+                type="button"
+                onClick={() => void toggleLike()}
+                disabled={busy}
+                aria-pressed={liked}
+                title={liked ? '取消赞' : '赞'}
+              >
+                <Heart size={12} />
+                {likes > 0 ? likes.toLocaleString('zh-CN') : '赞'}
+              </button>
+            ) : likes > 0 ? (
               <span className="cmt__stat">
                 <Heart size={12} />
-                {comment.likes.toLocaleString('zh-CN')}
+                {likes.toLocaleString('zh-CN')}
               </span>
             ) : null}
             {comment.replies > 0 ? (
@@ -61,20 +117,22 @@ function CommentRow({ comment }: { comment: OnlineComment }) {
             ) : null}
           </div>
         ) : null}
+        {note ? <p className="cmt__hint is-error">{note}</p> : null}
       </div>
     </li>
   )
 }
 
 /**
- * 曲目详情页的评论区（只读）。
+ * 曲目详情页的评论区。
  *
  * 四个平台各自有一份评论接口，形状已经由主进程收成同一个 CommentPage；
  * 这一页只负责「画一页、再画下一页」，不认平台。本机文件没有可读的评论，
  * 整块不出现，而不是出现一面「暂无评论」的空壁。
  *
- * 不在这里做点赞与回复：那需要登录态与各家的写接口权限，读评论的代价是
- * 一次裸 GET，写不是。先把「别人在说什么」接进来。
+ * 写只开放给已经接通的平台：发评论要登录态和逐条签名的写接口，读只要一次
+ * 裸 GET。没接通的那几家不画输入框——画一个点了只会说「不支持」的按钮，
+ * 比不画更差。
  */
 export function CommentSection({ track }: { track: Track }) {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -84,6 +142,9 @@ export function CommentSection({ track }: { track: Track }) {
   const [hasMore, setHasMore] = useState(false)
   const [paging, setPaging] = useState(false)
   const [pagingFailed, setPagingFailed] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendNote, setSendNote] = useState('')
   /*
    * 切歌时上一首的请求可能后到。用轮次认领：只有当前这一轮能写状态，
    * 否则会在新歌的评论下面续上旧歌的第二页。
@@ -99,6 +160,8 @@ export function CommentSection({ track }: { track: Track }) {
     setHasMore(false)
     setPaging(false)
     setPagingFailed(false)
+    setDraft('')
+    setSendNote('')
     if (!canComment(track)) {
       setPhase('ready')
       return
@@ -122,6 +185,44 @@ export function CommentSection({ track }: { track: Track }) {
   }, [track.id, track.source, track.onlineId])
 
   if (!canComment(track)) return null
+
+  const canSend = canSendComment(track)
+  const canLike = canLikeComment(track)
+
+  /**
+   * 重新取第一页。
+   *
+   * 发完评论用它，而不是把新评论插到本地列表头上：上游按时间倒序，刚发的那条
+   * 确实在第一页；插出来的那一条没有 id、没有时间，第二次点「加载更多」还会
+   * 重复出现。
+   */
+  async function refresh() {
+    const mine = ++round.current
+    setPaging(false)
+    const page = await fetchComments(track, '', PAGE_SIZE)
+    if (mine !== round.current) return
+    if (!page) return
+    setRows(page.comments)
+    setTotal(page.total)
+    setCursor(page.cursor)
+    setHasMore(page.hasMore)
+    setPhase('ready')
+  }
+
+  async function submitComment() {
+    const text = draft.trim()
+    if (!text || sending) return
+    setSending(true)
+    setSendNote('')
+    const result = await sendComment(track, text)
+    setSending(false)
+    if (!result.ok) {
+      setSendNote(result.message)
+      return
+    }
+    setDraft('')
+    await refresh()
+  }
 
   async function loadMore() {
     if (paging || !hasMore) return
@@ -158,6 +259,39 @@ export function CommentSection({ track }: { track: Track }) {
         <span className="cmt__from">来自 {commentSourceName(track.source)}</span>
       </header>
 
+      {canSend ? (
+        <div className="cmt__compose">
+          <textarea
+            className="cmt__input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value.slice(0, MAX_LENGTH))}
+            placeholder="说点什么…"
+            rows={2}
+            maxLength={MAX_LENGTH}
+            disabled={sending}
+            aria-label="写评论"
+          />
+          <div className="cmt__compose-foot">
+            <span className={sendNote ? 'cmt__hint is-error' : 'cmt__hint'}>
+              {sendNote || `${draft.length}/${MAX_LENGTH}`}
+            </span>
+            {sendNote.includes('登录') ? (
+              <button className="cmt__link" type="button" onClick={() => setLoginOpen(true)}>
+                去登录
+              </button>
+            ) : null}
+            <button
+              className="cmt__send"
+              type="button"
+              onClick={() => void submitComment()}
+              disabled={sending || !draft.trim()}
+            >
+              {sending ? '发送中…' : '发送'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {phase === 'loading' ? <p className="cmt__note">正在取评论…</p> : null}
       {phase === 'failed' ? <p className="cmt__note">评论没取到，稍后再试。</p> : null}
       {phase === 'ready' && rows.length === 0 ? (
@@ -167,7 +301,7 @@ export function CommentSection({ track }: { track: Track }) {
       {rows.length > 0 ? (
         <ul className="cmt__list">
           {rows.map((comment) => (
-            <CommentRow key={comment.id} comment={comment} />
+            <CommentRow key={comment.id} comment={comment} track={track} canLike={canLike} />
           ))}
         </ul>
       ) : null}

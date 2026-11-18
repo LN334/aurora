@@ -4,7 +4,7 @@ import { loadSettings, saveSettings } from '../settings'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { isNeteaseQuality, isUsableId } from './types'
-import type { CommentPage } from '../comments'
+import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
   NeteaseAccount,
   NeteaseAlbum,
@@ -103,6 +103,14 @@ function asDiscoverLimit(value: unknown): number | undefined {
  * 24 条一批，2000 够翻八十多次，远超一个人在一页上会点的次数。
  */
 const MAX_DISCOVER_OFFSET = 2000
+
+/**
+ * 一条评论最多认多少字。
+ *
+ * 这里只做防爆截断（500 远大于平台上限 140），真正的字数限制在 client 里——
+ * 在 IPC 层截到 140 会把用户的输入悄悄剪掉，然后发出去还是成功，很奇怪。
+ */
+const MAX_COMMENT_TEXT = 500
 
 function asDiscoverOffset(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
@@ -213,6 +221,29 @@ export function registerNeteaseIpc(): void {
     return guard('lyrics', null, () => client.neteaseLyrics(songId))
   })
 
+  ipcMain.handle('netease:commentSend', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const songId = asId(args.songId)
+    const content = asText(args.content, MAX_COMMENT_TEXT)
+    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+    if (songId === null || !content) return refused
+    return guard<CommentWriteResult>('commentSend', refused, () =>
+      client.neteaseCommentSend(songId, content)
+    )
+  })
+
+  ipcMain.handle('netease:commentLike', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const songId = asId(args.songId)
+    const commentId = asId(args.commentId)
+    const refused: CommentWriteResult = { ok: false, message: '评论 ID 无效' }
+    if (songId === null || commentId === null) return refused
+    if (typeof args.liked !== 'boolean') return refused
+    const liked = args.liked
+    return guard<CommentWriteResult>('commentLike', refused, () =>
+      client.neteaseCommentLike(songId, commentId, liked)
+    )
+  })
   ipcMain.handle('netease:comments', (_event, payload: unknown) => {
     const args = asRecord(payload)
     const songId = asId(args.songId)

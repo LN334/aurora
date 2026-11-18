@@ -596,6 +596,19 @@ export interface CommentPage {
   cursor: string
 }
 
+/**
+ * 写评论的结果。
+ *
+ * 写不像读：读失败可以安静地退回空页，写失败得让用户知道为什么。`message`
+ * 是给界面直接画的一句人话（「登录网易云后才能发评论」「最多 140 字」），
+ * 成功时为空串。
+ */
+export interface CommentWriteResult {
+  ok: boolean
+  message: string
+}
+
+
 export interface NeteaseSearchResult {
   songs: NeteaseSong[]
   albums: {
@@ -640,6 +653,11 @@ export interface NeteaseApi {
 
   /** 一页评论；翻页把上一页末尾的 cursor 带回来。未登录也能读。 */
   comments(songId: number, cursor?: string, limit?: number): Promise<CommentPage | null>
+
+  /** 发一条评论。要登录；失败时 message 说明原因。 */
+  commentSend(songId: number, content: string): Promise<CommentWriteResult>
+  /** 赞 / 取消赞一条评论。要登录。 */
+  commentLike(songId: number, commentId: number, liked: boolean): Promise<CommentWriteResult>
 
   album(id: number): Promise<{
     id: number
@@ -860,6 +878,9 @@ export interface QqApi {
 
   /** 一页评论。评论区认数字 songid，不是 songmid。 */
   comments(songId: string | number, cursor?: string, limit?: number): Promise<CommentPage | null>
+
+  /** 发一条评论。同样是数字 songid。 */
+  commentSend(songId: string | number, content: string): Promise<CommentWriteResult>
 
   qrCreate(): Promise<{ key: string; imageDataUrl: string }>
   qrCheck(key: string): Promise<{
@@ -1248,6 +1269,9 @@ export interface KugouApi {
 
   /** 一页评论。要「见过这首歌」——评论挂在 mixsongid 上，得先在索引里。 */
   comments(songId: string | number, cursor?: string, limit?: number): Promise<CommentPage | null>
+
+  /** 发一条评论。要登录；写接口的签名由本地 vendor 负责。 */
+  commentSend(songId: string | number, content: string): Promise<CommentWriteResult>
 
   qrCreate(): Promise<KugouQrSession>
   qrCheck(key: string): Promise<KugouQrResult>

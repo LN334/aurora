@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { write } from '../startup-log'
-import type { CommentPage } from '../comments'
+import type { CommentPage, CommentWriteResult } from '../comments'
 import {
   activeProfile,
   kugouAccountFor,
@@ -8,6 +8,7 @@ import {
   kugouArtist,
   kugouArtistAlbums,
   kugouArtistSongs,
+  kugouCommentSend,
   kugouComments,
   kugouDailyRecommend,
   kugouFollowedArtists,
@@ -45,6 +46,9 @@ import type { KugouQuality } from './types'
 
 const MAX_KEYWORDS = 100
 const MAX_ID = 64
+
+/** 评论正文的防爆上限；真正的 140 字限制在 client 里（那里要给出人话提示）。 */
+const MAX_COMMENT_TEXT = 500
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -141,6 +145,17 @@ export function registerKugouIpc(): void {
       typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
     return await guard<CommentPage | null>('comments', null, async () =>
       kugouComments(songId, cursor, limit)
+    )
+  })
+
+  ipcMain.handle('kugou:commentSend', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const songId = asId(params.songId)
+    const content = asText(params.content, MAX_COMMENT_TEXT)
+    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+    if (!content) return refused
+    return await guard<CommentWriteResult>('commentSend', refused, async () =>
+      kugouCommentSend(songId, content)
     )
   })
 

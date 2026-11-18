@@ -3,7 +3,7 @@ import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { isQqQuality } from './types'
-import type { CommentPage } from '../comments'
+import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
   QqAccount,
   QqAlbumBundle,
@@ -36,6 +36,8 @@ import type {
 
 const MAX_KEYWORDS = 100
 const MAX_SONGMID = 64
+/** 防爆上限；真正的 500 字限制在 client。 */
+const MAX_COMMENT_TEXT = 600
 const SEARCH_TYPES = ['song', 'album', 'artist'] as const
 type SearchType = (typeof SEARCH_TYPES)[number]
 
@@ -165,6 +167,17 @@ export function registerQqIpc(): void {
       typeof args.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(args.limit))) : 20
     return guard<CommentPage | null>('comments', null, () =>
       client.qqComments(songId, cursor, limit)
+    )
+  })
+
+  ipcMain.handle('qq:commentSend', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const songId = asSongId(args.songId)
+    const content = asText(args.content, MAX_COMMENT_TEXT)
+    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+    if (songId === null || content === null) return refused
+    return guard<CommentWriteResult>('commentSend', refused, () =>
+      client.qqCommentSend(songId, content)
     )
   })
 

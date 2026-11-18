@@ -87,3 +87,14 @@ export function asSeconds(value: unknown): number | null {
 export function emptyPage(): CommentPage {
   return { comments: [], total: null, hasMore: false, cursor: '' }
 }
+
+/**
+ * 写评论的结果。
+ *
+ * 写和读不一样：读失败可以退回空页，写失败必须有一句人能读懂的话——「内容违规」
+ * 与「没登录」要分开说，否则用户只会反复点同一个按钮。`message` 只在失败时有值。
+ */
+export interface CommentWriteResult {
+  ok: boolean
+  message: string
+}

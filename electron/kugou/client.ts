@@ -6,7 +6,7 @@ import path from 'node:path'
 import { app } from 'electron'
 import { write } from '../startup-log'
 import { asCount, asId, asList, asObject, asSeconds, asText } from '../comments'
-import type { CommentPage, OnlineComment } from '../comments'
+import type { CommentPage, CommentWriteResult, OnlineComment } from '../comments'
 import { fetchKugouLyrics } from './lyrics'
 import type { KugouLyricsPayload } from './lyrics'
 import { classifyStreamFailure, describeFailure } from './reasons'
@@ -1081,6 +1081,9 @@ export async function kugouLyrics(
 
 // --- 评论 ---------------------------------------------------------------
 
+/** 酷狗一条评论的字数上限（与网易云一致，界面只写一套提示）。 */
+const KUGOU_COMMENT_MAX = 140
+
 /**
  * 一首歌的评论，一次一页。
  *
@@ -1144,6 +1147,63 @@ export async function kugouComments(
   } catch (error) {
     console.error('[aurora] kugou comment lookup failed', messageOf(error))
     return null
+  }
+}
+
+/**
+ * 发一条评论。
+ *
+ * 不走裸上游：酷狗的写接口要一份按 `clienttime + mid + JSON(data)` 算出来的
+ * `key`，那套算法 vendor 里的 `_comment.js` 已经写好了，照着抄一遍只会多一份
+ * 会腐烂的副本。所以这里把内容递给本地 vendor 的 `/comment/music/send`，
+ * 登录态用本机 session 里的 token/userid 拼 Cookie 头带过去。
+ *
+ * 上游把「游客」和「内容违规」都回成非 1 的 status，失败时把它给的 msg 原样
+ * 交给用户，比自己编一句「发送失败」有用。
+ */
+export async function kugouCommentSend(
+  songId: string | number,
+  content: string
+): Promise<CommentWriteResult> {
+  const song = songOf(songId)
+  if (!song || !song.albumAudioId) return { ok: false, message: '这首歌没有可评论的条目' }
+  const text = content.trim()
+  if (!text) return { ok: false, message: '先写点什么' }
+  if (text.length > KUGOU_COMMENT_MAX) {
+    return { ok: false, message: `最多 ${KUGOU_COMMENT_MAX} 字` }
+  }
+  const state = readState(activeProfileId)
+  if (!state.token || !state.userid) return { ok: false, message: '登录酷狗后才能发评论' }
+  try {
+    const response = await request('/comment/music/send', {
+      /*
+       * POST 但参数在 query 里：本地 vendor 把 query 与 body 合并成 params，
+       * 而 transport 目前不会发 JSON body。评论正文走 query 也就意味着它会
+       * 出现在 URL 里，但这是本机回环，不出网。
+       */
+      method: 'POST',
+      cookie: cookieHeader(state),
+      query: {
+        mixsongid: song.albumAudioId,
+        content: text,
+        // 歌名由页面给，省掉 vendor 为了解析 special_id 再查一次评论列表。
+        name: song.name,
+        kugouid: state.userid,
+        clienttoken: state.token,
+        clienttime: Math.floor(Date.now() / 1000)
+      }
+    })
+    const body = asObject(response.body)
+    const status = asCount(body.status)
+    if (status !== 1) {
+      return {
+        ok: false,
+        message: asText(body.msg) || asText(body.error) || '没发出去，再试一次'
+      }
+    }
+    return { ok: true, message: '' }
+  } catch (error) {
+    return { ok: false, message: messageOf(error) }
   }
 }
 

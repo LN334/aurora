@@ -785,6 +785,40 @@ export async function requestSongLike(params: {
   return after === params.liked ? { ok: true, liked: after } : { ok: false, liked: after, detail: 'state mismatch' }
 }
 
+/**
+ * 发一条歌曲评论。
+ *
+ * 读评论走网页的 `fcg_global_comment_h5.fcg`，写评论是另一个服务：
+ * `music.globalComment.CommentWriteServer / AddComment`（模块名对自
+ * luren-dc/QQMusicApi 的 `comment.py`）。两套接口的 id 口径相同——都是数字
+ * songid，不是 songmid——但参数名一个 `topid`、一个 `BizId`，别互相借。
+ *
+ * `BizType: 1` 是歌曲；`BizSubType: 2` 与读接口一致。`code: 1000` 是「没登录」
+ * （与读评论的 1000 同一含义），由调用方翻译成人话。
+ */
+export async function requestCommentSend(params: {
+  uin: string
+  cookie: string
+  /** cookie 里的 qqmusic_key：安卓 comm 的 authst。 */
+  authst: string
+  songId: number
+  content: string
+}): Promise<{ code: number; data?: unknown }> {
+  const uin = Number(params.uin) || 0
+  return await musicuRequest(
+    androidComm(uin, params.authst),
+    androidHeaders(params.cookie),
+    'music.globalComment.CommentWriteServer',
+    'AddComment',
+    {
+      Content: params.content,
+      BizType: 1,
+      BizSubType: 2,
+      BizId: String(params.songId)
+    }
+  )
+}
+
 // --- 歌单的写 ------------------------------------------------------------
 //
 // QQ 的歌单不是「一个 id」：`tid`（dissid）给读取与展示，`dirId` 才是写操作的

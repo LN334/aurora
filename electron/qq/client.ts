@@ -21,7 +21,7 @@ import { write as log } from '../startup-log'
 import { classifyStreamFailure, describeFailure } from './reasons'
 import type { QqFailureReason } from './reasons'
 import { asCount, asList, asObject, asSeconds, asText, emptyPage } from '../comments'
-import type { CommentPage, OnlineComment } from '../comments'
+import type { CommentPage, CommentWriteResult, OnlineComment } from '../comments'
 import { clearSession, hasSession, readState, writeState } from './session'
 import {
   TIER_FORMATS,
@@ -32,6 +32,7 @@ import {
   requestAlbumSongs,
   requestCollectedAlbums,
   requestComments,
+  requestCommentSend,
   requestDailyPlaylistId,
   requestDailyRecommend,
   requestFollowedArtists,
@@ -398,6 +399,53 @@ export async function qqComments(
   } catch (error) {
     console.error('[aurora] qq comments failed', error instanceof Error ? error.message : error)
     return null
+  }
+}
+
+/** QQ 音乐一条评论的字数上限（网页版提示 500 字）。 */
+const QQ_COMMENT_MAX_LENGTH = 500
+
+/**
+ * 发一条评论到 QQ 音乐。
+ *
+ * 写接口要 cookie、uin、authst 三样（QQ 的写操作都走安卓 comm），缺一样就当
+ * 没登录。上游只回一个数字 code，`1000` 是未登录，其余是拒绝理由；这里把
+ * 它翻成人话，界面照原样显示。
+ *
+ * 不在这里读回核对：评论要过审核，写成功也可能暂时读不到，读回只会让「发出去
+ * 了」被误报成失败。
+ */
+export async function qqCommentSend(
+  songId: string | number,
+  content: string
+): Promise<CommentWriteResult> {
+  const numeric = typeof songId === 'number' ? songId : Number(songId)
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return { ok: false, message: '歌曲 ID 无效' }
+  }
+  const text = content.trim()
+  if (!text) return { ok: false, message: '先写点什么' }
+  if (text.length > QQ_COMMENT_MAX_LENGTH) {
+    return { ok: false, message: `最多 ${QQ_COMMENT_MAX_LENGTH} 字` }
+  }
+
+  const auth = credential()
+  if (!auth) return { ok: false, message: '登录 QQ 音乐后才能发评论' }
+
+  try {
+    const answer = await requestCommentSend({
+      uin: auth.uin,
+      cookie: auth.cookie,
+      authst: auth.authst,
+      songId: Math.trunc(numeric),
+      content: text
+    })
+    if (answer.code === 0) return { ok: true, message: '' }
+    if (answer.code === 1000) return { ok: false, message: '登录 QQ 音乐后才能发评论' }
+    return { ok: false, message: `没发出去（${answer.code}）` }
+  } catch (error) {
+    log('qq comment send failed ' + messageOf(error))
+    return { ok: false, message: '没发出去，稍后再试' }
   }
 }
 

@@ -11,7 +11,7 @@ import {
 } from '../pure/netease-bootstrap'
 import { clearCookie, hasCookie, readCookie, writeCookie } from './session'
 import { write } from '../startup-log'
-import type { CommentPage, OnlineComment } from '../comments'
+import type { CommentPage, CommentWriteResult, OnlineComment } from '../comments'
 import { isUsableId } from './types'
 import type {
   NeteaseAccount,
@@ -80,6 +80,9 @@ interface Upstream {
   lyric: UpstreamCall
   /** 读评论：公开端点，未登录也能取（拿不到「我赞过」的状态，那个状态不画）。 */
   comment_music: UpstreamCall
+  /** 写评论：发一条（comment_add）、赞/取消赞一条（comment_like）。都要真登录。 */
+  comment_add: UpstreamCall
+  comment_like: UpstreamCall
   album: UpstreamCall
   artist_top_song: UpstreamCall
   artist_detail: UpstreamCall
@@ -699,6 +702,9 @@ export async function neteaseLyrics(songId: number): Promise<NeteaseLyricsResult
 
 // --- 评论 ---------------------------------------------------------------
 
+/** 网易云一条评论的上限（上游也按 140 字截）。 */
+const COMMENT_MAX_LENGTH = 140
+
 /**
  * 一首歌的评论，一次一页。
  *
@@ -748,6 +754,69 @@ export async function neteaseComments(
     total: total > 0 ? total : null,
     hasMore: more,
     cursor: more && comments.length > 0 ? String(offset + comments.length) : ''
+  }
+}
+
+/**
+ * 发一条评论。
+ *
+ * 上游 200 也可能包着一个失败的 code（内容违规、被限流、没登录回 301），
+ * 所以成功要看 body.code 而不是 HTTP 状态。
+ */
+export async function neteaseCommentSend(
+  songId: number,
+  content: string
+): Promise<CommentWriteResult> {
+  if (!isUsableId(songId)) return { ok: false, message: '歌曲 ID 无效' }
+  const text = content.trim()
+  if (!text) return { ok: false, message: '先写点什么' }
+  if (text.length > COMMENT_MAX_LENGTH) {
+    return { ok: false, message: `最多 ${COMMENT_MAX_LENGTH} 字` }
+  }
+  if (!hasCookie(activeProfileId)) return { ok: false, message: '登录网易云后才能发评论' }
+  try {
+    const res = await call('comment_add', { type: 0, id: songId, content: text })
+    const body = asRecord(res.body)
+    const code = asNumber(body.code)
+    // 0 是没给 code 的老响应，按成功处理；其它非 200 一律当失败并把原话带出来。
+    if (code !== 0 && code !== 200) {
+      return { ok: false, message: asString(body.message) || asString(body.msg) || `发不出去（${code}）` }
+    }
+    return { ok: true, message: '' }
+  } catch (error) {
+    return { ok: false, message: readable(error) }
+  }
+}
+
+/**
+ * 赞 / 取消赞一条评论。
+ *
+ * 和发评论同一条账号通道，未登录先挡在本地：上游会把这种请求当 301 返回，
+ * 但那时候用户看到的只是「失败」，不知道为什么。
+ */
+export async function neteaseCommentLike(
+  songId: number,
+  commentId: number,
+  liked: boolean
+): Promise<CommentWriteResult> {
+  if (!isUsableId(songId)) return { ok: false, message: '歌曲 ID 无效' }
+  if (!isUsableId(commentId)) return { ok: false, message: '评论 ID 无效' }
+  if (!hasCookie(activeProfileId)) return { ok: false, message: '登录网易云后才能点赞' }
+  try {
+    const res = await call('comment_like', {
+      type: 0,
+      id: songId,
+      cid: commentId,
+      t: liked ? 1 : 0
+    })
+    const body = asRecord(res.body)
+    const code = asNumber(body.code)
+    if (code !== 0 && code !== 200) {
+      return { ok: false, message: asString(body.message) || asString(body.msg) || `点不了赞（${code}）` }
+    }
+    return { ok: true, message: '' }
+  } catch (error) {
+    return { ok: false, message: readable(error) }
   }
 }
 

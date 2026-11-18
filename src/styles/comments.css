@@ -135,10 +135,114 @@
   color: var(--text-low);
 }
 .cmt__stat {
+  /*
+   * 有时是 span（只读平台的计数），有时是按钮（能点赞的平台）。按钮那一路
+   * 要先把浏览器的默认外观剥掉，两种才能在同一行里对齐。
+   */
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
+.cmt__stat:hover:not(:disabled) {
+  color: var(--text-mid);
+}
+.cmt__stat:disabled {
+  cursor: default;
+}
+/* 赞过的心是这页唯一的红：语义和列表里那枚「喜欢」一致。 */
+.cmt__stat.is-liked {
+  color: var(--like);
+}
+
+/* 写评论：一块安静的底，不抢页面本身的分量。 */
+.cmt__compose {
+  margin-top: 16px;
+  padding: 12px;
+  border: var(--line);
+  border-radius: var(--r-card, 14px);
+  background: rgb(var(--tint-rgb) / 0.03);
+}
+
+.cmt__input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--text-hi);
+  resize: vertical;
+}
+.cmt__input::placeholder {
+  color: var(--text-low);
+}
+.cmt__input:focus {
+  outline: none;
+}
+
+.cmt__compose-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cmt__hint {
+  margin-right: auto;
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+.cmt__hint.is-error {
+  color: var(--danger);
+}
+
+.cmt__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cmt__link:hover {
+  color: var(--text-hi);
+}
+
+.cmt__send {
+  height: 30px;
+  padding: 0 14px;
+  border: var(--line);
+  border-radius: var(--r-control);
+  background: rgb(var(--tint-rgb) / 0.05);
+  font-size: var(--fs-body);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition:
+    background var(--dur-1) ease,
+    color var(--dur-1) ease;
+}
+.cmt__send:hover:not(:disabled) {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+.cmt__send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 
 .cmt__more {
   margin-top: 16px;
