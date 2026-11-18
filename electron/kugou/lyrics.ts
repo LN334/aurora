@@ -26,13 +26,13 @@ const KRC_KEY = Buffer.from([
 ])
 
 /** KRC 里的一个时间点，单位是毫秒（上游原样，不做二次换算）。 */
-export interface KrcLine {
+interface KrcLine {
   time: number
   text: string
 }
 
 /** 一份 KRC 文档：正文行 + 可选译文行（按行号与正文对齐）。 */
-export interface KrcDocument {
+interface KrcDocument {
   lines: KrcLine[]
   /** 正文行 -> 译文；没有译文时是空数组。 */
   translation: KrcLine[]

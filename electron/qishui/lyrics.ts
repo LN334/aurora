@@ -21,7 +21,7 @@ const LRC_LINE = /^\[\d+:\d{2}(?:[.:]\d{1,3})?\]/
 /** 至少含一个汉字/假名/谚文的行才算译文候选。 */
 const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/
 
-export interface QishuiLyrics {
+interface QishuiLyrics {
   lrc: string
   /** 标准 LRC 的译文；没有语言轨时是空串。 */
   translation: string
