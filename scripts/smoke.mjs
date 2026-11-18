@@ -241,7 +241,7 @@ const SEED_LYRICS = [
   '[ar:测试]',
   '[00:00.10]<00:00.10>把窗推开一点<00:00.90>风从北边来',
   '[00:01.20]路灯把影子拉长',
-  '[00:01.70]我沿着河走',
+  '[00:01.70]我沿着河走 / I walked along the river',
   ''
 ].join('\n')
 
@@ -732,6 +732,8 @@ async function main() {
             active: document.querySelectorAll('.np__line.is-active').length,
             words: document.querySelectorAll('.np__line-words > span').length,
             lit: document.querySelectorAll('.np__line-words > span[data-lit]').length,
+            subs: document.querySelectorAll('.np__line-sub').length,
+            sub: (document.querySelector('.np__line-sub')?.textContent || '').trim(),
             nolyrics: Boolean(document.querySelector('.np__nolyrics'))
           }))()`
         )
@@ -777,12 +779,14 @@ async function main() {
       if (probe.lines === 0) problems.push('now playing shows no lyric lines')
       if (probe.active === 0) problems.push('no lyric line is marked active')
       if (probe.words === 0) problems.push('the word-timed line was not split into spans')
+      if (probe.subs === 0) problems.push('the translation stayed on the original line')
       if (logged.length) problems.push(logged.length + ' console error(s)')
       if (thrown.length) problems.push(thrown.length + ' uncaught exception(s)')
 
       console.log(
         'smoke: lyrics lines=' + probe.lines + ', active=' + probe.active +
           ', word spans=' + probe.words + ' (' + probe.lit + ' lit)' +
+          ', translations=' + probe.subs + ' (' + probe.sub + ')' +
           (probe.nolyrics ? ', renders the empty state' : '')
       )
 
