@@ -3,6 +3,7 @@ import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { isQqQuality } from './types'
+import type { CommentPage } from '../comments'
 import type {
   QqAccount,
   QqAlbumBundle,
@@ -153,6 +154,18 @@ export function registerQqIpc(): void {
     const songId = asSongId(value)
     if (songId === null) return null
     return guard('lyrics', null, () => client.qqLyrics(songId))
+  })
+
+  ipcMain.handle('qq:comments', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const songId = asSongId(args.songId)
+    if (songId === null) return null
+    const cursor = typeof args.cursor === 'string' ? args.cursor.slice(0, 32) : ''
+    const limit =
+      typeof args.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(args.limit))) : 20
+    return guard<CommentPage | null>('comments', null, () =>
+      client.qqComments(songId, cursor, limit)
+    )
   })
 
   ipcMain.handle('qq:qrCreate', () => {

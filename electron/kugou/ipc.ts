@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { write } from '../startup-log'
+import type { CommentPage } from '../comments'
 import {
   activeProfile,
   kugouAccountFor,
@@ -7,6 +8,7 @@ import {
   kugouArtist,
   kugouArtistAlbums,
   kugouArtistSongs,
+  kugouComments,
   kugouDailyRecommend,
   kugouFollowedArtists,
   kugouGetQuality,
@@ -130,6 +132,17 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) =>
     guard('lyrics', null, async () => kugouLyrics(asId(songId)))
   )
+
+  ipcMain.handle('kugou:comments', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const songId = asId(params.songId)
+    const cursor = asText(params.cursor, MAX_ID)
+    const limit =
+      typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
+    return await guard<CommentPage | null>('comments', null, async () =>
+      kugouComments(songId, cursor, limit)
+    )
+  })
 
   ipcMain.handle('kugou:qrCreate', async () =>
     guard('qrCreate', { key: '', imageDataUrl: '' }, async () => kugouQrCreate())

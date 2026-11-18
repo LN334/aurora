@@ -306,6 +306,13 @@ export const Download = (p: IconProps) => (
   </Svg>
 )
 
+/** 评论（曲目详情页的评论区）。 */
+export const Comment = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M20.5 12.3c0 4.1-3.8 7.4-8.5 7.4a10.4 10.4 0 0 1-2.7-.35L4.4 21l1.2-4.15a7.2 7.2 0 0 1-1.6-4.55c0-4.1 3.8-7.4 8.5-7.4s8.5 3.3 8.5 7.4Z" />
+  </Svg>
+)
+
 /** 喜欢（我喜欢的歌曲、收藏页的一级入口）。 */
 export const Heart = (p: IconProps) => (
   <Svg {...p}>

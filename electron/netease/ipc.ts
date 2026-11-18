@@ -4,6 +4,7 @@ import { loadSettings, saveSettings } from '../settings'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { isNeteaseQuality, isUsableId } from './types'
+import type { CommentPage } from '../comments'
 import type {
   NeteaseAccount,
   NeteaseAlbum,
@@ -210,6 +211,18 @@ export function registerNeteaseIpc(): void {
     const songId = asId(value)
     if (songId === null) return null
     return guard('lyrics', null, () => client.neteaseLyrics(songId))
+  })
+
+  ipcMain.handle('netease:comments', (_event, payload: unknown) => {
+    const args = asRecord(payload)
+    const songId = asId(args.songId)
+    if (songId === null) return null
+    const cursor = typeof args.cursor === 'string' ? args.cursor.slice(0, 32) : ''
+    const limit =
+      typeof args.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(args.limit))) : 20
+    return guard<CommentPage | null>('comments', null, () =>
+      client.neteaseComments(songId, cursor, limit)
+    )
   })
 
   ipcMain.handle('netease:album', (_event, value: unknown) => {

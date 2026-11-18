@@ -20,6 +20,8 @@ import {
 import { write as log } from '../startup-log'
 import { classifyStreamFailure, describeFailure } from './reasons'
 import type { QqFailureReason } from './reasons'
+import { asCount, asList, asObject, asSeconds, asText, emptyPage } from '../comments'
+import type { CommentPage, OnlineComment } from '../comments'
 import { clearSession, hasSession, readState, writeState } from './session'
 import {
   TIER_FORMATS,
@@ -29,6 +31,7 @@ import {
   requestAlbumInfo,
   requestAlbumSongs,
   requestCollectedAlbums,
+  requestComments,
   requestDailyPlaylistId,
   requestDailyRecommend,
   requestFollowedArtists,
@@ -330,6 +333,70 @@ export async function qqLyrics(songId: string | number): Promise<string | null> 
     return mergeTranslation(payload.lrc, payload.translation)
   } catch (error) {
     console.error('[aurora] qq lyric lookup failed', error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
+// --- comments -----------------------------------------------------------
+
+/**
+ * A song's comments, one page at a time.
+ *
+ * The comment pool is keyed by the numeric song id (`topid`), not the songmid:
+ * handing that endpoint a mid yields an empty list instead of an error, so a
+ * wrong id fails silently. The upstream package's `/comment/hot` route already
+ * turns the web endpoint's GB2312 payload into JSON, so no decoding here.
+ */
+export async function qqComments(
+  songId: string | number,
+  cursor = '',
+  limit = 20
+): Promise<CommentPage | null> {
+  const numeric = typeof songId === 'number' ? songId : Number(songId)
+  if (!Number.isFinite(numeric) || numeric <= 0) return null
+  const offset = Math.max(0, Math.trunc(Number(cursor) || 0))
+
+  try {
+    const response = await requestComments({
+      songId: String(Math.trunc(numeric)),
+      offset,
+      limit
+    })
+    const body = asObject(asObject(response).body)
+    // An empty page comes back as a non-200 code; for the page that means "no
+    // comments yet", not a failure, so the empty page is the honest answer.
+    if (asCount(body.code) !== 200) return emptyPage()
+
+    const comments = asList(body.comments)
+      .map((entry) => {
+        const raw = asObject(entry)
+        const text = asText(raw.content)
+        const id = asText(raw.id)
+        if (!id || !text) return null
+        const comment: OnlineComment = {
+          id,
+          author: asText(raw.nick) || '匿名用户',
+          avatar: asText(raw.avatar) || null,
+          text,
+          likes: asCount(raw.praiseCount),
+          replies: asCount(raw.replyCount),
+          time: asSeconds(raw.time),
+          featured: false
+        }
+        return comment
+      })
+      .filter((entry): entry is OnlineComment => entry !== null)
+
+    const total = asCount(body.total)
+    const more = body.more === true
+    return {
+      comments,
+      total: total > 0 ? total : null,
+      hasMore: more,
+      cursor: more && comments.length > 0 ? String(offset + comments.length) : ''
+    }
+  } catch (error) {
+    console.error('[aurora] qq comments failed', error instanceof Error ? error.message : error)
     return null
   }
 }

@@ -5,6 +5,8 @@ import { createQishuiApi, type QishuiApi } from 'qishui-music-api'
 import { readState, writeState, clearSession } from './session'
 import { qishuiLyricsFromInfo } from './lyrics'
 import type { QishuiQuality, QishuiRawTrack } from './types'
+import { asCount, asList, asObject, asSeconds, asText } from '../comments'
+import type { CommentPage, OnlineComment } from '../comments'
 import { write } from '../startup-log'
 
 /**
@@ -529,6 +531,110 @@ export async function qishuiLyrics(
   }
   if (!result.ok) return null
   return qishuiLyricsFromInfo(result.data)
+}
+
+// --- 评论 ---------------------------------------------------------------
+
+/**
+ * 汽水的评论。
+ *
+ * 取数包只封装了它自己的签名协议，操作白名单里没有评论；而评论的读接口恰好
+ * 不需要签名——一条裸 GET 就回 JSON，所以这里直接打 API，不经过 `apiFor`。
+ *
+ * `group_type` 是评论区的归属类型：0 是歌曲，1 是另一种资源。同一个 id 上两者
+ * 都可能存在（实测有的歌只有 1 有内容），所以先问 0，空页再问 1。
+ */
+const QISHUI_COMMENT_UA = 'LunaPC/3.0.0(290101097)'
+const QISHUI_COMMENT_URL = 'https://api.qishui.com/luna/pc/comments'
+const QISHUI_COMMENT_TIMEOUT = 8_000
+
+export async function qishuiComments(
+  alias: number,
+  cursor = '',
+  limit = 20
+): Promise<CommentPage | null> {
+  const ref = refOf(alias)
+  if (!ref || ref.kind !== 'track') return null
+  const page = await readQishuiComments(ref.id, 0, cursor, limit)
+  if (!page) return null
+  if (page.comments.length > 0 || page.total) return page
+  return await readQishuiComments(ref.id, 1, cursor, limit)
+}
+
+async function readQishuiComments(
+  trackId: string,
+  groupType: number,
+  cursor: string,
+  limit: number
+): Promise<CommentPage | null> {
+  const query = new URLSearchParams({
+    group_id: trackId,
+    group_type: String(groupType),
+    cursor,
+    count: String(limit),
+    image_strategy: '2'
+  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), QISHUI_COMMENT_TIMEOUT)
+  try {
+    const response = await fetch(`${QISHUI_COMMENT_URL}?${query.toString()}`, {
+      headers: { 'User-Agent': QISHUI_COMMENT_UA },
+      signal: controller.signal
+    })
+    if (!response.ok) return null
+    const body = asObject(await response.json())
+    const data = asObject(body.data)
+    // 上游把列表放在 data.comments；留一层兜底，免得某个版本挪到顶层就整页空白。
+    const primary = asList(data.comments)
+    const rows = primary.length > 0 ? primary : asList(body.comments)
+
+    const comments = rows
+      .map((entry) => {
+        const raw = asObject(entry)
+        const user = asObject(raw.user)
+        const text = asText(raw.content)
+        const id = asText(raw.id)
+        if (!id || !text) return null
+        const comment: OnlineComment = {
+          id,
+          author: asText(user.nickname) || '匿名用户',
+          avatar: avatarOf(user),
+          text,
+          likes: asCount(raw.count_digged),
+          replies: asCount(raw.count_reply),
+          time: asSeconds(raw.time_created),
+          featured: raw.featured === true
+        }
+        return comment
+      })
+      .filter((entry): entry is OnlineComment => entry !== null)
+
+    const total = asCount(data.count) || asCount(body.count)
+    const more = data.has_more === true || body.has_more === true
+    const next = asText(data.cursor) || asText(body.cursor) || cursor
+    return {
+      comments,
+      total: total > 0 ? total : null,
+      hasMore: more,
+      cursor: more ? (next === cursor ? String(Number(cursor || 0) + comments.length) : next) : ''
+    }
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** 头像在用户对象里是带 urls 数组的对象；有些版本直接给字符串。 */
+function avatarOf(user: Record<string, unknown>): string | null {
+  const direct = asText(user.medium_avatar_url) || asText(user.thumb_avatar_url)
+  if (direct) return direct
+  for (const key of ['medium_avatar_url', 'thumb_avatar_url']) {
+    const urls = asList(asObject(user[key]).urls)
+    const first = asText(urls[0])
+    if (first) return first
+  }
+  return null
 }
 
 /**

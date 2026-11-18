@@ -401,6 +401,8 @@ const api = {
     streamUrl: (songId: number, quality?: string) =>
       ipcRenderer.invoke('netease:streamUrl', { songId, quality }),
     lyrics: (songId: number) => ipcRenderer.invoke('netease:lyrics', songId),
+    comments: (songId: number, cursor?: string, limit?: number) =>
+      ipcRenderer.invoke('netease:comments', { songId, cursor, limit }),
     album: (id: number) => ipcRenderer.invoke('netease:album', id),
     artistTopSongs: (id: number, limit?: number) =>
       ipcRenderer.invoke('netease:artistTopSongs', { id, limit }),
@@ -472,6 +474,8 @@ const api = {
     streamUrl: (songId: string | number, quality?: string) =>
       ipcRenderer.invoke('qq:streamUrl', { songId, quality }),
     lyrics: (songId: string | number) => ipcRenderer.invoke('qq:lyrics', songId),
+    comments: (songId: string | number, cursor?: string, limit?: number) =>
+      ipcRenderer.invoke('qq:comments', { songId, cursor, limit }),
 
     qrCreate: () => ipcRenderer.invoke('qq:qrCreate'),
     qrCheck: (key: string) => ipcRenderer.invoke('qq:qrCheck', key),
@@ -523,6 +527,8 @@ const api = {
     streamUrl: (songId: string | number, quality?: string) =>
       ipcRenderer.invoke('kugou:streamUrl', { songId, quality }),
     lyrics: (songId: string | number) => ipcRenderer.invoke('kugou:lyrics', songId),
+    comments: (songId: string | number, cursor?: string, limit?: number) =>
+      ipcRenderer.invoke('kugou:comments', { songId, cursor, limit }),
 
     qrCreate: () => ipcRenderer.invoke('kugou:qrCreate'),
     qrCheck: (key: string) => ipcRenderer.invoke('kugou:qrCheck', key),
@@ -567,6 +573,8 @@ const api = {
     streamUrl: (songId: number, quality?: string) =>
       ipcRenderer.invoke('qishui:streamUrl', { songId, quality }),
     lyrics: (songId: number) => ipcRenderer.invoke('qishui:lyrics', songId),
+    comments: (songId: number, cursor?: string, limit?: number) =>
+      ipcRenderer.invoke('qishui:comments', { songId, cursor, limit }),
 
     qrCreate: () => ipcRenderer.invoke('qishui:qrCreate'),
     qrCheck: (key: string) => ipcRenderer.invoke('qishui:qrCheck', key),

@@ -422,6 +422,22 @@ export async function requestLyric(params: {
   })
 }
 
+export async function requestComments(params: {
+  songId: string
+  offset: number
+  limit: number
+}): Promise<unknown> {
+  /*
+   * 走包里的 `/comment/hot`：它把网页端 `CommentRead.GetHotCommentList` 的回包
+   * 翻成 `{ comments: [{id, content, nick, avatar, praiseCount, time, replyCount}], total, more }`。
+   * 直接打 `c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg` 也通（实测），
+   * 但那个端点的 GB2312 编码与网页 cookie 细节已经由包处理过，没必要再抄一遍。
+   */
+  return await call('/comment/hot', {
+    query: { id: params.songId, limit: params.limit, offset: params.offset }
+  })
+}
+
 export async function requestLoginQr(): Promise<unknown> {
   // 第一步拿 unikey，第二步用它换二维码图。整条扫码链路都归包管，Aurora 只收两件东西。
   const key = await call('/login/qr/key', { query: { channel: 'qq' } })

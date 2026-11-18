@@ -24,6 +24,23 @@ export function formatTime(seconds: number): string {
  * "five forty-five" instead of "five minutes forty-five". Anything that sums
  * several tracks goes through here.
  */
+/**
+ * A moment as "how long ago": `刚刚`, `5 分钟前`, `3 小时前`, `2 天前`.
+ *
+ * Relative rather than absolute wherever the value is about recency: "昨天
+ * 22:41" makes the reader do the subtraction, and a comment wall is scanned,
+ * not read. Past a month the exact date is more useful than "89 天前".
+ */
+export function formatSince(at: number): string {
+  if (!Number.isFinite(at) || at <= 0) return ''
+  const diff = Date.now() - at
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前'
+  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + ' 小时前'
+  if (diff < 30 * 86_400_000) return Math.floor(diff / 86_400_000) + ' 天前'
+  return new Date(at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+}
+
 export function formatSpan(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 1) return '0 秒'
   const total = Math.round(seconds)

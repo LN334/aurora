@@ -1,8 +1,10 @@
 import { ipcMain } from 'electron'
 import { write } from '../startup-log'
+import type { CommentPage } from '../comments'
 import {
   qishuiArtistProfile,
   qishuiArtistSongs,
+  qishuiComments,
   qishuiFeed,
   qishuiLike,
   qishuiLiked,
@@ -144,6 +146,17 @@ export function registerQishuiIpc(): void {
       return alias ? await qishuiLyrics(alias) : null
     })
   )
+
+  ipcMain.handle('qishui:comments', async (_event, input: unknown) => {
+    const params = asRecord(input)
+    const alias = asAlias(params.songId)
+    const cursor = asText(params.cursor, MAX_ID)
+    const limit =
+      typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
+    return await guard<CommentPage | null>('comments', null, async () =>
+      alias ? await qishuiComments(alias, cursor, limit) : null
+    )
+  })
 
   ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60

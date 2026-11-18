@@ -5,6 +5,8 @@ import net from 'node:net'
 import path from 'node:path'
 import { app } from 'electron'
 import { write } from '../startup-log'
+import { asCount, asId, asList, asObject, asSeconds, asText } from '../comments'
+import type { CommentPage, OnlineComment } from '../comments'
 import { fetchKugouLyrics } from './lyrics'
 import type { KugouLyricsPayload } from './lyrics'
 import { classifyStreamFailure, describeFailure } from './reasons'
@@ -1073,6 +1075,74 @@ export async function kugouLyrics(
     return await fetchKugouLyrics(song)
   } catch (error) {
     console.error('[aurora] kugou lyric lookup failed', messageOf(error))
+    return null
+  }
+}
+
+// --- 评论 ---------------------------------------------------------------
+
+/**
+ * 一首歌的评论，一次一页。
+ *
+ * 酷狗把评论挂在 `mixsongid`（就是 `album_audio_id`）上，不是 hash；这个字段
+ * 在搜索与歌单返回时已经记进 `songIndex`，所以和歌词一样先要求「见过这首歌」。
+ * 翻页用页码而不是游标，`cursor` 在这里放的是页号字符串。
+ */
+export async function kugouComments(
+  songId: string | number,
+  cursor = '',
+  limit = 20
+): Promise<CommentPage | null> {
+  const song = songOf(songId)
+  if (!song || !song.albumAudioId) return null
+  const page = Math.max(1, Math.trunc(Number(cursor) || 0) || 1)
+
+  try {
+    const response = await request('/comment/music', {
+      query: { mixsongid: song.albumAudioId, page, pagesize: limit }
+    })
+    const body = asObject(response.body)
+    const data = asObject(body.data)
+    // 实测（2026-11）：列表在顶层 body.list，body.data 是空对象；data.list 只是老
+    // 版本的备份，两个位置都看，谁有内容用谁。
+    const primary = asList(body.list)
+    const rows = primary.length > 0 ? primary : asList(data.list)
+
+    const comments = rows
+      .map((entry) => {
+        const raw = asObject(entry)
+        const user = asObject(raw.user)
+        const text = asText(raw.content)
+        // 实测的评论 id 是数字（其它三家是字符串）；两种都收，别让整页被过滤掉。
+        const id = asId(raw.id) || asId(raw.comment_id)
+        if (!id || !text) return null
+        const comment: OnlineComment = {
+          id,
+          author: asText(raw.user_name) || asText(user.nickname) || '匿名用户',
+          avatar: asText(raw.user_pic) || asText(user.pic) || null,
+          text,
+          likes: asCount(asObject(raw.like).count) || asCount(raw.like_count),
+          replies: asCount(raw.reply_num) || asCount(raw.reply_count),
+          time: asSeconds(raw.addtime) ?? asSeconds(raw.time),
+          featured: false
+        }
+        return comment
+      })
+      .filter((entry): entry is OnlineComment => entry !== null)
+
+    const total = asCount(body.count) || asCount(data.count)
+    // 实测 maxPage/current_page 都能拿到；缺了才退回「整页即还有下一批」。
+    const lastPage = asCount(body.maxPage)
+    const here = asCount(body.current_page) || page
+    const more = lastPage > 0 ? here < lastPage : comments.length >= limit
+    return {
+      comments,
+      total: total > 0 ? total : null,
+      hasMore: more,
+      cursor: more ? String(here + 1) : ''
+    }
+  } catch (error) {
+    console.error('[aurora] kugou comment lookup failed', messageOf(error))
     return null
   }
 }

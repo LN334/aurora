@@ -33,7 +33,7 @@ import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { SkeletonAlbums, SkeletonCards, SkeletonFresh } from '../ui/Skeleton'
-import { formatSpan, formatTime } from '../ui/format'
+import { formatSince, formatSpan, formatTime } from '../ui/format'
 import { showFlash } from '../ui/flash'
 import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
@@ -50,16 +50,6 @@ import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } fro
  * 页标题由外壳打（左栏点亮的「推荐」），这里从二级信息起，不再出现第二个
  * 「推荐」。平台没有独立卡片位：网易云与 QQ 是来源，内容以推荐的形式出现。
  */
-
-/** 多久以前：这一排写相对时间，比印绝对时刻更像「最近」。 */
-function sinceLabel(at: number): string {
-  if (!at) return ''
-  const diff = Date.now() - at
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return Math.floor(diff / 60_000) + ' 分钟前'
-  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + ' 小时前'
-  return Math.floor(diff / 86_400_000) + ' 天前'
-}
 
 function greeting(now: Date): string {
   const hour = now.getHours()
@@ -960,7 +950,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                   <Artwork src={artworkFor(track)} alt="" fallback={<Note size={20} />} />
                 </span>
                 <span className="rh-card__title">{track.title}</span>
-                <span className="rh-card__sub">{sinceLabel(recentAt.get(track.id) ?? 0)}</span>
+                <span className="rh-card__sub">{formatSince(recentAt.get(track.id) ?? 0)}</span>
               </button>
             ))}
           </div>

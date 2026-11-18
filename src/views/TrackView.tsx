@@ -11,6 +11,7 @@ import { openOnlineAlbum, openOnlineArtist, refOfTrack } from '../features/refs/
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { Heart, Note, Play, Queue } from '../ui/icons'
+import { CommentSection } from './CommentSection'
 import { DetailHero } from './DetailHero'
 
 /** 字节数换成读得懂的大小；只用于本机文件。 */
@@ -258,6 +259,13 @@ export function TrackView({
           </dl>
         </aside>
       </div>
+
+      {/*
+       * 评论整宽挂在正文下面，而不是塞进左栏：它是这首歌的「别人怎么说」，
+       * 与歌词、事实表并列，不属于任何一栏。本机文件没有评论可读，组件
+       * 自己返回 null。
+       */}
+      <CommentSection track={track} />
     </div>
   )
 }

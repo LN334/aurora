@@ -569,6 +569,33 @@ export interface NeteaseAccount {
   level: number
 }
 
+/**
+ * 一条在线评论。
+ *
+ * 四个平台的字段名与嵌套都不同，主进程已经把它们压成这一种形状：页面不需要
+ * 知道「酷狗的赞是 like.count 还是 praise_count」。`time` 是秒级 Unix 时间；
+ * 没有时间戳的评论给 null，页面就不画时间——比编一个「刚刚」诚实。
+ */
+export interface OnlineComment {
+  id: string
+  author: string
+  avatar: string | null
+  text: string
+  likes: number
+  replies: number
+  time: number | null
+  featured: boolean
+}
+
+/** 一页评论，外加继续翻页要用的游标。 */
+export interface CommentPage {
+  comments: OnlineComment[]
+  total: number | null
+  hasMore: boolean
+  /** 不透明的翻页键；酷狗是页码，其余是偏移量或上游游标。空串表示没有下一页。 */
+  cursor: string
+}
+
 export interface NeteaseSearchResult {
   songs: NeteaseSong[]
   albums: {
@@ -610,6 +637,9 @@ export interface NeteaseApi {
   streamUrl(songId: number, quality?: NeteaseQuality): Promise<NeteaseStreamResult>
 
   lyrics(songId: number): Promise<{ lrc: string | null; translation: string | null } | null>
+
+  /** 一页评论；翻页把上一页末尾的 cursor 带回来。未登录也能读。 */
+  comments(songId: number, cursor?: string, limit?: number): Promise<CommentPage | null>
 
   album(id: number): Promise<{
     id: number
@@ -827,6 +857,9 @@ export interface QqApi {
 
   /** 已合并翻译的成品 LRC 文本（渲染层直接用）。 */
   lyrics(songId: string | number): Promise<string | null>
+
+  /** 一页评论。评论区认数字 songid，不是 songmid。 */
+  comments(songId: string | number, cursor?: string, limit?: number): Promise<CommentPage | null>
 
   qrCreate(): Promise<{ key: string; imageDataUrl: string }>
   qrCheck(key: string): Promise<{
@@ -1213,6 +1246,9 @@ export interface KugouApi {
    */
   lyrics(songId: string | number): Promise<{ lrc: string; translation: string } | null>
 
+  /** 一页评论。要「见过这首歌」——评论挂在 mixsongid 上，得先在索引里。 */
+  comments(songId: string | number, cursor?: string, limit?: number): Promise<CommentPage | null>
+
   qrCreate(): Promise<KugouQrSession>
   qrCheck(key: string): Promise<KugouQrResult>
   loginStatus(): Promise<KugouAccount | null>
@@ -1367,6 +1403,9 @@ export interface QishuiApi {
   streamUrl(songId: number, quality?: QishuiQuality): Promise<QishuiStreamResult>
   /** 歌词：正文与译文分成两份 LRC 交回；没有歌词时 null，不抛错。 */
   lyrics(songId: number): Promise<{ lrc: string; translation: string } | null>
+
+  /** 一页评论。读评论不需要登录，也不需要签名。 */
+  comments(songId: number, cursor?: string, limit?: number): Promise<CommentPage | null>
 
   qrCreate(): Promise<QishuiQrSession>
   qrCheck(key: string): Promise<QishuiQrResult>

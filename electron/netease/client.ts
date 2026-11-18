@@ -11,6 +11,7 @@ import {
 } from '../pure/netease-bootstrap'
 import { clearCookie, hasCookie, readCookie, writeCookie } from './session'
 import { write } from '../startup-log'
+import type { CommentPage, OnlineComment } from '../comments'
 import { isUsableId } from './types'
 import type {
   NeteaseAccount,
@@ -77,6 +78,8 @@ interface Upstream {
   song_url_v1: UpstreamCall
   song_detail: UpstreamCall
   lyric: UpstreamCall
+  /** 读评论：公开端点，未登录也能取（拿不到「我赞过」的状态，那个状态不画）。 */
+  comment_music: UpstreamCall
   album: UpstreamCall
   artist_top_song: UpstreamCall
   artist_detail: UpstreamCall
@@ -692,6 +695,60 @@ export async function neteaseLyrics(songId: number): Promise<NeteaseLyricsResult
   // and a lyric with no translation is a lyric.
   if (!lrc && !translation) return null
   return { lrc, translation }
+}
+
+// --- 评论 ---------------------------------------------------------------
+
+/**
+ * 一首歌的评论，一次一页。
+ *
+ * 上游 `comment_music` 用 offset 翻页，返回里同时有 `hotComments`（第一页的热门
+ * 评论）和 `comments`（按时间的那一份）。这里只要后者：热门评论会同时出现在两份
+ * 里，都收会让同一句话在列表里出现两次。
+ *
+ * 没有评论不是错误——上游照常回 200 和一个空数组，空页交给页面说「还没有评论」。
+ * 未登录也能读，只是拿不到「我赞过」的状态，而那个状态本来就没在画。
+ */
+export async function neteaseComments(
+  songId: number,
+  cursor = '',
+  limit = 20
+): Promise<CommentPage | null> {
+  if (!isUsableId(songId)) return null
+  const offset = Math.max(0, Math.trunc(Number(cursor) || 0))
+  const res = await call('comment_music', { id: songId, limit, offset })
+  const body = asRecord(res.body)
+  const rows = asArray(body.comments)
+  const comments = rows
+    .map((entry) => {
+      const raw = asRecord(entry)
+      const user = asRecord(raw.user)
+      const text = asString(raw.content).trim()
+      const id = String(asNumber(raw.commentId))
+      if (!text || !id || id === '0') return null
+      const comment: OnlineComment = {
+        id,
+        author: asString(user.nickname) || '匿名用户',
+        avatar: asNullableString(user.avatarUrl),
+        text,
+        // 上游把点赞数同时写成 likedCount（老字段）和 likeCount（新字段）。
+        likes: asNumber(raw.likedCount) || asNumber(raw.likeCount),
+        replies: asNumber(raw.replyCount) || asNumber(raw.replied),
+        time: Math.round(asNumber(raw.time) / 1000) || null,
+        featured: false
+      }
+      return comment
+    })
+    .filter((entry): entry is OnlineComment => entry !== null)
+
+  const total = asNumber(body.total)
+  const more = body.more === true
+  return {
+    comments,
+    total: total > 0 ? total : null,
+    hasMore: more,
+    cursor: more && comments.length > 0 ? String(offset + comments.length) : ''
+  }
 }
 
 // --- playable stream -----------------------------------------------------
