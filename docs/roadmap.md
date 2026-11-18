@@ -24,6 +24,7 @@ P1-1 的两处实现要点：缓存键是渲染层给的 `provider:onlineId`（�
 | 四家平台接入 | `src/features/online/*-provider.ts`、`electron/{netease,qq,kugou,qishui}/` | 搜索、歌单、专辑、艺人、取流、喜欢（QQ 与酷狗部分写接口缺失） |
 | 播放 | `src/features/player/`（engine / driver / actions / pick / queue / crossfade / roam） | 取流去重入、无源跳过、跨源版本合并、漫游流式补池 |
 | 歌词 | `src/features/library/hooks.ts` 的 `resolveLyrics`、`electron/lyrics.ts`、`src/stage/LyricsStage.tsx`、`src/views/NowPlayingPage.tsx` 的 LyricRoll | 本家 → 跨源版本 → LRCLIB 三级兜底；译文分行；逐行平滑滚动；桌面歌词窗 |
+| 评论 | `electron/comments.ts`、`src/features/comments/api.ts`、`src/views/CommentSection.tsx` | 四家只读评论、游标翻页，挂在曲目详情页底部 |
 | 库 | `src/views/{Playlists,Collections,FollowedArtists,Local,Liked,Recent}Page.tsx`、`src/features/library/` | 歌单两档、收藏专辑、关注艺人、本机、最近播放 60 条、口味统计 |
 | 设置 | `src/views/settings/` | 13 个分区，含首页分区开关、材质、歌词字号、行密度、隐藏窗口等 |
 | 更新 | `electron/updates.ts`、`src/features/updates/` | 检查→下载→手动装；左栏红点与托盘气泡提示 |
