@@ -1057,7 +1057,14 @@ export function App() {  if (!isNative) {
       <div
         className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
           wallpaperEntry ? ' has-wallpaper' : ''
-        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${stage.mounted ? ' is-under-stage' : ''}`}
+        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${
+          /*
+           * 退场那 320ms 里不能再藏。舞台是整层淡出，壳要是还 hidden，
+           * 淡下去露出来的就只有壁纸：一屏空画面，等它卸完才「啪」地长回来。
+           * 让壳在 closing 一开始就恢复可见，舞台的淡出才真的是退回播放页。
+           */
+          stage.mounted && !stage.closing ? ' is-under-stage' : ''
+        }`}
         // The veil opacity is CSS's business; the level itself is data.
         style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
       >

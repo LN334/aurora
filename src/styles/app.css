@@ -122,6 +122,9 @@ input::placeholder {
    * The stage is opaque and covers the window; the shell underneath would
    * otherwise show through wherever the stage's own gradient is thin. Hiding it
    * (rather than unmounting it) keeps its scroll offsets and playback state.
+   *
+   * 只在舞台真的盖着时才藏：退场那 320ms 里壳必须可见，否则舞台淡下去
+   * 露出的只有壁纸，等它卸完播放页才硬切回来——那一下就是空的。
    */
   visibility: hidden;
 }
