@@ -512,20 +512,6 @@
   gap: var(--s4);
 }
 
-.lk-hero__titles {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: 10px;
-}
-
-/* 页面已经有一个「我喜欢的音乐」大标题，卡里这一行只作说明，不再抢权重。 */
-.lk-hero__title {
-  font-size: var(--fs-meta);
-  font-weight: 500;
-  color: var(--text-mid);
-}
-
 .lk-hero__stat {
   font-size: var(--fs-micro);
   letter-spacing: 0.02em;
@@ -681,6 +667,27 @@
   opacity: 0.6;
 }
 
+/*
+ * 搜索框与总数并成一行。
+ *
+ * 这两页整页只有一个分区，页头已经写着「收藏专辑」「关注艺人」；以前下面还
+ * 有一行「专辑」「艺人」，同一句话说了两次。省掉那行之后，总数目没地方站，
+ * 就挪到搜索框右边——它本来就是这一整页的规模，不是某个分区的。
+ */
+.shelf-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.shelf-bar__count {
+  padding-top: 8px;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 书架上的搜索：收藏专辑与关注艺人都是几百条平铺，滚动找不动，得能打字筛。 */
 .shelf-search {
   display: flex;
@@ -780,6 +787,15 @@
   color: var(--text-low);
   font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
+}
+
+/* 搜索框右边的操作：随机、刷新。靠 margin-left:auto 贴右，
+   不给 .lk-search 加 space-between——那一行被本地/在线/歌单/最近四页共用。 */
+.lk-search__acts {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  gap: var(--s2);
 }
 
 .rh-more {

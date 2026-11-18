@@ -57,15 +57,16 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
   return (
     <div className="col">
       <section className="rh-sec">
-        <header className="rh-sec__head">
-          <h3>
-            <Note size={14} /> 专辑
-          </h3>
-          <span className="rh-more">
+        {/*
+          * 这一页整页只有一个分区，页头已经写着「收藏专辑」——这里再写一遍
+          * 「专辑」，等于同一句话说两次。总数跟搜索并成一行，够用了。
+          */}
+        <div className="shelf-bar">
+          <ShelfSearch value={query} placeholder="搜索专辑或歌手" onChange={setQuery} />
+          <span className="shelf-bar__count">
             {query.trim() ? `${shown.length} / ${albums.length} 张` : `${albums.length} 张`}
           </span>
-        </header>
-        <ShelfSearch value={query} placeholder="搜索专辑或歌手" onChange={setQuery} />
+        </div>
         {shown.length === 0 ? (
           <p className="shelf-empty">没有匹配的专辑。</p>
         ) : (

@@ -342,14 +342,14 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                     /*
                      * 徽章说的是「这一版来自这家」；心说的是「这家收没收」。
                      *
-                     * 一首歌在哪些平台有音源各不相同（有的只在网易云，有的两家
-                     * 都有），所以「收了几成」没有稳定分母；要区分平台，就把心
-                     * 拆到每家徽章上：亮的那家收了，灰的那家没收，点一下直接切
-                     * 这家的收藏，不用再去弹菜单选落点。
+                     * 一首歌在哪些平台有音源各不相同，所以「收了几成」没有稳定
+                     * 分母；要区分平台，就把心拆到每家徽章上：有心那家收了。
+                     *
+                     * 心只是标记，不是按钮——徽章是标签，点它不该有任何动作。
+                     * 取消收藏回到行尾那颗心，那里还能选落点。
                      */
                     const marked = like.liked.includes(platform)
                     const name = sourceLabelById(platform)
-                    const target = targets.find((item) => item.source === platform)
                     return (
                       <span
                         key={platform}
@@ -361,18 +361,9 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
                          * 真正的「布局乱」。没收的那家保持原来的纯标签。
                          */}
                         {marked ? (
-                          <button
-                            className="trk__src-like"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              likeAt(target, name)
-                            }}
-                            title={`${name} · 已喜欢，点一下取消`}
-                            aria-label={'取消喜欢 ' + track.title + ' · ' + name}
-                            aria-pressed
-                          >
+                          <span className="trk__src-like">
                             <Heart size={10} />
-                          </button>
+                          </span>
                         ) : null}
                         {name}
                       </span>

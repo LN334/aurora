@@ -6,7 +6,7 @@ import { lyricsTextFor } from '../features/library/hooks'
 import { pickLyricExcerpt } from '../features/lyrics/excerpt'
 import { likedReadFailed } from '../features/online/liked-merge'
 import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
-import { mergeVersions, sourcesOf } from '../features/online/unify'
+import { mergeVersions } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
@@ -14,13 +14,6 @@ import { formatSpan } from '../ui/format'
 import { Play, Shuffle } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
-
-const SOURCES: Record<string, string> = {
-  netease: '网易云',
-  qq: 'QQ 音乐',
-  kugou: '酷狗',
-  qishui: '汽水'
-}
 
 /**
  * 我喜欢的音乐。
@@ -98,14 +91,6 @@ export function LikedPage({
     const timer = window.setTimeout(() => setSlow(true), 8000)
     return () => window.clearTimeout(timer)
   }, [platformLoading])
-  const spread = useMemo(() => {
-    const out: Record<string, number> = {}
-    for (const track of tracks) {
-      for (const key of sourcesOf(track, order)) out[key] = (out[key] ?? 0) + 1
-    }
-    return out
-  }, [tracks])
-
   /*
    * 词卡上放哪一首：随机。只依赖长度：收藏时多一首少一首不必把卡面整个换掉，
    * 那样每点一次心，页面就抖一下。
@@ -217,11 +202,12 @@ export function LikedPage({
           </span>
         ) : null}
         <span className="lk-hero__foot">
-          <span className="lk-hero__titles">
-            <span className="lk-hero__title">我喜欢的音乐</span>
-            <span className="lk-hero__stat">
-              {tracks.length} 首 · {formatSpan(seconds)}
-            </span>
+          {/*
+            * 卡里不再写一遍「我喜欢的音乐」——页头已经写着，同一页说两次只是
+            * 噪音。这里只留规模：多少首、多长。
+            */}
+          <span className="lk-hero__stat">
+            {tracks.length} 首 · {formatSpan(seconds)}
           </span>
           <span className="lk-hero__play">
             <Play size={13} />
@@ -230,20 +216,18 @@ export function LikedPage({
         </span>
       </button>
 
-      <header className="rh-sec__head lk-head">
-        <span className="pl-head__count">
-          {Object.entries(spread).map(([key, count], index) => (
-            <span key={key}>
-              {index > 0 ? ' · ' : ''}
-              {SOURCES[key] ?? '本机'} {count}
-            </span>
-          ))}
-        </span>
-        <span className="lk-head__acts">
-          {/*
-           * 「播放全部」已经在那张卡上，这里只留两件卡上放不下的操作：
-           * 打乱，和重读平台收藏。
-           */}
+      <div className="lk-search">
+        <ShelfSearch value={query} placeholder="搜歌名、歌手、专辑" onChange={setQuery} />
+        {query.trim() ? (
+          <span className="lk-search__count">
+            {shown.length} / {tracks.length} 首
+          </span>
+        ) : null}
+        {/*
+          * 「播放全部」已经在那张卡上，这里只留两件卡上放不下的操作：打乱，
+          * 和重读平台收藏。它们属于这一列歌，不属于标题。
+          */}
+        <span className="lk-search__acts">
           <button
             className="rh-btn"
             type="button"
@@ -253,9 +237,9 @@ export function LikedPage({
             随机
           </button>
           {/*
-            * 平台那半边是十分钟缓存。在这个页面之外（手机 App、网页版）点了心，
-            * 或者想立刻确认刚点的这一下，就靠这颗按钮重读一次；不必重启应用。
-            */}
+           * 平台那半边是十分钟缓存。在这个页面之外（手机 App、网页版）点了心，
+           * 或者想立刻确认刚点的这一下，就靠这颗按钮重读一次；不必重启应用。
+           */}
           <button
             className="rh-btn"
             type="button"
@@ -265,15 +249,6 @@ export function LikedPage({
             刷新
           </button>
         </span>
-      </header>
-
-      <div className="lk-search">
-        <ShelfSearch value={query} placeholder="搜歌名、歌手、专辑" onChange={setQuery} />
-        {query.trim() ? (
-          <span className="lk-search__count">
-            {shown.length} / {tracks.length} 首
-          </span>
-        ) : null}
       </div>
 
       {shown.length === 0 ? (

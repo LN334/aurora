@@ -57,15 +57,13 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
   return (
     <div className="col">
       <section className="rh-sec">
-        <header className="rh-sec__head">
-          <h3>
-            <User size={14} /> 艺人
-          </h3>
-          <span className="rh-more">
+        {/* 同收藏专辑：页头已经写着「关注艺人」，这一行不再复述一遍。 */}
+        <div className="shelf-bar">
+          <ShelfSearch value={query} placeholder="搜索艺人" onChange={setQuery} />
+          <span className="shelf-bar__count">
             {query.trim() ? `${shown.length} / ${artists.length} 位` : `${artists.length} 位`}
           </span>
-        </header>
-        <ShelfSearch value={query} placeholder="搜索艺人" onChange={setQuery} />
+        </div>
         {shown.length === 0 ? (
           <p className="shelf-empty">没有匹配的艺人。</p>
         ) : (
