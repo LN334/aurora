@@ -14,6 +14,7 @@ import {
   kugouLikes,
   kugouLoginStatus,
   kugouLogout,
+  kugouLyrics,
   kugouLogoutProfile,
   kugouMyPlaylists,
   kugouNewSongs,
@@ -125,6 +126,10 @@ export function registerKugouIpc(): void {
       kugouStreamUrl(songId, quality)
     )
   })
+
+  ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) =>
+    guard('lyrics', null, async () => kugouLyrics(asId(songId)))
+  )
 
   ipcMain.handle('kugou:qrCreate', async () =>
     guard('qrCreate', { key: '', imageDataUrl: '' }, async () => kugouQrCreate())

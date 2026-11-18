@@ -7,9 +7,20 @@
  * 双语歌词一样。
  *
  * 判断依据不是「有没有斜杠」——「周乘羽 / 卡力老虎」这种合作署名也用斜杠，拆了
- * 就把人名劈成两半。只有原文不含中日韩字符、后半段含，才当成翻译。
+ * 就把人名劈成两半。原则上凡是译文都拆：英文原文接中文译文、日文原文接中文译文、
+ * 中文原文接英文译文都算双语歌词。只有两种不拆——两段都是纯中文（合作署名），
+ * 或两段都没有中日韩字符（同一句的重复/语气变体）。别拿「原文含 CJK」当「原文是
+ * 中文」：日文就在 CJK 区间里，旧规则因此把日文歌的译文全留在了原文一行。
  */
 const CJK = /[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/
+/** 假名与韩文：出现了就不可能是「中文原文配中文译文」那种署名。 */
+const KANA = /[\u3040-\u30ff]/
+const HANGUL = /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/
+
+/** 纯中文（汉字与中文标点），不含假名、韩文。 */
+function isChinese(text: string): boolean {
+  return !KANA.test(text) && !HANGUL.test(text) && CJK.test(text)
+}
 
 interface LyricLineParts {
   main: string
@@ -24,6 +35,9 @@ export function splitLyricLine(text: string): LyricLineParts {
   const main = trimmed.slice(0, at).trim()
   const sub = trimmed.slice(at + 3).trim()
   if (!main || !sub) return { main: trimmed, sub: '' }
-  if (CJK.test(main) || !CJK.test(sub)) return { main: trimmed, sub: '' }
+  // 两段都是纯中文：合作署名（周乘羽 / 卡力老虎），拆了会把人名劈开。
+  if (isChinese(main) && isChinese(sub)) return { main: trimmed, sub: '' }
+  // 两段都没有中日韩字符：同一句的重复或语气变体（(oh-oh / oh-oh)），不是译文。
+  if (!CJK.test(main) && !CJK.test(sub)) return { main: trimmed, sub: '' }
   return { main, sub }
 }

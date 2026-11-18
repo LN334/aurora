@@ -210,7 +210,13 @@ const kugouSource: TrackSource = {
 
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
-  lyrics: async () => null
+  lyrics: async (track) => {
+    // 酷狗把正文与译文分成两份 LRC 交回（KRC 里的语言轨），合并这一步和网易云
+    // 走同一个函数——两边都是「同一条时间轴上的两份文档」。
+    if (track.onlineId === undefined) return null
+    const raw = await window.aurora?.kugou?.lyrics(track.onlineId)
+    return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+  }
 }
 
 /**
@@ -231,7 +237,13 @@ const qishuiSource: TrackSource = {
 
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
-  lyrics: async () => null
+  lyrics: async (track) => {
+    // 汽水的正文是逐字的私有格式、译文是语言轨，主进程把两边都换成标准 LRC
+    // 之后回到这里，与另外三个平台走同一个合并函数。
+    if (track.onlineId === undefined) return null
+    const raw = await window.aurora?.qishui?.lyrics(track.onlineId)
+    return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+  }
 }
 
 export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource, kugouSource, qishuiSource]

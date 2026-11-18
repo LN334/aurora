@@ -6,6 +6,7 @@ import {
   qishuiFeed,
   qishuiLike,
   qishuiLiked,
+  qishuiLyrics,
   qishuiPlaylistTracksEdit,
   qishuiLoginStatus,
   qishuiLogout,
@@ -136,6 +137,13 @@ export function registerQishuiIpc(): void {
       }
     )
   })
+
+  ipcMain.handle('qishui:lyrics', async (_event, id: unknown) =>
+    guard('lyrics', null, async () => {
+      const alias = asAlias(id)
+      return alias ? await qishuiLyrics(alias) : null
+    })
+  )
 
   ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60

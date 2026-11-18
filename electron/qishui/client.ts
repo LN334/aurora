@@ -3,6 +3,7 @@ import path from 'node:path'
 import { app } from 'electron'
 import { createQishuiApi, type QishuiApi } from 'qishui-music-api'
 import { readState, writeState, clearSession } from './session'
+import { qishuiLyricsFromInfo } from './lyrics'
 import type { QishuiQuality, QishuiRawTrack } from './types'
 import { write } from '../startup-log'
 
@@ -508,6 +509,26 @@ export async function qishuiStreamUrl(
      */
     br: 128000
   }
+}
+
+/**
+ * 汽水的歌词：正文与译文分成两份 LRC 交回。
+ *
+ * 正文在 `lyric_entity` 里是「[起始,时长] + 逐字标记」的私有格式，译文在
+ * `lang_translations` 里已经是标准 LRC——两者都在 `display_info.lyric_info`，
+ * 真值判断与格式换算交给 ./lyrics 的纯函数。
+ */
+export async function qishuiLyrics(
+  alias: number
+): Promise<{ lrc: string; translation: string } | null> {
+  const ref = refOf(alias)
+  if (!ref || ref.kind !== 'track') return null
+  const result = (await apiFor(activeProfileId).request('lyrics', { id: ref.id })) as {
+    ok?: boolean
+    data?: unknown
+  }
+  if (!result.ok) return null
+  return qishuiLyricsFromInfo(result.data)
 }
 
 /**

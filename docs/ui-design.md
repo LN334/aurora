@@ -94,7 +94,7 @@
 
 - 播放页与舞台共用一套纵深：中心行最亮最大，往外四档递减透明度与字号（`data-far` 0–4）。
 - 行高必须跟着字号走：播放页 `LINE_RATIO = 2.588`（17px 字号 → 44px 行高）。只改字号不改行高，中心那句会顶出窗口。
-- 原文与译文拆两行：`main` 一行、`sub` 小一号淡一档。判据在 `src/features/lyrics/line-parts.ts` 的 `splitLyricLine`（含「 / 」且前半段无中日韩字符才当译文）。
+- 原文与译文拆两行：`main` 一行、`sub` 小一号淡一档。判据在 `src/features/lyrics/line-parts.ts` 的 `splitLyricLine`（两段分属不同书写系统才拆，合作署名与纯英文重复段不拆）。
 - 舞台的槽位高度用 `offsetHeight` 量，不能用 `getBoundingClientRect().height` —— 后者带 `transform: scale()`，量到的是缩放后的值，整列会只滚一半、顶端溢出。
 
 ## 文案

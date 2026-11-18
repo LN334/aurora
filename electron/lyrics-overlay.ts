@@ -78,7 +78,9 @@ const MIN_HEIGHT = 88
  * which would otherwise make the hit box jump under the cursor.
  */
 function heightFor(size: number): number {
-  return Math.round(Math.min(320, Math.max(120, size * 1.875 + 76)))
+  // 一行原文、一行译文、一行下一句，再加工具栏：比只有原文的年代多出约一行
+  // 小字的高度。上限仍是 320——再高就没人信它是「桌面歌词」了。
+  return Math.round(Math.min(320, Math.max(140, size * 2.2 + 82)))
 }
 
 let overlay: BrowserWindow | null = null

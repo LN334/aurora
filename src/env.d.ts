@@ -1207,6 +1207,11 @@ export interface KugouApi {
   search(keywords: string, type?: string, limit?: number): Promise<KugouSearchResult>
   /** 取播放地址。未登录、需要会员、上游拒绝都按原因作答，不抛错。 */
   streamUrl(songId: string | number, quality?: KugouQuality): Promise<KugouStreamResult>
+  /**
+   * 歌词：正文与译文分成两份 LRC 交回，时间戳同源。
+   * 上游没有歌词、本地没记过这首歌时都是 null，不抛错。
+   */
+  lyrics(songId: string | number): Promise<{ lrc: string; translation: string } | null>
 
   qrCreate(): Promise<KugouQrSession>
   qrCheck(key: string): Promise<KugouQrResult>
@@ -1360,6 +1365,8 @@ export interface QishuiApi {
   song(id: number): Promise<QishuiSong | null>
   /** 取播放地址。未登录、需要会员、上游拒绝都按原因作答，不抛错。 */
   streamUrl(songId: number, quality?: QishuiQuality): Promise<QishuiStreamResult>
+  /** 歌词：正文与译文分成两份 LRC 交回；没有歌词时 null，不抛错。 */
+  lyrics(songId: number): Promise<{ lrc: string; translation: string } | null>
 
   qrCreate(): Promise<QishuiQrSession>
   qrCheck(key: string): Promise<QishuiQrResult>

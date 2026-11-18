@@ -522,6 +522,7 @@ const api = {
       ipcRenderer.invoke('kugou:search', { keywords, type, limit }),
     streamUrl: (songId: string | number, quality?: string) =>
       ipcRenderer.invoke('kugou:streamUrl', { songId, quality }),
+    lyrics: (songId: string | number) => ipcRenderer.invoke('kugou:lyrics', songId),
 
     qrCreate: () => ipcRenderer.invoke('kugou:qrCreate'),
     qrCheck: (key: string) => ipcRenderer.invoke('kugou:qrCheck', key),
@@ -565,6 +566,7 @@ const api = {
     song: (id: number) => ipcRenderer.invoke('qishui:song', id),
     streamUrl: (songId: number, quality?: string) =>
       ipcRenderer.invoke('qishui:streamUrl', { songId, quality }),
+    lyrics: (songId: number) => ipcRenderer.invoke('qishui:lyrics', songId),
 
     qrCreate: () => ipcRenderer.invoke('qishui:qrCreate'),
     qrCheck: (key: string) => ipcRenderer.invoke('qishui:qrCheck', key),

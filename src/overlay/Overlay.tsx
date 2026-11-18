@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Close, Lock, Next, Pause, Play, Prev, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
+import { splitLyricLine } from '../features/lyrics/line-parts'
 import type { OverlayState } from '../env'
 
 /**
@@ -166,15 +167,27 @@ export function Overlay() {
 
   const active = hovering || !locked
 
+  /*
+   * 译文与原文分开两行，和舞台、播放页用同一个判据。
+   *
+   * 上游把译文用「 / 」接在原文后面（见 features/netease/lrc.ts 的
+   * mergeTranslation），整条挤在一行时英文占满宽度、中文被折到下一行，看起来像
+   * 两段无关的字。桌面歌词窗口只有一句话的位置，更不能把两种语言叠在同一处：
+   * 原文照常渐亮，译文以小一号的字贴在下面。
+   */
+  const line = splitLyricLine(state.text ?? '')
+  const next = splitLyricLine(state.next ?? '')
+
   const words = state.text ? (
     <>
       <div className="lyric-line">
-        <span className="lyric-line__base">{state.text}</span>
+        <span className="lyric-line__base">{line.main}</span>
         <span ref={fill} className="lyric-line__fill" aria-hidden="true">
-          {state.text}
+          {line.main}
         </span>
       </div>
-      {state.next ? <div className="lyric-next">{state.next}</div> : null}
+      {line.sub ? <div className="lyric-line__sub">{line.sub}</div> : null}
+      {state.next ? <div className="lyric-next">{next.main}</div> : null}
     </>
   ) : state.title ? (
     // Lyrics are not the only useful thing to show: this keeps the strip

@@ -317,7 +317,9 @@ console.log(files.length,L,N);'
 - 播放页 `LyricRoll`：一条长列表 + 帧循环写 transform，滚轮/拖动只改目标，停手 4 秒回 active 行；行高 = 字号 × 2.588，改字号必须同步改行高；
 - 舞台 `LyricColumn`：9 个固定槽，整列连续滚动，槽高用 `offsetHeight` 量（不能用 `getBoundingClientRect().height`，那带 `scale()`）；每帧直写 `--far` 与 class，不 setState。
 
-译文拆分判据在 `src/features/lyrics/line-parts.ts` 的 `splitLyricLine`：含「 / 」且前半段无中日韩字符才算译文，合作署名不拆。
+译文由平台自带的另一份轨道提供（网易云 `tlyric`、QQ `trans`、酷狗 KRC 的 `language` 轨、汽水 `lang_translations`），主进程按行与原文并成「原文 / 译文」单串，渲染层再拆回两行。
+
+拆分判据在 `src/features/lyrics/line-parts.ts` 的 `splitLyricLine`：两段分属不同书写系统（日文 / 中文、英文 / 中文…）才拆；两段同属中文或同属英文（合作署名 `周乘羽 / 卡力老虎`、语气重复 `(oh-oh-oh / oh-oh-oh)`）不拆。
 
 ### 5.6 首页数据链路
 

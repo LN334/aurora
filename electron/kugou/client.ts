@@ -5,6 +5,8 @@ import net from 'node:net'
 import path from 'node:path'
 import { app } from 'electron'
 import { write } from '../startup-log'
+import { fetchKugouLyrics } from './lyrics'
+import type { KugouLyricsPayload } from './lyrics'
 import { classifyStreamFailure, describeFailure } from './reasons'
 import { clearSession, hasSession, readState, writeState } from './session'
 import {
@@ -1051,6 +1053,28 @@ export function kugouLogoutProfile(profileId: string): boolean {
   clearSession(profileId)
   if (profileId === activeProfileId) pendingQr = null
   return true
+}
+
+// --- 歌词 ---------------------------------------------------------------
+
+/**
+ * 歌词：拿本地记住的 hash 去公网查 KRC。
+ *
+ * 和取流一样，先得「见过这首歌」——搜索与歌单返回时记下的 hash 是唯一的钥匙，
+ * 没见过就答 null，界面按「没有歌词」处理。网络与解析都在 ./lyrics 里，这边
+ * 只管从索引里把身份取出来。
+ */
+export async function kugouLyrics(
+  songId: string | number
+): Promise<KugouLyricsPayload | null> {
+  const song = songOf(songId)
+  if (!song) return null
+  try {
+    return await fetchKugouLyrics(song)
+  } catch (error) {
+    console.error('[aurora] kugou lyric lookup failed', messageOf(error))
+    return null
+  }
 }
 
 // --- 音质 ---------------------------------------------------------------
