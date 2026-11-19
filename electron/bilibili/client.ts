@@ -46,11 +46,52 @@ function asNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+/**
+ * 访客指纹。
+ *
+ * B 站对没有 buvid 的请求会回 `{code: 0, data: {v_voucher}}`——那是人机验证凭证，
+ * 不是搜索结果，看上去和「一条都没搜到」一模一样。指纹从 spi 接口拿，两个值拼成
+ * 一次性的 Cookie 头，进程内复用。
+ */
+let cookieHeader = ''
+
+async function ensureFingerprint(): Promise<void> {
+  if (cookieHeader) return
+  try {
+    /*
+     * 先访问一次首页：真实浏览器就是在这里拿到 buvid3/buvid4/b_nut 的，
+     * 它们才是搜索接口认的访客身份。spi 接口只给 b_3/b_4，拿不到 home 那次
+     * 下发的 b_nut，风控仍会回 voucher，所以两条都试，先取首页那几个。
+     */
+    const home = await fetch('https://www.bilibili.com/', {
+      headers: { 'User-Agent': USER_AGENT, Referer: REFERER },
+      signal: AbortSignal.timeout(12000)
+    })
+    const setCookies = typeof home.headers.getSetCookie === 'function' ? home.headers.getSetCookie() : []
+    const kept = setCookies
+      .map((line) => line.split(';')[0])
+      .filter((pair) => /^(buvid3|buvid4|b_nut|b_lsid|_uuid)=/.test(pair))
+    if (kept.length > 0) {
+      cookieHeader = kept.join('; ')
+      return
+    }
+    const response = await fetch('https://api.bilibili.com/x/frontend/finger/spi', {
+      headers: { 'User-Agent': USER_AGENT, Referer: REFERER },
+      signal: AbortSignal.timeout(10000)
+    })
+    const data = asRecord(asRecord(await response.json()).data)
+    const b3 = asString(data.b_3)
+    const b4 = asString(data.b_4)
+    if (b3) cookieHeader = 'buvid3=' + b3 + (b4 ? '; buvid4=' + b4 : '')
+  } catch {
+    // 拿不到就照常发：真被风控时上游会再回 voucher，界面显示为空而不是崩掉。
+  }
+}
+
 async function getJson(url: string): Promise<Record<string, unknown>> {
-  const response = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT, Referer: REFERER },
-    signal: AbortSignal.timeout(15000)
-  })
+  const headers: Record<string, string> = { 'User-Agent': USER_AGENT, Referer: REFERER }
+  if (cookieHeader) headers.Cookie = cookieHeader
+  const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) })
   return asRecord(await response.json())
 }
 
@@ -112,6 +153,7 @@ function coverUrl(value: string): string | null {
  */
 async function bilibiliVideo(aid: number): Promise<BilibiliVideo | null> {
   if (!Number.isSafeInteger(aid) || aid <= 0) return null
+  await ensureFingerprint()
   const body = await getJson('https://api.bilibili.com/x/web-interface/view?aid=' + aid)
   if (asNumber(body.code) !== 0) return null
   const data = asRecord(body.data)
@@ -138,8 +180,13 @@ export async function bilibiliSearch(keywords: string, limit: number): Promise<B
     page: 1,
     page_size: size
   })
+  await ensureFingerprint()
   const body = await getJson(url)
-  if (asNumber(body.code) !== 0) return { videos: [] }
+  if (asNumber(body.code) !== 0) {
+    // 风控（-352/-412）与「参数不对」都从这里看出来；静默返回空会让界面像没搜到。
+    console.error('[aurora] bilibili search refused', asNumber(body.code), asString(body.message))
+    return { videos: [] }
+  }
   const rows = asArray(asRecord(body.data).result)
   const videos: BilibiliVideo[] = []
   for (const row of rows) {
