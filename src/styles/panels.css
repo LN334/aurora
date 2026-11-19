@@ -1336,3 +1336,27 @@ body.is-party-window {
 .party-window .party__say {
   align-items: center;
 }
+
+/*
+ * 一起听作为一页时，那颗「弹窗」不再浮在视口中央：它变成页面里的一块。
+ * 房间本身活在主进程里，这一页只是门面——离开页面不等于退房。
+ */
+.party-page {
+  padding: var(--s5) 0;
+}
+
+.party-page .party-dialog {
+  position: static;
+  translate: none;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  height: auto;
+  max-height: none;
+  border-radius: 16px;
+  animation: none;
+}
+
+.party-page .party-dialog .panel__body {
+  max-height: none;
+  overflow: visible;
+}
