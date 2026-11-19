@@ -1338,25 +1338,129 @@ body.is-party-window {
 }
 
 /*
- * 一起听作为一页时，那颗「弹窗」不再浮在视口中央：它变成页面里的一块。
- * 房间本身活在主进程里，这一页只是门面——离开页面不等于退房。
+ * 一起听这一页。
+ *
+ * 左边做事（开房/加入，或房间信息），右边一直是「房间里」的侧栏。不做弹窗壳：
+ * 弹窗那套居中、圆角、×，在页面里只是把内容挤到中间一小块。
  */
 .party-page {
-  padding: var(--s5) 0;
+  padding: var(--s5) var(--s6) var(--s7);
 }
 
-.party-page .party-dialog {
-  position: static;
-  translate: none;
-  width: min(760px, 100%);
-  margin: 0 auto;
-  height: auto;
-  max-height: none;
-  border-radius: 16px;
-  animation: none;
+.party-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--s6);
+  align-items: start;
 }
 
-.party-page .party-dialog .panel__body {
-  max-height: none;
-  overflow: visible;
+.party-page__main,
+.party-page__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.party-page__side {
+  padding: var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.04);
+}
+
+.party-page__h {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.party-page__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s6);
+}
+
+.party-page__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.party-page__col > .rh-btn:last-child {
+  margin-top: auto;
+  align-self: flex-start;
+  padding: 7px 18px;
+}
+
+.party-page__field {
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+.party-page__hint {
+  margin: 0;
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--text-low);
+}
+
+.party-page__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.party-page__check {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+/* 房间码：这一页唯一需要一眼看清的东西。 */
+.party-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 14px var(--s5);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.05);
+}
+
+.party-badge__label {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-badge__code {
+  margin-right: auto;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--text-hi);
+}
+
+.party-kv {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px var(--s3);
+  margin: 0;
+  font-size: var(--fs-meta);
+}
+
+.party-kv dt {
+  color: var(--text-low);
+}
+
+.party-kv dd {
+  margin: 0;
+  color: var(--text-hi);
 }
