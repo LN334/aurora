@@ -1358,7 +1358,8 @@ body.is-party-window {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s5);
-  max-width: 860px;
+  /* 之前 860 在宽窗口里只占不到一半，看着像塞了个小盒子进去。 */
+  max-width: 1120px;
 }
 
 .party-pick__card {
@@ -1366,10 +1367,13 @@ body.is-party-window {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s2);
-  padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  padding: var(--s6);
+  /* 壁纸太亮时，纯 tint 会把字糊掉：背后模糊一层，细节压下去，字才立得住。 */
+  backdrop-filter: blur(22px) saturate(120%);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
   border-radius: 16px;
-  background: rgb(var(--ink-850-rgb) / 0.72);
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
   font: inherit;
   text-align: left;
@@ -1387,7 +1391,7 @@ body.is-party-window {
 }
 
 .party-pick__card strong {
-  font-size: var(--fs-title);
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -1403,21 +1407,65 @@ body.is-party-window {
 }
 
 .party-pick__hint {
-  font-size: var(--fs-micro);
+  font-size: var(--fs-meta);
   line-height: 1.6;
-  color: var(--text-low);
+  color: var(--text-mid);
 }
 
 .party-pick__join {
   display: flex;
   gap: var(--s2);
   width: 100%;
-  margin-top: var(--s3);
+  margin-top: auto;
+  padding-top: var(--s3);
 }
 
+/*
+ * 输入框照搜索框那套来做：低 tint、细描边、内一道高光，聚焦时 accent 边 + 3px 光环。
+ * 这不是新发明——顶上那颗搜索框就是这么长的，同一页里两个输入框长得一样才不别扭。
+ */
 .party-pick__join .input {
   flex: 1;
   min-width: 0;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: var(--r-panel);
+  background: rgb(var(--tint-rgb) / 0.055);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.05);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition:
+    background 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+
+.party-pick__join .input::placeholder {
+  color: var(--text-low);
+}
+
+.party-pick__join .input:hover {
+  background: rgb(var(--tint-rgb) / 0.075);
+}
+
+.party-pick__join .input:focus {
+  background: rgb(var(--tint-rgb) / 0.09);
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  box-shadow:
+    0 0 0 3px rgb(var(--accent-rgb) / 0.16),
+    0 8px 24px rgb(var(--shade-rgb) / 0.28),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.07);
+}
+
+.party-pick__join .rh-btn {
+  height: 32px;
+}
+
+.party-pick__join .rh-btn {
+  height: 36px;
 }
 
 /* —— 房间 —— */
@@ -1425,11 +1473,13 @@ body.is-party-window {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  max-width: 860px;
+  backdrop-filter: blur(22px) saturate(120%);
+  max-width: 1120px;
   padding: var(--s5) var(--s6);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
   border-radius: 16px;
-  background: rgb(var(--ink-850-rgb) / 0.72);
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
 }
 
 .party-room__head {
@@ -1440,7 +1490,7 @@ body.is-party-window {
 
 .party-room__title {
   margin: 0 0 6px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--text-hi);
 }
@@ -1472,16 +1522,16 @@ body.is-party-window {
   display: flex;
   align-items: center;
   gap: var(--s4);
-  min-height: 118px;
+  min-height: 132px;
   padding: var(--s4);
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
   border-radius: 14px;
   background: rgb(var(--tint-rgb) / 0.03);
 }
 
 .party-room__cover {
-  width: 86px;
-  height: 86px;
+  width: 96px;
+  height: 96px;
   flex: none;
   border-radius: 12px;
   background: linear-gradient(140deg, #3b6ea8, #1e2f4a);
@@ -1534,6 +1584,18 @@ body.is-party-window {
 .party-room__row {
   display: flex;
   gap: var(--s2);
+  align-items: center;
+}
+
+.party-room__row .input {
+  height: 34px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.26);
+  background: rgb(var(--tint-rgb) / 0.1);
+  border-radius: 9px;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  padding: 0 12px;
 }
 
 .party-room__foot {
@@ -1574,9 +1636,10 @@ body.is-party-window {
 .party-page__main,
 .party-page__side {
   padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.09);
   border-radius: 16px;
-  background: rgb(var(--ink-850-rgb) / 0.78);
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
 }
 
 .party-page__side {
@@ -1647,4 +1710,22 @@ body.is-party-window {
 
 .np-party__warn {
   color: #e0b341;
+}
+
+/*
+ * 薄片上的字要压得住亮壁纸。
+ *
+ * 不加深底色（用户不要黑块），改用一道浅投影：亮处文字也有轮廓，暗处几乎看不出，
+ * 比继续堆不透明度更像原本的界面。
+ */
+.party-pick__card,
+.party-room,
+.party-page__main,
+.party-page__side {
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+}
+
+.party-room__foot,
+.party-page__hint {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
 }

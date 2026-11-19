@@ -87,11 +87,29 @@ export function PartyPage() {
     return (
       <div className="party-page">
         <section className="party-pick">
-          <button className="party-pick__card" disabled={busy} onClick={() => void useParty.getState().host('房主')}>
+          {/*
+            用 div 而不是 button：两张卡必须长得一样，而 <button> 在这套渲染里会拿到
+            自己的合成层，backdrop-filter 的表现和旁边的 div 不一致（一深一浅）。
+            语义靠 role 与键盘处理补回来。
+          */}
+          <div
+            className={'party-pick__card' + (busy ? ' is-disabled' : '')}
+            role="button"
+            tabIndex={busy ? -1 : 0}
+            onClick={() => {
+              if (!busy) void useParty.getState().host('房主')
+            }}
+            onKeyDown={(event) => {
+              if (!busy && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault()
+                void useParty.getState().host('房主')
+              }
+            }}
+          >
             <span className="party-pick__icon" aria-hidden="true">＋</span>
             <strong>创建房间</strong>
             <span className="party-pick__hint">你的播放、暂停、切歌都会同步给朋友</span>
-          </button>
+          </div>
           <div className="party-pick__card is-flat">
             <span className="party-pick__icon" aria-hidden="true">⌁</span>
             <strong>加入房间</strong>
