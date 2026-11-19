@@ -533,12 +533,20 @@ async function accountOf(profileId: string): Promise<QqAccount | null> {
   if (!state.cookie) return null
 
   const stored = accountFrom(state)
-  const uin = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
-  if (!uin) return stored
+  const known = state.uin || uinDigits(cookieValue(state.cookie, 'uin', 'qqmusic_uin'))
 
   try {
-    const probe = readAccountProbe(await requestAccount({ uin, cookie: state.cookie }))
+    /*
+     * 这里以前是 `if (!uin) return stored`，而会话 token 本身不带 uin —— 于是探针
+     * 永远发不出去，uin 也就永远补不上，自己的歌单与写接口跟着一起失效。探针只需要
+     * token，所以先问，再从 profile 里的 musicid 取 uin。
+     */
+    const probe = readAccountProbe(await requestAccount({ uin: known, cookie: state.cookie }))
     if (!probe.authenticated) return null
+
+    const uin = known || uinDigits(probe.uin)
+    // 探针答了但没给 id：保留已知账号，别写一个空 uin 把登录态弄丢。
+    if (!uin) return stored
 
     const patch: Parameters<typeof writeState>[1] = {
       nickname: probe.nickname || state.nickname,

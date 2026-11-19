@@ -312,7 +312,7 @@ test('an authenticated account probe reads the profile wherever it is nested', (
   const nested = readAccountProbe({
     body: { response: { code: 0, data: { profile: { nickname: 'nick', avatarUrl: 'https://a', level: 9 } } } }
   })
-  assert.deepEqual(nested, { authenticated: true, nickname: 'nick', avatarUrl: 'https://a', level: 9 })
+  assert.deepEqual(nested, { authenticated: true, nickname: 'nick', avatarUrl: 'https://a', level: 9, uin: '' })
 
   const flat = readAccountProbe({
     body: { response: { code: 0, data: { name: 'n2', logo: 'https://b' } } }
@@ -320,6 +320,21 @@ test('an authenticated account probe reads the profile wherever it is nested', (
   assert.equal(flat.authenticated, true)
   assert.equal(flat.nickname, 'n2')
   assert.equal(flat.avatarUrl, 'https://b')
+})
+
+test('the account probe carries the musicid as a string, keeping all 19 digits', () => {
+  // 包签发的会话 token 不带 uin，/user/detail 的 profile 是唯一来源。
+  const probe = readAccountProbe({
+    body: {
+      response: {
+        code: 0,
+        data: { profile: { musicid: '1234567890123456789', nickname: 'n', avatarUrl: null } }
+      }
+    }
+  })
+  assert.equal(probe.uin, '1234567890123456789')
+  // 过一遍 Number 会变成 1234567890123456800，所以这里必须是字符串
+  assert.equal(probe.uin.length, 19)
 })
 
 // --- membership ------------------------------------------------------------

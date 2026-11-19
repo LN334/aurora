@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
@@ -37,6 +38,39 @@ let booting: Promise<string> | null = null
 let failedAt = 0
 let cleanupWired = false
 let detail = ''
+
+/**
+ * 上游把登录态存在进程内存里，服务一重启，所有 token 立刻作废 —— 用户每次开
+ * Aurora 都得重扫一次码。包为此留了两个环境变量（`QQ_AUTH_SESSION_PATH` /
+ * `QQ_SESSION_SECRET`）：给了就把会话加密落到文件，重启后还能认回来。
+ *
+ * 密钥自己生成一次留在 userData 里。它和加密文件分开存放只是为了让「换一份
+ * 会话」不必连密钥一起丢；这台机器上的任何进程本来就读得到这两样，所以这里
+ * 不假装更强的东西。
+ */
+const AUTH_SESSION_FILE = 'qq-auth-sessions.json'
+const AUTH_SECRET_FILE = 'qq-session.key'
+
+function authStore(): { file: string; secret: string } | null {
+  try {
+    const dir = app.getPath('userData')
+    const secretFile = path.join(dir, AUTH_SECRET_FILE)
+    let secret = ''
+    try {
+      secret = fs.readFileSync(secretFile, 'utf8').trim()
+    } catch {
+      // 第一次运行：文件不存在不是错误
+    }
+    if (!secret) {
+      secret = randomBytes(32).toString('hex')
+      fs.writeFileSync(secretFile, secret, { encoding: 'utf8', mode: 0o600 })
+    }
+    return { file: path.join(dir, AUTH_SESSION_FILE), secret }
+  } catch {
+    // 纯 node 冒烟（没有 Electron）时 app 是 undefined，退化成内存会话
+    return null
+  }
+}
 
 /** 打包后 node_modules 在 asar 里，解包的文件落在 app.asar.unpacked。 */
 function realPath(target: string): string {
@@ -152,12 +186,15 @@ async function start(): Promise<string> {
      * `spawn` 的 cwd 需要真实目录（实测会让子进程起不来）。而 -e 里的
      * require 用的是绝对路径，本来就不依赖工作目录。
      */
+    const store = authStore()
     proc = spawn(command, ['-e', boot], {
       env: {
         ...process.env,
         QQ_API_MAIN: entry,
         PORT: String(port),
-        ELECTRON_RUN_AS_NODE: '1'
+        ELECTRON_RUN_AS_NODE: '1',
+        // 没有 store 时不设这两个变量，包自己退回内存会话
+        ...(store ? { QQ_AUTH_SESSION_PATH: store.file, QQ_SESSION_SECRET: store.secret } : {})
       },
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']

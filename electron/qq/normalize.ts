@@ -337,13 +337,21 @@ export const UNAUTHENTICATED_CODE = 1000
   nickname: string
   avatarUrl: string | null
   level: number | null
+  /**
+   * The account id, when the payload carries one.
+   *
+   * 包的 `/user/detail` 把凭证里的 musicid 摊在 profile 上（`musicid` /
+   * `str_musicid`），而会话 token 本身不带 uin —— 这是 Aurora 唯一能补上 uin
+   * 的地方，写接口与自己的歌单都指着它。空串表示这次回包没给。
+   */
+  uin: string
 }
 
 export function readAccountProbe(response: unknown): AccountProbe {
   const payload = record(record(record(response).body).response)
   const code = numberOrZero(payload.code ?? payload.subcode)
   if (code === UNAUTHENTICATED_CODE) {
-    return { authenticated: false, nickname: '', avatarUrl: null, level: null }
+    return { authenticated: false, nickname: '', avatarUrl: null, level: null, uin: '' }
   }
 
   const data = record(payload.data)
@@ -363,7 +371,9 @@ export function readAccountProbe(response: unknown): AccountProbe {
     // The avatar is a complete URL upstream; the field is `logo` in some
     // payloads and `avatarUrl` in others.
     avatarUrl: text(pick(profile, 'avatarUrl', 'logo', 'headpic')) || null,
-    level: integerOrNull(pick(profile, 'level', 'vipLevel', 'musicLevel'))
+    level: integerOrNull(pick(profile, 'level', 'vipLevel', 'musicLevel')),
+    // 数字 id 一律按字符串搬，19 位 uin 过一遍 Number 会失真。
+    uin: text(pick(profile, 'musicid', 'str_musicid', 'uin', 'uid'))
   }
 }
 
