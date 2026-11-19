@@ -3606,3 +3606,16 @@
   background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
 }
+
+/*
+ * 列表工具条上的筛选键排在右端，和「随机 / 刷新」那些键站在一起。
+ *
+ * 收起来之后它只剩一颗 32px 的放大镜；放在原处（这一行的最左边）就是一颗
+ * 孤零零的图标挂在段落开头，比原来的搜索框还突兀。这一行本来就是「左边看
+ * 结果、右边动手」的分工，筛选键属于动手那一侧。
+ */
+.lk-search > .shelf-search,
+.lk-search > .shelf-search__trigger {
+  order: 10;
+  margin-left: auto;
+}
