@@ -78,6 +78,7 @@ export function PartyPage() {
 
   return (
     <div className="party-page">
+      <div className="party-page__grid">
       <section className="party-stage">
         {inRoom ? (
           <>
@@ -162,6 +163,24 @@ export function PartyPage() {
         {state.error ? <p className="party-stage__hint">{state.error}</p> : null}
         {roomPort ? <p className="party-stage__tiny">房间端口 {roomPort}</p> : null}
       </section>
+
+      <aside className="party-page__side">
+        <h2 className="party-page__h">怎么用</h2>
+        <ol className="party-steps">
+          <li>点「开一个房间」，房间码出现在上面。</li>
+          <li>点「复制邀请」，得到一条链接。</li>
+          <li>把链接发给朋友，他点开就进来了。</li>
+        </ol>
+        <h2 className="party-page__h">跨网络</h2>
+        <p className="party-page__hint">
+          同一个 WiFi 能直连。不在一个网里，要先把房间端口穿到公网——用樱花隧道，房间里会多一颗「开公网」。
+        </p>
+        <h2 className="party-page__h">音质</h2>
+        <p className="party-page__hint">
+          房主取什么，全房间听什么。客人没登录平台也能听到，因为音频走房间转发。
+        </p>
+      </aside>
+      </div>
     </div>
   )
 }
