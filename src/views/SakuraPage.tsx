@@ -9,7 +9,7 @@ export function SakuraPage() {
   }, [])
 
   return (
-    <div className="party-page">
+    <div className="party-page party-page--wide">
       <div className="party-page__grid">
         <section className="party-page__main">
           <SakuraPanel />

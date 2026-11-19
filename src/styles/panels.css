@@ -1555,3 +1555,59 @@ body.is-party-window {
   border: 1px solid rgb(var(--tint-rgb) / 0.26);
   background: rgb(var(--tint-rgb) / 0.1);
 }
+
+/* 樱花页：两栏（主区 + 说明），不沿用入口页的垂直居中。 */
+.party-page--wide {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.party-page__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s5);
+  align-items: start;
+  width: 100%;
+  max-width: 1040px;
+}
+
+.party-page__main,
+.party-page__side {
+  padding: var(--s5);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 16px;
+  background: rgb(var(--ink-850-rgb) / 0.78);
+}
+
+.party-page__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.party-page__h {
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.party-page__h:first-child {
+  margin-top: 0;
+}
+
+.sakura-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* 樱花卡片上的文字要压得住壁纸。 */
+.sakura-card {
+  background: rgb(var(--tint-rgb) / 0.06);
+}
+
+.sakura-card__node,
+.sakura-card__map {
+  color: var(--text-mid);
+}
