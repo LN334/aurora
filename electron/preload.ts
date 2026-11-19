@@ -633,7 +633,7 @@ const api = {
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     setRelay: (relay: boolean) => ipcRenderer.invoke('party:relay', { relay }),
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
-    openChat: () => ipcRenderer.invoke('party:chat'),
+    openChat: () => ipcRenderer.invoke('party:chatWindow'),
     openSakura: () => ipcRenderer.invoke('party:sakura'),
     registerStream: (trackId: string, url: string) =>
       ipcRenderer.invoke('party:stream', { trackId, url }) as Promise<string>,

@@ -123,7 +123,7 @@ export function registerPartyIpc(): void {
     return true
   })
 
-  ipcMain.handle('party:chat', () => {
+  ipcMain.handle('party:chatWindow', () => {
     chatWindowOpen()
     return true
   })
