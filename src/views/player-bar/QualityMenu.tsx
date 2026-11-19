@@ -16,18 +16,28 @@ import { usePlayer } from '../../features/player/store'
  * 这句话，否则按下去听不出差别，看起来像没生效。
  */
 
+/*
+ * 分两层是必须的。
+ *
+ * 外层的 hook 只依赖播放器（永远调用得到）；内层才按平台订阅账号——会员状态
+ * 一变，需要会员的档位要立刻从菜单里消失。合成一层的话，上一个「没有 provider」
+ * 的渲染与这一个渲染的 hook 数量不同，React 会直接报错。
+ */
 export function QualityMenu() {
   const track = usePlayer((state) => state.current())
   const source = track?.source ?? ''
-  const provider = source && source !== 'local' ? getProvider(source) : null
+  if (!source || source === 'local') return null
+  return <QualityBody source={source} />
+}
+
+function QualityBody({ source }: { source: string }) {
+  const provider = getProvider(source)
   /*
-   * 明确非会员就把会员档收起来。账号状态是变的，所以每次渲染读一次当前值：
-   * 菜单本身活不长，订阅一整个 store 反而更重。
+   * 订阅而不是 getState()：账号状态是会变的，登录/退出之后会员档位该马上跟着
+   * 出现或消失。读一次当前值的话，用户得等下一次重渲染才看得到。
    */
-  const vip = provider ? (useOnlineStore(provider.id).getState().account?.vip ?? null) : null
-  const tiers = (provider?.qualityTiers ?? []).filter((tier) =>
-    provider ? tierAllowed(provider, tier, vip) : false
-  )
+  const vip = useOnlineStore(source)((state) => state.account?.vip ?? null)
+  const tiers = (provider?.qualityTiers ?? []).filter((tier) => tierAllowed(provider!, tier, vip))
 
   const [tier, setTier] = useState<QualityTier | null>(null)
   const [open, setOpen] = useState(false)
