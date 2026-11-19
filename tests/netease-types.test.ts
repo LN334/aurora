@@ -63,19 +63,32 @@ test('null, undefined and objects are not ids', () => {
   }
 })
 
-test('the quality guard accepts exactly the four selectable tiers', () => {
-  assert.deepEqual([...NETEASE_QUALITIES], ['standard', 'higher', 'exhigh', 'lossless'])
+test('the quality guard accepts every selectable tier, worst to best', () => {
+  /*
+   * 后四档是无损之上：Hi-Res、高清环绕声、沉浸环绕声、超清母带。实测同一首
+   * 歌（夜に駆ける）在 128k/192k/320k/无损之外还能给 jyeffect 3.1M、sky 2.4M、
+   * jymaster 5.2M 的 FLAC；`hires` 这首歌没有，上游会回落成 lossless。
+   */
+  assert.deepEqual([...NETEASE_QUALITIES], [
+    'standard',
+    'higher',
+    'exhigh',
+    'lossless',
+    'hires',
+    'jyeffect',
+    'sky',
+    'jymaster'
+  ])
   for (const quality of NETEASE_QUALITIES) assert.equal(isNeteaseQuality(quality), true)
 })
 
-test('the quality guard refuses hires, which is reported but never requested', () => {
-  // `hires` exists in the stream shape because upstream can answer with it, but
-  // it is not one of the four the setting offers.
-  assert.equal(isNeteaseQuality('hires'), false)
+test('the quality guard accepts hires as a request, not only as a report', () => {
+  // 以前 `hires` 只出现在回包里、设置里选不到；现在它是可选档之一。
+  assert.equal(isNeteaseQuality('hires'), true)
 })
 
-test('the quality guard refuses anything that is not one of the four strings', () => {
-  for (const value of ['', 'EXHIGH', 'loss', 'standard ', 1, null, undefined, {}, ['exhigh']]) {
+test('the quality guard refuses anything that is not one of the strings', () => {
+  for (const value of ['', 'EXHIGH', 'loss', 'standard ', 'master', 'spatial', 1, null, undefined, {}, ['exhigh']]) {
     assert.equal(isNeteaseQuality(value), false, `${String(value)} should not pass the quality guard`)
   }
 })

@@ -41,14 +41,27 @@ export type ProviderId = string
 export type QualityTier = NeteaseQuality
 
 /** Worst to best. A provider may support any subset of this order. */
- const QUALITY_TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless']
+ const QUALITY_TIERS: QualityTier[] = [
+  'standard',
+  'higher',
+  'exhigh',
+  'lossless',
+  'hires',
+  'jyeffect',
+  'sky',
+  'jymaster'
+]
 
-export const QUALITY_LABELS: Record<QualityTier | 'hires', string> = {
+export const QUALITY_LABELS: Record<QualityTier, string> = {
   standard: '标准 128k',
   higher: '较高 192k',
   exhigh: '极高 320k',
   lossless: '无损 FLAC',
-  hires: 'Hi-Res'
+  hires: 'Hi-Res',
+  // 网易云在无损之上的三档：环绕声与母带，名字用上游自己的叫法。
+  jyeffect: '高清环绕声',
+  sky: '沉浸环绕声',
+  jymaster: '超清母带'
 }
 
 /**

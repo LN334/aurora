@@ -822,11 +822,22 @@ export async function neteaseCommentLike(
 
 // --- playable stream -----------------------------------------------------
 
-const QUALITY_LEVELS = new Set(['standard', 'higher', 'exhigh', 'lossless', 'hires'])
+/** 上游回包里可能出现的 level，含无损以上那四档空间音频/母带规格。 */
+const QUALITY_LEVELS = new Set([
+  'standard',
+  'higher',
+  'exhigh',
+  'lossless',
+  'hires',
+  'jyeffect',
+  'sky',
+  'jymaster'
+])
 
-function levelOf(value: unknown, requested: NeteaseQuality): NeteaseQuality | 'hires' {
+function levelOf(value: unknown, requested: NeteaseQuality): NeteaseQuality {
   const level = asString(value)
-  if (QUALITY_LEVELS.has(level)) return level as NeteaseQuality | 'hires'
+  if (QUALITY_LEVELS.has(level)) return level as NeteaseQuality
+  // 上游把档位打回低档时说不出是哪一档，按请求的那一档回报会被界面当成拿到了。
   return requested
 }
 

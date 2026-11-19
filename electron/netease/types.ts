@@ -35,13 +35,34 @@ export interface NeteaseSong {
   fee: number
 }
 
-export type NeteaseQuality = 'standard' | 'higher' | 'exhigh' | 'lossless'
+/**
+ * 音质档位，从低到高。
+ *
+ * 前四档是老的「普通/较高/极高/无损」；后四档是网易云在无损之上还愿意给的：
+ * `hires` 是 Hi-Res，`jyeffect`（高清环绕声）、`sky`（沉浸环绕声）、
+ * `jymaster`（超清母带）是另一套空间音频/母带规格。它们和前面几档一样走
+ * `song_url_v1` 的 `level` 参数，只是要账号确实有那个权益、曲目也确实有那份
+ * 母带——没有时上游会把 level 打回低档甚至给空 url，界面照实显示降级结果。
+ */
+export type NeteaseQuality =
+  | 'standard'
+  | 'higher'
+  | 'exhigh'
+  | 'lossless'
+  | 'hires'
+  | 'jyeffect'
+  | 'sky'
+  | 'jymaster'
 
 export const NETEASE_QUALITIES: readonly NeteaseQuality[] = [
   'standard',
   'higher',
   'exhigh',
-  'lossless'
+  'lossless',
+  'hires',
+  'jyeffect',
+  'sky',
+  'jymaster'
 ]
 
 export function isNeteaseQuality(value: unknown): value is NeteaseQuality {

@@ -46,8 +46,23 @@ type NeteaseExtras = {
 
 const extras = netease as unknown as NeteaseExtras
 
-/** Netease's tiers, worst to best, exactly as the main process accepts them. */
-const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless']
+/**
+ * Netease's tiers, worst to best, exactly as the main process accepts them.
+ *
+ * 后四档在无损之上：Hi-Res、高清环绕声、沉浸环绕声、超清母带。列出来不等于一定
+ * 拿得到——账号没有那份权益或曲目没有那份母带时，上游会把 level 打回低档，界面
+ * 显示的是回包里真实的 level，不是这里选的那一档。
+ */
+const TIERS: QualityTier[] = [
+  'standard',
+  'higher',
+  'exhigh',
+  'lossless',
+  'hires',
+  'jyeffect',
+  'sky',
+  'jymaster'
+]
 
 /**
  * Which generated collections this platform has.

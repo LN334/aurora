@@ -506,7 +506,19 @@ export interface NeteaseSong {
   fee: number
 }
 
-export type NeteaseQuality = 'standard' | 'higher' | 'exhigh' | 'lossless'
+/**
+ * 网易云音质：前四档是老的普通/较高/极高/无损，后四档是无损之上的 Hi-Res 与
+ * 空间音频/母带规格（jyeffect 高清环绕、sky 沉浸环绕、jymaster 超清母带）。
+ */
+export type NeteaseQuality =
+  | 'standard'
+  | 'higher'
+  | 'exhigh'
+  | 'lossless'
+  | 'hires'
+  | 'jyeffect'
+  | 'sky'
+  | 'jymaster'
 
 export interface NeteaseStream {
   /** Upstream http(s) URL. The renderer must proxy it, not fetch it. */
