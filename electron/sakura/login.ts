@@ -36,7 +36,7 @@ function shape(value: string): string {
  * 两路都拿不到就明确说「没找到」，不假装成功、也不让用户猜。
  */
 
-const TOKEN_SHAPE = /\b[0-9a-f]{32}\b/i
+const TOKEN_SHAPE = /\b[A-Za-z0-9_-]{16,64}\b/
 const SETTINGS_URL = 'https://www.natfrp.com/user/settings'
 const HOME_URL = 'https://www.natfrp.com/user/'
 
@@ -115,6 +115,40 @@ async function sweepPages(win: BrowserWindow, note: (line: string) => void): Pro
   return ''
 }
 
+/**
+ * 在页面里借登录态要一次用户信息。
+ *
+ * 官方 openapi 里 /user/info 的 token 字段就是访问密钥（示例值 wdnmdtoken666666，
+ * 所以它不是 32 位十六进制）。面板前端走的是同源相对路径，cookie 由 nginx 转给
+ * 后端——所以必须从这个页面的上下文里发请求，主进程直接 session.fetch 到 api 域名
+ * 会被判成未登录（之前就是这么 401 的）。
+ */
+async function tokenFromPanel(win: BrowserWindow): Promise<{ token: string; detail: string }> {
+  try {
+    const raw = String(
+      await win.webContents.executeJavaScript(
+        "fetch('/v4/user/info', { headers: { Accept: 'application/json' } }).then(r => r.text()).catch(e => 'ERR ' + e.message)",
+        true
+      )
+    )
+    if (raw.startsWith('ERR')) return { token: '', detail: 'fetch 失败 ' + raw.slice(4, 80) }
+    let body: { code?: number; msg?: string; data?: Record<string, unknown> } | null = null
+    try {
+      body = JSON.parse(raw) as { code?: number; msg?: string; data?: Record<string, unknown> }
+    } catch {
+      return { token: '', detail: '非 JSON：' + raw.slice(0, 60) }
+    }
+    if (!body || body.code !== 0 || !body.data) {
+      return { token: '', detail: 'code ' + body?.code + ' ' + (body?.msg ?? '') }
+    }
+    const value = body.data.token
+    if (typeof value === 'string' && value.trim()) return { token: value.trim(), detail: '' }
+    return { token: '', detail: '字段里没有 token：' + Object.keys(body.data).slice(0, 6).join(',') }
+  } catch (error) {
+    return { token: '', detail: '页面里执行失败 ' + (error instanceof Error ? error.message : String(error)) }
+  }
+}
+
 /** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
 async function tokenFromPage(win: BrowserWindow): Promise<string> {
   try {
@@ -178,6 +212,13 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
     const inspect = async (): Promise<void> => {
       if (done || win.isDestroyed()) return
       note('inspect url=' + win.webContents.getURL())
+      const fromPanel = await tokenFromPanel(win)
+      note('同源接口：' + (fromPanel.token ? '拿到密钥 ' + shape(fromPanel.token) : fromPanel.detail))
+      if (fromPanel.token) {
+        finish({ ok: true, token: fromPanel.token, message: '' })
+        win.close()
+        return
+      }
       const fromApi = await tokenFromApi(partition)
       if (fromApi.token) {
         finish({ ok: true, token: fromApi.token, message: '' })

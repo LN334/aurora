@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParty } from '../../features/party/store'
 
 /**
@@ -37,6 +37,16 @@ export function SakuraPanel() {
   const [busy, setBusy] = useState(false)
 
   const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
+
+  /*
+   * 打开这一页就自己去拉：让用户先点一次「拉取」是多余的一步——密钥已经交代过
+   * 了，剩下的就是等结果。按钮留着当刷新用。
+   */
+  useEffect(() => {
+    if (token.trim()) void load()
+    // 只在进页面时拉一次，之后靠刷新
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const persist = (): void => {
     localStorage.setItem(KEYS.frpc, frpc)
@@ -132,7 +142,7 @@ export function SakuraPanel() {
       <div className="sakura-head">
         <h3 className="party__section">隧道</h3>
         <button className="rh-btn" type="button" onClick={() => void load()}>
-          拉取列表
+          刷新
         </button>
       </div>
       {note ? <p className="party__hint">{note}</p> : null}
