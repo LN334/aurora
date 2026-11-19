@@ -37,7 +37,6 @@ function currentNow(): PartyNow | null {
 export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }) {
   const { mounted, closing } = usePresence(open, 320)
   const state = useParty((s) => s.state)
-  const tunnel = useParty((s) => s.tunnel)
   const busy = useParty((s) => s.busy)
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
@@ -46,17 +45,12 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
    * 樱花隧道的三个值记在本机：它们属于「这台机器怎么开房」，不是房间状态。
    * frpc 路径指向官方独立分发版——启动器目录里那份只允许 SakuraFrp Service 调。
    */
-  const [frpcPath, setFrpcPath] = useState(() => localStorage.getItem('aurora.party.frpc') ?? '')
-  const [token, setToken] = useState(() => localStorage.getItem('aurora.party.token') ?? '')
-  const [tunnelId, setTunnelId] = useState(() => localStorage.getItem('aurora.party.tunnel') ?? '')
   const [portDraft, setPortDraft] = useState(() => localStorage.getItem('aurora.party.port') ?? '')
   const [note, setNote] = useState('')
   /*
    * 隧道列表：仿照官方启动器，一张卡一条。数据用访问密钥现拉，不缓存——隧道
    * 的在线状态随时会变。
    */
-  const [tunnels, setTunnels] = useState<{ id: number; name: string; node: string; type: string; localPort: number; remotePort: number; online: boolean }[]>([])
-  const [tunnelNote, setTunnelNote] = useState('')
 
   useEffect(() => {
     if (open) useParty.getState().init()
@@ -122,47 +116,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
 
   /** 房间监听的端口；樱花隧道要指向它。 */
   const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
-
-  const loadTunnels = async (): Promise<void> => {
-    setTunnelNote('正在拉取…')
-    const result = await window.aurora?.party?.sakuraTunnels(token)
-    if (!result) {
-      setTunnelNote('桌面版才有隧道列表')
-      return
-    }
-    setTunnels(result.tunnels)
-    setTunnelNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
-  }
-
-  /**
-   * 卡片上的开关：用这一条隧道启动。
-   *
-   * 一次只跑一条——frpc 是一个进程，同时起两条要两套状态（各自的公网地址、
-   * 各自的错误），而一起听只需要一条出口。所以在跑就停，不在跑就用这条起。
-   */
-  const toggleTunnel = async (id: number, localPort: number): Promise<void> => {
-    if (tunnel.running) {
-      await useParty.getState().stopTunnel()
-      return
-    }
-    /*
-     * 绑定：房间跟着隧道走，不是隧道跟着房间走。
-     *
-     * 隧道里那个本地端口是写死在樱花服务端的，改它要动用户的隧道配置（那条隧道
-     * 可能还给别的服务用）。房间是我们自己的，让它监听隧道指向的那个端口，两边
-     * 天然对上——一次点开就配好，不用再回樱花面板改数字。
-     */
-    if (localPort) {
-      localStorage.setItem('aurora.party.port', String(localPort))
-      setPortDraft(String(localPort))
-      if (state.role !== 'idle') await useParty.getState().host('房主')
-    }
-    localStorage.setItem('aurora.party.frpc', frpcPath)
-    localStorage.setItem('aurora.party.token', token)
-    setTunnelId(String(id))
-    localStorage.setItem('aurora.party.tunnel', String(id))
-    await useParty.getState().startTunnel({ frpcPath, token, tunnelId: String(id) })
-  }
 
 
   return (
@@ -314,94 +267,13 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             官方的 -f 访问密钥:隧道ID。
           */}
           {state.role === 'host' ? (
-            <details className="party__tunnel">
-              <summary>
-                樱花隧道
-                <span className="party__tunnel-state">
-                  {/* 仿照官方启动器的状态灯：灰＝没开，黄＝在连，绿＝通了。 */}
-                  <span
-                    className={
-                      'party__lamp' +
-                      (tunnel.address ? ' is-on' : tunnel.running ? ' is-busy' : '')
-                    }
-                    aria-hidden="true"
-                  />
-                  {tunnel.address ? '已连接 ' + tunnel.address : tunnel.running ? '启动中…' : '未使用'}
-                </span>
-              </summary>
-              {/*
-                隧道卡片：照官方启动器那一列来做——大号隧道 ID、节点、一行映射。
-                数据用访问密钥现拉；拉不到就把接口原话写出来，不假装「没有隧道」。
-              */}
-              <button className="rh-btn" type="button" onClick={() => void loadTunnels()}>
-                拉取隧道列表
-              </button>
-              {tunnelNote ? <p className="pg-note">{tunnelNote}</p> : null}
-              {tunnels.length ? (
-                <ul className="sakura-list">
-                  {tunnels.map((item) => (
-                    <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
-                      <span className="sakura-card__id">{item.id}</span>
-                      <span className="sakura-card__node">{item.node || '—'}</span>
-                      <span className="sakura-card__map">
-                        {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
-                      </span>
-                      {/*
-                        隧道里那个「本地地址」必须等于房间正在监听的端口，否则穿出去
-                        是空的。不一致只提示、不代改——那条隧道可能还给别的服务用着，
-                        替人改配置是更糟的错。
-                      */}
-                      {item.localPort && roomPort && String(item.localPort) !== roomPort ? (
-                        <span className="sakura-card__warn">
-                          房间现在在 {roomPort}，点开这条会把房间改到 {item.localPort} 再穿出去
-                        </span>
-                      ) : null}
-                      <button
-                        className={'sakura-toggle' + (tunnel.running && tunnelId === String(item.id) ? ' is-on' : '')}
-                        type="button"
-                        title={
-                          tunnel.running && tunnelId === String(item.id) ? '停掉这条隧道' : '用这条隧道把房间开到公网'
-                        }
-                        aria-label="启停隧道"
-                        onClick={() => void toggleTunnel(item.id, item.localPort)}
-                      >
-                        <span className="sakura-toggle__knob" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <p className="pg-note">
-                需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:{roomPort}</code>，
-                类型选 TCP；再把面板下载的<b>独立版</b> frpc 路径填在下面。启动器安装目录里那份不能被别的程序调用。
-              </p>
-              <button
-                className="rh-btn"
-                type="button"
-                onClick={() => void window.aurora?.app?.openExternal('https://www.natfrp.com/user/')}
-              >
-                打开樱花面板（注册 / 登录 / 建隧道）
-              </button>
-              <input
-                className="input"
-                placeholder="frpc.exe 的完整路径"
-                value={frpcPath}
-                onChange={(event) => setFrpcPath(event.target.value)}
-              />
-              <input
-                className="input"
-                placeholder="访问密钥"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-              {/*
-                隧道 ID 不再手填：上面的卡片就是选隧道的地方，卡片上的开关就是启停。
-                这里只留两个必须手填的值——frpc 在哪、账号的访问密钥是什么。
-              */}
-              {tunnel.address ? <p className="pg-note">隧道已通：{tunnel.address}</p> : null}
-              {!tunnel.address && tunnel.line ? <p className="pg-note">{tunnel.line}</p> : null}
-              {tunnel.error ? <p className="pg-note">{tunnel.error}</p> : null}
-            </details>
+            <button
+              className="rh-btn"
+              type="button"
+              onClick={() => void window.aurora?.party?.openSakura()}
+            >
+              樱花隧道…
+            </button>
           ) : null}
 
             </section>

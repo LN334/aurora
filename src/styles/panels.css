@@ -1268,3 +1268,23 @@ body.is-party-window {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
+
+/* 樱花页：两个输入并排，隧道列表头一行带「拉取列表」。 */
+.sakura-fields {
+  display: grid;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.sakura-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.sakura-head .party__section {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

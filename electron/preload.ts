@@ -634,6 +634,7 @@ const api = {
     setRelay: (relay: boolean) => ipcRenderer.invoke('party:relay', { relay }),
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
     openChat: () => ipcRenderer.invoke('party:chat'),
+    openSakura: () => ipcRenderer.invoke('party:sakura'),
     registerStream: (trackId: string, url: string) =>
       ipcRenderer.invoke('party:stream', { trackId, url }) as Promise<string>,
     tunnelStart: (config: { frpcPath: string; token: string; tunnelId: string }) =>
