@@ -1113,3 +1113,46 @@
   background: #45c07a;
   box-shadow: 0 0 0 3px rgb(69 192 122 / 0.18);
 }
+
+/* 樱花隧道卡片：仿官方启动器那一列。 */
+.sakura-list {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sakura-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--s3);
+  padding: 10px var(--s3);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--tint-rgb) / 0.04);
+}
+
+.sakura-card.is-on {
+  border-color: rgb(69 192 122 / 0.4);
+}
+
+.sakura-card__id {
+  grid-row: span 2;
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.sakura-card__node {
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+.sakura-card__map {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}

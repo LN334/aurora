@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
+import { sakuraTunnels } from '../sakura/api'
 import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
@@ -110,6 +111,11 @@ export function registerPartyIpc(): void {
    * 房主取到流之后登记一份，客人就能从这条房间端口拉音频——平台看到的请求
    * 来自房主这台机器，不再受「地址认 IP」的限制。
    */
+  /* 隧道列表：仿照官方启动器，用访问密钥换回那一列卡片的数据。 */
+  ipcMain.handle('sakura:tunnels', async (_event, args: unknown) => {
+    return await sakuraTunnels(asText(asRecord(args).token))
+  })
+
   ipcMain.handle('party:relay', (_event, args: unknown) => {
     setRelay(Boolean(asRecord(args).relay))
     return partyState()

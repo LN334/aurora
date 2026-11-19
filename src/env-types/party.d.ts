@@ -95,6 +95,13 @@ export interface PartyApi {
   registerStream(trackId: string, url: string): Promise<string>
   /** 房主开关转发；客人调用无效果。 */
   setRelay(relay: boolean): Promise<PartyState>
+  /** 用访问密钥换樱花隧道列表。 */
+  sakuraTunnels(token: string): Promise<{
+    ok: boolean
+    message: string
+    tunnels: { id: number; name: string; node: string; type: string; localPort: number; remotePort: number; online: boolean }[]
+    raw: string
+  }>
   /** 起樱花隧道（官方独立版 frpc）。 */
   tunnelStart(config: { frpcPath: string; token: string; tunnelId: string }): Promise<TunnelState>
   tunnelStop(): Promise<TunnelState>

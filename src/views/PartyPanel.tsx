@@ -57,6 +57,12 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
   const [tunnelId, setTunnelId] = useState(() => localStorage.getItem('aurora.party.tunnel') ?? '')
   const [portDraft, setPortDraft] = useState(() => localStorage.getItem('aurora.party.port') ?? '')
   const [note, setNote] = useState('')
+  /*
+   * 隧道列表：仿照官方启动器，一张卡一条。数据用访问密钥现拉，不缓存——隧道
+   * 的在线状态随时会变。
+   */
+  const [tunnels, setTunnels] = useState<{ id: number; name: string; node: string; type: string; localPort: number; remotePort: number; online: boolean }[]>([])
+  const [tunnelNote, setTunnelNote] = useState('')
 
   useEffect(() => {
     if (open) useParty.getState().init()
@@ -122,6 +128,17 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
 
   /** 房间监听的端口；樱花隧道要指向它。 */
   const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
+
+  const loadTunnels = async (): Promise<void> => {
+    setTunnelNote('正在拉取…')
+    const result = await window.aurora?.party?.sakuraTunnels(token)
+    if (!result) {
+      setTunnelNote('桌面版才有隧道列表')
+      return
+    }
+    setTunnels(result.tunnels)
+    setTunnelNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
+  }
 
   const startTunnel = async (): Promise<void> => {
     localStorage.setItem('aurora.party.frpc', frpcPath)
@@ -301,6 +318,27 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                   {tunnel.address ? '已连接 ' + tunnel.address : tunnel.running ? '启动中…' : '未使用'}
                 </span>
               </summary>
+              {/*
+                隧道卡片：照官方启动器那一列来做——大号隧道 ID、节点、一行映射。
+                数据用访问密钥现拉；拉不到就把接口原话写出来，不假装「没有隧道」。
+              */}
+              <button className="rh-btn" type="button" onClick={() => void loadTunnels()}>
+                拉取隧道列表
+              </button>
+              {tunnelNote ? <p className="pg-note">{tunnelNote}</p> : null}
+              {tunnels.length ? (
+                <ul className="sakura-list">
+                  {tunnels.map((item) => (
+                    <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
+                      <span className="sakura-card__id">{item.id}</span>
+                      <span className="sakura-card__node">{item.node || '—'}</span>
+                      <span className="sakura-card__map">
+                        {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p className="pg-note">
                 需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:${roomPort}</code>，
                 类型选 TCP；再把面板下载的<b>独立版</b> frpc 路径填在下面。启动器安装目录里那份不能被别的程序调用。

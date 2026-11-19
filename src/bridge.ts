@@ -508,6 +508,7 @@ const webFallback: AuroraApi = {
     setPublic: async () => IDLE_PARTY,
     registerStream: async () => '',
     setRelay: async () => IDLE_PARTY,
+    sakuraTunnels: async () => ({ ok: false, message: '预览里没有隧道接口', tunnels: [], raw: '' }),
     tunnelStart: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道' }),
     tunnelStop: async () => ({ running: false, address: '', line: '', error: '' }),
     tunnelState: async () => ({ running: false, address: '', line: '', error: '' }),
