@@ -288,6 +288,7 @@ export function registerStream(
 export function clearStreams(): void {
   streams.clear()
   tokenOfTrack.clear()
+  activeByClient.clear()
 }
 
 async function proxyStream(
@@ -322,6 +323,17 @@ async function proxyStream(
   }
 }
 
+/**
+ * 同一台机器同时能开几条转发。
+ *
+ * 转发是房主自己出的上行，不是平台白给的带宽。一个客人拖动进度条会让浏览器
+ * 连续开几条 Range 请求；几个人一起拖，房主这边的上行就被这些连接占满了，
+ * 他自己放歌都会卡。所以按「每个来源地址最多两条」限一下，超了直接 429——
+ * 播放器会重试，人也能看出是在忙而不是坏了。
+ */
+const MAX_STREAMS_PER_CLIENT = 2
+const activeByClient = new Map<string, number>()
+
 function handleHttp(
   request: import('node:http').IncomingMessage,
   response: import('node:http').ServerResponse
@@ -339,6 +351,22 @@ function handleHttp(
     response.end('这首歌没有登记转发')
     return
   }
+
+  const client = request.socket.remoteAddress ?? 'unknown'
+  const running = activeByClient.get(client) ?? 0
+  if (running >= MAX_STREAMS_PER_CLIENT) {
+    response.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '1' })
+    response.end('这一头同时拉取太多，稍后再试')
+    return
+  }
+  activeByClient.set(client, running + 1)
+  const release = (): void => {
+    const left = (activeByClient.get(client) ?? 1) - 1
+    if (left <= 0) activeByClient.delete(client)
+    else activeByClient.set(client, left)
+  }
+  response.once('close', release)
+  response.once('finish', release)
   void proxyStream(entry, request, response)
 }
 

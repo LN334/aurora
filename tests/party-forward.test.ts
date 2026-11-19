@@ -111,3 +111,27 @@ test('the same track keeps one token, and old tracks get evicted', async () => {
     upstream.close()
   }
 })
+
+test('a third parallel pull from one client is refused with 429', async () => {
+  const upstream = createServer((_request, response) => {
+    setTimeout(() => {
+      response.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': '1' })
+      response.end('x')
+    }, 250)
+  })
+  await new Promise<void>((resolve) => upstream.listen(0, '127.0.0.1', resolve))
+  const upstreamPort = (upstream.address() as { port: number }).port
+
+  startHost('房主')
+  try {
+    await waitFor(() => partyState().address !== '')
+    const token = registerStream('netease:1', 'http://127.0.0.1:' + upstreamPort + '/a.mp3')
+    const url = 'http://127.0.0.1:' + roomPort() + '/stream/' + token
+    const statuses = (await Promise.all([fetch(url), fetch(url), fetch(url)])).map((r) => r.status).sort()
+    assert.ok(statuses.includes(429), 'the extra pulls are refused, not queued')
+    assert.ok(statuses.includes(200), 'the first ones still get through')
+  } finally {
+    stopParty()
+    upstream.close()
+  }
+})
