@@ -1337,187 +1337,221 @@ body.is-party-window {
   align-items: center;
 }
 
-/* 一起听这一页：左边做事，右边说清它怎么用。 */
+/*
+ * 一起听。
+ *
+ * 结构借自 Muonium 的那套一起听：入口是两张并列的卡（创建 / 加入），房间里是
+ * 「头部 + 元信息 + 正在播放 + 动作」。皮还是 Aurora 的——薄 tint 片、深色、
+ * 主色跟随封面，不做它那种米白纸面。
+ */
 .party-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--s6) var(--s6) var(--s7);
+  /* 入口只有两块卡，垂直居中比顶在上沿好看；房间内容多了会自己往下长。 */
+  min-height: calc(100vh - 210px);
 }
 
-.party-page__grid {
+/* —— 入口 —— */
+.party-pick {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--s6);
-  align-items: start;
-  max-width: 1040px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5);
+  max-width: 860px;
 }
 
-.party-page__side {
+.party-pick__card {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--s2);
   padding: var(--s5);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 16px;
   background: rgb(var(--ink-850-rgb) / 0.72);
-}
-
-.party-page__h {
-  margin: var(--s3) 0 0;
-  font-size: var(--fs-meta);
-  font-weight: 600;
   color: var(--text-hi);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 
-.party-page__h:first-child {
-  margin-top: 0;
+.party-pick__card:hover:not(.is-flat) {
+  border-color: rgb(var(--accent-rgb) / 0.45);
+  background: rgb(var(--ink-850-rgb) / 0.85);
 }
 
-.party-page__hint {
-  margin: 0;
+.party-pick__card.is-flat {
+  cursor: default;
+}
+
+.party-pick__card strong {
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.party-pick__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent);
+  font-size: 17px;
+}
+
+.party-pick__hint {
   font-size: var(--fs-micro);
-  line-height: 1.7;
-  color: var(--text-mid);
+  line-height: 1.6;
+  color: var(--text-low);
 }
 
-.party-steps {
-  margin: 0;
-  padding-left: 18px;
-  font-size: var(--fs-micro);
-  line-height: 1.9;
-  color: var(--text-mid);
+.party-pick__join {
+  display: flex;
+  gap: var(--s2);
+  width: 100%;
+  margin-top: var(--s3);
 }
 
-/* 主区：一块能装下房间与表单的面板。 */
-.party-stage {
+.party-pick__join .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* —— 房间 —— */
+.party-room {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: var(--s6);
+  max-width: 860px;
+  padding: var(--s5) var(--s6);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 16px;
   background: rgb(var(--ink-850-rgb) / 0.72);
 }
 
-.party-stage__title {
-  margin: 0;
-  font-size: 22px;
+.party-room__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+}
+
+.party-room__title {
+  margin: 0 0 6px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-hi);
 }
 
-.party-stage__hint {
+.party-room__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 0;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-room__meta b {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--text-hi);
+}
+
+.party-room__actions {
+  display: flex;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+/* 正在播放：一块比周围深一点的底，左边封面位。 */
+.party-room__now {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  min-height: 118px;
+  padding: var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.03);
+}
+
+.party-room__cover {
+  width: 86px;
+  height: 86px;
+  flex: none;
+  border-radius: 12px;
+  background: linear-gradient(140deg, #3b6ea8, #1e2f4a);
+}
+
+.party-room__song {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.party-room__song strong {
+  font-size: var(--fs-title);
+  color: var(--text-hi);
+}
+
+.party-room__song span {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-room__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.party-room__empty strong {
   font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+.party-room__empty span {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-room__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.party-room__public {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-room__row {
+  display: flex;
+  gap: var(--s2);
+}
+
+.party-room__foot {
+  margin: var(--s2) 0 0;
+  padding-top: var(--s3);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-page__hint {
+  margin: 0;
+  font-size: var(--fs-micro);
   line-height: 1.6;
   color: var(--text-mid);
 }
 
-.party-stage__tiny {
-  margin: 0;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-}
-
-.party-stage__code {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  padding: 16px var(--s5);
-  border-radius: 14px;
-  background: rgb(var(--tint-rgb) / 0.05);
-}
-
-.party-stage__label {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-}
-
-.party-stage__code b {
-  margin-right: auto;
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  color: var(--text-hi);
-}
-
-.party-lines {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-}
-
-.party-lines li {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-}
-
-.party-lines li span {
-  color: var(--text-hi);
-}
-
-.party-lines li .rh-btn {
-  margin-left: auto;
-}
-
-.party-lamp {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 999px;
-  background: rgb(var(--tint-rgb) / 0.22);
-}
-
-.party-lamp.is-on {
-  background: #45c07a;
-  box-shadow: 0 0 0 3px rgb(69 192 122 / 0.16);
-}
-
-.party-stage__row {
-  display: flex;
-  gap: var(--s2);
-}
-
-.party-stage__foot {
-  display: flex;
-  gap: var(--s3);
-  margin-top: var(--s3);
-}
-
-.party-stage .party-stage__big {
-  padding: 13px 22px;
-  font-size: var(--fs-title);
-  align-self: flex-start;
-  background: rgb(var(--accent-rgb) / 0.92);
-  border-color: transparent;
-  color: #0b0f14;
-}
-
-.party-stage .party-stage__big:hover:not(:disabled) {
-  background: rgb(var(--accent-rgb) / 1);
-}
-
-.party-stage__split {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s3);
-  padding-top: var(--s4);
-  border-top: 1px solid rgb(var(--tint-rgb) / 0.08);
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-}
-
-.party-stage__split .input {
-  flex: 1;
-  min-width: 0;
-}
-
-.party-stage .input {
+.party-page .input {
   border: 1px solid rgb(var(--tint-rgb) / 0.26);
   background: rgb(var(--tint-rgb) / 0.1);
 }

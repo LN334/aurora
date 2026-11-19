@@ -5,8 +5,11 @@ import { usePresence } from '../ui/presence'
 /**
  * 一起听：一页。
  *
- * 这一页替用户做决定，不让他填东西：端口由程序挑，邀请是一条链接，公网连通是
- * 一颗键。页面上只有「房间怎么了」和「你现在能做什么」。
+ * 借 Muonium 那套「一起听」的结构，不抄它的皮：房间头部（名字 + 两个动作）、
+ * 一行元信息（房间码 · 人数 · 在听 · 播放模式 · 身份）、中间一张正在播放的卡、
+ * 下面两排按钮（播放控制 / 房间动作）、最底一条细线加一行灰字。
+ *
+ * 这一页仍然替用户做决定：端口由程序挑，邀请是一条链接，公网连通是一颗键。
  */
 
 /** 邀请链接：一条就够，别人点开就是进房。 */
@@ -45,7 +48,7 @@ export function PartyPage() {
 
   const inRoom = state.role !== 'idle'
   const place = state.publicAddress || state.address
-  const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
+  const host = state.role === 'host'
 
   const copyInvite = async (): Promise<void> => {
     if (!place) {
@@ -76,77 +79,24 @@ export function PartyPage() {
     void useParty.getState().join(parsed.place, parsed.code, '听众')
   }
 
-  return (
-    <div className="party-page">
-      <div className="party-page__grid">
-      <section className="party-stage">
-        {inRoom ? (
-          <>
-            <div className="party-stage__code">
-              <span className="party-stage__label">房间码</span>
-              <b>{state.code}</b>
-              <button className="rh-btn rh-btn--main" onClick={() => void copyInvite()}>
-                复制邀请
-              </button>
-            </div>
-
-            <ul className="party-lines">
-              <li>
-                <i className={'party-lamp' + (state.address ? ' is-on' : '')} />
-                局域网 <span>{state.address || '正在起'}</span>
-              </li>
-              <li>
-                <i className={'party-lamp' + (state.publicAddress ? ' is-on' : '')} />
-                公网 <span>{state.publicAddress || '没开'}</span>
-                {state.role === 'host' && !state.publicAddress ? (
-                  <button className="rh-btn" onClick={() => { window.location.hash = '#sakura' }}>
-                    开公网
-                  </button>
-                ) : null}
-              </li>
-              <li>
-                <i className="party-lamp is-on" />
-                {state.members.map((member) => member.name).join('、') || '—'}
-                <span>{state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}</span>
-              </li>
-            </ul>
-
-            {state.role === 'host' && state.publicAddress ? (
-              <div className="party-stage__row">
-                <input
-                  className="input"
-                  placeholder="公网地址不对？填隧道给的"
-                  value={publicDraft}
-                  onChange={(event) => setPublicDraft(event.target.value)}
-                />
-                <button className="rh-btn" disabled={publicDraft.trim() === state.publicAddress} onClick={() => void savePublic()}>
-                  改
-                </button>
-              </div>
-            ) : null}
-
-            <div className="party-stage__foot">
-              <button className="rh-btn" type="button" onClick={() => void window.aurora?.party?.openChat()}>
-                聊天室
-              </button>
-              <button className="rh-btn" onClick={() => void useParty.getState().leave()}>
-                离开房间
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 className="party-stage__title">开一个房间</h1>
-            <p className="party-stage__hint">端口、地址都由程序管，你只管把邀请发出去。</p>
-            <button className="rh-btn rh-btn--main party-stage__big" disabled={busy} onClick={() => void useParty.getState().host('房主')}>
-              开一个房间
-            </button>
-
-            <div className="party-stage__split">
-              <span>有邀请链接？</span>
+  /* 没在房间：入口就两件事——开一个，或者进别人的。 */
+  if (!inRoom) {
+    return (
+      <div className="party-page">
+        <section className="party-pick">
+          <button className="party-pick__card" disabled={busy} onClick={() => void useParty.getState().host('房主')}>
+            <span className="party-pick__icon" aria-hidden="true">＋</span>
+            <strong>创建房间</strong>
+            <span className="party-pick__hint">你的播放、暂停、切歌都会同步给朋友</span>
+          </button>
+          <div className="party-pick__card is-flat">
+            <span className="party-pick__icon" aria-hidden="true">⌁</span>
+            <strong>加入房间</strong>
+            <span className="party-pick__hint">粘贴朋友发来的邀请链接</span>
+            <div className="party-pick__join">
               <input
                 className="input"
-                placeholder="贴进来就行"
+                placeholder="aurora://join?…"
                 value={invite}
                 onChange={(event) => setInvite(event.target.value)}
                 onKeyDown={(event) => {
@@ -157,30 +107,92 @@ export function PartyPage() {
                 加入
               </button>
             </div>
-          </>
-        )}
-        {note ? <p className="party-stage__hint">{note}</p> : null}
-        {state.error ? <p className="party-stage__hint">{state.error}</p> : null}
-        {roomPort ? <p className="party-stage__tiny">房间端口 {roomPort}</p> : null}
-      </section>
-
-      <aside className="party-page__side">
-        <h2 className="party-page__h">怎么用</h2>
-        <ol className="party-steps">
-          <li>点「开一个房间」，房间码出现在上面。</li>
-          <li>点「复制邀请」，得到一条链接。</li>
-          <li>把链接发给朋友，他点开就进来了。</li>
-        </ol>
-        <h2 className="party-page__h">跨网络</h2>
-        <p className="party-page__hint">
-          同一个 WiFi 能直连。不在一个网里，要先把房间端口穿到公网——用樱花隧道，房间里会多一颗「开公网」。
-        </p>
-        <h2 className="party-page__h">音质</h2>
-        <p className="party-page__hint">
-          房主取什么，全房间听什么。客人没登录平台也能听到，因为音频走房间转发。
-        </p>
-      </aside>
+          </div>
+          {note ? <p className="party-page__hint">{note}</p> : null}
+          {state.error ? <p className="party-page__hint">{state.error}</p> : null}
+        </section>
       </div>
+    )
+  }
+
+  /* 在房间：头部、元信息、正在播放、两排动作。 */
+  return (
+    <div className="party-page">
+      <section className="party-room">
+        <header className="party-room__head">
+          <div>
+            <h1 className="party-room__title">{host ? '我的一起听' : '正在加入的一起听'}</h1>
+            <p className="party-room__meta">
+              <b>{state.code}</b>
+              <span>·</span>
+              <span>{state.members.length} 人</span>
+              <span>·</span>
+              <span>{state.now ? '在放一首' : '还没有在播的歌'}</span>
+              <span>·</span>
+              <span>{host ? '房主' : '听众'}</span>
+            </p>
+          </div>
+          <div className="party-room__actions">
+            <button className="rh-btn" onClick={() => void copyInvite()}>
+              复制邀请码
+            </button>
+            {host && !state.publicAddress ? (
+              <button className="rh-btn" onClick={() => { window.location.hash = '#sakura' }}>
+                开公网
+              </button>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="party-room__now">
+          {state.now ? (
+            <>
+              <div className="party-room__cover" />
+              <div className="party-room__song">
+                <strong>{state.now.title}</strong>
+                <span>{state.now.artist}</span>
+              </div>
+            </>
+          ) : (
+            <div className="party-room__empty">
+              <strong>房间还没有在播的歌</strong>
+              <span>房主开始播放，这里就会跟着动</span>
+            </div>
+          )}
+        </div>
+
+        <div className="party-room__tools">
+          <button className="rh-btn" onClick={() => void window.aurora?.party?.openChat()}>
+            聊天室
+          </button>
+          <button className="rh-btn" onClick={() => void useParty.getState().leave()}>
+            离开房间
+          </button>
+          {host && state.publicAddress ? (
+            <span className="party-room__public">公网 {state.publicAddress}</span>
+          ) : null}
+        </div>
+
+        {host && state.publicAddress ? (
+          <div className="party-room__row">
+            <input
+              className="input"
+              placeholder="公网地址不对？填隧道给的"
+              value={publicDraft}
+              onChange={(event) => setPublicDraft(event.target.value)}
+            />
+            <button className="rh-btn" disabled={publicDraft.trim() === state.publicAddress} onClick={() => void savePublic()}>
+              改
+            </button>
+          </div>
+        ) : null}
+
+        <p className="party-room__foot">
+          任何成员都能看房间在放什么；房主切歌会自动同步给所有人。
+        </p>
+        {note ? <p className="party-page__hint">{note}</p> : null}
+        {state.error ? <p className="party-page__hint">{state.error}</p> : null}
+      </section>
     </div>
   )
 }

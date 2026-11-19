@@ -142,7 +142,8 @@ export function SakuraPanel() {
           {tunnels.map((item) => (
             <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
               <span className="sakura-card__id">{item.id}</span>
-              <span className="sakura-card__node">{item.node || '—'}</span>
+              {/* 接口里 node 是节点 id（数字），不是名字，照原样标成「节点 47」比印个裸数字清楚。 */}
+              <span className="sakura-card__node">{item.node ? '节点 ' + item.node : '—'}</span>
               <span className="sakura-card__map">
                 {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
               </span>
