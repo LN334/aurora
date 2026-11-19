@@ -150,16 +150,21 @@ export function RecentPage({
     )
   }
 
+  /*
+   * 「最近一周 N 次」是这张统计卡的标题，不是页头的一部分：它说的是「下面这
+   * 几行数字统计的是哪一段」。放在页头时，它和卡片之间隔着一整次常规间距，
+   * 读起来像两块不相干的东西。统计卡不出现时（没有播放记录）它退回页头。
+   */
+  const countText = plays.length
+    ? weekCount === plays.length
+      ? `最近一周 ${weekCount} 次`
+      : `最近一周 ${weekCount} 次 · 全部 ${plays.length} 次`
+    : `${recent.length} 首`
+
   return (
     <div className="col">
       <header className="rh-sec__head rv-head">
-        <span className="pl-head__count">
-          {plays.length
-            ? weekCount === plays.length
-              ? `最近一周 ${weekCount} 次`
-              : `最近一周 ${weekCount} 次 · 全部 ${plays.length} 次`
-            : `${recent.length} 首`}
-        </span>
+        {stats.days > 0 ? null : <span className="pl-head__count">{countText}</span>}
         <span className="rv-head__acts">
           {/* 范围切换放在计数右边：先看数，再决定要不要放宽。 */}
           <span className="rv-scope" role="group" aria-label="时间范围">
@@ -186,6 +191,7 @@ export function RecentPage({
 
       {stats.days > 0 ? (
         <section className="rv-stats" aria-label="这周的收听">
+          <p className="rv-stats__cap">{countText}</p>
           <div className="rv-stats__nums">
             <div className="rv-stats__num">
               <b>{formatSpan(stats.seconds)}</b>
