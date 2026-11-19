@@ -107,7 +107,7 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 | QQ 音乐 | 可用，不登录只能播免费歌（会员歌拿不到），建议登录 |
 | 酷狗音乐 | 可用（含概念版签名） |
 | 汽水音乐 | 可用 |
-| B 站 | 可用，把视频当歌听（DASH 音频轨，最高 192k），没有歌词 |
+| B 站 | 可用，把视频当歌听（DASH 音频轨，最高 192k），没有歌词；可扫码登录，登录后搜索不容易被人机验证挡下 |
 | Spotify / Apple Music / Navidrome / Jellyfin | 未实现，代码里留了接入位置 |
 
 五个平台都是**非官方接入，没有得到任何授权**。网易云走社区逆向接口 [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，QQ 音乐走 [@yakult-green-tea/qq-music-api](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api)（[Rain120/qq-music-api](https://github.com/Rain120/qq-music-api) 的活跃分支，在主进程里当本地 Koa 服务跑），酷狗和汽水照着网页端与 App 的接口自己接。

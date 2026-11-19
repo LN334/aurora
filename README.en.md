@@ -49,13 +49,14 @@ To hear something online: type a song name into the search box at the top and pr
 | QQ Music | Works; most tracks are preview-only signed out, so sign in |
 | KuGou Music | Works |
 | Qishui Music | Works |
+| Bilibili | Works; a video's audio track is the song (DASH, up to 192k), no lyrics. A QR sign-in is available, and it makes the search API much less likely to answer with a bot-check |
 | Spotify / Apple Music / Navidrome / Jellyfin | Not implemented; the integration point is in the code |
 
 Music is licensed, and no player can bundle a catalogue. Either you use the permissions your own account already has, or you read your own files. There's no third route here that goes around platform payments.
 
 ## Platform APIs
 
-All four are **unofficial and unlicensed**. NetEase goes through a community reverse-engineered API, [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced); QQ Music goes through [qq-music-api](https://github.com/Rain120/qq-music-api). KuGou and Qishui are wired up against their web and app endpoints directly.
+All five are **unofficial and unlicensed**. NetEase goes through a community reverse-engineered API, [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced); QQ Music goes through [qq-music-api](https://github.com/Rain120/qq-music-api). KuGou and Qishui are wired up against their web and app endpoints directly.
 
 What that means for you:
 
@@ -64,7 +65,7 @@ What that means for you:
 - No paywall bypass. Encrypted audio, membership quality and paid albums are left alone. You get what your account can already play
 - Online tracks can be saved to disk, but you get the file the platform handed out. Whether it's the whole track depends on your account and the licensing; preview-only tracks are marked
 
-None of the four offers an official API for individual desktop software. QQ Music's developer docs say outright that individual developers can't apply, and list only mobile apps, mini programs, smart hardware and in-car as supported clients, with requirements for a dedicated section, branding and usage reporting. NetEase's open platform is partner-only too. The unofficial route is the only one that works, and you take the risk.
+None of the five offers an official API for individual desktop software. QQ Music's developer docs say outright that individual developers can't apply, and list only mobile apps, mini programs, smart hardware and in-car as supported clients, with requirements for a dedicated section, branding and usage reporting. NetEase's open platform is partner-only too. The unofficial route is the only one that works, and you take the risk.
 
 ### What works signed out
 
