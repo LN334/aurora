@@ -1457,6 +1457,16 @@ export interface PartyMember {
   host: boolean
 }
 
+/** 樱花隧道进程的状态。 */
+export interface TunnelState {
+  running: boolean
+  /** 拿到的公网地址（`host:端口`）；空串是还没有。 */
+  address: string
+  /** 最近一行输出，给「在动」一个可见的迹象。 */
+  line: string
+  error: string
+}
+
 /** 房间里的一句话。 */
 export interface PartyMessage {
   id: string
@@ -1499,6 +1509,11 @@ interface PartyApi {
   chat(text: string): Promise<PartyState>
   /** 房主填公网地址；客人调用无效果。 */
   setPublic(address: string): Promise<PartyState>
+  /** 起樱花隧道（官方独立版 frpc）。 */
+  tunnelStart(config: { frpcPath: string; token: string; tunnelId: string }): Promise<TunnelState>
+  tunnelStop(): Promise<TunnelState>
+  tunnelState(): Promise<TunnelState>
+  onTunnel(listener: (state: TunnelState) => void): () => void
   state(): Promise<PartyState>
   onState(listener: (state: PartyState) => void): () => void
 }

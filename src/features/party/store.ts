@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { PartyNow, PartyState } from '../../env'
+import type { PartyNow, PartyState, TunnelState } from '../../env'
 import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
@@ -40,6 +40,7 @@ const SELF_SEEK_GRACE_MS = 1000
 
 interface PartyStore {
   state: PartyState
+  tunnel: TunnelState
   busy: boolean
   init(): void
   host(name: string): Promise<void>
@@ -48,6 +49,8 @@ interface PartyStore {
   push(now: PartyNow): Promise<void>
   say(text: string): Promise<void>
   setPublic(address: string): Promise<void>
+  startTunnel(config: { frpcPath: string; token: string; tunnelId: string }): Promise<void>
+  stopTunnel(): Promise<void>
 }
 
 let wired = false
@@ -198,6 +201,7 @@ function watchPlayback(): void {
 
 export const useParty = create<PartyStore>((set, get) => ({
   state: IDLE,
+  tunnel: { running: false, address: '', line: '', error: '' },
   busy: false,
 
   init() {
@@ -205,6 +209,19 @@ export const useParty = create<PartyStore>((set, get) => ({
     wired = true
     const bridge = typeof window === 'undefined' ? undefined : window.aurora?.party
     if (!bridge) return
+    /*
+     * 隧道一拿到地址就直接写进房间：房主不该还要复制一遍再粘贴到上面那格。
+     * 只写一次——同一条地址重复推送会把别人刚改的值覆盖掉。
+     */
+    bridge.onTunnel?.((tunnel) => {
+      set({ tunnel })
+      if (tunnel.address && tunnel.address !== get().state.publicAddress && get().state.role === 'host') {
+        void get().setPublic(tunnel.address)
+      }
+    })
+    void bridge.tunnelState?.().then((tunnel) => {
+      if (tunnel) set({ tunnel })
+    })
     bridge.onState((state) => {
       const previous = useParty.getState().state
       set({ state })
@@ -253,6 +270,16 @@ export const useParty = create<PartyStore>((set, get) => ({
   async leave() {
     const state = await window.aurora?.party?.leave()
     set({ state: state ?? IDLE })
+  },
+
+  async startTunnel(config) {
+    const tunnel = await window.aurora?.party?.tunnelStart(config)
+    if (tunnel) set({ tunnel })
+  },
+
+  async stopTunnel() {
+    const tunnel = await window.aurora?.party?.tunnelStop()
+    if (tunnel) set({ tunnel })
   },
 
   async setPublic(address) {

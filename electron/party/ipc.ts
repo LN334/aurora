@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
+import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
   onPartyState,
@@ -34,8 +35,40 @@ function broadcast(state: unknown): void {
   }
 }
 
+/** 隧道状态推给所有窗口：一起听面板与桌面歌词窗都可能开着。 */
+function broadcastTunnel(state: unknown): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('party:tunnel', state)
+  }
+}
+
+let tunnelWired = false
+function onTunnelBroadcast(): void {
+  if (tunnelWired) return
+  tunnelWired = true
+  onTunnelState(broadcastTunnel)
+}
+
 export function registerPartyIpc(): void {
   onPartyState(broadcast)
+
+  /*
+   * 樱花隧道：起的是官方独立分发的 frpc（`-f 密钥:隧道ID`），不是启动器安装目录
+   * 里那份——那份被改成只允许 SakuraFrp Service 调用，裸跑直接退出。
+   */
+  ipcMain.handle('party:tunnelStart', (_event, args: unknown) => {
+    const raw = asRecord(args)
+    return startTunnel({
+      frpcPath: asText(raw.frpcPath),
+      token: asText(raw.token),
+      tunnelId: asText(raw.tunnelId)
+    })
+  })
+
+  ipcMain.handle('party:tunnelStop', () => {
+    stopTunnel()
+    return tunnelState()
+  })
 
   ipcMain.handle('party:host', (_event, args: unknown) => {
     const name = asText(asRecord(args).name, '房主').slice(0, 24) || '房主'
@@ -68,6 +101,10 @@ export function registerPartyIpc(): void {
     sendChat(asText(asRecord(args).text))
     return partyState()
   })
+
+  onTunnelBroadcast()
+
+  ipcMain.handle('party:tunnelState', () => tunnelState())
 
   ipcMain.handle('party:state', () => partyState())
 }

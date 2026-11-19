@@ -42,11 +42,19 @@ function clock(at: number): string {
 export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }) {
   const { mounted, closing } = usePresence(open, 320)
   const state = useParty((s) => s.state)
+  const tunnel = useParty((s) => s.tunnel)
   const busy = useParty((s) => s.busy)
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
   const [draft, setDraft] = useState('')
   const [publicDraft, setPublicDraft] = useState('')
+  /*
+   * 樱花隧道的三个值记在本机：它们属于「这台机器怎么开房」，不是房间状态。
+   * frpc 路径指向官方独立分发版——启动器目录里那份只允许 SakuraFrp Service 调。
+   */
+  const [frpcPath, setFrpcPath] = useState(() => localStorage.getItem('aurora.party.frpc') ?? '')
+  const [token, setToken] = useState(() => localStorage.getItem('aurora.party.token') ?? '')
+  const [tunnelId, setTunnelId] = useState(() => localStorage.getItem('aurora.party.tunnel') ?? '')
   const [note, setNote] = useState('')
 
   useEffect(() => {
@@ -100,6 +108,13 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     }
     await useParty.getState().setPublic(clean)
     setNote('公网地址已更新，房间里的人都看得到')
+  }
+
+  const startTunnel = async (): Promise<void> => {
+    localStorage.setItem('aurora.party.frpc', frpcPath)
+    localStorage.setItem('aurora.party.token', token)
+    localStorage.setItem('aurora.party.tunnel', tunnelId)
+    await useParty.getState().startTunnel({ frpcPath, token, tunnelId })
   }
 
   const say = async (text: string): Promise<void> => {
@@ -191,6 +206,46 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
           <button className="rh-btn" onClick={() => void copyInvite()}>
             复制邀请（地址 + 房间码）
           </button>
+
+          {/*
+            樱花隧道。只对房主显示：客人不需要自己开隧道。
+            用的是官方独立分发的 frpc（面板「软件下载」里那个），启动参数是
+            官方的 -f 访问密钥:隧道ID。
+          */}
+          {state.role === 'host' ? (
+            <div className="party__tunnel">
+              <p className="pg-note">
+                樱花隧道（可选）：用面板下载的独立版 frpc 把房间开到公网。启动器安装目录里那份不能被别的程序调用。
+              </p>
+              <input
+                className="input"
+                placeholder="frpc.exe 的完整路径"
+                value={frpcPath}
+                onChange={(event) => setFrpcPath(event.target.value)}
+              />
+              <input
+                className="input"
+                placeholder="访问密钥"
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+              />
+              <input
+                className="input"
+                placeholder="隧道 ID"
+                value={tunnelId}
+                onChange={(event) => setTunnelId(event.target.value)}
+              />
+              <button
+                className="rh-btn"
+                onClick={() => void (tunnel.running ? useParty.getState().stopTunnel() : startTunnel())}
+              >
+                {tunnel.running ? '停止隧道' : '启动隧道'}
+              </button>
+              {tunnel.address ? <p className="pg-note">隧道已通：{tunnel.address}</p> : null}
+              {!tunnel.address && tunnel.line ? <p className="pg-note">{tunnel.line}</p> : null}
+              {tunnel.error ? <p className="pg-note">{tunnel.error}</p> : null}
+            </div>
+          ) : null}
 
           <div className="party__chat">
             {state.messages.length === 0 ? (

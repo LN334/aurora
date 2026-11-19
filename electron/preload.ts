@@ -631,6 +631,15 @@ const api = {
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
+    tunnelStart: (config: { frpcPath: string; token: string; tunnelId: string }) =>
+      ipcRenderer.invoke('party:tunnelStart', config),
+    tunnelStop: () => ipcRenderer.invoke('party:tunnelStop'),
+    tunnelState: () => ipcRenderer.invoke('party:tunnelState'),
+    onTunnel: (listener: (state: unknown) => void) => {
+      const handler = (_event: unknown, state: unknown): void => listener(state)
+      ipcRenderer.on('party:tunnel', handler)
+      return () => ipcRenderer.removeListener('party:tunnel', handler)
+    },
     state: () => ipcRenderer.invoke('party:state'),
     onState: (listener: (state: unknown) => void) => {
       const handler = (_event: unknown, state: unknown): void => listener(state)

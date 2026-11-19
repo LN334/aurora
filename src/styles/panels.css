@@ -707,7 +707,8 @@
 }
 
 .party__join .input,
-.party__say .input {
+.party__say .input,
+.party__tunnel .input {
   width: 100%;
   padding: 7px 10px;
   border: 1px solid var(--tint-rgb);
@@ -718,7 +719,8 @@
 }
 
 .party__join .input::placeholder,
-.party__say .input::placeholder {
+.party__say .input::placeholder,
+.party__tunnel .input::placeholder {
   color: var(--text-low);
 }
 
@@ -809,5 +811,11 @@
 .party__public {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+}
+
+/* 樱花隧道那一段：三行输入 + 一颗键 + 一行状态。 */
+.party__tunnel {
+  display: grid;
   gap: var(--s2);
 }
