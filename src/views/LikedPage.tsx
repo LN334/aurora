@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ShellRoute } from '../app/shell'
 import { newestFirst, likeSourceOf } from '../features/favorites/like-source'
 import { useLikes } from '../features/favorites/likes'
-import { lyricsTextFor } from '../features/library/hooks'
-import { pickLyricExcerpt } from '../features/lyrics/excerpt'
 import { likedReadFailed } from '../features/online/liked-merge'
 import { invalidatePlatformLiked, usePlatformLiked } from '../features/online/platform-liked'
 import { mergeVersions } from '../features/online/unify'
@@ -11,7 +9,7 @@ import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { formatSpan } from '../ui/format'
-import { Play, Shuffle } from '../ui/icons'
+import { Play } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
@@ -91,37 +89,6 @@ export function LikedPage({
     const timer = window.setTimeout(() => setSlow(true), 8000)
     return () => window.clearTimeout(timer)
   }, [platformLoading])
-  /*
-   * 词卡上放哪一首：随机。只依赖长度：收藏时多一首少一首不必把卡面整个换掉，
-   * 那样每点一次心，页面就抖一下。
-   */
-  const hero = useMemo(() => {
-    if (!tracks.length) return null
-    return tracks[Math.floor(Math.random() * tracks.length)]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tracks.length])
-
-  const [excerpt, setExcerpt] = useState<string[]>([])
-  useEffect(() => {
-    if (!hero) {
-      setExcerpt([])
-      return
-    }
-    let cancelled = false
-    /*
-     * 先清空：换到另一首时，上一首的词留在卡上比空着更糟。
-     * 取不到词就让它空着——卡本身的封面与标题已经成立，不编一句假词。
-     */
-    setExcerpt([])
-    void lyricsTextFor(hero)
-      .then((raw) => {
-        if (!cancelled && raw) setExcerpt(pickLyricExcerpt(raw))
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [hero])
 
   /*
    * 平台那半边还在读的时候不画空态。
@@ -181,26 +148,17 @@ export function LikedPage({
 
   return (
     <div className="col">
+      {/*
+        这张卡只做一件事：告诉你收藏了多少、加起来多长，点一下全放。
+        以前它还会从收藏里随机抽一首、摘三行词当卡面——那几行词和「我喜欢的
+        音乐」这个集合没有任何关系，看不懂也就不奇怪。词留在正在播放页。
+      */}
       <button
-        // 一首带歌词的都没有时这张卡就只剩「播放全部」的用处，收成一条安静的入口条。
-        className={excerpt.length === 0 ? 'lk-hero is-quiet' : 'lk-hero'}
+        className="lk-hero is-quiet"
         type="button"
         onClick={() => player.playQueue(tracks, 0)}
         title={`播放全部 ${tracks.length} 首`}
       >
-        {/*
-          * 词在上、标题在下。不铺封面：这三行词本身就是卡面，铺一张图反而要
-          * 压暗、要挑有封面的歌，浅色主题里还会像一块贴错地方的深色板。
-          */}
-        {excerpt.length > 0 ? (
-          <span className="lk-hero__words">
-            {excerpt.map((line, index) => (
-              <span className="lk-hero__line" key={`${index}-${line}`}>
-                {line}
-              </span>
-            ))}
-          </span>
-        ) : null}
         <span className="lk-hero__foot">
           {/*
             * 卡里不再写一遍「我喜欢的音乐」——页头已经写着，同一页说两次只是
@@ -224,18 +182,13 @@ export function LikedPage({
           </span>
         ) : null}
         {/*
-          * 「播放全部」已经在那张卡上，这里只留两件卡上放不下的操作：打乱，
-          * 和重读平台收藏。它们属于这一列歌，不属于标题。
+          * 只剩「刷新」这一件事。
+          *
+          * 原来这里还有一颗「随机」——它和播放条上那颗播放模式键做的是同一件事
+          * 的两种说法：一颗是「这次按随机顺序排进去」，一颗是「之后一直随机」，
+          * 并排放着只会让人以为其中一颗坏了。模式交给播放条，这里不留。
           */}
         <span className="lk-search__acts">
-          <button
-            className="rh-btn"
-            type="button"
-            onClick={() => player.playQueue(shuffled(shown), 0)}
-          >
-            <Shuffle size={13} />
-            随机
-          </button>
           {/*
            * 平台那半边是十分钟缓存。在这个页面之外（手机 App、网页版）点了心，
            * 或者想立刻确认刚点的这一下，就靠这颗按钮重读一次；不必重启应用。
@@ -266,14 +219,3 @@ export function LikedPage({
   )
 }
 
-/** Fisher–Yates。不改原数组：列表还挂在 store 上，就地打乱会让页面自己跳一下。 */
-function shuffled<T>(list: T[]): T[] {
-  const out = list.slice()
-  for (let i = out.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const a = out[i]
-    out[i] = out[j]
-    out[j] = a
-  }
-  return out
-}

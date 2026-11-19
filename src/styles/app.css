@@ -2500,3 +2500,21 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
   /* 左栏收起后只剩一条窄边，播放条跟着一起让开。 */
   left: calc(var(--rail-w-collapsed) + 14px);
 }
+
+/*
+ * 没有在放的曲目时，播放条那一行整条收掉。
+ *
+ * 学习对象是网易云：刚打开时底部什么都没有，点第一首歌，底栏才从下面升起来。
+ * 收掉之后内容区多出 100px，抽屉也不用再给播放条让位置。
+ */
+.shell.is-idle {
+  grid-template-rows: var(--titlebar-h) 1fr 0;
+}
+
+/*
+ * 有壁纸时播放条浮在主区之上，主区底部本来就留着一条 padding；空闲态
+ * 没有播放条，这条 padding 就变成页面底部的一块死白。
+ */
+:root .shell.is-idle > .main {
+  padding-bottom: 0;
+}

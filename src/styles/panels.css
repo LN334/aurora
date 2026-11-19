@@ -846,3 +846,9 @@
   bottom: 0;
   max-height: calc(100vh - var(--titlebar-h));
 }
+
+/* 空闲态没有播放条，抽屉直接落到底。 */
+.shell.is-idle .panel {
+  bottom: 0;
+  max-height: calc(100vh - var(--titlebar-h));
+}

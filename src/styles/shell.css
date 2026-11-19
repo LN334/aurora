@@ -473,11 +473,11 @@
   outline-offset: 2px;
 }
 
-/* 没有歌词可摘时，卡只剩入口的作用：收成一条，不要留一大块空白。 */
+/* 卡里只剩「多少首、多长、播放全部」，高度跟着内容走，不再留一块空。 */
 .lk-hero.is-quiet {
-  min-height: 84px;
+  min-height: 0;
   gap: var(--s2);
-  padding: var(--s4) var(--s5);
+  padding: var(--s3) var(--s5);
 }
 
 .lk-hero__words {

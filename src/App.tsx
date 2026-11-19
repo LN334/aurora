@@ -1061,7 +1061,7 @@ export function App() {  if (!isNative) {
       <div
         className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
           wallpaperEntry ? ' has-wallpaper' : ''
-        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${
+        }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${track ? '' : ' is-idle'}${
           /*
            * 退场那 320ms 里不能再藏。舞台是整层淡出，壳要是还 hidden，
            * 淡下去露出来的就只有壁纸：一屏空画面，等它卸完才「啪」地长回来。
@@ -1245,6 +1245,11 @@ export function App() {  if (!isNative) {
           <div className="main__body" key={shell.view + ':' + (shell.id ?? '')}>{body()}</div>
         </main>
 
+        {/*
+          没在放歌时整条播放条不出现：刚打开应用那一屏，底栏只写着「没有在
+          播放」，却占着一整行高度。点第一首歌之后再出现。
+        */}
+        {track ? (
         <PlayerBar
           track={track}
           playing={playing}
@@ -1283,6 +1288,7 @@ export function App() {  if (!isNative) {
           partyOpen={partyOpen}
           onToggleDesktopLyrics={() => void toggleDesktopLyrics()}
         />
+        ) : null}
 
         <PartyPanel open={partyOpen} onClose={() => setPartyOpen(false)} />
 
