@@ -61,6 +61,10 @@ interface PartyStore {
 }
 
 let wired = false
+/** 「我想待在这一间」：客人断线后据此自动回去；null 表示不打算在房间里。 */
+let wantIn: { address: string; code: string; name: string } | null = null
+/** 已经重试过几次，退避用。 */
+let attempt = 0
 let watching = false
 let lastTrackId = ''
 let lastPlaying = false
@@ -346,6 +350,24 @@ export const useParty = create<PartyStore>((set, get) => ({
     })
     bridge.onState((state) => {
       /*
+       * 客房断线后自己回去。
+       *
+       * 房主那边可能因为换端口把房间重开了一次，客人这边看到的就是「突然掉出房间」。
+       * 只要用户没主动离开（wantIn 还在），就退避着重连——1s、2s、4s、8s，最多四轮。
+       * 主动 leave 会清掉 wantIn，所以不会把人硬拉回一个他已经不想待的房间。
+       */
+      if (state.role === 'idle' && wantIn && attempt < 4) {
+        const target = wantIn
+        const wait = 1000 * 2 ** attempt
+        attempt += 1
+        window.setTimeout(() => {
+          if (wantIn === target && useParty.getState().state.role === 'idle') {
+            void useParty.getState().join(target.address, target.code, target.name)
+          }
+        }, wait)
+      }
+      if (state.role !== 'idle') attempt = 0
+      /*
        * 房主带了地址就记下来，取流那头会优先用它——这是「音质也同步」的实现点：
        * 同一份地址，听到的就是同一档。
        */
@@ -401,6 +423,9 @@ export const useParty = create<PartyStore>((set, get) => ({
   async join(address, code, name) {
     set({ busy: true })
     resetWatch()
+    /* 记下「我想在这一间」：断线之后靠它自动回去，直到用户主动离开。 */
+    wantIn = { address: address.trim(), code: code.trim().toUpperCase(), name }
+    attempt = 0
     // 记下这次连的是哪个地址：房主给的转发是相对路径，主机要按这个补。
     rememberSharedOrigin(address.trim())
     try {
@@ -412,6 +437,8 @@ export const useParty = create<PartyStore>((set, get) => ({
   },
 
   async leave() {
+    /* 主动离开就不再自动回去——与「意外断线」是两件事。 */
+    wantIn = null
     const state = await window.aurora?.party?.leave()
     set({ state: state ?? IDLE })
     /*
