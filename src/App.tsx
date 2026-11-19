@@ -1282,15 +1282,11 @@ export function App() {  if (!isNative) {
             setEqOpen(false)
           }}
           onOpenParty={() => {
-            /*
-             * 房间是一扇独立窗口：关掉窗口不等于退房，房间在主进程里继续跑，
-             * 再点这颗键就回到同一个房间。弹窗做不到这一点——它一关，界面上
-             * 就再也没有「你还在房间里」的痕迹。
-             */
+            /* 一起听是一页：点开就跳过去，房间本身在主进程里，离开这一页不等于退房。 */
             setPartyOpen(false)
             setEqOpen(false)
             setQueueOpen(false)
-            void window.aurora?.party?.openWindow()
+            goShell({ view: 'party' })
           }}
           partyOpen={partyOpen}
           onToggleDesktopLyrics={() => void toggleDesktopLyrics()}
