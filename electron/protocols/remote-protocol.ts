@@ -260,6 +260,18 @@ function upstreamHeaders(target: string, range: string | null): Record<string, s
     if (host.endsWith('douyinpic.com') || host.endsWith('douyincdn.com')) {
       headers.referer = 'https://www.douyin.com/'
     }
+    /*
+     * B 站的 CDN 与图床都校验来源站：音频缺 Referer 一律 403，封面则变成空卡。
+     * 镜像节点是新域名（bilivideo.cn/bilivideo.com），故一并按后缀认。
+     */
+    if (
+      host.endsWith('bilivideo.com') ||
+      host.endsWith('bilivideo.cn') ||
+      host.endsWith('hdslb.com') ||
+      host.endsWith('bilibili.com')
+    ) {
+      headers.referer = 'https://www.bilibili.com/'
+    }
   } catch {
     /* 解析不了的地址交给后面的 fetch 去报错 */
   }

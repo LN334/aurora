@@ -463,6 +463,14 @@ const webFallback: AuroraApi = {
     artistProfile: async () => null,
     artistSongs: async () => []
   },
+  bilibili: {
+    /*
+     * 浏览器里没有主进程，也就没有 WBI 签名和 CDN 代理。B 站搜索需要签名，
+     * 所以预览里一条都取不到——入口由 available() 关掉，不是静默返回空。
+     */
+    search: async () => ({ videos: [] }),
+    streamUrl: async () => ({ ok: false, reason: 'service-unavailable' })
+  },
   wallpaper: {
     /*
      * A browser tab has no main process, so there is no Wallpaper Engine

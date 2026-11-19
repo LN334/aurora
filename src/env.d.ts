@@ -1430,6 +1430,39 @@ interface QishuiArtistProfile {
  * 搜索），专辑页因此不做；播放地址只有一种真档位（standard），别的高档位
  * 要会员，失败会按 vip-required 答回来。
  */
+/**
+ * B 站：把视频当歌。没有账号体系，也没有歌词。
+ *
+ * 音频地址绑定 UA 与 Referer，渲染层拿到 URL 后不能直接塞给 <audio>，要走
+ * `aurora-remote:` 代理——和另外四家的在线流是同一条路。
+ */
+export interface BilibiliVideo {
+  aid: number
+  bvid: string
+  title: string
+  author: string
+  cover: string | null
+  /** 秒。 */
+  duration: number
+  cid: number
+}
+
+export type BilibiliQuality = 'standard' | 'higher' | 'exhigh' | 'lossless' | 'hires'
+
+interface BilibiliApi {
+  search(keywords: string, limit?: number): Promise<{ videos: BilibiliVideo[] }>
+  streamUrl(
+    songId: number,
+    quality: BilibiliQuality | string
+  ): Promise<
+    | {
+        ok: true
+        stream: { url: string; br: number; level: BilibiliQuality; duration: number; trial: boolean }
+      }
+    | { ok: false; reason: string; message?: string }
+  >
+}
+
 export interface QishuiApi {
   setProfile(profileId: string): Promise<boolean>
   status(): Promise<QishuiStatusResult>
@@ -1503,6 +1536,7 @@ export interface AuroraApi {
   qq: QqApi
   kugou: KugouApi
   qishui: QishuiApi
+  bilibili: BilibiliApi
   wallpaper: WallpaperApi
   maintenance: MaintenanceApi
   window: WindowApi

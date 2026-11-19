@@ -246,7 +246,37 @@ const qishuiSource: TrackSource = {
   }
 }
 
-export const SOURCES: TrackSource[] = [localSource, neteaseSource, qqSource, kugouSource, qishuiSource]
+/**
+ * B 站：视频里的那条 DASH 音频轨。
+ *
+ * 和另外四家一样只做「取流」：搜索在在线层，播放器只需要一个 URL。B 站没有
+ * 歌词接口，所以这里如实返回 null，界面显示「没有歌词」而不是空面板。
+ */
+const bilibiliSource: TrackSource = {
+  id: 'bilibili',
+  name: 'B 站（在线）',
+  summary: '把视频当歌听，走 B 站公开接口，匿名可用；不是官方客户端',
+  online: true,
+
+  streamUrl: (track) => {
+    if (track.onlineId === undefined) return null
+    const stream = cachedStream('bilibili', track.onlineId)
+    return stream ? remoteStreamUrl(stream.url) : null
+  },
+
+  artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
+
+  lyrics: async () => null
+}
+
+export const SOURCES: TrackSource[] = [
+  localSource,
+  neteaseSource,
+  qqSource,
+  kugouSource,
+  qishuiSource,
+  bilibiliSource
+]
 
 /** Resolve the source responsible for a track. */
 export function sourceFor(track: Track | null): TrackSource {

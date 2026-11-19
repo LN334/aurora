@@ -14,6 +14,7 @@ import { registerNeteaseIpc } from './netease/ipc'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
+import { registerBilibiliIpc } from './bilibili/ipc'
 import { registerWarmUpIpc } from './warmup'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { applyStartupProfile } from './startup-profile'
@@ -837,6 +838,7 @@ if (!app.requestSingleInstanceLock()) {
      * 会话按档案存在 userData。同样只接线不预热。
      */
     registerQishuiIpc()
+  registerBilibiliIpc()
     registerWarmUpIpc()
 
     /*

@@ -603,6 +603,16 @@ const api = {
     artistProfile: (id: number) => ipcRenderer.invoke('qishui:artistProfile', id),
     artistSongs: (artistId: number, limit?: number) =>
       ipcRenderer.invoke('qishui:artistSongs', { artistId, limit })
+  },
+  /*
+   * B 站：没有账号、没有歌词，只有「搜视频」和「取它的音频轨」两件事。
+   * 音频 URL 绑定 UA 与 Referer，播放要走 aurora-remote 代理。
+   */
+  bilibili: {
+    search: (keywords: string, limit?: number) =>
+      ipcRenderer.invoke('bilibili:search', { keywords, limit }),
+    streamUrl: (songId: number, quality: string) =>
+      ipcRenderer.invoke('bilibili:streamUrl', { songId, quality })
   }
 }
 
