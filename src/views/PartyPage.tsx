@@ -165,6 +165,33 @@ export function PartyPage() {
           </div>
         </header>
 
+        {/*
+          连接信息补全：之前只有房间码，房主要把这个念给别人听时还得回樱花页看。
+          局域网、公网、端口、转发开关，全摆在这里。
+        */}
+        <ul className="party-room__lines">
+          <li>
+            <i className={'party-lamp' + (state.address ? ' is-on' : '')} />
+            <b>局域网</b>
+            <span>{state.address || '正在起'}</span>
+          </li>
+          <li>
+            <i className={'party-lamp' + (state.publicAddress ? ' is-on' : '')} />
+            <b>公网</b>
+            <span>{state.publicAddress || '没开'}</span>
+            {host && !state.publicAddress ? (
+              <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
+                开公网
+              </button>
+            ) : null}
+          </li>
+          <li>
+            <i className="party-lamp" />
+            <b>端口</b>
+            <span>{state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : '—'}</span>
+          </li>
+        </ul>
+
         <div className="party-room__now">
           {state.now ? (
             <>
@@ -185,6 +212,17 @@ export function PartyPage() {
             </div>
           )}
         </div>
+
+        {host ? (
+          <label className="party-room__relay">
+            <input
+              type="checkbox"
+              checked={state.relay}
+              onChange={(event) => void useParty.getState().setRelay(event.target.checked)}
+            />
+            <span>替房间转发音频（客人不用登录也能听到同一档）</span>
+          </label>
+        ) : null}
 
         <div className="party-room__tools">
           <button className="rh-btn" onClick={() => void window.aurora?.party?.openChat()}>

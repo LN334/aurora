@@ -1344,13 +1344,18 @@ body.is-party-window {
  * 「头部 + 元信息 + 正在播放 + 动作」。皮还是 Aurora 的——薄 tint 片、深色、
  * 主色跟随封面，不做它那种米白纸面。
  */
+/*
+ * 和别的页一样：内容从内容区左上开始往下排，不居中。
+ *
+ * 之前的垂直居中是「弹窗」的思路——别的页（首页、歌单、专辑）全都是顶部起排的
+ * 网格，一起听夹在中间像另一个应用里贴进来的一块。
+ */
 .party-page {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--s6) var(--s6) var(--s7);
-  /* 入口只有两块卡，垂直居中比顶在上沿好看；房间内容多了会自己往下长。 */
-  min-height: calc(100vh - 210px);
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0 var(--s6) var(--s7);
 }
 
 /* —— 入口 —— */
@@ -1358,8 +1363,9 @@ body.is-party-window {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s5);
-  /* 之前 860 在宽窗口里只占不到一半，看着像塞了个小盒子进去。 */
-  max-width: 1120px;
+  width: 100%;
+  /* 跟内容区同宽，不留一条右边空着。 */
+  max-width: none;
 }
 
 .party-pick__card {
@@ -1367,13 +1373,17 @@ body.is-party-window {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s2);
-  padding: var(--s6);
+  padding: var(--s7) var(--s6);
+  min-height: 200px;
   /* 壁纸太亮时，纯 tint 会把字糊掉：背后模糊一层，细节压下去，字才立得住。 */
-  backdrop-filter: blur(22px) saturate(120%);
-  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 16px;
-  background: rgb(var(--tint-rgb) / 0.06);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
+  /*
+   * 统一一层「半透的深」：纯 tint 在这张亮壁纸上会把字糊掉，纯 backdrop-filter
+   * 在两张卡上表现还不一致（一深一浅）。0.5 的墨色既压得住字，也还看得见壁纸。
+   */
+  background: rgb(var(--ink-850-rgb) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
   font: inherit;
   text-align: left;
@@ -1473,13 +1483,12 @@ body.is-party-window {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  backdrop-filter: blur(22px) saturate(120%);
-  max-width: 1120px;
+  max-width: none;
   padding: var(--s5) var(--s6);
-  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 16px;
-  background: rgb(var(--tint-rgb) / 0.06);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--ink-850-rgb) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
 }
 
 .party-room__head {
@@ -1636,10 +1645,10 @@ body.is-party-window {
 .party-page__main,
 .party-page__side {
   padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.09);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 16px;
-  background: rgb(var(--tint-rgb) / 0.06);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
+  background: rgb(var(--ink-850-rgb) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
 }
 
 .party-page__side {
@@ -1728,4 +1737,49 @@ body.is-party-window {
 .party-room__foot,
 .party-page__hint {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+/* 房间里的连接信息：一行一件事，左边一颗灯。 */
+.party-room__lines {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+.party-room__lines li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.party-room__lines b {
+  font-weight: 400;
+  color: var(--text-low);
+  min-width: 42px;
+}
+
+.party-room__lines span {
+  color: var(--text-hi);
+}
+
+.party-room__lines .rh-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+}
+
+.party-room__relay {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+}
+
+/* 卡片里的内容竖直居中，别全挤在上沿。 */
+.party-pick__card {
+  justify-content: center;
 }
