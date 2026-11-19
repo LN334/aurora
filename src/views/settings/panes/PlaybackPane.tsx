@@ -131,8 +131,11 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
   /*
    * 明确是非会员时，把需要会员的档收起来。判断放在渲染这一层而不是数据层，
    * 因为「有没有会员」是账号状态，会变；档位表是构建期固定的。
+   *
+   * 这里订阅而不是 getState()：在这一页登录/退出之后，会员档位要马上跟着
+   * 出现或消失。读一次快照的话，用户得切走再切回来才看得到变化。
    */
-  const account = useOnlineStore(provider.id).getState().account
+  const account = useOnlineStore(provider.id)((state) => state.account)
   const tiers = (provider.qualityTiers ?? []).filter((tier) =>
     tierAllowed(provider, tier, account?.vip ?? null)
   )

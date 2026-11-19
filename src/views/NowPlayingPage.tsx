@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
@@ -309,6 +309,9 @@ function LyricRoll({
  *
  * 所以这一页留着外壳（左栏、播放条都在），只是把中间那块换成封面加歌词。
  */
+/** 没有平台 store 时用的空订阅；`useSyncExternalStore` 需要一个稳定的函数。 */
+const NO_STORE_SUBSCRIBE = (): (() => void) => () => {}
+
 export function NowPlayingPage({
   track,
   lyrics,
@@ -392,11 +395,27 @@ export function NowPlayingPage({
    * 结论贴在当前这首上是错的。
    */
   const onlineStore = originSource === 'local' ? null : useOnlineStore(originSource)
-  const onlineState = onlineStore ? onlineStore.getState() : null
-  const delivered =
-    onlineState && typeof track.onlineId === 'number' && onlineState.deliveredLevelSongId === track.onlineId
-      ? onlineState.delivered
-      : null
+  /*
+   * 订阅，而不是读一次快照。
+   *
+   * 这条记录是取流成功之后才写进去的；读快照的话，当前这页要等别的状态变化
+   * 才会重渲染，于是「选了无损、实际只拿到 320k」这句解释迟迟不出现——用户
+   * 看到的就是「选了没用」。
+   */
+  const delivered = useSyncExternalStore(
+    onlineStore?.subscribe ?? NO_STORE_SUBSCRIBE,
+    () => {
+      if (!onlineStore) return null
+      const state = onlineStore.getState()
+      return typeof track.onlineId === 'number' && state.deliveredLevelSongId === track.onlineId
+        ? state.delivered
+        : null
+    }
+  )
+  const fellBack = useSyncExternalStore(
+    onlineStore?.subscribe ?? NO_STORE_SUBSCRIBE,
+    () => (onlineStore ? onlineStore.getState().deliveredFellBack : false)
+  )
 
   return (
     <div className="np">
@@ -431,7 +450,7 @@ export function NowPlayingPage({
                 <>
                   <span className="np__dot">·</span>
                   <span
-                    className={`np__tier${onlineState?.deliveredFellBack ? ' is-fell-back' : ''}`}
+                    className={`np__tier${fellBack ? ' is-fell-back' : ''}`}
                     title={delivered}
                   >
                     {delivered.split(' · ')[0]}
