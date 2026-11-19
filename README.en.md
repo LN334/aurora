@@ -120,6 +120,8 @@ Listening history stays on disk: daily totals, the last 60 entries, with repeats
 
 "Roam" in the sidebar skips playlists: it pulls a batch across the platforms and starts playing, then refills as you go — skip one, get another, keep skipping and it keeps adding.
 
+Every track comes from the platforms' own roam stream — NetEase, QQ and Qishui expose a personal-FM endpoint, and KuGou's daily recommendation is its roam. Favourites, local files and play history are not mixed in. The rail offers three tastes: default, familiar and explore. They only reorder the batch that already arrived; the platform is never asked for a different one. Familiar puts artists and albums you already own first, explore leads with strangers and keeps the same artist from repeating up front.
+
 The rail only ever says "roaming · N heard", never a total — a total would make a stream look like a playlist. Two actions live there: "not this again" drops the track from this run, "end roam" hides the rail while the queue and the current track keep going.
 
 The queue panel renames itself to "roam · up next". The play-mode button hides for the run; opening a playlist or an album ends roam and puts the play mode back to whatever it was before.
