@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { bilibiliSearch, bilibiliStreamUrl } from './client'
+import { loginStatus, logout, qrCheck, qrCreate, setLoginProfile } from './login'
 import type { BilibiliQuality } from './types'
 
 /**
@@ -29,6 +30,46 @@ function asAid(value: unknown): number | null {
 }
 
 export function registerBilibiliIpc(): void {
+  /*
+   * 账号相关的四条通道。B 站匿名也能搜能播，登录换来的是搜索不至于被风控挡下
+   * 以及更高档的音轨——所以这里的失败一律回「没有登录」，界面显示未登录，
+   * 而不是一个点不动却不说原因的按钮。
+   */
+  ipcMain.handle('bilibili:setProfile', (_event, profileId: unknown) => {
+    setLoginProfile(typeof profileId === 'string' && profileId ? profileId : 'default')
+    return true
+  })
+
+  ipcMain.handle('bilibili:loginQr', async () => {
+    try {
+      return await qrCreate()
+    } catch {
+      return { key: '', imageDataUrl: '' }
+    }
+  })
+
+  ipcMain.handle('bilibili:qrCheck', async (_event, args: unknown) => {
+    const key = typeof asRecord(args).key === 'string' ? String(asRecord(args).key) : ''
+    try {
+      return await qrCheck(key)
+    } catch {
+      return { status: 'failed', message: '登录失败，稍后再试' }
+    }
+  })
+
+  ipcMain.handle('bilibili:loginStatus', async () => {
+    try {
+      return await loginStatus()
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('bilibili:logout', () => {
+    logout()
+    return true
+  })
+
   ipcMain.handle('bilibili:search', async (_event, args: unknown) => {
     const raw = asRecord(args)
     const keywords = typeof raw.keywords === 'string' ? raw.keywords : ''

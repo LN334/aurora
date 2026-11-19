@@ -485,7 +485,12 @@ const webFallback: AuroraApi = {
      * 所以预览里一条都取不到——入口由 available() 关掉，不是静默返回空。
      */
     search: async () => ({ videos: [] }),
-    streamUrl: async () => ({ ok: false, reason: 'service-unavailable' })
+    streamUrl: async () => ({ ok: false, reason: 'service-unavailable' }),
+    setProfile: async () => false,
+    loginQr: async () => ({ key: '', imageDataUrl: '' }),
+    qrCheck: async () => ({ status: 'failed' as const, message: '浏览器预览模式没有主进程' }),
+    loginStatus: async () => null,
+    logout: async () => false
   },
   party: {
     /*

@@ -1,4 +1,5 @@
 import type { BilibiliQuality, BilibiliSearchResult, BilibiliStreamResult, BilibiliVideo } from './types'
+import { accountCookie } from './login'
 
 /**
  * B 站：搜索视频，取它 DASH 里的音频轨道。
@@ -88,9 +89,21 @@ async function ensureFingerprint(): Promise<void> {
   }
 }
 
+/**
+ * 一次请求要带的 Cookie：游客指纹加账号 cookie。
+ *
+ * 两个都要：指纹决定「像不像一个浏览器」，账号决定「是谁」。只带账号不带指纹时
+ * 搜索照样会被风控拦，只带指纹则登录态白搭。
+ */
+function requestCookie(): string {
+  const account = accountCookie()
+  return [cookieHeader, account].filter(Boolean).join('; ')
+}
+
 async function getJson(url: string): Promise<Record<string, unknown>> {
   const headers: Record<string, string> = { 'User-Agent': USER_AGENT, Referer: REFERER }
-  if (cookieHeader) headers.Cookie = cookieHeader
+  const cookie = requestCookie()
+  if (cookie) headers.Cookie = cookie
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) })
   return asRecord(await response.json())
 }

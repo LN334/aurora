@@ -1497,6 +1497,15 @@ interface PartyApi {
   onState(listener: (state: PartyState) => void): () => void
 }
 
+/** B 站扫码后的账号；未登录时 loginStatus 回 null。 */
+interface BilibiliAccount {
+  nickname: string
+  mid: number
+  vip: boolean
+  face: string
+  level: number
+}
+
 interface BilibiliApi {
   search(keywords: string, limit?: number): Promise<{ videos: BilibiliVideo[] }>
   streamUrl(
@@ -1509,6 +1518,15 @@ interface BilibiliApi {
       }
     | { ok: false; reason: string; message?: string }
   >
+  /** 绑档案：登录态按档案分槽存。 */
+  setProfile(profileId: string): Promise<boolean>
+  loginQr(): Promise<{ key: string; imageDataUrl: string }>
+  qrCheck(key: string): Promise<{
+    status: 'waiting' | 'scanned' | 'expired' | 'confirmed' | 'failed'
+    message?: string
+  }>
+  loginStatus(): Promise<BilibiliAccount | null>
+  logout(): Promise<boolean>
 }
 
 export interface QishuiApi {

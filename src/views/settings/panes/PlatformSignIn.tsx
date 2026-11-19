@@ -3,6 +3,7 @@ import { setLoginOpen as setNeteaseLoginOpen, useNeteaseLoginOpen } from '../../
 import { QqLogin, useQqLoginOpen } from '../../../features/qq/QqLogin'
 import { KugouLogin, useKugouLoginOpen } from '../../../features/kugou/KugouLogin'
 import { QishuiLogin, useQishuiLoginOpen } from '../../../features/qishui/QishuiLogin'
+import { BiliLogin, useBiliLoginOpen } from '../../../features/bilibili/BiliLogin'
 
 /**
  * 在线平台的登录入口与对话框。
@@ -16,6 +17,7 @@ export function openPlatformLogin(providerId: string): void {
   else if (providerId === 'qq') useQqLoginOpen.getState().setOpen(true)
   else if (providerId === 'kugou') useKugouLoginOpen.getState().setOpen(true)
   else if (providerId === 'qishui') useQishuiLoginOpen.getState().setOpen(true)
+  else if (providerId === 'bilibili') useBiliLoginOpen.getState().setOpen(true)
 }
 
 /** 只渲染当前被请求打开的那个对话框；两个平台各管各的标志。 */
@@ -24,6 +26,7 @@ export function PlatformLoginDialogs() {
   const qqOpen = useQqLoginOpen((state) => state.open)
   const kugouOpen = useKugouLoginOpen((state) => state.open)
   const qishuiOpen = useQishuiLoginOpen((state) => state.open)
+  const biliOpen = useBiliLoginOpen((state) => state.open)
 
   return (
     <>
@@ -33,6 +36,7 @@ export function PlatformLoginDialogs() {
       {qishuiOpen ? (
         <QishuiLogin onClose={() => useQishuiLoginOpen.getState().setOpen(false)} />
       ) : null}
+      {biliOpen ? <BiliLogin onClose={() => useBiliLoginOpen.getState().setOpen(false)} /> : null}
     </>
   )
 }

@@ -13,8 +13,11 @@ import {
  * B 站。
  *
  * 它不是音乐平台：一条结果就是一个视频，所谓「歌」就是视频里那条 DASH 音频轨。
- * 所以这里只挂搜索与播放两件事，其余（歌单、专辑、艺人、歌词、账号）一个都不
+ * 所以这里只挂搜索、播放与登录三件事，其余（歌单、专辑、艺人、歌词）一个都不
  * 声明——缺方法就是「这家没有这一页」，界面因此不会摆一个点进去空白的入口。
+ *
+ * 登录是可选的：匿名能搜能播，登录换来的是搜索不容易被风控挡下，以及更高档的
+ * 音频轨。所以界面上「未登录」不是错误状态，只是还没有那个加成。
  */
 
 const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless', 'hires']
@@ -126,11 +129,24 @@ const bilibiliBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    return null
+    const account = await client()?.loginStatus()
+    if (!account) return null
+    return {
+      id: account.mid,
+      nickname: account.nickname,
+      avatarUrl: account.face || null,
+      vip: account.vip,
+      level: account.level
+    }
   },
 
   async logout() {
-    // 没有账号体系，登出无事可做；方法存在只是满足共享状态机的接口。
+    await client()?.logout()
+  },
+
+  async bindProfile(profileId) {
+    // 登录态按档案分槽存：换档案时主进程要跟着换那份 cookie。
+    await client()?.setProfile(profileId)
   }
 }
 
@@ -148,7 +164,7 @@ const bilibiliProvider: OnlineMusicProvider = {
     playback: true,
     // 视频没有结构化歌词，硬凑一份只会是错的。
     lyrics: false,
-    auth: false,
+    auth: true,
     playlists: false,
     albums: false,
     artists: false,

@@ -612,7 +612,12 @@ const api = {
     search: (keywords: string, limit?: number) =>
       ipcRenderer.invoke('bilibili:search', { keywords, limit }),
     streamUrl: (songId: number, quality: string) =>
-      ipcRenderer.invoke('bilibili:streamUrl', { songId, quality })
+      ipcRenderer.invoke('bilibili:streamUrl', { songId, quality }),
+    setProfile: (profileId: string) => ipcRenderer.invoke('bilibili:setProfile', profileId),
+    loginQr: () => ipcRenderer.invoke('bilibili:loginQr'),
+    qrCheck: (key: string) => ipcRenderer.invoke('bilibili:qrCheck', { key }),
+    loginStatus: () => ipcRenderer.invoke('bilibili:loginStatus'),
+    logout: () => ipcRenderer.invoke('bilibili:logout')
   },
   /*
    * 一起听：房间开在本机进程里，同一 WiFi 下的人填地址进来。状态从主进程
