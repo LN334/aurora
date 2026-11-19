@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PartyNow, PartyState } from '../../env'
+import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
 
 /**
@@ -33,6 +34,25 @@ let lastTrackId = ''
  * 理由，不该靠手点。只推切歌这一刻：进度不逐秒广播，那会把网络当播放器用。
  * 离开房间后 `role` 不再是 host，订阅自然什么都不做，不必解绑。
  */
+/**
+ * 客人跟着房主切歌。
+ *
+ * 房间里同步的是 id，不是音频：这首歌必须在客人自己的队列里，才有得放。
+ * 不在就留下一条说明，界面照实显示——而不是假装切换成功。
+ */
+function follow(trackId: string): void {
+  const { queue, order } = usePlayer.getState()
+  const index = queue.findIndex((track) => track.id === trackId)
+  if (index < 0) {
+    useParty.setState((current) => ({
+      state: { ...current.state, error: '房主在放一首不在你队列里的歌' }
+    }))
+    return
+  }
+  const orderPosition = order.indexOf(index)
+  if (orderPosition >= 0) player.jumpTo(orderPosition)
+}
+
 function watchPlayback(): void {
   if (watching) return
   watching = true
@@ -61,7 +81,19 @@ export const useParty = create<PartyStore>((set, get) => ({
     wired = true
     const bridge = typeof window === 'undefined' ? undefined : window.aurora?.party
     if (!bridge) return
-    bridge.onState((state) => set({ state }))
+    bridge.onState((state) => {
+      const previous = useParty.getState().state
+      set({ state })
+      /*
+       * 房主换了歌，客人跟着换。
+       *
+       * 只在 trackId 真的变了才动：同一条 now 会被广播多次（有人进出房间时
+       * 也会带一份完整状态），每次都跳一遍会让客人刚拖到的位置被打回去。
+       */
+      if (state.role === 'guest' && state.now && state.now.trackId !== previous.now?.trackId) {
+        follow(state.now.trackId)
+      }
+    })
     watchPlayback()
     void bridge.state().then((state) => {
       if (state) set({ state })
