@@ -1483,6 +1483,8 @@ body.is-party-window {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
+  /* flex 容器里的子项宽度是 auto，不写这一条就只按内容撑开，右边空一大截。 */
+  width: 100%;
   max-width: none;
   padding: var(--s5) var(--s6);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
