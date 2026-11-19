@@ -3,6 +3,7 @@ import { coverDataUrl } from './artwork'
 import { volumeIntentChanged } from './volume'
 import { sourceFor } from '../library/source'
 import { pickPlayable } from './pick'
+import { rememberSharedStream, sharedStreamFor } from '../party/shared-stream'
 import { swapFadeMs } from './crossfade'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
@@ -210,6 +211,18 @@ class AudioEngine {
       usePlayer.getState().setLoading(false)
       usePlayer.getState().setPlaying(false)
       console.error('[aurora] media error', el.error?.message ?? el.error?.code)
+      /*
+       * 一起听里这一首用的是房主给的地址。它放不出来（对面断了、穿透没了、
+       * 平台拒了），不该让客人干坐着——退回自己解析一次，听得差一点也比没有
+       * 强。每首只回退一次，否则地址一直坏就是无限重试。
+       */
+      const player = usePlayer.getState()
+      const current = player.queue[player.index]
+      if (!current || !sharedStreamFor(current.id)) return
+      if (this.streamFallback.has(current.id)) return
+      this.streamFallback.add(current.id)
+      rememberSharedStream(null)
+      void this.load(current, player.playing)
     })
     el.addEventListener('ended', () => {
       this.stopTicker()
@@ -281,6 +294,9 @@ class AudioEngine {
 
   // --- transport -----------------------------------------------------------
 
+  /** 已经因为「房主的地址放不出来」回退过的曲目，每首只试一次。 */
+  private streamFallback = new Set<string>()
+
   async load(track: Track, autoplay: boolean): Promise<void> {
     this.build()
     const ctx = this.ctx
@@ -328,6 +344,8 @@ class AudioEngine {
       const url = picked.url
       // 一起听要把它带给客人：有了同一个地址，客人听到的就是房主这一档。
       store.setStreamUrl(url)
+      // 这一次真装上了：清掉回退标记，下次再遇到同一个死地址还能再退一次。
+      this.streamFallback.delete(track.id)
 
       const swapMs = swapFadeMs(store.crossfadeSec)
       /*
