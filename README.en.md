@@ -140,7 +140,7 @@ Play mode is one button cycling four states: in order → repeat all → repeat 
 
 Clicking the cover opens the full-screen lyrics page: the current line large, neighbouring lines fading with distance, the original on one line and its translation underneath in small type. You can scroll the lyrics; a few seconds after you stop, it slides back to the line being sung. With no lyrics it shows the cover and title and offers an online lookup.
 
-- 10-band equaliser with 5 presets; double-clicking a slider resets it
+- 10-band equaliser with 5 presets; double-clicking a slider resets it. A curve you like can be saved as a preset on this machine and switched back to in one click, or copied out as a share code and pasted back in
 - Crossfade with adjustable overlap
 - ReplayGain normalisation with peak limiting, so nothing clips
 - Queue panel in real playback order; click to jump, remove what you don't want. Its header says which play mode the batch is in
