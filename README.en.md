@@ -145,6 +145,7 @@ Clicking the cover opens the full-screen lyrics page: the current line large, ne
 - ReplayGain normalisation with peak limiting, so nothing clips
 - Queue panel in real playback order; click to jump, remove what you don't want. Its header says which play mode the batch is in
 - "Play next" lives in the context menu and the `⋯` menu on each row
+- Listen together: one machine opens a room on the local network; others join with its address and a six-character code. Everyone's own account fetches its own audio, and the network only carries a few hundred bytes saying what is playing and where. When the host switches track or pauses, the room follows; positions are corrected against the timestamp on the message, and only when they differ by more than three seconds. A guest who drags the progress bar is left alone for eight seconds, so the drag is not instantly undone.
 
 ### Desktop lyrics
 
