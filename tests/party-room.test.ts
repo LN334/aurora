@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { WebSocket } from 'ws'
-import { partyState, sendChat, startHost, stopParty } from '../electron/party/room.ts'
+import { partyState, sendChat, setPublicAddress, startHost, stopParty } from '../electron/party/room.ts'
 
 /*
  * 房间协议的两条主路：客人说的话由房主记账再广播，房主自己说的话直接进表。
@@ -96,6 +96,35 @@ test('an empty line is not a message', async () => {
     await waitFor(() => partyState().address !== '')
     sendChat('   ')
     assert.equal(partyState().messages.length, 0)
+  } finally {
+    stopParty()
+  }
+})
+
+test('the host can publish a public address and it reaches the room', async () => {
+  startHost('房主')
+  try {
+    await waitFor(() => partyState().address !== '')
+    setPublicAddress('  demo.natfrp.cloud:23456  ')
+    assert.equal(partyState().publicAddress, 'demo.natfrp.cloud:23456', 'trimmed')
+
+    const socket = new WebSocket('ws://127.0.0.1:' + portOf())
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once('open', () => resolve())
+        socket.once('error', reject)
+      })
+      const joined = nextState(socket, (state) => state.members.length === 2)
+      socket.send(JSON.stringify({ t: 'hello', code: partyState().code, name: '客人' }))
+      const state = await joined
+      assert.equal(
+        (state as unknown as { publicAddress: string }).publicAddress,
+        'demo.natfrp.cloud:23456',
+        'a guest joining later still sees it'
+      )
+    } finally {
+      socket.close()
+    }
   } finally {
     stopParty()
   }

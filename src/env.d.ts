@@ -1483,6 +1483,8 @@ export interface PartyState {
   code: string
   members: PartyMember[]
   now: PartyNow | null
+  /** 房主填的公网地址（`host:端口`）；空串是没有。 */
+  publicAddress: string
   /** 房间里最近的话；中途进来的人也看得到上一段。 */
   messages: PartyMessage[]
   error: string
@@ -1495,6 +1497,8 @@ interface PartyApi {
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>
   chat(text: string): Promise<PartyState>
+  /** 房主填公网地址；客人调用无效果。 */
+  setPublic(address: string): Promise<PartyState>
   state(): Promise<PartyState>
   onState(listener: (state: PartyState) => void): () => void
 }

@@ -19,6 +19,7 @@ const IDLE: PartyState = {
   code: '',
   members: [],
   now: null,
+  publicAddress: '',
   messages: [],
   error: ''
 }
@@ -46,6 +47,7 @@ interface PartyStore {
   leave(): Promise<void>
   push(now: PartyNow): Promise<void>
   say(text: string): Promise<void>
+  setPublic(address: string): Promise<void>
 }
 
 let wired = false
@@ -251,6 +253,11 @@ export const useParty = create<PartyStore>((set, get) => ({
   async leave() {
     const state = await window.aurora?.party?.leave()
     set({ state: state ?? IDLE })
+  },
+
+  async setPublic(address) {
+    const state = await window.aurora?.party?.setPublic(address)
+    if (state) set({ state })
   },
 
   async say(text) {

@@ -804,3 +804,10 @@
   color: var(--text-mid);
   overflow-wrap: anywhere;
 }
+
+/* 房主填公网地址那一行：输入框 + 保存，与发言框同一套间距。 */
+.party__public {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+}

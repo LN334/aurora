@@ -25,6 +25,7 @@ const IDLE_PARTY = {
   code: '',
   members: [],
   now: null,
+  publicAddress: '',
   messages: [],
   error: ''
 }
@@ -502,6 +503,7 @@ const webFallback: AuroraApi = {
     leave: async () => IDLE_PARTY,
     pushNow: async () => IDLE_PARTY,
     chat: async () => ({ ...IDLE_PARTY, error: '浏览器预览模式没有一起听后端' }),
+    setPublic: async () => IDLE_PARTY,
     state: async () => IDLE_PARTY,
     onState: () => () => {}
   },

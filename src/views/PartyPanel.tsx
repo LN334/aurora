@@ -46,11 +46,17 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
   const [draft, setDraft] = useState('')
+  const [publicDraft, setPublicDraft] = useState('')
   const [note, setNote] = useState('')
 
   useEffect(() => {
     if (open) useParty.getState().init()
   }, [open])
+
+  // 房间里的公网地址可能被房主改，输入框跟着同步一次。
+  useEffect(() => {
+    setPublicDraft(state.publicAddress)
+  }, [state.publicAddress])
 
   if (!mounted) return null
 
@@ -125,7 +131,31 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             <dd>{state.members.map((member) => member.name).join('、') || '—'}</dd>
             <dt>现在</dt>
             <dd>{state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}</dd>
+            <dt>公网</dt>
+            <dd>{state.publicAddress || '—'}</dd>
           </dl>
+
+          {/*
+            公网入口要房主自己开：内网穿透工具的客户端不让别的程序代它启动，
+            Aurora 只能把隧道给的地址收进来，再显示给房间里所有人。
+          */}
+          {state.role === 'host' ? (
+            <div className="party__public">
+              <input
+                className="input"
+                placeholder="公网地址，如 xxx.natfrp.cloud:23456"
+                value={publicDraft}
+                onChange={(event) => setPublicDraft(event.target.value)}
+              />
+              <button
+                className="rh-btn"
+                disabled={publicDraft.trim() === state.publicAddress}
+                onClick={() => void useParty.getState().setPublic(publicDraft)}
+              >
+                保存
+              </button>
+            </div>
+          ) : null}
 
           <div className="party__chat">
             {state.messages.length === 0 ? (

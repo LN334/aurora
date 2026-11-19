@@ -5,6 +5,7 @@ import {
   partyState,
   pushNow,
   sendChat,
+  setPublicAddress,
   startHost,
   stopParty
 } from './room'
@@ -55,6 +56,11 @@ export function registerPartyIpc(): void {
     const raw = asRecord(args)
     const now = raw.now as PartyNow | undefined
     if (now && typeof now.trackId === 'string') pushNow(now)
+    return partyState()
+  })
+
+  ipcMain.handle('party:public', (_event, args: unknown) => {
+    setPublicAddress(asText(asRecord(args).address))
     return partyState()
   })
 

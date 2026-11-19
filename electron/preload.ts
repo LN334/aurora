@@ -630,6 +630,7 @@ const api = {
     leave: () => ipcRenderer.invoke('party:leave'),
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
+    setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     state: () => ipcRenderer.invoke('party:state'),
     onState: (listener: (state: unknown) => void) => {
       const handler = (_event: unknown, state: unknown): void => listener(state)

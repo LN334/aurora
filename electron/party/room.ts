@@ -58,6 +58,14 @@ export interface PartyState {
   members: PartyMember[]
   now: PartyNow | null
   /**
+   * 公网地址（`host:端口`），房主填。
+   *
+   * 房间本身只监听局域网；要让外面的人进来，得有人把端口暴露到公网——樱花
+   * 内网穿透那类工具。房主在自己那边开好隧道后把地址填进来，客人才知道该往
+   * 哪儿连。空串表示没有公网入口。
+   */
+  publicAddress: string
+  /**
    * 房间里最近的话。
    *
    * 跟着 state 一起走，所以中途进来的人也能看到上一段——否则每次有人加入，
@@ -72,7 +80,16 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 
 function idle(): PartyState {
-  return { role: 'idle', address: '', code: '', members: [], now: null, messages: [], error: '' }
+  return {
+    role: 'idle',
+    address: '',
+    code: '',
+    members: [],
+    now: null,
+    publicAddress: '',
+    messages: [],
+    error: ''
+  }
 }
 
 /** 一条消息最多这么多个字。 */
@@ -183,6 +200,7 @@ export function startHost(name: string): PartyState {
       code: hostCode,
       members: [{ id: 'host', name, host: true }],
       now: null,
+      publicAddress: '',
       messages: [],
       error: ''
     })
@@ -274,6 +292,17 @@ export function stopParty(): void {
   hostCode = ''
   hostPort = 0
   publish(idle())
+}
+
+/**
+ * 房主填公网地址。
+ *
+ * 只有房主能改：客人那边填了也不该影响别人看到的房间信息。
+ */
+export function setPublicAddress(raw: string): void {
+  if (current.role !== 'host') return
+  publish({ publicAddress: raw.trim().slice(0, 80) })
+  broadcast(current)
 }
 
 export function pushNow(now: PartyNow): void {
