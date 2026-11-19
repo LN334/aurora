@@ -146,11 +146,15 @@ async function tokenFromClipboard(win: BrowserWindow): Promise<{ token: string; 
       )
     )
     if (clicked !== 'clicked') return { token: '', detail: '页面上找不到「复制访问密钥」' }
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    let raw = String(clipboard.readText()).trim()
-    if (!raw) {
-      await new Promise((resolve) => setTimeout(resolve, 600))
+    /*
+     * 剪贴板要等页面把值写进去，快慢不定，所以连着试几轮——一轮读不到就放弃等于
+     * 把「全自动」做成了「看运气」。
+     */
+    let raw = ''
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 400))
       raw = String(clipboard.readText()).trim()
+      if (raw) break
     }
     /* 剪贴板里可能是用户别处复制的东西：只认长度像密钥、且不含空白的。 */
     if (!raw || raw.length < 8 || raw.length > 128 || /\s/.test(raw)) {
