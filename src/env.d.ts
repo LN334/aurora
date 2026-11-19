@@ -1485,6 +1485,14 @@ export interface PartyNow {
   at: number
   position: number
   playing: boolean
+  /**
+   * 房主手上那份播放地址。
+   *
+   * 一起听共享的是「听什么」，声音本来是各取各的；但只要房主把地址带过来，
+   * 客人就能听到和房主同一档音质——他用的母带，你听到的就是母带。地址有
+   * 时效，所以随每次心跳重推。
+   */
+  stream?: { url: string; quality: string }
 }
 
 export interface PartyState {

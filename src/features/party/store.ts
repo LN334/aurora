@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import type { PartyNow, PartyState, TunnelState } from '../../env'
+import { QUALITY_SHORT } from '../online/types'
+import { useOnlineStore } from '../online/store'
 import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
+import { rememberSharedStream } from './shared-stream'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
 import type { PlaybackTick } from './pure'
 
@@ -77,14 +80,33 @@ function pushMoment(): void {
   const playback = usePlayer.getState()
   const track = playback.queue[playback.index] ?? null
   if (!track) return
+  /*
+   * 把房主手上这份流一起带过去。
+   *
+   * 一起听共享的是「听什么」，声音本来各取各的；带上地址之后，客人听到的就是
+   * 房主这一档——他选了母带，你听到的也是母带，不是你自己账号能给的那一档。
+   * 地址有时效，所以每次心跳都重推一次，不缓存。
+   */
+  const stream = playback.streamUrl
+    ? { url: playback.streamUrl, quality: qualityNameOf(track) }
+    : undefined
   void useParty.getState().push({
     trackId: track.id,
     title: track.title,
     artist: track.artist,
     at: Date.now(),
     position: playback.position,
-    playing: playback.playing
+    playing: playback.playing,
+    ...(stream ? { stream } : {})
   })
+}
+
+/** 房主这台机器上，这首歌所属平台当前选的是哪一档。 */
+function qualityNameOf(track: { source?: string }): string {
+  const source = track.source
+  if (!source || source === 'local') return ''
+  const tier = useOnlineStore(source).getState().quality
+  return tier ? (QUALITY_SHORT[tier] ?? '') : ''
 }
 
 /**
@@ -223,6 +245,15 @@ export const useParty = create<PartyStore>((set, get) => ({
       if (tunnel) set({ tunnel })
     })
     bridge.onState((state) => {
+      /*
+       * 房主带了地址就记下来，取流那头会优先用它——这是「音质也同步」的实现点：
+       * 同一份地址，听到的就是同一档。
+       */
+      rememberSharedStream(
+        state.now?.stream
+          ? { trackId: state.now.trackId, url: state.now.stream.url, quality: state.now.stream.quality }
+          : null
+      )
       const previous = useParty.getState().state
       set({ state })
       if (state.role !== 'guest' || !state.now) return

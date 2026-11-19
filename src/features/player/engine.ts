@@ -326,6 +326,8 @@ class AudioEngine {
         return
       }
       const url = picked.url
+      // 一起听要把它带给客人：有了同一个地址，客人听到的就是房主这一档。
+      store.setStreamUrl(url)
 
       const swapMs = swapFadeMs(store.crossfadeSec)
       /*

@@ -852,3 +852,9 @@
   bottom: 0;
   max-height: calc(100vh - var(--titlebar-h));
 }
+
+/* 「音质由房主提供」这一句跟在曲目后面，比正文弱一档。 */
+.party__src {
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}

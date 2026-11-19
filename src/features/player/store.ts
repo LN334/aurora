@@ -75,6 +75,9 @@ function defaultPrefs() {
   /** Drops everything that has not played yet; the current track keeps going. */
   clearUpcoming(): void
   jumpTo(queueIndex: number): void
+  /** 当前这一首真正装进 audio 的地址；没有（比如本机文件）就是空串。 */
+  streamUrl: string
+  setStreamUrl(url: string): void
   setPosition(position: number): void
   setDuration(duration: number): void
   setPlaying(playing: boolean): void
@@ -106,6 +109,7 @@ export const usePlayer = create<PlayerState>()(
       playing: false,
       position: 0,
       duration: 0,
+      streamUrl: '',
       loading: false,
       ...defaultPrefs(),
 
@@ -204,6 +208,7 @@ export const usePlayer = create<PlayerState>()(
         set({ index: queueIndex, position: 0 })
       },
 
+      setStreamUrl: (url) => set({ streamUrl: url }),
       setPosition: (position) => set({ position }),
       setDuration: (duration) => set({ duration }),
       setPlaying: (playing) => set({ playing }),

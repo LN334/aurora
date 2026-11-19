@@ -1,5 +1,6 @@
 import { sourceFor } from '../library/source'
 import { sourceOrder } from '../settings/source-order'
+import { sharedStreamFor } from '../party/shared-stream'
 import { loadOnlineStream } from './online-fetch'
 import type { Track } from '../../types'
 
@@ -39,6 +40,15 @@ interface PickedSource {
 }
 
 export async function pickPlayable(track: Track): Promise<PickedSource | null> {
+  /*
+   * 一起听里，房主那份地址优先。
+   *
+   * 这不是「客人取不到才兜底」——那会让两个人听着两个音质。房主选了母带，
+   * 客人听到的就该是母带；他自己账号能给什么档与这件事无关。
+   */
+  const shared = sharedStreamFor(track.id)
+  if (shared) return { track, url: shared.url }
+
   for (const candidate of playableCandidates(track)) {
     const direct = sourceFor(candidate).streamUrl(candidate)
     if (direct) return { track: candidate, url: direct }

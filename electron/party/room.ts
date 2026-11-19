@@ -35,6 +35,8 @@ export interface PartyNow {
    */
   position: number
   playing: boolean
+  /** 房主那份播放地址；有它，客人听到的就是房主这一档的音质。 */
+  stream?: { url: string; quality: string }
 }
 
 /** 房间里的一句话。 */
