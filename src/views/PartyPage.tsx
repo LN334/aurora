@@ -29,6 +29,13 @@ function parseInvite(raw: string): { place: string; code: string } | null {
   return null
 }
 
+/** 封面：拿得到就显示，加载失败退回色块——不留破图图标。 */
+function CoverFlow({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <div className="party-room__cover" />
+  return <img className="party-room__cover" src={url} alt="" onError={() => setFailed(true)} />
+}
+
 export function PartyPage() {
   const mounted = usePresence(true, 0).mounted
   const state = useParty((s) => s.state)
@@ -145,11 +152,7 @@ export function PartyPage() {
             封面提到头部左侧：专辑页、艺人页都是「大图 + 右侧信息」的 hero，
             房间这里也照同一套走，不然它夹在中间像另一个应用里贴过来的。
           */}
-          {coverUrl ? (
-            <img className="party-room__cover" src={coverUrl} alt="" />
-          ) : (
-            <div className="party-room__cover" />
-          )}
+          <CoverFlow url={coverUrl} />
           <div className="party-room__info">
             <h1 className="party-room__title">{host ? '我的一起听' : '正在加入的一起听'}</h1>
             <p className="party-room__meta">
@@ -166,11 +169,6 @@ export function PartyPage() {
             <button className="rh-btn" onClick={() => void copyInvite()}>
               复制邀请码
             </button>
-            {host && !state.publicAddress ? (
-              <button className="rh-btn" onClick={() => { window.location.hash = '#sakura' }}>
-                开公网
-              </button>
-            ) : null}
           </div>
         </header>
 
@@ -187,10 +185,10 @@ export function PartyPage() {
           <li>
             <i className={'party-lamp' + (state.publicAddress ? ' is-on' : '')} />
             <b>公网</b>
-            <span>{state.publicAddress || '没开'}</span>
+            <span>{state.publicAddress || '仅限同一个网络'}</span>
             {host && !state.publicAddress ? (
               <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
-                开公网
+                让外网可进
               </button>
             ) : null}
           </li>
