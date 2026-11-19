@@ -1,3 +1,4 @@
+import './boot-marker'
 import { app, BrowserWindow, globalShortcut, nativeTheme, screen, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
