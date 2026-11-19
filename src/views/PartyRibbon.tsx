@@ -1,5 +1,6 @@
 import { useParty } from '../features/party/store'
 import { usePlayer } from '../features/player/store'
+import { player } from '../features/player/actions'
 
 /**
  * 播放页顶上的一条「一起听」。
@@ -33,7 +34,20 @@ export function PartyRibbon() {
       <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#party' }}>
         回房间
       </button>
-      {drift > 3 ? <span className="np-party__warn">差 {drift} 秒</span> : null}
+      {drift > 3 ? (
+        <>
+          <span className="np-party__warn">差 {Math.round(drift)} 秒</span>
+          <button
+            className="rh-btn"
+            type="button"
+            onClick={() => {
+              if (hostAt !== null) player.seekTo(hostAt)
+            }}
+          >
+            对齐
+          </button>
+        </>
+      ) : null}
     </div>
   )
 }
