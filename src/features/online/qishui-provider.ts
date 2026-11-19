@@ -37,7 +37,14 @@ function client(): QishuiApi | null {
  * 返回的是没加密的地址。把四档都列出来会让音质设置里出现三个选了也没用的按钮，
  * 所以这里只列真能拿到的那一档；用户登录后由客户端按 vip-required 如实回答。
  */
-const TIERS: QualityTier[] = ['standard']
+/**
+ * 汽水的四档，用共享名字写：standard 128k、exhigh 256k、lossless FLAC、hires。
+ *
+ * 以前这里只有 standard，理由是「上游只给标准档」；现在上游包的 `audio` 操作
+ * 收这四档，而且它会按「不超过请求档位的最高可用」自己挑（playback.cjs 的
+ * candidates/rank），拿不到高档就降级，不会放不出来。所以四档都给出去。
+ */
+const TIERS: QualityTier[] = ['standard', 'exhigh', 'lossless', 'hires']
 
 /** 登录后能读「我喜欢的」；推荐流走 `feed`（游客也能读，见下面 recommendations）。 */
 const COLLECTIONS: OnlineCollection[] = [
@@ -57,8 +64,9 @@ const CAPABILITIES: ProviderCapabilities = {
   likes: true
 }
 
-/** 共享层的音质档位翻成汽水自己的四个名字。 */
+/** 共享层的音质档位翻成汽水自己的四个名字（汽水把 256k 叫 high）。 */
 function upstreamQuality(tier: QualityTier): 'standard' | 'high' | 'lossless' | 'hires' {
+  if (tier === 'hires') return 'hires'
   if (tier === 'lossless') return 'lossless'
   if (tier === 'exhigh' || tier === 'higher') return 'high'
   return 'standard'
@@ -98,20 +106,24 @@ async function myPlaylistRows() {
   )
 }
 
+/** 本次运行选的档位；上游不存偏好，重启回到 standard。 */
+let chosenTier: QualityTier = 'standard'
+
 const qishuiBackend: PlatformBackend = {
   id: 'qishui',
   displayName: '汽水音乐',
 
   async getQuality() {
-    return 'standard'
+    return chosenTier
   },
 
   async setQuality(quality) {
     /*
-     * 不落盘：汽水真正能给的只有标准档，记住一个「选了无损」的偏好只会让下次
-     * 启动时设置页显示一个与取流结果不符的值。
+     * 只在这次运行里记住。汽水的登录态（qishui-session）里没有音质字段，上游也
+     * 没有「存偏好」的接口，落一个假设置只会让下次启动显示一个与取流结果不符的值。
      */
-    return quality
+    chosenTier = quality
+    return chosenTier
   },
 
   async search(keywords, kind, limit) {
