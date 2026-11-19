@@ -591,30 +591,46 @@
    -------------------------------------------------------------------------- */
 
 /* 宽度随内容收：拉伸到整行会让两格数字与一句话之间空出一大块。 */
+/*
+ * 「这周的收听」那一块。
+ *
+ * 三个数字同一排，彼此用发丝线分开——它们是一个层级的三件事。原来只有两个
+ * 数字、连续天数混在右边的小字里，读起来像「这周连着 13 天」；现在小字只留
+ * 真正是描述的那两句。
+ */
 .rv-stats {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   align-self: flex-start;
-  gap: var(--s5);
+  gap: var(--s4);
   margin: 0 0 var(--s5);
-  padding: var(--s3) var(--s4);
-  border: 1px solid var(--line-soft);
+  padding: var(--s3) var(--s4) var(--s3) var(--s5);
+  border: 1px solid rgb(var(--tint-rgb) / 0.13);
   border-radius: var(--r-lg);
-  background: rgb(var(--plane-rgb) / 0.55);
-  backdrop-filter: blur(14px) saturate(1.1);
+  background: rgb(var(--plane-rgb) / 0.66);
+  backdrop-filter: blur(16px) saturate(1.15);
 }
 
 .rv-stats__nums {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s5);
+  align-items: stretch;
+  gap: var(--s4);
 }
 
+/* 数字之间用发丝线，不用大间距：间距一大，三件事会读成三段不相干的话。 */
 .rv-stats__num {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  padding-right: var(--s4);
+  border-right: 1px solid rgb(var(--tint-rgb) / 0.09);
+}
+
+.rv-stats__num:last-child {
+  padding-right: 0;
+  border-right: 0;
 }
 
 .rv-stats__num b {
@@ -631,7 +647,9 @@
 
 .rv-stats__note {
   margin: 0;
+  max-width: 340px;
   font-size: var(--fs-meta);
+  line-height: 1.55;
   color: var(--text-mid);
 }
 

@@ -195,16 +195,26 @@ export function RecentPage({
               <b>{stats.tracks} 首</b>
               <span>不重复</span>
             </div>
+            {/*
+              连续天数原来混在右边那行小字里，读起来像「这周连着 13 天」。
+              它本身就是一个计数，放进同一排、用「连着听」当标签，三个数字才是
+              一个层级；右边只留两句真正是描述的话。
+            */}
+            <div className="rv-stats__num">
+              <b>{stats.streak} 天</b>
+              <span>连着听</span>
+            </div>
           </div>
-          {/*
-            连续天数是跨周的指标，放进上面那排会被读成「这周 9 天」。
-            所以它和另外两句一起，作为对数字的补充说明。
-          */}
-          <p className="rv-stats__note">
-            {[`连着听 ${stats.streak} 天`, stats.topArtists.length ? `最常听 ${stats.topArtists[0].name}` : '', stats.topHour !== null ? `多在${hourLabel(stats.topHour)}` : '']
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+          {stats.topArtists.length || stats.topHour !== null ? (
+            <p className="rv-stats__note">
+              {[
+                stats.topArtists.length ? `最常听 ${stats.topArtists[0].name}` : '',
+                stats.topHour !== null ? `多在${hourLabel(stats.topHour)}` : ''
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          ) : null}
         </section>
       ) : null}
 
