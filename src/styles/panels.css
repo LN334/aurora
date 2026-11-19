@@ -612,3 +612,50 @@
   color: var(--text-mid);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- 一起听面板 ---------------------------------------------------------- */
+/*
+ * 与均衡器同一套 .panel 外壳；这里只补它自己那几块：加入表单、房间事实表。
+ * 用 panels.css 现成的间距与文字层级变量，不另起一套。
+ */
+.panel__body {
+  display: grid;
+  gap: var(--s2);
+  padding: 0 var(--s4) var(--s3);
+}
+
+.party__join {
+  display: grid;
+  gap: var(--s2);
+}
+
+.party__join .input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--tint-rgb);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+}
+
+.party__join .input::placeholder {
+  color: var(--text-low);
+}
+
+.party__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s2) var(--s3);
+  margin: 0;
+}
+
+.party__facts dt {
+  color: var(--text-low);
+}
+
+.party__facts dd {
+  margin: 0;
+  color: var(--text-mid);
+  overflow-wrap: anywhere;
+}

@@ -6,6 +6,7 @@ import { FollowedArtistsPage } from './views/FollowedArtistsPage'
 import { AlbumDetailPage } from './views/AlbumDetailPage'
 import { ArtistPage } from './views/ArtistPage'
 import { EqPanel } from './views/EqPanel'
+import { PartyPanel } from './views/PartyPanel'
 import { DailyPage } from './views/DailyPage'
 import { LikedPage } from './views/LikedPage'
 import { LocalPage } from './views/LocalPage'
@@ -204,6 +205,7 @@ export function App() {  if (!isNative) {
   }, [stageOpen])
   const onboarded = useOnboarded()
   const [eqOpen, setEqOpen] = useState(false)
+  const [partyOpen, setPartyOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   // 顶栏那个框自己的结果浮层。搜索不再是「跳去一个页面」。
   /** Mirrors the desktop lyric window's state, owned by the main process. */
@@ -1271,8 +1273,16 @@ export function App() {  if (!isNative) {
             setQueueOpen((open) => !open)
             setEqOpen(false)
           }}
+          onOpenParty={() => {
+            setPartyOpen((open) => !open)
+            setEqOpen(false)
+            setQueueOpen(false)
+          }}
+          partyOpen={partyOpen}
           onToggleDesktopLyrics={() => void toggleDesktopLyrics()}
         />
+
+        <PartyPanel open={partyOpen} onClose={() => setPartyOpen(false)} />
 
         <EqPanel
           open={eqOpen}

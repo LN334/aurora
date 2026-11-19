@@ -1,7 +1,7 @@
 import type { Track } from '../../types'
 import type { PlayMode } from '../../features/player/mode'
 import { useRoam } from '../../features/player/roam-session'
-import { DesktopLyrics, Expand, Queue, Sliders } from '../../ui/icons'
+import { DesktopLyrics, Expand, Queue, Sliders, User } from '../../ui/icons'
 import { ControlButton } from './ControlButton'
 import { Progress } from './Progress'
 import { TrackInfo } from './TrackInfo'
@@ -31,6 +31,8 @@ interface PlayerBarProps {
   onOpenStage(): void
   onToggleEq(): void
   onOpenQueue(): void
+  onOpenParty(): void
+  partyOpen: boolean
   onToggleDesktopLyrics(): void
 }
 
@@ -70,6 +72,8 @@ export function PlayerBar({
   onOpenStage,
   onToggleEq,
   onOpenQueue,
+  onOpenParty,
+  partyOpen,
   onToggleDesktopLyrics
 }: PlayerBarProps) {
   // 漫游里播放模式没有可改的东西，底栏跟播放页一起把它收起来。
@@ -116,6 +120,16 @@ export function PlayerBar({
           onClick={onOpenQueue}
         >
           <Queue size={17} />
+        </ControlButton>
+        <ControlButton
+          label="一起听"
+          tip="一起听"
+          hint="一起听"
+          active={partyOpen}
+          pressed={partyOpen}
+          onClick={onOpenParty}
+        >
+          <User size={17} />
         </ControlButton>
         <ControlButton
           label="均衡器"
