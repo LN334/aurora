@@ -1,4 +1,5 @@
 import { useParty } from '../features/party/store'
+import { usePlayer } from '../features/player/store'
 
 /**
  * 播放页顶上的一条「一起听」。
@@ -12,8 +13,15 @@ export function PartyRibbon() {
 
   if (state.role === 'idle') return null
 
-  const behind = state.now ? Math.round((Date.now() - state.now.at) / 1000) : 0
-  const drift = state.now && state.now.position ? Math.abs(behind - 0) : 0
+  /*
+   * 房主当前听到第几秒 = 他上报时的位置 + 上报到现在过去的时间。
+   * 拿它和我的位置比，就是「我们差多少」——这条带子唯一能提供、别处看不到的信息。
+   */
+  const mine = usePlayer((store) => store.position)
+  const hostAt = state.now
+    ? state.now.position + (Date.now() - state.now.at) / 1000
+    : null
+  const drift = hostAt === null ? 0 : Math.abs(mine - hostAt)
 
   return (
     <div className="np-party">
