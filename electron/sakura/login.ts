@@ -1,4 +1,4 @@
-import { BrowserWindow, session } from 'electron'
+import { BrowserWindow, clipboard, session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
@@ -36,7 +36,6 @@ function shape(value: string): string {
  * 两路都拿不到就明确说「没找到」，不假装成功、也不让用户猜。
  */
 
-const TOKEN_SHAPE = /\b[A-Za-z0-9_-]{16,64}\b/
 const SETTINGS_URL = 'https://www.natfrp.com/user/settings'
 const HOME_URL = 'https://www.natfrp.com/user/'
 
@@ -68,7 +67,7 @@ async function tokenFromApi(partitionSession: Electron.Session): Promise<{ token
       const record = (body.data ?? {}) as Record<string, unknown>
       for (const key of ['token', 'access_token', 'accessToken', 'api_token']) {
         const value = record[key]
-        if (typeof value === 'string' && TOKEN_SHAPE.test(value)) return { token: value, detail: '' }
+        if (typeof value === 'string' && value.trim()) return { token: value.trim(), detail: '' }
       }
       /* 接口通了但没有密钥字段：把顶层字段名记下来，下次就知道该去哪儿找。 */
       tried.push(url.split('/v4/')[1] + ' 有响应但无密钥字段：' + Object.keys(record).slice(0, 8).join(','))
@@ -86,34 +85,7 @@ async function tokenFromApi(partitionSession: Electron.Session): Promise<{ token
  * 不知道它在哪一页（设置 / 资料 / 安全 / 令牌），也不值得让用户去翻——登录之后
  * 把这几页都走一遍，谁有就记谁。每一步的页面文本都写进日志，下次就不用再猜。
  */
-const CANDIDATES = ['user/settings', 'user/profile', 'user/security', 'user/token', 'user']
-const TOKEN_ANY = /\b(?:[0-9a-f]{32}|[A-Za-z0-9_-]{32,64})\b/
 
-async function sweepPages(win: BrowserWindow, note: (line: string) => void): Promise<string> {
-  const original = win.webContents.getURL()
-  for (const page of CANDIDATES) {
-    try {
-      await win.loadURL('https://www.natfrp.com/' + page)
-      await new Promise((resolve) => setTimeout(resolve, 1200))
-      const body = String(await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''", true))
-      const flat = body.replace(/\s+/g, ' ')
-      note('sweep ' + page + ' → ' + flat.slice(0, 200))
-      /* 认「访问密钥」这几个字附近的那一串，比全页盲扫准。 */
-      const near = /访问密钥[^A-Za-z0-9]{0,40}([A-Za-z0-9_-]{16,64})/.exec(body)
-      if (near) return near[1]
-      const any = TOKEN_ANY.exec(body)
-      if (any) return any[0]
-    } catch (error) {
-      note('sweep ' + page + ' 失败 ' + (error instanceof Error ? error.message : String(error)))
-    }
-  }
-  try {
-    await win.loadURL(original)
-  } catch {
-    /* 回不去就算了 */
-  }
-  return ''
-}
 
 /**
  * 在页面里借登录态要一次用户信息。
@@ -149,19 +121,41 @@ async function tokenFromPanel(win: BrowserWindow): Promise<{ token: string; deta
   }
 }
 
-/** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
-async function tokenFromPage(win: BrowserWindow): Promise<string> {
+/**
+ * 点「复制访问密钥」，再从剪贴板读回来。
+ *
+ * 页面文本里明明有「复制访问密钥」这一颗键，说明密钥是页面自己管着的——正则去
+ * 正文里找一个 16~64 位的串只会抓到 JS 标识符（上一次就抓回了
+ * UseBASE64Intrinsics）。点它、读剪贴板，才是页面本来给用户的路径。
+ */
+async function tokenFromClipboard(win: BrowserWindow): Promise<{ token: string; detail: string }> {
   try {
-    const text = await win.webContents.executeJavaScript(
-      "document.body ? document.body.innerText : ''",
-      true
+    const clicked = String(
+      await win.webContents.executeJavaScript(
+        `(() => {
+          const all = [...document.querySelectorAll('button, a, span, div')]
+          const hit = all.find((el) => (el.textContent || '').trim() === '复制访问密钥')
+          if (!hit) return 'no-button'
+          hit.click()
+          return 'clicked'
+        })()`,
+        true
+      )
     )
-    const match = String(text).match(TOKEN_SHAPE)
-    return match ? match[0] : ''
-  } catch {
-    return ''
+    if (clicked !== 'clicked') return { token: '', detail: '页面上找不到「复制访问密钥」' }
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const raw = String(clipboard.readText()).trim()
+    /* 剪贴板里可能是用户别处复制的东西：只认长度像密钥、且不含空白的。 */
+    if (!raw || raw.length < 8 || raw.length > 128 || /\s/.test(raw)) {
+      return { token: '', detail: '剪贴板里不像密钥（' + raw.length + ' 字符）' }
+    }
+    return { token: raw, detail: '' }
+  } catch (error) {
+    return { token: '', detail: '点击失败 ' + (error instanceof Error ? error.message : String(error)) }
   }
 }
+
+/** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
 
 interface SakuraLoginResult {
   ok: boolean
@@ -198,7 +192,6 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
   return await new Promise<SakuraLoginResult>((resolve) => {
     let done = false
     let lastDetail = ''
-    let lastSweep = false
     const finish = (result: SakuraLoginResult): void => {
       if (done) return
       done = true
@@ -212,6 +205,13 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
     const inspect = async (): Promise<void> => {
       if (done || win.isDestroyed()) return
       note('inspect url=' + win.webContents.getURL())
+      const fromClip = await tokenFromClipboard(win)
+      note('剪贴板：' + (fromClip.token ? '拿到 ' + shape(fromClip.token) : fromClip.detail))
+      if (fromClip.token) {
+        finish({ ok: true, token: fromClip.token, message: '' })
+        win.close()
+        return
+      }
       const fromPanel = await tokenFromPanel(win)
       note('同源接口：' + (fromPanel.token ? '拿到密钥 ' + shape(fromPanel.token) : fromPanel.detail))
       if (fromPanel.token) {
@@ -227,21 +227,11 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
       }
       /* 把接口那几句诊断留给最后一次结算用，窗口关时一起报出来。 */
       lastDetail = fromApi.detail
-      let fromPage = await tokenFromPage(win)
-      if (!fromPage && !lastSweep) {
-        lastSweep = true
-        fromPage = await sweepPages(win, note)
-      }
-      if (fromPage) note('页面里找到候选 ' + shape(fromPage))
       try {
         const text = String(await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''", true))
         note('页面文本 ' + text.replace(/\s+/g, ' ').slice(0, 240))
       } catch {
         /* 页面还没就绪 */
-      }
-      if (fromPage) {
-        finish({ ok: true, token: fromPage, message: '' })
-        win.close()
       }
     }
 
