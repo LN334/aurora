@@ -1,4 +1,6 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { createServer, type Server } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { Readable } from 'node:stream'
@@ -112,6 +114,41 @@ export interface PartyState {
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+/**
+ * 这台机器在房间里的身份。
+ *
+ * 之前每个成员 id 都是进房时现生成的随机串，断线重连就换一个人。这里发一个
+ * UUID 存进用户目录，之后一直用它——认得出来人，才谈得上好友。
+ *
+ * 用 APPDATA 而不是 electron 的 app.getPath：这个文件也会被 node --test 直接
+ * import，那里没有 electron。
+ */
+let cachedIdentity: string | null = null
+
+function partyIdentity(): string {
+  if (cachedIdentity) return cachedIdentity
+  const base = process.env.APPDATA || process.env.HOME || '.'
+  const file = join(base, 'aurora-player', 'party-identity')
+  try {
+    const existing = readFileSync(file, 'utf8').trim()
+    if (/^[0-9a-f-]{36}$/i.test(existing)) {
+      cachedIdentity = existing
+      return cachedIdentity
+    }
+  } catch {
+    /* 第一次进房 */
+  }
+  const fresh = randomUUID()
+  try {
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, fresh, 'utf8')
+  } catch {
+    /* 写不下去就只用这一次的内存值 */
+  }
+  cachedIdentity = fresh
+  return cachedIdentity
+}
+
 const CODE_LENGTH = 6
 
 function idle(): PartyState {
@@ -446,7 +483,10 @@ export function startHost(name: string, port = 0): PartyState {
           return
         }
         const peer: Peer = {
-          id: randomBytes(4).toString('hex'),
+          /* 客人自报的稳定 id：认得出来人，才谈得上好友。没有就退回随机。 */
+          id: /^[0-9a-f-]{36}$/i.test(String(message.id ?? ''))
+            ? String(message.id)
+            : randomBytes(4).toString('hex'),
           name: String(message.name ?? '听众').slice(0, 24) || '听众',
           socket
         }
@@ -597,7 +637,7 @@ export function joinParty(url: string, code: string, name: string): PartyState {
   publish({ role: 'guest', address: trimmed, code: code.trim().toUpperCase(), error: '' })
 
   socket.on('open', () => {
-    socket.send(JSON.stringify({ t: 'hello', code: code.trim().toUpperCase(), name }))
+    socket.send(JSON.stringify({ t: 'hello', id: partyIdentity(), code: code.trim().toUpperCase(), name }))
   })
 
   socket.on('message', (raw) => {
