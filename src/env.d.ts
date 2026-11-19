@@ -1504,6 +1504,7 @@ export interface PartyNow {
    * 时效，所以随每次心跳重推。
    */
   stream?: {
+    /** 转发路径；主机由客人按自己连进来的地址补。 */
     url: string
     quality: string
     /** `relay` 是经房主房间转发；`direct` 是平台直链原样给的。 */

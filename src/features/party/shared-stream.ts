@@ -9,20 +9,40 @@
  */
 interface SharedStream {
   trackId: string
-  url: string
-  /** 顶部音质档的短名（母带 / 无损 / Hi-Res），用来告诉客人「这是谁的档」。
-   *  「档位」本身来自房主的设置，不是客人能改的东西。 */
+  /**
+   * 转发路径（`/stream/<令牌>`），只有路径没有主机。
+   *
+   * 主机由客人自己补——他连进来用的是哪个地址，就走哪个。房主填了公网地址时，
+   * 同一 WiFi 的客人不该被绕到公网再回来一趟。
+   */
+  path?: string
+  /** 房主没开公网入口时，直接把平台直链给出去。 */
+  url?: string
+  /** 顶部音质档的短名（母带 / 无损 / Hi-Res），用来告诉客人「这是谁的档」。 */
   quality: string
 }
 
 let shared: SharedStream | null = null
+/** 客人连进房间用的地址；给相对路径拼主机用。 */
+let origin = ''
 
 export function rememberSharedStream(stream: SharedStream | null): void {
   shared = stream
+}
+
+export function rememberSharedOrigin(address: string): void {
+  origin = address
 }
 
 /** 这首歌有没有房主给的那份流。trackId 对不上就是没有。 */
 export function sharedStreamFor(trackId: string): SharedStream | null {
   if (!shared || shared.trackId !== trackId) return null
   return shared
+}
+
+/** 把相对路径补成客人能直接请求的地址；没有路径时返回空串。 */
+export function resolveSharedUrl(stream: SharedStream): string {
+  if (stream.url) return stream.url
+  if (!stream.path || !origin) return ''
+  return 'http://' + origin + stream.path
 }

@@ -50,6 +50,12 @@ export interface PartyNow {
     hasArt: boolean
   }
   /** 房主那份播放地址；有它，客人听到的就是房主这一档的音质。 */
+  /**
+   * 房主这份流。
+   *
+   * `relay` 时 `url` 只放路径（`/stream/<令牌>`），主机交给客人自己补：他连进来
+   * 用的哪个地址就走哪个。同一个 WiFi 的客人不该为了听歌绕到公网再回来。
+   */
   stream?: { url: string; quality: string; via?: 'relay' | 'direct' }
 }
 

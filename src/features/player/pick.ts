@@ -1,6 +1,6 @@
 import { sourceFor } from '../library/source'
 import { sourceOrder } from '../settings/source-order'
-import { sharedStreamFor } from '../party/shared-stream'
+import { resolveSharedUrl, sharedStreamFor } from '../party/shared-stream'
 import { remoteStreamUrl } from './urls'
 import { loadOnlineStream } from './online-fetch'
 import type { Track } from '../../types'
@@ -50,12 +50,17 @@ export async function pickPlayable(track: Track): Promise<PickedSource | null> {
   const shared = sharedStreamFor(track.id)
   if (shared) {
     /*
-     * 页面 CSP 不允许外域音频，引擎也走 Web Audio，跨源会被静音。房主给的是
-     * 一条 http 地址（他房间的转发口或平台直链），这里必须包成 aurora-remote
-     * 由本机主进程代拉——和另外四家在线流是同一条路。
+     * 转发给的是路径，主机在这里补——用的是「我连进来时的那个地址」。房主填了
+     * 公网地址时，同一 WiFi 的客人也不会被绕到公网去。
+     *
+     * 页面 CSP 不允许外域音频，引擎又走 Web Audio，跨源会被静音，所以还要包
+     * 成 aurora-remote 由本机主进程代拉。
      */
-    const url = shared.url.startsWith('aurora-') ? shared.url : remoteStreamUrl(shared.url)
-    return { track, url }
+    const target = resolveSharedUrl(shared)
+    if (target) {
+      const url = target.startsWith('aurora-') ? target : remoteStreamUrl(target)
+      return { track, url }
+    }
   }
 
   for (const candidate of playableCandidates(track)) {

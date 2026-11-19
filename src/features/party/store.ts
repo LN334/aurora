@@ -4,7 +4,7 @@ import { QUALITY_SHORT } from '../online/types'
 import { useOnlineStore } from '../online/store'
 import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
-import { rememberSharedStream } from './shared-stream'
+import { rememberSharedOrigin, rememberSharedStream } from './shared-stream'
 import { partyTrackInfoOf, trackFromParty } from './shared-track'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
 import type { PlaybackTick } from './pure'
@@ -149,7 +149,7 @@ function pushMoment(): void {
           position: state.position,
           playing: state.playing,
           ...(info ? { track: info } : {}),
-          stream: { url: 'http://' + base + '/stream/' + token, quality, via: 'relay' }
+          stream: { url: '/stream/' + token, quality, via: 'relay' }
         })
       })
     return
@@ -351,7 +351,13 @@ export const useParty = create<PartyStore>((set, get) => ({
        */
       rememberSharedStream(
         state.now?.stream
-          ? { trackId: state.now.trackId, url: state.now.stream.url, quality: state.now.stream.quality }
+          ? {
+              trackId: state.now.trackId,
+              ...(state.now.stream.via === 'relay'
+                ? { path: state.now.stream.url }
+                : { url: state.now.stream.url }),
+              quality: state.now.stream.quality
+            }
           : null
       )
       const previous = useParty.getState().state
@@ -395,6 +401,8 @@ export const useParty = create<PartyStore>((set, get) => ({
   async join(address, code, name) {
     set({ busy: true })
     resetWatch()
+    // 记下这次连的是哪个地址：房主给的转发是相对路径，主机要按这个补。
+    rememberSharedOrigin(address.trim())
     try {
       const state = await window.aurora?.party?.join(address, code, name)
       if (state) set({ state })
