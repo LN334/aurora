@@ -550,47 +550,12 @@
  * 「这段时间里听了多久」。原来中间隔着一次常规间距，读起来像两块不相干的
  * 东西；收到 10px 之后它们是同一块的标题与内容。
  */
-.rv-head {
-  margin-bottom: 10px;
-}
 
-.rv-head__acts {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-}
 
 /* 两段式范围开关：一颗胶囊，选中的那半浮起来，不是两颗并排按钮。 */
-.rv-scope {
-  display: inline-flex;
-  padding: 2px;
-  border: 1px solid var(--line-soft);
-  border-radius: 999px;
-}
 
-.rv-scope__opt {
-  height: 24px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--text-low);
-  font: inherit;
-  font-size: var(--fs-micro);
-  cursor: pointer;
-  transition:
-    background-color var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out);
-}
 
-.rv-scope__opt:hover {
-  color: var(--text-hi);
-}
 
-.rv-scope__opt.is-on {
-  background: rgb(var(--tint-rgb) / 0.1);
-  color: var(--text-hi);
-}
 
 /* -----------------------------------------------------------------------------
    这周的收听：四个数字 + 一句话
@@ -607,107 +572,19 @@
  * 数字、连续天数混在右边的小字里，读起来像「这周连着 13 天」；现在小字只留
  * 真正是描述的那两句。
  */
-.rv-stats {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--s4);
-  margin: 0 0 var(--s5);
-  padding: var(--s3) var(--s4);
-  /*
-   * 材质跟着同一页的搜索框与范围胶囊走：极淡的一层底 + 一圈几乎看不见的边。
-   *
-   * 这一块原来是 0.66 的实底，在深色壁纸上是一整块近黑的方块——页面上别的
-   * 元素都是「浮在壁纸上的半透明薄片」，只有它像贴上去的纸。统计不是主角，
-   * 比搜索框还重就本末倒置了。
-   */
-  /*
-   * 用 tint 而不是 plane：plane 在两套主题里是「正黑 / 正白」，乘上透明度之后
-   * 深色主题下是一块黑补丁、浅色主题下是一块白蒙；tint 是「往当前底色上叠的
-   * 一层中性色」，深色主题偏白、浅色主题偏黑，两边都是「比背景稍亮/稍暗的薄片」。
-   */
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
-  border-radius: var(--r-lg);
-  background: rgb(var(--tint-rgb) / 0.045);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
-}
 
-.rv-stats__nums {
-  display: flex;
-  align-items: stretch;
-  gap: var(--s4);
-}
 
 /* 数字之间用发丝线，不用大间距：间距一大，三件事会读成三段不相干的话。 */
-.rv-stats__num {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding-right: var(--s4);
-  border-right: 1px solid rgb(var(--tint-rgb) / 0.09);
-}
-
-.rv-stats__num:last-child {
-  padding-right: 0;
-  border-right: 0;
-}
-
-.rv-stats__num b {
-  font-size: var(--fs-title);
-  font-weight: 650;
-  color: var(--text-hi);
-  font-variant-numeric: tabular-nums;
-}
-
-.rv-stats__num span {
-  font-size: var(--fs-micro);
-  /* 薄片上的灰字要提一档，否则深色主题下这三个标签等于没写。 */
-  color: var(--text-mid);
-}
-
-.rv-stats__note {
-  margin: 0;
-  max-width: 340px;
-  font-size: var(--fs-meta);
-  line-height: 1.55;
-  color: var(--text-mid);
-}
 
 
-.rv-day {
-  margin-bottom: var(--s5);
-}
 
-.rv-day:last-child {
-  margin-bottom: 0;
-}
 
-.rv-day__head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0 0 var(--s2);
-  padding-left: 2px;
-  font-size: var(--fs-meta);
-  font-weight: 600;
-  color: var(--text-mid);
-}
 
-.rv-day__count {
-  font-size: var(--fs-micro);
-  font-weight: 400;
-  color: var(--text-low);
-}
+
+
+
+
 /* 组标题里「今天」与「2 首」用全站一致的间隔点分开，别挤成一串。 */
-.rv-day__count::before {
-  content: '·';
-  margin-right: 6px;
-  opacity: 0.6;
-}
 
 /*
  * 搜索框与总数并成一行。
@@ -3581,12 +3458,6 @@
 }
 
 /* 统计卡顶部那行「最近一周 N 次」：它现在属于这张卡，是卡的标题。 */
-.rv-stats__cap {
-  flex-basis: 100%;
-  margin: 0 0 2px;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
-}
 
 /* 收起态的筛选键：列表工具条上的一颗小放大镜，不与顶栏的全局搜索抢位置。 */
 .shelf-search__trigger {

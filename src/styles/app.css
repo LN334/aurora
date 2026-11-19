@@ -6,6 +6,7 @@
 @import './downloads.css';
 @import './accounts.css';
 @import './shell.css';
+@import './recent.css';
 @import './comments.css';
 /*
  * Shared by every online platform, and named for that rather than for one of them:
