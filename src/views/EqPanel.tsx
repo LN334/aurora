@@ -69,7 +69,7 @@ function Band({ freq, gain, disabled, onChange }: BandProps) {
         className="band__track"
         ref={trackRef}
         role="slider"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label={`${freq} 赫兹`}
         aria-valuemin={MIN_DB}
         aria-valuemax={MAX_DB}
@@ -77,15 +77,24 @@ function Band({ freq, gain, disabled, onChange }: BandProps) {
         aria-valuetext={`${gain > 0 ? '+' : ''}${gain} 分贝`}
         aria-disabled={disabled || undefined}
         onPointerDown={(event) => {
+          /*
+           * 关着的时候别让人拖：以前只挂了 aria-disabled，鼠标照样能改，改完不生效
+           * ——看起来就是「开关按了没反应」。要看曲线可以，改它得先开开关。
+           */
+          if (disabled) return
           event.currentTarget.setPointerCapture(event.pointerId)
           fromClientY(event.clientY)
         }}
         onPointerMove={(event) => {
+          if (disabled) return
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
           fromClientY(event.clientY)
         }}
-        onDoubleClick={() => onChange(0)}
+        onDoubleClick={() => {
+          if (!disabled) onChange(0)
+        }}
         onKeyDown={(event) => {
+          if (disabled) return
           const step = event.shiftKey ? 3 : 1
           if (event.key === 'ArrowUp') {
             event.preventDefault()
@@ -173,6 +182,16 @@ export function EqPanel({
     }
   }
 
+  /**
+   * 点预设就是「我要听这条曲线」：开关关着时顺手打开。
+   *
+   * 不这么做的话，点一下只改了数值、声音不变，用户只会觉得预设坏了。
+   */
+  const applyPreset = (gains: number[]) => {
+    if (!enabled) onToggle(true)
+    onPreset(gains)
+  }
+
   const saveCurrent = () => {
     flash('已存为 ' + onSavePreset())
   }
@@ -184,8 +203,8 @@ export function EqPanel({
         flash('这串不是有效的声音预设')
         return
       }
+      if (!enabled) onToggle(true)
       onPreset(preset.gains)
-      if (preset.eqEnabled && !enabled) onToggle(true)
       flash('已应用：' + preset.name)
     } catch {
       flash('读不到剪贴板')
@@ -217,7 +236,7 @@ export function EqPanel({
             <button
               key={preset.name}
               className={`chip${active ? ' is-active' : ''}`}
-              onClick={() => onPreset(preset.gains)}
+              onClick={() => applyPreset(preset.gains)}
             >
               {preset.name}
             </button>
@@ -267,7 +286,7 @@ export function EqPanel({
       <AudioDebug />
 
       <footer className="panel__foot">
-        <button className="rh-btn" onClick={() => onPreset(EQ_BANDS.map(() => 0))} disabled={isFlat}>
+        <button className="rh-btn" onClick={() => applyPreset(EQ_BANDS.map(() => 0))} disabled={isFlat}>
           <Wave size={15} />
           重置为平直
         </button>
@@ -277,7 +296,7 @@ export function EqPanel({
         <button className="rh-btn" onClick={() => void pasteShareCode()} title="从剪贴板还原一条曲线">
           粘贴还原
         </button>
-        <p className="pg-note">{note || '拖动 · 双击归零'}</p>
+        <p className="pg-note">{note || (enabled ? '拖动 · 双击归零' : '均衡器关着 · 打开右上角开关才生效')}</p>
       </footer>
     </aside>
   )

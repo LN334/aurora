@@ -1300,8 +1300,8 @@ export function App() {  if (!isNative) {
           saved={savedPresets}
           onSavePreset={() => usePresets.getState().save(eqEnabled, eqGains)}
           onApplyPreset={(preset) => {
-            /* 开关一起带过去：只切曲线不切开关，存的时候关着就听不出变化。 */
-            player.setEqEnabled(preset.eqEnabled)
+            /* 点一条预设就是「我要听这个」：开关跟着开，否则存的时候是关的就听不出变化。 */
+            player.setEqEnabled(true)
             player.setEqGains([...preset.gains])
           }}
           onRemovePreset={(id) => usePresets.getState().remove(id)}

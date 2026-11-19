@@ -597,6 +597,34 @@
     rgb(var(--tint-rgb) / 0.022);
 }
 
+/*
+ * 开关关着：曲线还看得见，但动不了。
+ *
+ * 以前只挂了 aria-disabled，鼠标照样能拖，拖完又不出声——看起来就是开关没反应。
+ * 现在手柄淡掉、悬停不再放大、光标回到普通箭头。
+ */
+.band__track[aria-disabled='true'] {
+  cursor: default;
+}
+
+.band__track[aria-disabled='true'] .band__knob {
+  opacity: 0.38;
+  box-shadow: none;
+}
+
+.band__track[aria-disabled='true'] .band__fill {
+  opacity: 0.22;
+  box-shadow: none;
+}
+
+.band__track[aria-disabled='true'] + .band__value {
+  color: var(--text-low);
+}
+
+.band__track[aria-disabled='true']:hover .band__knob {
+  box-shadow: none;
+}
+
 
 /* --- 均衡器抽屉里的实时电平（AudioDebug.tsx） --------------------------- */
 
