@@ -26,6 +26,7 @@ const IDLE_PARTY = {
   members: [],
   now: null,
   publicAddress: '',
+  relay: true,
   messages: [],
   error: ''
 }
@@ -505,6 +506,7 @@ const webFallback: AuroraApi = {
     chat: async () => ({ ...IDLE_PARTY, error: '浏览器预览模式没有一起听后端' }),
     setPublic: async () => IDLE_PARTY,
     registerStream: async () => '',
+    setRelay: async () => IDLE_PARTY,
     tunnelStart: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道' }),
     tunnelStop: async () => ({ running: false, address: '', line: '', error: '' }),
     tunnelState: async () => ({ running: false, address: '', line: '', error: '' }),

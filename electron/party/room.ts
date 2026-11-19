@@ -82,6 +82,13 @@ export interface PartyState {
    */
   publicAddress: string
   /**
+   * 房主是否替房间转发音频。
+   *
+   * 开着才有「音质同步」：客人听到的是房主那份流。关掉之后两边各取各的，
+   * 客人没账号就听不到——这是一个明确的取舍，不是隐藏开关。
+   */
+  relay: boolean
+  /**
    * 房间里最近的话。
    *
    * 跟着 state 一起走，所以中途进来的人也能看到上一段——否则每次有人加入，
@@ -103,6 +110,7 @@ function idle(): PartyState {
     members: [],
     now: null,
     publicAddress: '',
+    relay: true,
     messages: [],
     error: ''
   }
@@ -330,6 +338,7 @@ export function startHost(name: string): PartyState {
       members: [{ id: 'host', name, host: true }],
       now: null,
       publicAddress: '',
+      relay: true,
       messages: [],
       error: ''
     })
@@ -440,6 +449,13 @@ export function stopParty(): void {
 export function setPublicAddress(raw: string): void {
   if (current.role !== 'host') return
   publish({ publicAddress: raw.trim().slice(0, 80) })
+  broadcast(current)
+}
+
+/** 房主开关转发。客人调用无效果。 */
+export function setRelay(value: boolean): void {
+  if (current.role !== 'host' || current.relay === value) return
+  publish({ relay: value })
   broadcast(current)
 }
 

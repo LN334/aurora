@@ -214,6 +214,21 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
           </button>
 
           {/*
+            转发就是「客人听到的和你一样」。关掉之后两边各取各的，客人没账号
+            就听不到——所以这里把它写成一个明确的取舍，而不是藏在设置里。
+          */}
+          {state.role === 'host' ? (
+            <label className="party__relay">
+              <input
+                type="checkbox"
+                checked={state.relay}
+                onChange={(event) => void useParty.getState().setRelay(event.target.checked)}
+              />
+              <span>替房间转发音频（客人不用登录也能听同一档）</span>
+            </label>
+          ) : null}
+
+          {/*
             樱花隧道。只对房主显示：客人不需要自己开隧道。
             用的是官方独立分发的 frpc（面板「软件下载」里那个），启动参数是
             官方的 -f 访问密钥:隧道ID。

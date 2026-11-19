@@ -1514,6 +1514,8 @@ export interface PartyState {
   now: PartyNow | null
   /** 房主填的公网地址（`host:端口`）；空串是没有。 */
   publicAddress: string
+  /** 房主是否替房间转发音频；关着就各取各的。 */
+  relay: boolean
   /** 房间里最近的话；中途进来的人也看得到上一段。 */
   messages: PartyMessage[]
   error: string
@@ -1530,6 +1532,8 @@ interface PartyApi {
   setPublic(address: string): Promise<PartyState>
   /** 房主把当前这首的播放地址交给房间转发，返回地址里用的令牌。 */
   registerStream(trackId: string, url: string): Promise<string>
+  /** 房主开关转发；客人调用无效果。 */
+  setRelay(relay: boolean): Promise<PartyState>
   /** 起樱花隧道（官方独立版 frpc）。 */
   tunnelStart(config: { frpcPath: string; token: string; tunnelId: string }): Promise<TunnelState>
   tunnelStop(): Promise<TunnelState>

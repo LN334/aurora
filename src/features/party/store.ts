@@ -24,6 +24,7 @@ const IDLE: PartyState = {
   members: [],
   now: null,
   publicAddress: '',
+  relay: true,
   messages: [],
   error: ''
 }
@@ -53,6 +54,7 @@ interface PartyStore {
   push(now: PartyNow): Promise<void>
   say(text: string): Promise<void>
   setPublic(address: string): Promise<void>
+  setRelay(relay: boolean): Promise<void>
   startTunnel(config: { frpcPath: string; token: string; tunnelId: string }): Promise<void>
   stopTunnel(): Promise<void>
 }
@@ -98,6 +100,23 @@ function pushMoment(): void {
    */
   const party = useParty.getState().state
   const base = party.publicAddress || party.address
+  /*
+   * 房主关掉转发时什么都不推：不转发也不把直链递过去。这个开关的意思就是
+   * 「别拿我的账号给别人听」，只关一半等于没关。
+   */
+  if (!party.relay) {
+    const info = partyTrackInfoOf(track)
+    void useParty.getState().push({
+      trackId: track.id,
+      title: track.title,
+      artist: track.artist,
+      at: Date.now(),
+      position: playback.position,
+      playing: playback.playing,
+      ...(info ? { track: info } : {})
+    })
+    return
+  }
   if (playback.streamUrl && base) {
     /*
      * 先向主进程要一个令牌，再把地址推出去。
@@ -373,6 +392,11 @@ export const useParty = create<PartyStore>((set, get) => ({
   async stopTunnel() {
     const tunnel = await window.aurora?.party?.tunnelStop()
     if (tunnel) set({ tunnel })
+  },
+
+  async setRelay(relay) {
+    const state = await window.aurora?.party?.setRelay(relay)
+    if (state) set({ state })
   },
 
   async setPublic(address) {

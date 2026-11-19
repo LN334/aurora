@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
-import { registerStream } from './room'
+import { registerStream, setRelay } from './room'
 import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
@@ -107,6 +107,11 @@ export function registerPartyIpc(): void {
    * 房主取到流之后登记一份，客人就能从这条房间端口拉音频——平台看到的请求
    * 来自房主这台机器，不再受「地址认 IP」的限制。
    */
+  ipcMain.handle('party:relay', (_event, args: unknown) => {
+    setRelay(Boolean(asRecord(args).relay))
+    return partyState()
+  })
+
   ipcMain.handle('party:stream', (_event, args: unknown) => {
     const raw = asRecord(args)
     return registerStream(asText(raw.trackId), asText(raw.url))

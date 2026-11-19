@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { WebSocket } from 'ws'
-import { partyState, sendChat, setPublicAddress, startHost, stopParty } from '../electron/party/room.ts'
+import { partyState, sendChat, setPublicAddress, setRelay, startHost, stopParty } from '../electron/party/room.ts'
 
 /*
  * 房间协议的两条主路：客人说的话由房主记账再广播，房主自己说的话直接进表。
@@ -125,6 +125,18 @@ test('the host can publish a public address and it reaches the room', async () =
     } finally {
       socket.close()
     }
+  } finally {
+    stopParty()
+  }
+})
+
+test('the host can turn relaying off, and only the host can', async () => {
+  startHost('房主')
+  try {
+    await waitFor(() => partyState().address !== '')
+    assert.equal(partyState().relay, true, 'relaying is on by default')
+    setRelay(false)
+    assert.equal(partyState().relay, false)
   } finally {
     stopParty()
   }

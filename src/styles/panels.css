@@ -858,3 +858,18 @@
   color: var(--text-low);
   font-size: var(--fs-micro);
 }
+
+/* 转发开关：一行复选框，说明写在后面。 */
+.party__relay {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
+  cursor: pointer;
+}
+
+.party__relay input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
