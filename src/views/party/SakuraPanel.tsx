@@ -42,7 +42,13 @@ export function SakuraPanel() {
    * 打开这一页就自己去拉：让用户先点一次「拉取」是多余的一步——密钥已经交代过
    * 了，剩下的就是等结果。按钮留着当刷新用。
    */
+  /* frpc 与密钥都自己找：不给用户留空要填。 */
   useEffect(() => {
+    void window.aurora?.party?.sakuraFrpc().then((found) => {
+      if (!found) return
+      setFrpc(found)
+      localStorage.setItem(KEYS.frpc, found)
+    })
     if (token.trim()) void load()
     // 只在进页面时拉一次，之后靠刷新
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,32 +118,16 @@ export function SakuraPanel() {
         上面一颗按钮旁边，读者第一眼就知道这一步要去哪。
       */}
       <div className="sakura-first">
-        <span className="sakura-first__state">{token ? '已登录' : '未登录'}</span>
+        <span className="sakura-first__state">
+          {token ? '已登录' : '未登录'}
+          {' · '}
+          {frpc ? 'frpc 已找到' : 'frpc 没找到'}
+        </span>
         <button className="rh-btn" type="button" disabled={busy} onClick={() => void login()}>
           {busy ? '登录中…' : token ? '重新登录' : '登录樱花'}
         </button>
       </div>
 
-      <div className="sakura-fields">
-        <label className="party__field">
-          <span>frpc 路径</span>
-          <input
-            className="input"
-            placeholder="面板「软件下载」里那个独立版"
-            value={frpc}
-            onChange={(event) => setFrpc(event.target.value)}
-          />
-        </label>
-        <label className="party__field">
-          <span>访问密钥</span>
-          <input
-            className="input"
-            placeholder={token ? '' : '登录后自动填入'}
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-          />
-        </label>
-      </div>
 
       <div className="sakura-head">
         <h3 className="party__section">隧道</h3>
