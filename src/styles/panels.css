@@ -80,10 +80,19 @@
 /* --- slide-over panel ---------------------------------------------------- */
 
 .panel {
+  /*
+   * 高度跟着内容走，只有超过可用高度才滚动。
+   *
+   * 原来是 top + bottom 两头钉死，面板永远铺满整个右侧：队列只有五首时，
+   * 下面白花花一大片，看着像没加载完。现在底边仍贴着播放条，上边由内容决定，
+   * 再用 max-height 拦住——内容多的时候和以前一样滚。
+   */
   position: fixed;
-  top: var(--titlebar-h);
+  top: auto;
   right: 0;
   bottom: var(--player-h);
+  max-height: calc(100vh - var(--titlebar-h) - var(--player-h));
+  height: fit-content;
   z-index: 30;
   width: min(400px, 92vw);
   display: flex;
@@ -192,11 +201,19 @@
   color: var(--text-low);
 }
 
+/*
+ * 抽屉的滚动区。
+ *
+ * 底部留白从 s4 加到 28px：列表滚到尽头时最后一行下面原本只剩一点点空隙，
+ * 面板底边又是一条硬线，看起来像「内容被一刀切掉」。留白一加大，读起来就是
+ * 「列表到此为止」。scrollbar-gutter 让滚动条出现时不挤动整行宽度。
+ */
 .panel__scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--s3) var(--s3) var(--s4);
+  padding: var(--s3) var(--s3) 28px;
+  scrollbar-gutter: stable;
 }
 
 /* --- queue --------------------------------------------------------------- */
@@ -818,4 +835,14 @@
 .party__tunnel {
   display: grid;
   gap: var(--s2);
+}
+
+/*
+ * 播放页没有播放条（'.shell.is-nowplaying > .player' 那一条是隐藏的），所以抽屉不该
+ * 再给播放条让出那 100px——否则队列的底边就停在播放条原本的位置，下面空出
+ * 一整块，看起来像被截断。
+ */
+.shell.is-nowplaying .panel {
+  bottom: 0;
+  max-height: calc(100vh - var(--titlebar-h));
 }
