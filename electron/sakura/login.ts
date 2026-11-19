@@ -130,6 +130,12 @@ async function tokenFromPanel(win: BrowserWindow): Promise<{ token: string; deta
  */
 async function tokenFromClipboard(win: BrowserWindow): Promise<{ token: string; detail: string }> {
   try {
+    /*
+     * 樱花走的是 Nyatwork OpenID：登录发生在另一个域名上，只有跳回面板首页之后
+     * 才有那颗「复制访问密钥」。在登录页上找它永远找不到，所以先看 URL。
+     */
+    const url = win.webContents.getURL()
+    if (!/natfrp\.com/.test(url)) return { token: '', detail: '还在登录页（' + url.slice(0, 60) + '）' }
     const clicked = String(
       await win.webContents.executeJavaScript(
         `(() => {
