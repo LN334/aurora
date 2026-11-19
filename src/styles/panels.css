@@ -1288,3 +1288,51 @@ body.is-party-window {
   padding: 0;
   border: 0;
 }
+
+/* 樱花页第一步：说明与入口并排一行。 */
+.sakura-first {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.08);
+}
+
+.sakura-first .party__hint {
+  flex: 1;
+  margin: 0;
+}
+
+/*
+ * 聊天窗里的消息区与输入行。
+ *
+ * 不约束高度时那两个输入框会被 flex 拉成几百像素高的大方块——窗口只有 420 宽，
+ * 拉高之后既不像输入框，也把消息区挤没了。这里固定输入行、让消息区自己滚。
+ */
+.party-window .party__chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-height: 100%;
+}
+
+/* 发送栏贴底：消息再少也停在这一屏的下沿，不用眼睛去上方找。 */
+.party-window .party__say {
+  margin-top: auto;
+}
+
+.party-window .party__messages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.party-window .party__chat .input {
+  height: 34px;
+  flex: 1;
+}
+
+.party-window .party__say {
+  align-items: center;
+}

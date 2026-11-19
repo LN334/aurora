@@ -14,7 +14,7 @@ export function sakuraWindowOpen(): boolean {
   }
   sakuraWindow = new BrowserWindow({
     width: 560,
-    height: 640,
+    height: 520,
     minWidth: 460,
     minHeight: 480,
     title: '樱花隧道',

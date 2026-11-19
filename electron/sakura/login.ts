@@ -1,0 +1,130 @@
+import { BrowserWindow, session } from 'electron'
+
+/**
+ * 樱花登录。
+ *
+ * 「不要手动复制访问密钥」——所以不能只给一颗「打开面板」的按钮，让人自己
+ * 去找密钥再粘回来。这里开一扇内嵌登录窗，登录完成后在同一会话里把密钥捞出来，
+ * 直接填进 Aurora。
+ *
+ * 捞法有两路，按确定性从高到低：
+ *   1. 用登录后的 cookie 调 /v4/user/info，接口若回访问密钥就直接用；
+ *   2. 退而求其次，在账号设置页里按 32 位十六进制的形状找一遍。
+ * 两路都拿不到就明确说「没找到」，不假装成功、也不让用户猜。
+ */
+
+const TOKEN_SHAPE = /\b[0-9a-f]{32}\b/i
+const SETTINGS_URL = 'https://www.natfrp.com/user/settings'
+const HOME_URL = 'https://www.natfrp.com/user/'
+
+let loginWindow: BrowserWindow | null = null
+
+/** 从接口拿：登录态在 cookie 里，和网页共用同一个 session。 */
+async function tokenFromApi(partitionSession: Electron.Session): Promise<string> {
+  try {
+    const response = await partitionSession.fetch('https://api.natfrp.com/v4/user/info', {
+      headers: { Accept: 'application/json' }
+    })
+    const body = (await response.json()) as { code?: number; data?: Record<string, unknown> }
+    if (!body || body.code !== 0 || !body.data) return ''
+    const record = body.data
+    for (const key of ['token', 'access_token', 'accessToken', 'api_token']) {
+      const value = record[key]
+      if (typeof value === 'string' && TOKEN_SHAPE.test(value)) return value
+    }
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+/** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
+async function tokenFromPage(win: BrowserWindow): Promise<string> {
+  try {
+    const text = await win.webContents.executeJavaScript(
+      "document.body ? document.body.innerText : ''",
+      true
+    )
+    const match = String(text).match(TOKEN_SHAPE)
+    return match ? match[0] : ''
+  } catch {
+    return ''
+  }
+}
+
+interface SakuraLoginResult {
+  ok: boolean
+  token: string
+  message: string
+}
+
+/**
+ * 打开登录窗。返回的 Promise 在窗口关闭或拿到密钥时结算。
+ *
+ * 拿不到就返回 ok:false 与原因——不弹二次确认，也不把「可能有」当成「有」。
+ */
+export async function sakuraLogin(): Promise<SakuraLoginResult> {
+  if (loginWindow && !loginWindow.isDestroyed()) {
+    loginWindow.focus()
+    return { ok: false, token: '', message: '登录窗口已经开着' }
+  }
+
+  const partition = session.fromPartition('persist:sakura')
+  loginWindow = new BrowserWindow({
+    width: 520,
+    height: 720,
+    title: '登录樱花',
+    backgroundColor: '#10141a',
+    autoHideMenuBar: true,
+    webPreferences: {
+      session: partition,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  const win = loginWindow
+  return await new Promise<SakuraLoginResult>((resolve) => {
+    let done = false
+    const finish = (result: SakuraLoginResult): void => {
+      if (done) return
+      done = true
+      resolve(result)
+    }
+
+    /*
+     * 每次页面加载完看一眼：还没登录时页面是登录表单，登录后才会出现账号内容。
+     * 先问接口（快且确定），再翻页面文本（兜底）。
+     */
+    const inspect = async (): Promise<void> => {
+      if (done || win.isDestroyed()) return
+      const fromApi = await tokenFromApi(partition)
+      if (fromApi) {
+        finish({ ok: true, token: fromApi, message: '' })
+        win.close()
+        return
+      }
+      const fromPage = await tokenFromPage(win)
+      if (fromPage) {
+        finish({ ok: true, token: fromPage, message: '' })
+        win.close()
+      }
+    }
+
+    win.webContents.on('did-finish-load', () => {
+      void inspect()
+    })
+    /* 网页是单页应用，跳转不一定触发加载完成，所以定期再试一次。 */
+    const timer = setInterval(() => void inspect(), 2500)
+
+    win.on('closed', () => {
+      clearInterval(timer)
+      loginWindow = null
+      finish({ ok: false, token: '', message: '登录窗口关掉了' })
+    })
+
+    void win.loadURL(HOME_URL)
+    /* 设置页在登录后才有内容；先停在首页，用户登录完自己点进去也行。 */
+    void SETTINGS_URL
+  })
+}

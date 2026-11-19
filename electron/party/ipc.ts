@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
 import { sakuraTunnels } from '../sakura/api'
+import { sakuraLogin } from '../sakura/login'
 import { chatWindowOpen } from '../chat-window'
 import { sakuraWindowOpen } from '../sakura-window'
 import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
@@ -116,6 +117,11 @@ export function registerPartyIpc(): void {
   /* 隧道列表：仿照官方启动器，用访问密钥换回那一列卡片的数据。 */
   ipcMain.handle('sakura:tunnels', async (_event, args: unknown) => {
     return await sakuraTunnels(asText(asRecord(args).token))
+  })
+
+  /* 登录樱花并直接拿回访问密钥：不让用户去网页里找到再粘过来。 */
+  ipcMain.handle('sakura:login', async () => {
+    return await sakuraLogin()
   })
 
   ipcMain.handle('party:sakura', () => {

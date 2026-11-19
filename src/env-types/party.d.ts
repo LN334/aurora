@@ -97,6 +97,8 @@ export interface PartyApi {
   setRelay(relay: boolean): Promise<PartyState>
   /** 打开聊天室页（单例窗口）。 */
   openChat(): Promise<boolean>
+  /** 登录樱花：开一扇内嵌登录窗，登录后自动带回访问密钥。 */
+  sakuraLogin(): Promise<{ ok: boolean; token: string; message: string }>
   /** 打开樱花隧道页（单例窗口）。 */
   openSakura(): Promise<boolean>
   /** 用访问密钥换樱花隧道列表。 */

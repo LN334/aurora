@@ -635,6 +635,7 @@ const api = {
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
     openChat: () => ipcRenderer.invoke('party:chatWindow'),
     openSakura: () => ipcRenderer.invoke('party:sakura'),
+    sakuraLogin: () => ipcRenderer.invoke('sakura:login'),
     registerStream: (trackId: string, url: string) =>
       ipcRenderer.invoke('party:stream', { trackId, url }) as Promise<string>,
     tunnelStart: (config: { frpcPath: string; token: string; tunnelId: string }) =>

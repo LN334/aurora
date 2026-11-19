@@ -34,12 +34,38 @@ export function SakuraPanel() {
   const [tunnelId, setTunnelId] = useState(() => localStorage.getItem(KEYS.tunnel) ?? '')
   const [tunnels, setTunnels] = useState<Tunnel[]>([])
   const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
 
   const persist = (): void => {
     localStorage.setItem(KEYS.frpc, frpc)
     localStorage.setItem(KEYS.token, token)
+  }
+
+  /**
+   * 登录：开内嵌登录窗，登录完把访问密钥带回来直接填上。
+   *
+   * 不让用户去网页里找到密钥再粘过来——那正是「手动复制」。
+   */
+  const login = async (): Promise<void> => {
+    setBusy(true)
+    try {
+      const result = await window.aurora?.party?.sakuraLogin()
+      if (!result) {
+        setNote('桌面版才有登录')
+        return
+      }
+      if (result.ok && result.token) {
+        setToken(result.token)
+        localStorage.setItem('aurora.party.token', result.token)
+        setNote('登录成功，密钥已填好')
+      } else {
+        setNote(result.ok ? '登录窗口关了，没拿到密钥' : result.message)
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   const load = async (): Promise<void> => {
@@ -71,6 +97,19 @@ export function SakuraPanel() {
 
   return (
     <div className="sakura-panel">
+      {/*
+        顺序照官方启动器：先有账号与隧道，才谈得上填路径、选隧道。说明放在最
+        上面一颗按钮旁边，读者第一眼就知道这一步要去哪。
+      */}
+      <div className="sakura-first">
+        <p className="party__hint">
+          需要一条樱花 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:{roomPort || '房间端口'}</code>。登录之后密钥自己带回来，不用复制。
+        </p>
+        <button className="rh-btn rh-btn--main" type="button" disabled={busy} onClick={() => void login()}>
+          {busy ? '登录中…' : token ? '重新登录' : '登录樱花'}
+        </button>
+      </div>
+
       <div className="sakura-fields">
         <label className="party__field">
           <span>frpc 路径</span>
@@ -85,7 +124,7 @@ export function SakuraPanel() {
           <span>访问密钥</span>
           <input
             className="input"
-            placeholder="只存在这台机器上"
+            placeholder={token ? '' : '登录后自动填入'}
             value={token}
             onChange={(event) => setToken(event.target.value)}
           />
@@ -127,18 +166,6 @@ export function SakuraPanel() {
           ))}
         </ul>
       ) : null}
-
-      <p className="party__hint">
-        需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填{' '}
-        <code>127.0.0.1:{roomPort || '房间端口'}</code>。
-      </p>
-      <button
-        className="rh-btn"
-        type="button"
-        onClick={() => void window.aurora?.app?.openExternal('https://www.natfrp.com/user/')}
-      >
-        打开樱花面板（注册 / 登录 / 建隧道）
-      </button>
 
       {tunnel.address ? <p className="party__hint">隧道已通：{tunnel.address}</p> : null}
       {!tunnel.address && tunnel.line ? <p className="party__hint">{tunnel.line}</p> : null}
