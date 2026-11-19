@@ -734,21 +734,31 @@
 .shelf-search {
   display: flex;
   flex-direction: column;
-  width: min(320px, 100%);
+  width: min(360px, 100%);
   margin: 0 0 var(--s4);
 }
 
+/*
+ * 搜索框与同一页的统计卡、范围胶囊用同一种材质：tint 薄片 + 淡边。
+ *
+ * 它原来是 plane 0.55 的实底——在深色主题下是一颗更黑的胶囊，与页面上别的
+ * 「半透明薄片」不是一套，所以哪怕位置对齐，看着也像临时贴上去的。
+ */
 .shelf-search__box {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 32px;
   padding: 0 12px;
-  border: var(--line-soft);
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-radius: 999px;
-  background: rgb(var(--plane-rgb) / 0.55);
+  background: rgb(var(--tint-rgb) / 0.045);
   color: var(--text-low);
-  transition: border-color var(--dur-1) var(--ease-out);
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+}
+
+.shelf-search__box:hover {
+  background: rgb(var(--tint-rgb) / 0.07);
 }
 
 .shelf-search__box:focus-within {
@@ -819,11 +829,15 @@
 }
 
 /* 「我喜欢的音乐」的搜索行：框在左，命中数在右。 */
+/*
+ * 搜索这一行是「下面那份列表的工具条」，不是独立一段内容：上边不留下一次
+ * 常规间距，让它贴着上一块；下边留一点，和第一行数据分开。
+ */
 .lk-search {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  margin: var(--s3) 0 var(--s4);
+  margin: 0 0 var(--s4);
 }
 .lk-search__count {
   color: var(--text-low);
