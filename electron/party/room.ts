@@ -376,13 +376,14 @@ export function joinParty(url: string, code: string, name: string): PartyState {
   })
 
   socket.on('error', () => {
-    publish({ error: '连不上房主，检查地址与是否在同一网络' })
+    // 公网场景下「是否在同一网络」是句错话：地址、房间码、隧道任一处不对都连不上。
+    publish({ error: '连不上房主：检查地址与房间码，房主那边如果走的是公网，还要确认隧道开着' })
   })
 
   socket.on('close', () => {
     if (current.role === 'guest') {
       guestSocket = null
-      publish({ ...idle(), error: '房间已关闭' })
+      publish({ ...idle(), error: '房间已关闭：房主结束了这一趟，或者他那边断网、隧道断了' })
     }
   })
 

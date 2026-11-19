@@ -71,6 +71,37 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     setNote('已把你现在这首同步给房间')
   }
 
+  /**
+   * 把「地址 + 房间码」一次复制走。
+   *
+   * 房主要发给别人的是两条信息，手抄一遍就容易抄错一位。优先用公网地址：
+   * 房主填了它，说明这一趟就是想跨网络；没填才退回局域网地址。
+   */
+  const copyInvite = async (): Promise<void> => {
+    const place = state.publicAddress || state.address
+    if (!place) {
+      setNote('还没有可用的地址')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText('一起听：' + place + '\n房间码：' + state.code)
+      setNote('已复制，发给朋友就行')
+    } catch {
+      setNote('复制失败，剪贴板不可用')
+    }
+  }
+
+  /** 公网地址存之前先洗一遍：有人会把 ws:// 前缀一起粘进来。 */
+  const savePublic = async (): Promise<void> => {
+    const clean = publicDraft.trim().replace(/^wss?:\/\//i, '')
+    if (!/^[a-z0-9.-]+:\d{1,5}$/i.test(clean)) {
+      setNote('公网地址要写成 host:端口，例如 xxx.natfrp.cloud:23456')
+      return
+    }
+    await useParty.getState().setPublic(clean)
+    setNote('公网地址已更新，房间里的人都看得到')
+  }
+
   const say = async (text: string): Promise<void> => {
     const body = text.trim()
     if (!body) return
@@ -90,7 +121,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
       {!inRoom ? (
         <div className="panel__body">
           <p className="pg-note">
-            房间开在这台电脑上，同一 WiFi 下的人用「地址 + 房间码」进来。同步的是听什么、听到哪，音频各自取。
+            房间开在这台电脑上。同一 WiFi 下的人用「局域网地址 + 房间码」进来；不在同一个网络，需要房主先把端口穿到公网，再把公网地址发给你。同步的是听什么、听到哪，音频各自取。
           </p>
           <button className="rh-btn" disabled={busy} onClick={() => void useParty.getState().host('房主')}>
             <User size={15} />
@@ -99,7 +130,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
           <div className="party__join">
             <input
               className="input"
-              placeholder="房主的地址，如 192.168.1.5:7890"
+              placeholder="房主的地址，如 192.168.1.5:7890 或 xxx.natfrp.cloud:23456"
               value={address}
               onChange={(event) => setAddress(event.target.value)}
             />
@@ -125,7 +156,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
           <dl className="party__facts">
             <dt>房间码</dt>
             <dd>{state.code || '—'}</dd>
-            <dt>地址</dt>
+            <dt>局域网</dt>
             <dd>{state.address || '—'}</dd>
             <dt>成员</dt>
             <dd>{state.members.map((member) => member.name).join('、') || '—'}</dd>
@@ -150,12 +181,16 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
               <button
                 className="rh-btn"
                 disabled={publicDraft.trim() === state.publicAddress}
-                onClick={() => void useParty.getState().setPublic(publicDraft)}
+                onClick={() => void savePublic()}
               >
                 保存
               </button>
             </div>
           ) : null}
+
+          <button className="rh-btn" onClick={() => void copyInvite()}>
+            复制邀请（地址 + 房间码）
+          </button>
 
           <div className="party__chat">
             {state.messages.length === 0 ? (
