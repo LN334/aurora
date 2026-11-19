@@ -1783,3 +1783,36 @@ body.is-party-window {
 .party-pick__card {
   justify-content: center;
 }
+
+/* 房间头部：左封面、右信息，和专辑页那套 hero 一致。 */
+.party-room__head {
+  align-items: flex-start;
+  gap: var(--s5);
+}
+
+.party-room__head .party-room__cover {
+  width: 132px;
+  height: 132px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex: none;
+  background: linear-gradient(140deg, #3b6ea8, #1e2f4a);
+}
+
+.party-room__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* 现在没有封面了，这一块只是「在放什么」的字。 */
+.party-room__now {
+  min-height: 0;
+  padding: var(--s4);
+}
+
+.party-room__song strong {
+  font-size: 15px;
+}

@@ -141,7 +141,16 @@ export function PartyPage() {
     <div className="party-page">
       <section className="party-room">
         <header className="party-room__head">
-          <div>
+          {/*
+            封面提到头部左侧：专辑页、艺人页都是「大图 + 右侧信息」的 hero，
+            房间这里也照同一套走，不然它夹在中间像另一个应用里贴过来的。
+          */}
+          {coverUrl ? (
+            <img className="party-room__cover" src={coverUrl} alt="" />
+          ) : (
+            <div className="party-room__cover" />
+          )}
+          <div className="party-room__info">
             <h1 className="party-room__title">{host ? '我的一起听' : '正在加入的一起听'}</h1>
             <p className="party-room__meta">
               <b>{state.code}</b>
@@ -195,11 +204,6 @@ export function PartyPage() {
         <div className="party-room__now">
           {state.now ? (
             <>
-              {coverUrl ? (
-                <img className="party-room__cover" src={coverUrl} alt="" />
-              ) : (
-                <div className="party-room__cover" />
-              )}
               <div className="party-room__song">
                 <strong>{state.now.title}</strong>
                 <span>{state.now.artist}</span>
