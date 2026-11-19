@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getProvider } from '../../features/online/registry'
 import { applyQuality } from '../../features/online/quality'
-import { QUALITY_LABELS, tierAllowed, type QualityTier } from '../../features/online/types'
+import { QUALITY_LABELS, QUALITY_SHORT, tierAllowed, type QualityTier } from '../../features/online/types'
 import { useOnlineStore } from '../../features/online/store'
 import { usePlayer } from '../../features/player/store'
 
@@ -95,7 +95,7 @@ export function QualityMenu() {
     if (applied) setTier(applied)
   }
 
-  const short = tier ? QUALITY_LABELS[tier].split(' ')[0] : '音质'
+  const short = tier ? QUALITY_SHORT[tier] : '音质'
 
   return (
     <>

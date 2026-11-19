@@ -527,10 +527,21 @@
  * 宽度随文字走：它显示的是当前档位的短名（极高 / 无损 / Hi-Res），不是一个
  * 固定图标位。菜单向上弹、用 fixed 定位，避开播放条贴底时的容器裁剪。
  */
+/*
+ * 音质键做成一颗带细边框的胶囊，和另外几家播放器放同一处（右侧、音量左边）。
+ *
+ * 关键是 nowrap：档位名最短两个字、最长四个字，一旦允许换行，30px 高的按钮会
+ * 被撑成两行，整条播放条跟着错位。所以字表那边另给了短名（母带 / 环绕 / 沉浸），
+ * 这里再锁一次不换行。
+ */
 .pb-quality {
+  flex: none;
   width: auto;
-  min-width: 48px;
+  min-width: 44px;
   padding: 0 8px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.16);
+  border-radius: 8px;
+  white-space: nowrap;
 }
 
 .pb-quality__text {
@@ -538,6 +549,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .pb-quality__menu {

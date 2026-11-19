@@ -52,6 +52,23 @@ export type QualityTier = NeteaseQuality
   'jymaster'
 ]
 
+/**
+ * 播放条上用的短名。
+ *
+ * 「超清母带」四个字放进 30px 高的播放条里会被挤成两行，整条播放条跟着错位——
+ * 这一列只做一件事：让它一个字都不换行。菜单里仍然是全名。
+ */
+export const QUALITY_SHORT: Record<QualityTier, string> = {
+  standard: '标准',
+  higher: '较高',
+  exhigh: '极高',
+  lossless: '无损',
+  hires: 'Hi-Res',
+  jyeffect: '环绕',
+  sky: '沉浸',
+  jymaster: '母带'
+}
+
 export const QUALITY_LABELS: Record<QualityTier, string> = {
   standard: '标准 128k',
   higher: '较高 192k',
