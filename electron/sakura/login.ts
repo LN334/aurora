@@ -20,22 +20,41 @@ const HOME_URL = 'https://www.natfrp.com/user/'
 let loginWindow: BrowserWindow | null = null
 
 /** 从接口拿：登录态在 cookie 里，和网页共用同一个 session。 */
-async function tokenFromApi(partitionSession: Electron.Session): Promise<string> {
-  try {
-    const response = await partitionSession.fetch('https://api.natfrp.com/v4/user/info', {
-      headers: { Accept: 'application/json' }
-    })
-    const body = (await response.json()) as { code?: number; data?: Record<string, unknown> }
-    if (!body || body.code !== 0 || !body.data) return ''
-    const record = body.data
-    for (const key of ['token', 'access_token', 'accessToken', 'api_token']) {
-      const value = record[key]
-      if (typeof value === 'string' && TOKEN_SHAPE.test(value)) return value
+async function tokenFromApi(partitionSession: Electron.Session): Promise<{ token: string; detail: string }> {
+  const endpoints = [
+    'https://api.natfrp.com/v4/user/info',
+    'https://api.natfrp.com/v4/user',
+    'https://api.natfrp.com/v4/account'
+  ]
+  const tried: string[] = []
+  for (const url of endpoints) {
+    try {
+      const response = await partitionSession.fetch(url, { headers: { Accept: 'application/json' } })
+      const text = await response.text()
+      let body: { code?: number; msg?: string; data?: unknown } | null = null
+      try {
+        body = JSON.parse(text) as { code?: number; msg?: string; data?: unknown }
+      } catch {
+        tried.push(url.split('/v4/')[1] + ' 非 JSON')
+        continue
+      }
+      if (!body || body.code !== 0) {
+        tried.push(url.split('/v4/')[1] + ' → ' + (body?.msg ?? 'code ' + body?.code))
+        continue
+      }
+      const record = (body.data ?? {}) as Record<string, unknown>
+      for (const key of ['token', 'access_token', 'accessToken', 'api_token']) {
+        const value = record[key]
+        if (typeof value === 'string' && TOKEN_SHAPE.test(value)) return { token: value, detail: '' }
+      }
+      /* 接口通了但没有密钥字段：把顶层字段名记下来，下次就知道该去哪儿找。 */
+      tried.push(url.split('/v4/')[1] + ' 有响应但无密钥字段：' + Object.keys(record).slice(0, 8).join(','))
+    } catch (error) {
+      tried.push(url.split('/v4/')[1] + ' 连不上')
+      void error
     }
-    return ''
-  } catch {
-    return ''
   }
+  return { token: '', detail: tried.join(' · ') }
 }
 
 /** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
@@ -86,6 +105,7 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
   const win = loginWindow
   return await new Promise<SakuraLoginResult>((resolve) => {
     let done = false
+    let lastDetail = ''
     const finish = (result: SakuraLoginResult): void => {
       if (done) return
       done = true
@@ -99,11 +119,13 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
     const inspect = async (): Promise<void> => {
       if (done || win.isDestroyed()) return
       const fromApi = await tokenFromApi(partition)
-      if (fromApi) {
-        finish({ ok: true, token: fromApi, message: '' })
+      if (fromApi.token) {
+        finish({ ok: true, token: fromApi.token, message: '' })
         win.close()
         return
       }
+      /* 把接口那几句诊断留给最后一次结算用，窗口关时一起报出来。 */
+      lastDetail = fromApi.detail
       const fromPage = await tokenFromPage(win)
       if (fromPage) {
         finish({ ok: true, token: fromPage, message: '' })
@@ -120,7 +142,11 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
     win.on('closed', () => {
       clearInterval(timer)
       loginWindow = null
-      finish({ ok: false, token: '', message: '登录窗口关掉了' })
+      finish({
+        ok: false,
+        token: '',
+        message: '登录窗口关掉了，没拿到密钥' + (lastDetail ? '（接口：' + lastDetail + '）' : '')
+      })
     })
 
     void win.loadURL(HOME_URL)
