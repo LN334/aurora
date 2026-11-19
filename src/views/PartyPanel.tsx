@@ -202,6 +202,8 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             <dd>{state.code || '—'}</dd>
             <dt>局域网</dt>
             <dd>{state.address || '—'}</dd>
+            <dt>端口</dt>
+            <dd>{roomPort || '—'}</dd>
             <dt>成员</dt>
             <dd>{state.members.map((member) => member.name).join('、') || '—'}</dd>
             <dt>现在</dt>
@@ -209,7 +211,12 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
               {state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}
               {/* 房主带了地址过来时，这一首听到的是他那一档，不是自己账号的。 */}
               {state.now?.stream ? (
-                <span className="party__src"> · 音质由房主提供{state.now.stream.quality ? '（' + state.now.stream.quality + '）' : ''}</span>
+                <span className="party__src">
+                  {' · 音质由房主提供'}
+                  {state.now.stream.quality ? `（${state.now.stream.quality}` : '（'}
+                  {state.now.stream.via === 'relay' ? '，经房间转发' : '，平台直链'}
+                  {'）'}
+                </span>
               ) : null}
             </dd>
             <dt>公网</dt>

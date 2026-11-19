@@ -1503,7 +1503,12 @@ export interface PartyNow {
    * 客人就能听到和房主同一档音质——他用的母带，你听到的就是母带。地址有
    * 时效，所以随每次心跳重推。
    */
-  stream?: { url: string; quality: string }
+  stream?: {
+    url: string
+    quality: string
+    /** `relay` 是经房主房间转发；`direct` 是平台直链原样给的。 */
+    via?: 'relay' | 'direct'
+  }
 }
 
 export interface PartyState {

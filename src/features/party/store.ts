@@ -148,13 +148,15 @@ function pushMoment(): void {
           position: state.position,
           playing: state.playing,
           ...(info ? { track: info } : {}),
-          stream: { url: 'http://' + base + '/stream/' + token, quality }
+          stream: { url: 'http://' + base + '/stream/' + token, quality, via: 'relay' }
         })
       })
     return
   }
 
-  const stream = playback.streamUrl ? { url: playback.streamUrl, quality: qualityNameOf(track) } : undefined
+  const stream = playback.streamUrl
+    ? { url: playback.streamUrl, quality: qualityNameOf(track), via: 'direct' as const }
+    : undefined
   const info = partyTrackInfoOf(track)
   void useParty.getState().push({
     trackId: track.id,
@@ -403,6 +405,11 @@ export const useParty = create<PartyStore>((set, get) => ({
   async leave() {
     const state = await window.aurora?.party?.leave()
     set({ state: state ?? IDLE })
+    /*
+     * 退房之后房主那条地址就不该再用了：它可能已经失效，拿着它播只会在
+     * 超时之后才回退。清掉，下一首直接走自己的音源。
+     */
+    rememberSharedStream(null)
   },
 
   async startTunnel(config) {

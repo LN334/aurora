@@ -50,7 +50,7 @@ export interface PartyNow {
     hasArt: boolean
   }
   /** 房主那份播放地址；有它，客人听到的就是房主这一档的音质。 */
-  stream?: { url: string; quality: string }
+  stream?: { url: string; quality: string; via?: 'relay' | 'direct' }
 }
 
 /** 房间里的一句话。 */
