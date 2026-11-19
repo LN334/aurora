@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { getProvider, listAvailableProviders, listProviders } from '../../../features/online/registry'
 import { applyQuality } from '../../../features/online/quality'
+import { useOnlineStore } from '../../../features/online/store'
 import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
 import {
   QUALITY_LABELS as TIER_LABELS,
   type OnlineMusicProvider,
-  type QualityTier
+  type QualityTier,
+  tierAllowed
 } from '../../../features/online/types'
 import { usePlayer } from '../../../features/player/store'
 import { useSettingsPage } from '../../../features/settings/store'
@@ -126,7 +128,14 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
     }
   }, [provider])
 
-  const tiers = provider.qualityTiers ?? []
+  /*
+   * 明确是非会员时，把需要会员的档收起来。判断放在渲染这一层而不是数据层，
+   * 因为「有没有会员」是账号状态，会变；档位表是构建期固定的。
+   */
+  const account = useOnlineStore(provider.id).getState().account
+  const tiers = (provider.qualityTiers ?? []).filter((tier) =>
+    tierAllowed(provider, tier, account?.vip ?? null)
+  )
 
   /*
    * 改档要同时落到两处：平台后端（主进程存盘、下次启动读它）和平台的播放

@@ -118,6 +118,13 @@ export interface KugouAccount {
   id: number
   nickname: string
   avatarUrl: string | null
+  /**
+   * 有没有会员。
+   *
+   * `null` 是「上游没给这个字段」，不是「没有会员」——界面据此决定要不要把
+   * 需要会员的音质档摆出来，猜错一次就是「永久看不到无损」。
+   */
+  vip: boolean | null
 }
 
 export interface KugouStatusResult {

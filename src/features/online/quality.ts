@@ -1,5 +1,5 @@
-import { useOnlineStore } from './store'
-import type { OnlineMusicProvider, QualityTier } from './types'
+import { useOnlineStore } from './store.ts'
+import type { OnlineMusicProvider, QualityTier } from './types.ts'
 
 /**
  * 改一个平台的取流档位。

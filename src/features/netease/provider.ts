@@ -196,6 +196,8 @@ const neteaseBackend: PlatformBackend = {
   collectedAlbums: () => netease.albumSublist(),
   followedArtists: () => netease.artistSublist(),
   qualityTiers: TIERS,
+  /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
+  qualityNeedsVip: ['lossless', 'hires', 'jyeffect', 'sky', 'jymaster'],
   getQuality: neteaseBackend.getQuality,
   setQuality: neteaseBackend.setQuality,
   backend: neteaseBackend,

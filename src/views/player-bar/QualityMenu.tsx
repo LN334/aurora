@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { getProvider } from '../../features/online/registry'
 import { applyQuality } from '../../features/online/quality'
-import { QUALITY_LABELS, type QualityTier } from '../../features/online/types'
+import { QUALITY_LABELS, tierAllowed, type QualityTier } from '../../features/online/types'
+import { useOnlineStore } from '../../features/online/store'
 import { usePlayer } from '../../features/player/store'
 
 /**
@@ -19,7 +20,14 @@ export function QualityMenu() {
   const track = usePlayer((state) => state.current())
   const source = track?.source ?? ''
   const provider = source && source !== 'local' ? getProvider(source) : null
-  const tiers = provider?.qualityTiers ?? []
+  /*
+   * 明确非会员就把会员档收起来。账号状态是变的，所以每次渲染读一次当前值：
+   * 菜单本身活不长，订阅一整个 store 反而更重。
+   */
+  const vip = provider ? (useOnlineStore(provider.id).getState().account?.vip ?? null) : null
+  const tiers = (provider?.qualityTiers ?? []).filter((tier) =>
+    provider ? tierAllowed(provider, tier, vip) : false
+  )
 
   const [tier, setTier] = useState<QualityTier | null>(null)
   const [open, setOpen] = useState(false)

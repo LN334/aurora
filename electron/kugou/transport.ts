@@ -659,6 +659,7 @@ export function readAccount(raw: unknown, userid: string): {
   id: number
   nickname: string
   avatarUrl: string | null
+  vip: boolean | null
 } {
   const root = asRecord(raw)
   const outer = asRecord(root.data)
@@ -681,10 +682,18 @@ export function readAccount(raw: unknown, userid: string): {
     asString(merged.img)
 
   const id = Number(userid) || numberOr(merged.userid, numberOr(merged.user_id, 0))
+  /*
+   * 会员状态：上游给的是数字（0 不是会员），偶尔给布尔。取不到就留 null ——
+   * 「不知道」和「没有」必须分开，界面靠它决定要不要把无损档摆出来。
+   */
+  const vipRaw = merged.vip_type ?? merged.vipType ?? merged.vip ?? merged.is_vip
+  const vip =
+    typeof vipRaw === 'number' ? vipRaw > 0 : typeof vipRaw === 'boolean' ? vipRaw : null
   return {
     id,
     nickname: nickname || (id ? `酷狗用户${id}` : '酷狗用户'),
-    avatarUrl: sizedImage(avatarRaw || null, 240)
+    avatarUrl: sizedImage(avatarRaw || null, 240),
+    vip
   }
 }
 

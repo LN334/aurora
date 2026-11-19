@@ -305,6 +305,8 @@ const qqBackend: PlatformBackend = {
     }))
   },
   qualityTiers: TIERS,
+  /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
+  qualityNeedsVip: ['lossless'],
   getQuality: qqBackend.getQuality,
   setQuality: qqBackend.setQuality,
   backend: qqBackend,

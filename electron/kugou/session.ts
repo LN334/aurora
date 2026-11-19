@@ -20,6 +20,8 @@ interface KugouProfileState {
   userid: string
   nickname: string
   avatarUrl: string | null
+  /** 会员状态：null 是没问到，不是没有。 */
+  vip: boolean | null
   quality: KugouQuality
 }
 
@@ -30,6 +32,7 @@ const EMPTY: KugouProfileState = {
   userid: '',
   nickname: '',
   avatarUrl: null,
+  vip: null,
   quality: DEFAULT_QUALITY
 }
 
@@ -56,6 +59,8 @@ function revive(value: unknown): KugouProfileState {
     userid: typeof raw.userid === 'string' ? raw.userid : '',
     nickname: typeof raw.nickname === 'string' ? raw.nickname : '',
     avatarUrl: typeof raw.avatarUrl === 'string' ? raw.avatarUrl : null,
+    // 旧版本的会话里没有这一项：读成「不知道」，不是「不是会员」。
+    vip: typeof raw.vip === 'boolean' ? raw.vip : null,
     quality:
       quality === 'standard' || quality === 'higher' || quality === 'exhigh' || quality === 'lossless'
         ? quality

@@ -265,6 +265,8 @@ const qishuiProvider: OnlineMusicProvider = {
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
   qualityTiers: TIERS,
+  /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
+  qualityNeedsVip: ['lossless', 'hires'],
   getQuality: qishuiBackend.getQuality,
   setQuality: qishuiBackend.setQuality,
   backend: qishuiBackend,

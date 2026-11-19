@@ -1095,6 +1095,8 @@ export interface KugouAccount {
   id: number
   nickname: string
   avatarUrl: string | null
+  /** 有没有会员；null 是「上游没给」，不是「没有」。 */
+  vip: boolean | null
 }
 
 export interface KugouStatusResult {

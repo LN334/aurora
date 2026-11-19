@@ -162,8 +162,8 @@ const kugouBackend: PlatformBackend = {
       id: account.id,
       nickname: account.nickname,
       avatarUrl: account.avatarUrl,
-      // 酷狗不报会员状态：false 在这里表示「没有检测到」，不是「不是会员」。
-      vip: false,
+      // 三态：null 是没问到。界面只在明确「非会员」时才藏起会员档。
+      vip: account.vip ?? null,
       level: 0
     }
   },
@@ -266,6 +266,8 @@ const kugouProvider: OnlineMusicProvider = {
     }))
   },
   qualityTiers: TIERS,
+  /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
+  qualityNeedsVip: ['lossless'],
   getQuality: kugouBackend.getQuality,
   setQuality: kugouBackend.setQuality,
   backend: kugouBackend,
@@ -372,7 +374,7 @@ const kugouProvider: OnlineMusicProvider = {
             id: account.id,
             nickname: account.nickname,
             avatarUrl: account.avatarUrl,
-            vip: false,
+            vip: account.vip ?? null,
             level: 0
           }
         : null

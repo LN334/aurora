@@ -173,6 +173,8 @@ const bilibiliProvider: OnlineMusicProvider = {
     likes: false
   },
   qualityTiers: TIERS,
+  /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
+  qualityNeedsVip: ['lossless', 'hires'],
   getQuality: () => bilibiliBackend.getQuality(),
   setQuality: (quality) => bilibiliBackend.setQuality(quality),
   search: {

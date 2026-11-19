@@ -121,7 +121,13 @@ export interface OnlineAccount {
   id: number
   nickname: string
   avatarUrl: string | null
-  vip: boolean
+  /**
+   * 有没有会员。
+   *
+   * 三态：null 是「上游没告诉我们」，不是「没有」。界面据此决定要不要把需要
+   * 会员的音质档摆出来——把未知当没有，会让一个会员账号永远看不到无损。
+   */
+  vip: boolean | null
   level: number
 }
 
@@ -469,6 +475,13 @@ export interface OnlineMusicProvider {
 
   /** The quality tiers this platform accepts, best-last, matching `QUALITY_TIERS`. */
   qualityTiers?: QualityTier[]
+  /**
+   * 这些档位需要会员。账号明确是「非会员」时，界面把它们藏起来。
+   *
+   * 只声明「确定要会员」的档；没声明的档一律对所有账号开放——宁可多显示一个
+   * 拿不到的档（会自动降级并如实报告），也不要在不确定时藏掉一个能用的。
+   */
+  qualityNeedsVip?: QualityTier[]
 
   /** The user's current tier for this platform. The main process owns the value. */
   getQuality?(): Promise<QualityTier>
@@ -589,4 +602,19 @@ export function paymentLabel(song: { fee: number }): string {
     default:
       return `付费类型 ${song.fee}`
   }
+}
+
+/**
+ * 这个账号能不能用这一档。
+ *
+ * 只有「明确非会员」才挡；`null`（上游没报）与 `true` 都放行——宁可多显示一个
+ * 拿不到的档（会降级并如实报告），也不要在不确定时藏掉一个能用的档。
+ */
+export function tierAllowed(
+  provider: Pick<OnlineMusicProvider, 'qualityNeedsVip'>,
+  tier: QualityTier,
+  vip: boolean | null
+): boolean {
+  if (vip !== false) return true
+  return !(provider.qualityNeedsVip ?? []).includes(tier)
 }

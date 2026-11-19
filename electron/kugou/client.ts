@@ -1003,7 +1003,8 @@ async function accountOf(profileId: string): Promise<KugouAccount | null> {
   const stored: KugouAccount = {
     id: Number(state.userid) || 0,
     nickname: state.nickname || (state.userid ? `酷狗用户${state.userid}` : '酷狗用户'),
-    avatarUrl: state.avatarUrl
+    avatarUrl: state.avatarUrl,
+    vip: state.vip ?? null
   }
   if (!(await ensureServer())) return stored
 
@@ -1020,12 +1021,14 @@ async function accountOf(profileId: string): Promise<KugouAccount | null> {
     }
     const next = writeState(profileId, {
       nickname: answerLooksEmpty ? state.nickname : account.nickname,
-      avatarUrl: account.avatarUrl ?? state.avatarUrl
+      avatarUrl: account.avatarUrl ?? state.avatarUrl,
+      vip: account.vip ?? state.vip ?? null
     })
     return {
       id: account.id || stored.id,
       nickname: next.nickname || stored.nickname,
-      avatarUrl: next.avatarUrl
+      avatarUrl: next.avatarUrl,
+      vip: next.vip ?? null
     }
   } catch (error) {
     write(`[kugou] account probe failed, keeping stored account: ${messageOf(error)}`)
