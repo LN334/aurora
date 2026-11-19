@@ -133,8 +133,11 @@ async function tokenFromClipboard(win: BrowserWindow): Promise<{ token: string; 
     const clicked = String(
       await win.webContents.executeJavaScript(
         `(() => {
-          const all = [...document.querySelectorAll('button, a, span, div')]
-          const hit = all.find((el) => (el.textContent || '').trim() === '复制访问密钥')
+          const all = [...document.querySelectorAll('button, a, span, div, i, svg')]
+          /* 文本里带「复制访问密钥」就算：图标与文字常被拆成两层，全等匹配会漏。 */
+          const hit = all
+            .filter((el) => (el.textContent || '').includes('复制访问密钥'))
+            .sort((a, b) => (a.textContent || '').length - (b.textContent || '').length)[0]
           if (!hit) return 'no-button'
           hit.click()
           return 'clicked'
@@ -143,8 +146,12 @@ async function tokenFromClipboard(win: BrowserWindow): Promise<{ token: string; 
       )
     )
     if (clicked !== 'clicked') return { token: '', detail: '页面上找不到「复制访问密钥」' }
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    const raw = String(clipboard.readText()).trim()
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    let raw = String(clipboard.readText()).trim()
+    if (!raw) {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      raw = String(clipboard.readText()).trim()
+    }
     /* 剪贴板里可能是用户别处复制的东西：只认长度像密钥、且不含空白的。 */
     if (!raw || raw.length < 8 || raw.length > 128 || /\s/.test(raw)) {
       return { token: '', detail: '剪贴板里不像密钥（' + raw.length + ' 字符）' }
