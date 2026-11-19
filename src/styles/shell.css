@@ -3587,3 +3587,22 @@
   font-size: var(--fs-micro);
   color: var(--text-low);
 }
+
+/* 收起态的筛选键：列表工具条上的一颗小放大镜，不与顶栏的全局搜索抢位置。 */
+.shelf-search__trigger {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.045);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+
+.shelf-search__trigger:hover {
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-hi);
+}
