@@ -102,10 +102,8 @@ export function SakuraPanel() {
         上面一颗按钮旁边，读者第一眼就知道这一步要去哪。
       */}
       <div className="sakura-first">
-        <p className="party__hint">
-          需要一条樱花 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:{roomPort || '房间端口'}</code>。登录之后密钥自己带回来，不用复制。
-        </p>
-        <button className="rh-btn rh-btn--main" type="button" disabled={busy} onClick={() => void login()}>
+        <span className="sakura-first__state">{token ? '已登录' : '未登录'}</span>
+        <button className="rh-btn" type="button" disabled={busy} onClick={() => void login()}>
           {busy ? '登录中…' : token ? '重新登录' : '登录樱花'}
         </button>
       </div>

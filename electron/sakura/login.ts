@@ -1,4 +1,27 @@
 import { BrowserWindow, session } from 'electron'
+import fs from 'node:fs'
+import path from 'node:path'
+import { app } from 'electron'
+
+/**
+ * 登录过程的记录。
+ *
+ * 「登录没用」这种反馈没法靠猜：不知道登录后落在哪一页、页面上有什么、候选串
+ * 长什么样。所以把每一次观察写进一个文本文件——只记形状（长度、前四位），
+ * 不记完整密钥。
+ */
+function note(line: string): void {
+  try {
+    const file = path.join(app.getPath('userData'), 'sakura-login.log')
+    fs.appendFileSync(file, new Date().toISOString() + '  ' + line + '\n', 'utf8')
+  } catch {
+    /* 记不下来不影响登录 */
+  }
+}
+
+function shape(value: string): string {
+  return value.length + ':' + value.slice(0, 4) + '…'
+}
 
 /**
  * 樱花登录。
@@ -118,6 +141,7 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
      */
     const inspect = async (): Promise<void> => {
       if (done || win.isDestroyed()) return
+      note('inspect url=' + win.webContents.getURL())
       const fromApi = await tokenFromApi(partition)
       if (fromApi.token) {
         finish({ ok: true, token: fromApi.token, message: '' })
@@ -127,6 +151,13 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
       /* 把接口那几句诊断留给最后一次结算用，窗口关时一起报出来。 */
       lastDetail = fromApi.detail
       const fromPage = await tokenFromPage(win)
+      if (fromPage) note('页面里找到候选 ' + shape(fromPage))
+      try {
+        const text = String(await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''", true))
+        note('页面文本 ' + text.replace(/\s+/g, ' ').slice(0, 240))
+      } catch {
+        /* 页面还没就绪 */
+      }
       if (fromPage) {
         finish({ ok: true, token: fromPage, message: '' })
         win.close()
@@ -142,6 +173,7 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
     win.on('closed', () => {
       clearInterval(timer)
       loginWindow = null
+      note('关闭时没拿到：' + (lastDetail || '接口也无诊断'))
       finish({
         ok: false,
         token: '',

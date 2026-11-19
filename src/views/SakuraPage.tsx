@@ -21,7 +21,11 @@ export function SakuraPage() {
           </p>
           <h2 className="party-page__h">顺序</h2>
           <p className="party-page__hint">
-            登录 → 建一条 TCP 隧道（本地地址填房间端口）→ 回到这里拉列表 → 点开关。
+            ① 登录，密钥自己带回来，不用复制 ② 建一条 TCP 隧道，本地地址填房间端口 ③ 回到这里拉列表，点卡片上的开关。
+          </p>
+          <h2 className="party-page__h">frpc 用哪一份</h2>
+          <p className="party-page__hint">
+            官方独立发行的 frpc，在面板「软件下载」里下。启动器安装目录里那份只允许 SakuraFrp Service 调用，裸跑会直接退出。
           </p>
         </aside>
       </div>

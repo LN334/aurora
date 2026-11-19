@@ -1512,6 +1512,7 @@ body.is-party-window {
  * 两边都保住——字清楚，壁纸还在。
  */
 .party-page__col,
+.party-page__main,
 .party-page__side {
   /*
    * 用「底色的半透明」而不是「白色的半透明」。
@@ -1531,4 +1532,33 @@ body.is-party-window {
 .party-page .input:focus {
   border-color: rgb(var(--accent-rgb) / 0.6);
   background: rgb(var(--tint-rgb) / 0.16);
+}
+
+/* 樱花页的主区也是一块底：它的内容（登录、路径、隧道列表）直接铺在壁纸上读不清。 */
+.party-page__main:not(:has(.party-page__col)) {
+  padding: var(--s5);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+}
+
+.sakura-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* 樱花页顶行：登录状态 + 一颗键。 */
+.sakura-first {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.08);
+}
+
+.sakura-first__state {
+  flex: 1;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
 }
