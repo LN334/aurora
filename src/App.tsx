@@ -5,6 +5,7 @@ import { CollectionsPage } from './views/CollectionsPage'
 import { FollowedArtistsPage } from './views/FollowedArtistsPage'
 import { AlbumDetailPage } from './views/AlbumDetailPage'
 import { ArtistPage } from './views/ArtistPage'
+import { usePresets } from './features/presets/store'
 import { EqPanel } from './views/EqPanel'
 import { PartyPanel } from './views/PartyPanel'
 import { DailyPage } from './views/DailyPage'
@@ -312,6 +313,7 @@ export function App() {  if (!isNative) {
   const queueLength = usePlayer((s) => s.queue.length)
   const eqEnabled = usePlayer((s) => s.eqEnabled)
   const eqGains = usePlayer((s) => s.eqGains)
+  const savedPresets = usePresets((s) => s.list)
 
   const palette = usePalette(track)
   const {
@@ -1295,6 +1297,14 @@ export function App() {  if (!isNative) {
             player.setEqGains(next)
           }}
           onPreset={(gains) => player.setEqGains(gains)}
+          saved={savedPresets}
+          onSavePreset={() => usePresets.getState().save(eqEnabled, eqGains)}
+          onApplyPreset={(preset) => {
+            /* 开关一起带过去：只切曲线不切开关，存的时候关着就听不出变化。 */
+            player.setEqEnabled(preset.eqEnabled)
+            player.setEqGains([...preset.gains])
+          }}
+          onRemovePreset={(id) => usePresets.getState().remove(id)}
           onClose={() => setEqOpen(false)}
         />
 

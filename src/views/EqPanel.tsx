@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { AudioDebug } from '../features/player/AudioDebug'
 import { EQ_BANDS } from '../features/player/store'
 import { decodePreset, encodePreset } from '../features/presets/codec'
+import { isSameCurve } from '../features/presets/saved'
+import type { SavedPreset } from '../features/presets/saved'
 import { Close, Wave } from '../ui/icons'
 import { usePresence } from '../ui/presence'
 
@@ -118,13 +120,31 @@ interface EqPanelProps {
   open: boolean
   enabled: boolean
   gains: number[]
+  /** 存在本机的预设，点一下切过去。 */
+  saved: SavedPreset[]
   onToggle(enabled: boolean): void
   onGain(index: number, gain: number): void
   onPreset(gains: number[]): void
+  /** 存当前曲线；返回自动起的名字，用来报一句。 */
+  onSavePreset(): string
+  onApplyPreset(preset: SavedPreset): void
+  onRemovePreset(id: string): void
   onClose(): void
 }
 
-export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onClose }: EqPanelProps) {
+export function EqPanel({
+  open,
+  enabled,
+  gains,
+  saved,
+  onToggle,
+  onGain,
+  onPreset,
+  onSavePreset,
+  onApplyPreset,
+  onRemovePreset,
+  onClose
+}: EqPanelProps) {
   // 关闭时先留着，让面板把退场动画走完再真正卸载。
   const { mounted, closing } = usePresence(open, 320)
   const [note, setNote] = useState('')
@@ -151,6 +171,10 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
     } catch {
       flash('复制失败，剪贴板不可用')
     }
+  }
+
+  const saveCurrent = () => {
+    flash('已存为 ' + onSavePreset())
   }
 
   const pasteShareCode = async () => {
@@ -199,7 +223,34 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
             </button>
           )
         })}
+        <button className="chip" onClick={saveCurrent} title="把当前曲线存成本机的一条预设">
+          ＋ 存为预设
+        </button>
       </div>
+
+      {saved.length > 0 ? (
+        <div className="panel__presets panel__presets--mine">
+          <span className="panel__presets-label">我的</span>
+          {saved.map((preset) => (
+            <span
+              key={preset.id}
+              className={`chip chip--twin${isSameCurve(preset, gains, enabled) ? ' is-active' : ''}`}
+            >
+              <button className="chip__label" onClick={() => onApplyPreset(preset)}>
+                {preset.name}
+              </button>
+              <button
+                className="chip__x"
+                title="删掉这条预设"
+                aria-label={'删掉 ' + preset.name}
+                onClick={() => onRemovePreset(preset.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <div className="panel__bands">
         {EQ_BANDS.map((freq, index) => (
