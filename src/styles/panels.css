@@ -584,7 +584,7 @@
 }
 .band__rail {
   width: 3px;
-  background: rgb(var(--tint-rgb) / 0.08);
+  background: rgb(var(--tint-rgb) / 0.12);
 }
 .band__fill {
   width: 3px;
@@ -734,6 +734,7 @@
  * 勉强能看出下面有一条线，改成实色底之后直接隐形了。
  */
 .party__join .input,
+.party__field .input,
 .party__say .input,
 .party__tunnel .input {
   width: 100%;
@@ -746,6 +747,7 @@
 }
 
 .party__join .input:focus,
+.party__field .input:focus,
 .party__say .input:focus,
 .party__tunnel .input:focus {
   outline: none;
@@ -754,6 +756,7 @@
 }
 
 .party__join .input::placeholder,
+.party__field .input::placeholder,
 .party__say .input::placeholder,
 .party__tunnel .input::placeholder {
   color: var(--text-low);
@@ -957,4 +960,59 @@
   min-height: 0;
   padding: var(--s3) var(--s5) var(--s4);
   overflow: auto;
+}
+
+/*
+ * 未开房时的两栏：左边开房、右边加入。
+ *
+ * 之前是一列竖着排，两个按钮一样重，用户得把两段说明都读完才知道自己在做
+ * 哪一件事。分开之后「我要开」和「我要进」各自成一块，眼睛一扫就选。
+ */
+.party__setup {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: var(--s4) var(--s5);
+  align-items: start;
+}
+
+.party__setup::before {
+  content: '';
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: center;
+  width: 1px;
+  height: 100%;
+  background: rgb(var(--tint-rgb) / 0.08);
+}
+
+.party__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* 按钮贴着栏底：一边有说明、一边没有，不这样会被顶到不同高度。 */
+.party__col > .rh-btn:last-child {
+  margin-top: auto;
+}
+
+.party__col-title {
+  margin: 0;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.party__field {
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+.party__hint {
+  margin: 0;
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--text-low);
 }

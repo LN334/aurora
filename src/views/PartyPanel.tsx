@@ -147,59 +147,73 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
       </header>
 
       {!inRoom ? (
-        <div className="panel__body">
-          <p className="pg-note">同一 WiFi 用「局域网地址 + 房间码」进；跨网络要房主先穿到公网。</p>
+        <div className="panel__body party__setup">
           {/*
-            端口先定下来再开房：樱花隧道里那个「本地端口」是写死的，房间每次
-            换随机端口的话，房主每开一次房就得回面板改一次。固定之后配一次就够。
+            左右两栏：左边你来开房，右边去别人那里。原来两者竖着叠在一列里，
+            按钮长得一样重，「我到底是开还是进」得读完两段字才知道。
           */}
-          <div className="party__port">
-            <input
-              className="input"
-              placeholder="房间端口（可留空，留空就随机）"
-              value={portDraft}
-              inputMode="numeric"
-              onChange={(event) => setPortDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-            />
-          </div>
-          <button
-            className="rh-btn"
-            disabled={busy}
-            onClick={() => {
-              const value = Number(portDraft)
-              if (portDraft && value > 1024 && value < 65536) {
-                localStorage.setItem('aurora.party.port', String(value))
-              } else {
-                localStorage.removeItem('aurora.party.port')
-              }
-              void useParty.getState().host('房主')
-            }}
-          >
-            <User size={15} />
-            开一个房间
-          </button>
-          <div className="party__join">
-            <input
-              className="input"
-              placeholder="房主的地址，如 192.168.1.5:7890 或 xxx.natfrp.cloud:23456"
-              value={address}
-              onChange={(event) => setAddress(event.target.value)}
-            />
-            <input
-              className="input"
-              placeholder="房间码"
-              value={code}
-              maxLength={6}
-              onChange={(event) => setCode(event.target.value.toUpperCase())}
-            />
+          <section className="party__col">
+            <h3 className="party__col-title">开一个房间</h3>
+            <label className="party__field">
+              <span>房间端口</span>
+              <input
+                className="input"
+                placeholder="留空则随机"
+                value={portDraft}
+                inputMode="numeric"
+                onChange={(event) => setPortDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+              />
+            </label>
+            <p className="party__hint">
+              固定端口后，樱花隧道里那个「本地端口」只配一次。同一 WiFi 用「局域网地址 + 房间码」进，跨网络要先把端口穿到公网。
+            </p>
             <button
-              className="rh-btn"
+              className="rh-btn rh-btn--main"
+              disabled={busy}
+              onClick={() => {
+                const value = Number(portDraft)
+                if (portDraft && value > 1024 && value < 65536) {
+                  localStorage.setItem('aurora.party.port', String(value))
+                } else {
+                  localStorage.removeItem('aurora.party.port')
+                }
+                void useParty.getState().host('房主')
+              }}
+            >
+              <User size={15} />
+              开一个房间
+            </button>
+          </section>
+
+          <section className="party__col">
+            <h3 className="party__col-title">加入朋友的房间</h3>
+            <label className="party__field">
+              <span>房主的地址</span>
+              <input
+                className="input"
+                placeholder="192.168.1.5:7890 或 xxx.natfrp.cloud:23456"
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+              />
+            </label>
+            <label className="party__field">
+              <span>房间码</span>
+              <input
+                className="input"
+                placeholder="6 位"
+                value={code}
+                maxLength={6}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+              />
+            </label>
+            <button
+              className="rh-btn rh-btn--main"
               disabled={busy || !address.trim() || code.trim().length !== 6}
               onClick={() => void useParty.getState().join(address, code, '听众')}
             >
               加入
             </button>
-          </div>
+          </section>
           {state.error ? <p className="pg-note">{state.error}</p> : null}
         </div>
       ) : (

@@ -401,23 +401,35 @@ export function startHost(name: string, port = 0): PartyState {
       /* 连随机端口都开不了，下面 listening 不会来，界面停在 idle */
     }
   })
+  /*
+   * 先把「我是房主」定下来，端口等监听成功再补。
+   *
+   * 之前整条 publish 都在 listening 回调里，IPC 同步返回的还是 idle：界面照旧
+   * 显示「开一个房间」，要等一次广播回来才换脸。广播慢一点或丢了，用户看到的
+   * 就是「点了没反应」。角色与端口是两件事，不该绑在一起等。
+   */
+  publish({
+    role: 'host',
+    address: '',
+    addresses: [],
+    code: hostCode,
+    members: [{ id: 'host', name, host: true }],
+    now: null,
+    publicAddress: '',
+    relay: true,
+    messages: [],
+    error: ''
+  })
+
   http.listen(port, '0.0.0.0')
   http.on('listening', () => {
     const address = http.address()
     hostPort = typeof address === 'object' && address ? address.port : 0
-    const candidates = lanAddresses().map((ip) => ip + ':' + hostPort)
     publish({
-      role: 'host',
       address: lanAddress() + ':' + hostPort,
-      addresses: candidates,
-      code: hostCode,
-      members: [{ id: 'host', name, host: true }],
-      now: null,
-      publicAddress: '',
-      relay: true,
-      messages: [],
-      error: ''
+      addresses: lanAddresses().map((ip) => ip + ':' + hostPort)
     })
+    broadcast(current)
   })
   server.on('connection', (socket) => {
     socket.on('message', (raw) => {
