@@ -1528,8 +1528,8 @@ interface PartyApi {
   chat(text: string): Promise<PartyState>
   /** 房主填公网地址；客人调用无效果。 */
   setPublic(address: string): Promise<PartyState>
-  /** 房主把当前这首的播放地址交给房间转发。 */
-  registerStream(trackId: string, url: string): Promise<boolean>
+  /** 房主把当前这首的播放地址交给房间转发，返回地址里用的令牌。 */
+  registerStream(trackId: string, url: string): Promise<string>
   /** 起樱花隧道（官方独立版 frpc）。 */
   tunnelStart(config: { frpcPath: string; token: string; tunnelId: string }): Promise<TunnelState>
   tunnelStop(): Promise<TunnelState>

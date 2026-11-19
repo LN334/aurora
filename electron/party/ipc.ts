@@ -109,8 +109,7 @@ export function registerPartyIpc(): void {
    */
   ipcMain.handle('party:stream', (_event, args: unknown) => {
     const raw = asRecord(args)
-    registerStream(asText(raw.trackId), asText(raw.url))
-    return true
+    return registerStream(asText(raw.trackId), asText(raw.url))
   })
 
   onTunnelBroadcast()

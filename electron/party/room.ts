@@ -209,18 +209,50 @@ function appendMessage(message: PartyMessage): void {
  * 再原样转出去，平台看到的是房主的 IP，客人拿到的就是我们自己这条地址——
  * 走同一个房间端口，穿透怎么连的，音频就怎么走。
  */
-const streams = new Map<string, { url: string; headers: Record<string, string> }>()
+interface StreamEntry {
+  trackId: string
+  url: string
+  headers: Record<string, string>
+}
+
+/** 令牌 → 流；以及歌 → 令牌，同一首重复登记时复用同一个地址。 */
+const streams = new Map<string, StreamEntry>()
+const tokenOfTrack = new Map<string, string>()
 let hostHttp: Server | null = null
 
-/** 房主取流成功后登记一份；同一首重复登记以最新地址为准。 */
-export function registerStream(trackId: string, url: string, headers: Record<string, string> = {}): void {
-  if (!trackId || !url) return
-  streams.set(trackId, { url, headers })
+/**
+ * 登记最多这么多首。
+ *
+ * 地址里带的是一个随机令牌，不是 `netease:123` 这种能猜的东西——房间码只挡住
+ * 进房，挡不住有人照着规律拼一个 /stream/ 地址来白拿音频。令牌也不长期保留：
+ * 换过的歌留一小段（客人可能往回跳），再旧的就丢掉。
+ */
+const STREAMS_KEPT = 20
+
+/** 房主取流成功后登记一份，返回转发地址里那个令牌。 */
+export function registerStream(
+  trackId: string,
+  url: string,
+  headers: Record<string, string> = {}
+): string {
+  const reused = tokenOfTrack.get(trackId)
+  const token = reused ?? randomBytes(8).toString('hex')
+  tokenOfTrack.set(trackId, token)
+  streams.set(token, { trackId, url, headers })
+  while (streams.size > STREAMS_KEPT) {
+    const oldest = streams.keys().next().value
+    if (oldest === undefined) break
+    const gone = streams.get(oldest)
+    streams.delete(oldest)
+    if (gone && tokenOfTrack.get(gone.trackId) === oldest) tokenOfTrack.delete(gone.trackId)
+  }
+  return token
 }
 
 /** 换房间时清空，免得把上一个房间的地址留在表里。 */
 export function clearStreams(): void {
   streams.clear()
+  tokenOfTrack.clear()
 }
 
 async function proxyStream(
@@ -265,8 +297,8 @@ function handleHttp(
     response.end('not found')
     return
   }
-  const trackId = decodeURIComponent(url.pathname.slice('/stream/'.length))
-  const entry = streams.get(trackId)
+  const token = decodeURIComponent(url.pathname.slice('/stream/'.length))
+  const entry = streams.get(token)
   if (!entry) {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
     response.end('这首歌没有登记转发')

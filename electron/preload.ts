@@ -632,7 +632,7 @@ const api = {
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     registerStream: (trackId: string, url: string) =>
-      ipcRenderer.invoke('party:stream', { trackId, url }),
+      ipcRenderer.invoke('party:stream', { trackId, url }) as Promise<string>,
     tunnelStart: (config: { frpcPath: string; token: string; tunnelId: string }) =>
       ipcRenderer.invoke('party:tunnelStart', config),
     tunnelStop: () => ipcRenderer.invoke('party:tunnelStop'),

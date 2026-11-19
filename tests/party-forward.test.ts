@@ -40,9 +40,10 @@ test('a registered stream comes back byte for byte', async () => {
   startHost('房主')
   try {
     await waitFor(() => partyState().address !== '')
-    registerStream('netease:1', 'http://127.0.0.1:' + upstreamPort + '/a.mp3')
+    const token = registerStream('netease:1', 'http://127.0.0.1:' + upstreamPort + '/a.mp3')
+    assert.match(token, /^[0-9a-f]{16}$/, 'the url carries a random token, never the song id')
 
-    const response = await fetch('http://127.0.0.1:' + roomPort() + '/stream/' + encodeURIComponent('netease:1'))
+    const response = await fetch('http://127.0.0.1:' + roomPort() + '/stream/' + token)
     assert.equal(response.status, 200)
     assert.equal(response.headers.get('content-type'), 'audio/mpeg')
     assert.equal(await response.text(), 'AUDIO')
@@ -57,11 +58,27 @@ test('a registered stream comes back byte for byte', async () => {
   }
 })
 
-test('an unregistered track is a 404, not a hang', async () => {
+test('the song id alone is not a forwarding address', async () => {
   startHost('房主')
   try {
     await waitFor(() => partyState().address !== '')
-    const response = await fetch('http://127.0.0.1:' + roomPort() + '/stream/' + encodeURIComponent('netease:404'))
+    registerStream('netease:7', 'http://127.0.0.1:1/x.mp3')
+    /*
+     * 关键是这条：照 `netease:7` 拼地址必须拿不到东西。地址里只有随机令牌，
+     * 房间码挡的是进房，挡不住有人照着规律拼 /stream/。
+     */
+    const response = await fetch('http://127.0.0.1:' + roomPort() + '/stream/' + encodeURIComponent('netease:7'))
+    assert.equal(response.status, 404)
+  } finally {
+    stopParty()
+  }
+})
+
+test('an unregistered token is a 404, not a hang', async () => {
+  startHost('房主')
+  try {
+    await waitFor(() => partyState().address !== '')
+    const response = await fetch('http://127.0.0.1:' + roomPort() + '/stream/does-not-exist')
     assert.equal(response.status, 404)
   } finally {
     stopParty()

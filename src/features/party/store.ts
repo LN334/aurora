@@ -98,18 +98,42 @@ function pushMoment(): void {
    */
   const party = useParty.getState().state
   const base = party.publicAddress || party.address
-  let stream: { url: string; quality: string } | undefined
-  if (playback.streamUrl) {
-    if (base) {
-      void window.aurora?.party?.registerStream(track.id, playback.streamUrl)
-      stream = {
-        url: 'http://' + base + '/stream/' + encodeURIComponent(track.id),
-        quality: qualityNameOf(track)
-      }
-    } else {
-      stream = { url: playback.streamUrl, quality: qualityNameOf(track) }
-    }
+  if (playback.streamUrl && base) {
+    /*
+     * 先向主进程要一个令牌，再把地址推出去。
+     *
+     * 地址里不能放歌曲 id：房间码挡的是「进房间」，挡不住有人照着 /stream/
+     * 拼一个地址来白拉音频。令牌是随机的，短命，换歌多了会被挤掉。
+     */
+    const url = playback.streamUrl
+    const quality = qualityNameOf(track)
+    void window.aurora?.party
+      ?.registerStream(track.id, url)
+      .then((token) => {
+        if (!token) return
+        /*
+         * 拿令牌期间房主可能已经切了歌。这条消息仍然发出去也不会错——房间按
+         * 「最后一条 now 为准」，晚到的是更旧的 track，会被下一次心跳覆盖；
+         * 但为了避免把上一首又顶回去一次，这里对一下当前曲目。
+         */
+        const state = usePlayer.getState()
+        if (state.queue[state.index]?.id !== track.id) return
+        const info = partyTrackInfoOf(track)
+        void useParty.getState().push({
+          trackId: track.id,
+          title: track.title,
+          artist: track.artist,
+          at: Date.now(),
+          position: state.position,
+          playing: state.playing,
+          ...(info ? { track: info } : {}),
+          stream: { url: 'http://' + base + '/stream/' + token, quality }
+        })
+      })
+    return
   }
+
+  const stream = playback.streamUrl ? { url: playback.streamUrl, quality: qualityNameOf(track) } : undefined
   const info = partyTrackInfoOf(track)
   void useParty.getState().push({
     trackId: track.id,
