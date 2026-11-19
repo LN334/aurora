@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParty } from '../features/party/store'
+import { usePlayer } from '../features/player/store'
 import { usePresence } from '../ui/presence'
 
 /**
@@ -34,6 +35,8 @@ export function PartyPage() {
   const busy = useParty((s) => s.busy)
   const [invite, setInvite] = useState('')
   const [publicDraft, setPublicDraft] = useState('')
+  /* 房间里那首歌的封面：从播放器取，客人和房主看到的是同一首。 */
+  const coverUrl = usePlayer((store) => store.queue[store.index]?.coverUrl ?? '')
   const [note, setNote] = useState('')
 
   useEffect(() => {
@@ -147,7 +150,11 @@ export function PartyPage() {
         <div className="party-room__now">
           {state.now ? (
             <>
-              <div className="party-room__cover" />
+              {coverUrl ? (
+                <img className="party-room__cover" src={coverUrl} alt="" />
+              ) : (
+                <div className="party-room__cover" />
+              )}
               <div className="party-room__song">
                 <strong>{state.now.title}</strong>
                 <span>{state.now.artist}</span>
