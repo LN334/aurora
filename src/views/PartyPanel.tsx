@@ -17,7 +17,6 @@ import { usePresence } from '../ui/presence'
  */
 
 /** 一排随手点的表情。打字也能发，这几个只是省事。 */
-const EMOJIS = ['👏', '🎉', '❤️', '😂', '🔥', '🎵']
 
 function currentNow(): PartyNow | null {
   const playback = usePlayer.getState()
@@ -34,10 +33,6 @@ function currentNow(): PartyNow | null {
 }
 
 /** 消息旁边的时间：只到分钟，一天之内够用了。 */
-function clock(at: number): string {
-  const date = new Date(at)
-  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0')
-}
 
 export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }) {
   const { mounted, closing } = usePresence(open, 320)
@@ -46,7 +41,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
   const busy = useParty((s) => s.busy)
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
-  const [draft, setDraft] = useState('')
   const [publicDraft, setPublicDraft] = useState('')
   /*
    * 樱花隧道的三个值记在本机：它们属于「这台机器怎么开房」，不是房间状态。
@@ -170,12 +164,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     await useParty.getState().startTunnel({ frpcPath, token, tunnelId: String(id) })
   }
 
-  const say = async (text: string): Promise<void> => {
-    const body = text.trim()
-    if (!body) return
-    await useParty.getState().say(body)
-    setDraft('')
-  }
 
   return (
     <aside className={`party-dialog${closing ? ' is-closing' : ''}`} aria-label="一起听">
@@ -435,54 +423,15 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
               ) : null}
             </dd>
           </dl>
-          <div className="party__chat">
-            {state.messages.length === 0 ? (
-              <p className="pg-note">房间里还没人说话</p>
-            ) : (
-              <ul className="party__messages">
-                {state.messages.map((message) => (
-                  <li
-                    key={message.id}
-                    className={'party__message' + (message.host ? ' is-host' : '')}
-                  >
-                    <span className="party__message-name">{message.name}</span>
-                    <span className="party__message-text">{message.text}</span>
-                    <span className="party__message-at">{clock(message.at)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="party__say">
-              <input
-                className="input"
-                placeholder="说点什么"
-                value={draft}
-                maxLength={200}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void say(draft)
-                  }
-                }}
-              />
-              <button className="rh-btn" disabled={!draft.trim()} onClick={() => void say(draft)}>
-                发送
-              </button>
-            </div>
-            <div className="party__emojis">
-              {EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  className="party__emoji"
-                  title={'发一个 ' + emoji}
-                  onClick={() => void say(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* 聊天搬去自己的窗口：它和房间信息不是一类东西，挤在一起两边都不好用。 */}
+          <button
+            className="rh-btn"
+            type="button"
+            onClick={() => void window.aurora?.party?.openChat()}
+          >
+            打开聊天室
+          </button>
+
 
             </section>
           </div>

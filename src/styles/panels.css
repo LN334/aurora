@@ -1229,3 +1229,42 @@
   font-size: 22px;
   letter-spacing: 0.16em;
 }
+
+/* 独立窗口：面板铺满整扇窗，不再是浮在主界面上的弹窗。 */
+body.is-party-window {
+  margin: 0;
+  background: var(--ink-850);
+}
+
+.party-window {
+  height: 100vh;
+  display: flex;
+  background-image: linear-gradient(165deg, #141a23 0%, #0d1015 62%);
+}
+
+.party-window .party-dialog {
+  position: static;
+  translate: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+.party-window .panel__body {
+  height: 100%;
+  overflow: auto;
+}
+
+.party-window .panel__head {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.party-window .panel__head .icon-btn {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
