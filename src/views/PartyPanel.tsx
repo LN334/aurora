@@ -100,11 +100,20 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     }
   }
 
-  /** 公网地址存之前先洗一遍：有人会把 ws:// 前缀一起粘进来。 */
+  /**
+   * 公网地址存之前先洗一遍。
+   *
+   * 有人会把 `ws://`、`https://` 前缀一起粘进来；也有人用的是自带域名的隧道，
+   * 地址里根本没有端口（`xxx.trycloudflare.com`）。两种都收，只把形状不对的拒掉。
+   */
   const savePublic = async (): Promise<void> => {
-    const clean = publicDraft.trim().replace(/^wss?:\/\//i, '')
-    if (!/^[a-z0-9.-]+:\d{1,5}$/i.test(clean)) {
-      setNote('公网地址要写成 host:端口，例如 xxx.natfrp.cloud:23456')
+    const clean = publicDraft
+      .trim()
+      .replace(/^wss?:\/\//i, '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/+$/, '')
+    if (!/^[a-z0-9.-]+(:\d{1,5})?$/i.test(clean)) {
+      setNote('公网地址要写成 host 或 host:端口，例如 xxx.natfrp.cloud:23456')
       return
     }
     await useParty.getState().setPublic(clean)
