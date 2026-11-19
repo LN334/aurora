@@ -1198,3 +1198,11 @@
 .sakura-toggle.is-on .sakura-toggle__knob {
   translate: 13px 0;
 }
+
+/* 隧道端口与房间对不上时的提醒。 */
+.sakura-card__warn {
+  grid-column: 1 / -1;
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: #e0b341;
+}

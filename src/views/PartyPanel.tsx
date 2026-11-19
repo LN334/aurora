@@ -154,10 +154,22 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
    * 一次只跑一条——frpc 是一个进程，同时起两条要两套状态（各自的公网地址、
    * 各自的错误），而一起听只需要一条出口。所以在跑就停，不在跑就用这条起。
    */
-  const toggleTunnel = async (id: number): Promise<void> => {
+  const toggleTunnel = async (id: number, localPort: number): Promise<void> => {
     if (tunnel.running) {
       await useParty.getState().stopTunnel()
       return
+    }
+    /*
+     * 绑定：房间跟着隧道走，不是隧道跟着房间走。
+     *
+     * 隧道里那个本地端口是写死在樱花服务端的，改它要动用户的隧道配置（那条隧道
+     * 可能还给别的服务用）。房间是我们自己的，让它监听隧道指向的那个端口，两边
+     * 天然对上——一次点开就配好，不用再回樱花面板改数字。
+     */
+    if (localPort) {
+      localStorage.setItem('aurora.party.port', String(localPort))
+      setPortDraft(String(localPort))
+      if (state.role !== 'idle') await useParty.getState().host('房主')
     }
     localStorage.setItem('aurora.party.frpc', frpcPath)
     localStorage.setItem('aurora.party.token', token)
@@ -354,6 +366,16 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                       <span className="sakura-card__map">
                         {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
                       </span>
+                      {/*
+                        隧道里那个「本地地址」必须等于房间正在监听的端口，否则穿出去
+                        是空的。不一致只提示、不代改——那条隧道可能还给别的服务用着，
+                        替人改配置是更糟的错。
+                      */}
+                      {item.localPort && roomPort && String(item.localPort) !== roomPort ? (
+                        <span className="sakura-card__warn">
+                          房间现在在 {roomPort}，点开这条会把房间改到 {item.localPort} 再穿出去
+                        </span>
+                      ) : null}
                       <button
                         className={'sakura-toggle' + (tunnel.running && tunnelId === String(item.id) ? ' is-on' : '')}
                         type="button"
@@ -361,7 +383,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                           tunnel.running && tunnelId === String(item.id) ? '停掉这条隧道' : '用这条隧道把房间开到公网'
                         }
                         aria-label="启停隧道"
-                        onClick={() => void toggleTunnel(item.id)}
+                        onClick={() => void toggleTunnel(item.id, item.localPort)}
                       >
                         <span className="sakura-toggle__knob" />
                       </button>
