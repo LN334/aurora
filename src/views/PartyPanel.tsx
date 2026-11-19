@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { PartyNow } from '../env'
 import { useParty } from '../features/party/store'
-import { usePlayer } from '../features/player/store'
 import { Close, User } from '../ui/icons'
 import { usePresence } from '../ui/presence'
 
@@ -15,22 +13,6 @@ import { usePresence } from '../ui/presence'
  * 消息也走同一条连接：谁说了什么由房主那边记账再广播，客人不等本地回显，
  * 免得同一条话走两条路回来变成两句。
  */
-
-/** 一排随手点的表情。打字也能发，这几个只是省事。 */
-
-function currentNow(): PartyNow | null {
-  const playback = usePlayer.getState()
-  const track = playback.queue[playback.index] ?? null
-  if (!track) return null
-  return {
-    trackId: track.id,
-    title: track.title,
-    artist: track.artist,
-    at: Date.now(),
-    position: playback.position,
-    playing: playback.playing
-  }
-}
 
 /** 消息旁边的时间：只到分钟，一天之内够用了。 */
 
@@ -64,15 +46,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
   if (!mounted) return null
 
   const inRoom = state.role !== 'idle'
-  const push = async () => {
-    const now = currentNow()
-    if (!now) {
-      setNote('当前没有在放的歌')
-      return
-    }
-    await useParty.getState().push(now)
-    setNote('已把你现在这首同步给房间')
-  }
 
   /**
    * 把「地址 + 房间码」一次复制走。
@@ -307,11 +280,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
 
             </section>
           </div>
-          {state.role === 'host' ? (
-            <button className="rh-btn" onClick={() => void push()}>
-              同步我现在这首
-            </button>
-          ) : null}
           <button className="rh-btn" onClick={() => void useParty.getState().leave()}>
             离开房间
           </button>
