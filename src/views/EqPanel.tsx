@@ -1,6 +1,7 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { AudioDebug } from '../features/player/AudioDebug'
 import { EQ_BANDS } from '../features/player/store'
+import { decodePreset, encodePreset } from '../features/presets/codec'
 import { Close, Wave } from '../ui/icons'
 import { usePresence } from '../ui/presence'
 
@@ -126,9 +127,46 @@ interface EqPanelProps {
 export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onClose }: EqPanelProps) {
   // 关闭时先留着，让面板把退场动画走完再真正卸载。
   const { mounted, closing } = usePresence(open, 320)
+  const [note, setNote] = useState('')
   if (!mounted) return null
 
   const isFlat = gains.every((gain) => gain === 0)
+
+  const flash = (text: string) => {
+    setNote(text)
+    window.setTimeout(() => setNote(''), 2200)
+  }
+
+  /**
+   * 分享码就是这一条曲线本身。
+   *
+   * 只带 EQ（开关 + 十个增益）：面板里没有音质档与交叉淡化，把不存在于这个
+   * 界面上的值塞进码里，恢复时会悄悄改掉别处的设置——那是最难查的一类意外。
+   */
+  const copyShareCode = async () => {
+    const code = encodePreset({ name: '均衡曲线', eqEnabled: enabled, gains, crossfadeSec: 0 })
+    try {
+      await navigator.clipboard.writeText(code)
+      flash('已复制分享码')
+    } catch {
+      flash('复制失败，剪贴板不可用')
+    }
+  }
+
+  const pasteShareCode = async () => {
+    try {
+      const preset = decodePreset(await navigator.clipboard.readText())
+      if (!preset) {
+        flash('这串不是有效的声音预设')
+        return
+      }
+      onPreset(preset.gains)
+      if (preset.eqEnabled && !enabled) onToggle(true)
+      flash('已应用：' + preset.name)
+    } catch {
+      flash('读不到剪贴板')
+    }
+  }
 
   return (
     <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="均衡器">
@@ -182,7 +220,13 @@ export function EqPanel({ open, enabled, gains, onToggle, onGain, onPreset, onCl
           <Wave size={15} />
           重置为平直
         </button>
-        <p className="pg-note">拖动 · 双击归零</p>
+        <button className="rh-btn" onClick={() => void copyShareCode()} title="把当前曲线复制成一串码">
+          复制分享码
+        </button>
+        <button className="rh-btn" onClick={() => void pasteShareCode()} title="从剪贴板还原一条曲线">
+          粘贴还原
+        </button>
+        <p className="pg-note">{note || '拖动 · 双击归零'}</p>
       </footer>
     </aside>
   )
