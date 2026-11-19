@@ -1206,3 +1206,26 @@
   line-height: 1.5;
   color: #e0b341;
 }
+
+/* 顶部徽条：房间码 + 复制邀请。 */
+.party__badge {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+  padding: 10px var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 12px;
+  background: rgb(var(--tint-rgb) / 0.05);
+}
+
+.party__badge-label {
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party__badge .party__code {
+  margin-right: auto;
+  font-size: 22px;
+  letter-spacing: 0.16em;
+}
