@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { upstreamHeaders } from '../upstream-headers.ts'
 import dns from 'node:dns'
 import fs from 'node:fs'
 import net from 'node:net'
@@ -250,35 +251,6 @@ const MAX_REDIRECTS = 4
  * 有的图床按 UA 与来源站防盗链：汽水的封面挂在 douyinpic 上，光带 range 过去
  * 一律 403，页面里就是一张空卡。这里统一补一个浏览器 UA，抖音系再带上来源站。
  */
-function upstreamHeaders(target: string, range: string | null): Record<string, string> {
-  const headers: Record<string, string> = {
-    'user-agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-  }
-  try {
-    const host = new URL(target).hostname
-    if (host.endsWith('douyinpic.com') || host.endsWith('douyincdn.com')) {
-      headers.referer = 'https://www.douyin.com/'
-    }
-    /*
-     * B 站的 CDN 与图床都校验来源站：音频缺 Referer 一律 403，封面则变成空卡。
-     * 镜像节点是新域名（bilivideo.cn/bilivideo.com），故一并按后缀认。
-     */
-    if (
-      host.endsWith('bilivideo.com') ||
-      host.endsWith('bilivideo.cn') ||
-      host.endsWith('hdslb.com') ||
-      host.endsWith('bilibili.com')
-    ) {
-      headers.referer = 'https://www.bilibili.com/'
-    }
-  } catch {
-    /* 解析不了的地址交给后面的 fetch 去报错 */
-  }
-  if (range) headers.range = range
-  return headers
-}
-
 export async function fetchUpstream(target: string, range: string | null): Promise<Response> {
   let current = target
 

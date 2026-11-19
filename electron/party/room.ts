@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { Readable } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
+import { upstreamHeaders } from '../upstream-headers.ts'
 
 /**
  * 一起听：局域网房间。
@@ -228,9 +229,12 @@ async function proxyStream(
   response: import('node:http').ServerResponse
 ): Promise<void> {
   try {
-    const headers: Record<string, string> = { ...entry.headers }
-    const range = request.headers.range
-    if (typeof range === 'string') headers.Range = range
+    /*
+     * 和页面侧那条代理用同一套头：UA 一定要有，抖音系与 B 站还要来源站。
+     * 少了这些，平台回 403——转发看起来通了，客人听到的却是错误。
+     */
+    const range = typeof request.headers.range === 'string' ? request.headers.range : null
+    const headers = { ...upstreamHeaders(entry.url, range), ...entry.headers }
     const upstream = await fetch(entry.url, { headers })
     const out: Record<string, string> = { 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' }
     const type = upstream.headers.get('content-type')

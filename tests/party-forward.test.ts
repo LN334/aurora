@@ -28,7 +28,9 @@ function roomPort(): number {
 }
 
 test('a registered stream comes back byte for byte', async () => {
-  const upstream = createServer((_request, response) => {
+  let seenUserAgent = ''
+  const upstream = createServer((request, response) => {
+    seenUserAgent = String(request.headers['user-agent'] ?? '')
     response.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': '5' })
     response.end('AUDIO')
   })
@@ -44,6 +46,11 @@ test('a registered stream comes back byte for byte', async () => {
     assert.equal(response.status, 200)
     assert.equal(response.headers.get('content-type'), 'audio/mpeg')
     assert.equal(await response.text(), 'AUDIO')
+    /*
+     * 平台按 UA（以及部分平台的来源站）防盗链。转发时不带这些头，平台回 403，
+     * 客人听到的是错误——所以这条必须钉住。
+     */
+    assert.match(seenUserAgent, /Chrome\/120/)
   } finally {
     stopParty()
     upstream.close()
