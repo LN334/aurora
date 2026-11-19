@@ -299,10 +299,13 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             官方的 -f 访问密钥:隧道ID。
           */}
           {state.role === 'host' ? (
-            <div className="party__tunnel">
-              <p className="pg-note">
-                樱花隧道（可选）：把房间开到公网，不在同一个 WiFi 也能进来。
-              </p>
+            <details className="party__tunnel">
+              <summary>
+                樱花隧道
+                <span className="party__tunnel-state">
+                  {tunnel.address ? '已连接 ' + tunnel.address : tunnel.running ? '启动中…' : '未使用'}
+                </span>
+              </summary>
               <p className="pg-note">
                 需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:${roomPort}</code>，
                 类型选 TCP；再把面板下载的<b>独立版</b> frpc 路径填在下面。启动器安装目录里那份不能被别的程序调用。
@@ -341,7 +344,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
               {tunnel.address ? <p className="pg-note">隧道已通：{tunnel.address}</p> : null}
               {!tunnel.address && tunnel.line ? <p className="pg-note">{tunnel.line}</p> : null}
               {tunnel.error ? <p className="pg-note">{tunnel.error}</p> : null}
-            </div>
+            </details>
           ) : null}
 
           <div className="party__chat">

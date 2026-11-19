@@ -739,9 +739,9 @@
 .party__tunnel .input {
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border: 1px solid rgb(var(--tint-rgb) / 0.16);
   border-radius: 8px;
-  background: rgb(var(--tint-rgb) / 0.04);
+  background: rgb(var(--tint-rgb) / 0.07);
   color: var(--text-hi);
   font: inherit;
 }
@@ -910,10 +910,22 @@
  * 的 transform 动画会把矩阵留在计算样式里，容器变成 fixed 子元素的定位祖先。
  */
 .party-dialog {
+  /*
+   * 居中用 left/top + translate，不用 inset + margin auto。
+   *
+   * 后者要求包含块正好是视口；实测在应用里它被最近的定位祖先吃掉，弹窗整个
+   * 偏到左边一截。translate 是独立属性，不像 transform 那样会把 fixed 子元素
+   * 变成自己的定位上下文——这个坑 app.css 里记过一次。
+   */
   position: fixed;
-  inset: 0;
-  margin: auto;
-  width: min(760px, 92vw);
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  /*
+   * 宽度跟着内容收：这一屏只有两个输入框和两颗按钮，760 会把两栏拉得很开，
+   * 中间那条竖线两头都是空的——「说不出哪里怪」多半就是这种宽而空。
+   */
+  width: min(620px, 92vw);
   height: fit-content;
   max-height: min(680px, 86vh);
   display: flex;
@@ -944,9 +956,13 @@
   to { opacity: 0; }
 }
 
-/* 弹窗里那几块沿用抽屉的排版，只是左右留白更宽一点。 */
+/* 弹窗里那几块沿用抽屉的排版，只是留白更宽、标题大一号。 */
 .party-dialog .panel__head {
-  padding: var(--s4) var(--s5);
+  padding: 18px 24px 14px;
+}
+
+.party-dialog .panel__title {
+  font-size: 17px;
 }
 
 /*
@@ -991,9 +1007,16 @@
   gap: var(--s3);
 }
 
-/* 按钮贴着栏底：一边有说明、一边没有，不这样会被顶到不同高度。 */
+/*
+ * 按钮贴栏底、但不要铺满。
+ *
+ * 铺满之后一颗「加入」变成 340px 的长条，文字缩在最左边，看着像输入框而不是
+ * 按钮——这是上一版最怪的一处。宽度交给内容，位置贴底，两栏才会齐。
+ */
 .party__col > .rh-btn:last-child {
   margin-top: auto;
+  align-self: flex-start;
+  padding: 7px 18px;
 }
 
 .party__col-title {
@@ -1014,5 +1037,38 @@
   margin: 0;
   font-size: var(--fs-micro);
   line-height: 1.6;
+  color: var(--text-low);
+}
+
+/* 樱花隧道折起来：默认只占一行，用到了再展开。 */
+.party__tunnel > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 0;
+  font-size: var(--fs-meta);
+  color: var(--text-hi);
+}
+
+.party__tunnel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.party__tunnel > summary::before {
+  content: '▸';
+  font-size: 9px;
+  color: var(--text-low);
+  transition: rotate var(--dur-1) var(--ease-out);
+}
+
+.party__tunnel[open] > summary::before {
+  rotate: 90deg;
+}
+
+.party__tunnel-state {
+  margin-left: auto;
+  font-size: var(--fs-micro);
   color: var(--text-low);
 }
