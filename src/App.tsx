@@ -7,7 +7,6 @@ import { AlbumDetailPage } from './views/AlbumDetailPage'
 import { ArtistPage } from './views/ArtistPage'
 import { usePresets } from './features/presets/store'
 import { EqPanel } from './views/EqPanel'
-import { PartyPanel } from './views/PartyPanel'
 import { DailyPage } from './views/DailyPage'
 import { LikedPage } from './views/LikedPage'
 import { LocalPage } from './views/LocalPage'
@@ -1281,16 +1280,22 @@ export function App() {  if (!isNative) {
             setEqOpen(false)
           }}
           onOpenParty={() => {
-            setPartyOpen((open) => !open)
+            /*
+             * 房间是一扇独立窗口：关掉窗口不等于退房，房间在主进程里继续跑，
+             * 再点这颗键就回到同一个房间。弹窗做不到这一点——它一关，界面上
+             * 就再也没有「你还在房间里」的痕迹。
+             */
+            setPartyOpen(false)
             setEqOpen(false)
             setQueueOpen(false)
+            void window.aurora?.party?.openWindow()
           }}
           partyOpen={partyOpen}
           onToggleDesktopLyrics={() => void toggleDesktopLyrics()}
         />
         ) : null}
 
-        <PartyPanel open={partyOpen} onClose={() => setPartyOpen(false)} />
+
 
         <EqPanel
           open={eqOpen}

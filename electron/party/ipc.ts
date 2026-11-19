@@ -4,6 +4,7 @@ import { sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
 import { chatWindowOpen } from '../chat-window'
 import { sakuraWindowOpen } from '../sakura-window'
+import { partyWindowOpen } from '../party-window'
 import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
@@ -122,6 +123,11 @@ export function registerPartyIpc(): void {
   /* 登录樱花并直接拿回访问密钥：不让用户去网页里找到再粘过来。 */
   ipcMain.handle('sakura:login', async () => {
     return await sakuraLogin()
+  })
+
+  ipcMain.handle('party:window', () => {
+    partyWindowOpen()
+    return true
   })
 
   ipcMain.handle('party:sakura', () => {

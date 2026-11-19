@@ -19,17 +19,6 @@ import { usePresence } from '../ui/presence'
 export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }) {
   const { mounted, closing } = usePresence(open, 320)
   const state = useParty((s) => s.state)
-  /*
-   * 关面板就是退房。
-   *
-   * 之前只把面板藏起来、房间继续挂着：端口还占着、转发还在跑、客人还能听见，
-   * 而界面上没有任何地方说明「你还在房间里」——这是隐形负担。房间只在这面板
-   * 里可见，那就让它的生命周期与面板一致。
-   */
-  const close = (): void => {
-    if (state.role !== 'idle') void useParty.getState().leave()
-    onClose()
-  }
   const busy = useParty((s) => s.busy)
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
@@ -106,7 +95,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     <aside className={`party-dialog${closing ? ' is-closing' : ''}`} aria-label="一起听">
       <header className="panel__head">
         <h2 className="panel__title">一起听</h2>
-        <button className="icon-btn" onClick={close} title="离开房间并关闭" aria-label="离开房间并关闭一起听">
+        <button className="icon-btn" onClick={onClose} title="关闭" aria-label="关闭一起听">
           <Close size={16} />
         </button>
       </header>
@@ -291,7 +280,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
 
             </section>
           </div>
-          <button className="rh-btn" onClick={close}>
+          <button className="rh-btn" onClick={() => void useParty.getState().leave()}>
             离开房间
           </button>
           {note ? <p className="pg-note">{note}</p> : null}
