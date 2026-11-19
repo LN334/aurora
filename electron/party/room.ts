@@ -27,7 +27,12 @@ export interface PartyNow {
   artist: string
   /** Unix 毫秒：这条 now 是什么时候发出的。 */
   at: number
-  /** 播到第几秒；房主每 5 秒推一次，客人据此对齐。 */
+  /**
+   * 播到第几秒。
+   *
+   * 房主每隔几秒报一次，客人按 `at` 与它的差算出「此刻该在第几秒」，而不是照抄
+   * 这个数——消息在路上走的时间要补回来，否则每报一次就固定慢一截。
+   */
   position: number
   playing: boolean
 }

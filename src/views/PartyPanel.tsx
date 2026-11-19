@@ -14,17 +14,16 @@ import { usePresence } from '../ui/presence'
  */
 
 function currentNow(): PartyNow | null {
-  const { queue, index } = usePlayer.getState()
-  const track = queue[index] ?? null
+  const playback = usePlayer.getState()
+  const track = playback.queue[playback.index] ?? null
   if (!track) return null
-  const at = Date.now()
   return {
     trackId: track.id,
     title: track.title,
     artist: track.artist,
-    at,
-    position: 0,
-    playing: usePlayer.getState().playing
+    at: Date.now(),
+    position: playback.position,
+    playing: playback.playing
   }
 }
 
