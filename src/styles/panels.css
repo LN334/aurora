@@ -1340,225 +1340,162 @@ body.is-party-window {
 /*
  * 一起听这一页。
  *
- * 左边做事（开房/加入，或房间信息），右边一直是「房间里」的侧栏。不做弹窗壳：
- * 弹窗那套居中、圆角、×，在页面里只是把内容挤到中间一小块。
+ * 中间一块「舞台」，占屏幕中上位置，一个人一眼看到全部：房间码、两条连接状态、
+ * 谁在、在放什么、可以做什么。不做左右分栏——这一页要读的信息本来就是一列。
  */
 .party-page {
-  padding: var(--s5) var(--s6) var(--s7);
+  display: flex;
+  justify-content: center;
+  /* 不设这一条，flex 会把卡片纵向拉满整屏，底下留一大片空。 */
+  align-items: flex-start;
+  padding: 6vh var(--s6) var(--s7);
+  min-height: calc(100vh - 200px);
 }
 
-.party-page__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: var(--s6);
-  align-items: start;
-}
-
-.party-page__main,
-.party-page__side {
+.party-stage {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--s4);
-  min-width: 0;
-}
-
-.party-page__side {
-  padding: var(--s4);
+  width: min(560px, 100%);
+  padding: var(--s6);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 14px;
-  background: rgb(var(--tint-rgb) / 0.04);
+  border-radius: 18px;
+  background: rgb(var(--ink-850-rgb) / 0.72);
+  text-align: center;
 }
 
-.party-page__h {
+.party-stage__title {
   margin: 0;
-  font-size: var(--fs-title);
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-hi);
 }
 
-.party-page__split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s6);
-}
-
-.party-page__col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  min-width: 0;
-}
-
-.party-page__col > .rh-btn:last-child {
-  margin-top: auto;
-  align-self: flex-start;
-  padding: 7px 18px;
-}
-
-.party-page__field {
-  display: grid;
-  gap: 6px;
-  font-size: var(--fs-micro);
+.party-stage__hint {
+  margin: 0;
+  font-size: var(--fs-meta);
+  line-height: 1.6;
   color: var(--text-mid);
 }
 
-.party-page__hint {
+.party-stage__tiny {
   margin: 0;
   font-size: var(--fs-micro);
-  line-height: 1.6;
   color: var(--text-low);
 }
 
-.party-page__row {
+/* 房间码：这一页唯一要念给别人听的东西。 */
+.party-stage__code {
   display: flex;
   align-items: center;
   gap: var(--s3);
-}
-
-.party-page__check {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
-}
-
-/* 房间码：这一页唯一需要一眼看清的东西。 */
-.party-badge {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
+  width: 100%;
   padding: 14px var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 14px;
   background: rgb(var(--tint-rgb) / 0.05);
 }
 
-.party-badge__label {
+.party-stage__label {
   font-size: var(--fs-micro);
   color: var(--text-low);
 }
 
-.party-badge__code {
+.party-stage__code b {
   margin-right: auto;
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: 0.18em;
   color: var(--text-hi);
 }
 
-.party-kv {
+/* 连接状态：一行一件事，左边一颗灯。 */
+.party-lines {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 8px var(--s3);
+  gap: 10px;
+  width: 100%;
   margin: 0;
+  padding: 0;
+  list-style: none;
   font-size: var(--fs-meta);
+  color: var(--text-mid);
+  text-align: left;
 }
 
-.party-kv dt {
-  color: var(--text-low);
+.party-lines li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
 }
 
-.party-kv dd {
-  margin: 0;
+.party-lines li span {
   color: var(--text-hi);
 }
 
-/*
- * 这一页里的输入框、以及「别空着」的两块底板。
- *
- * 输入框在主界面上没有面板底色托着，0.14 的描边几乎看不见，所以这里单独加深
- * 一档；两栏各给一块底，免得整页只剩几行字浮在壁纸上。
- */
-.party-page .input {
-  border: 1px solid rgb(var(--tint-rgb) / 0.22);
-  background: rgb(var(--tint-rgb) / 0.09);
+.party-lines li .rh-btn {
+  margin-left: auto;
 }
 
-.party-page .input:focus {
-  border-color: rgb(var(--accent-rgb) / 0.6);
-  background: rgb(var(--tint-rgb) / 0.13);
+.party-lamp {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.22);
 }
 
-.party-page .input::placeholder {
-  color: var(--text-low);
+.party-lamp.is-on {
+  background: #45c07a;
+  box-shadow: 0 0 0 3px rgb(69 192 122 / 0.16);
 }
 
-.party-page__col {
-  padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 14px;
-  background: rgb(var(--tint-rgb) / 0.035);
-}
-
-.party-page__main {
-  min-height: 320px;
-}
-
-/* 页面内容别贴着顶部：给一屏的呼吸，但也不要散成一条。 */
-.party-page {
+.party-stage__row {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: calc(100vh - 220px);
+  gap: var(--s2);
+  width: 100%;
 }
 
-/*
- * 三块底用薄 tint + 背后模糊，不用实色。
- *
- * 这一页没有面板垫底：纯 tint 会让壁纸直接透上来说明文字读不清（上一版就是
- * 这样），纯实色又违背整套界面「薄片盖在壁纸上」的调子。tint 加一层模糊，
- * 两边都保住——字清楚，壁纸还在。
- */
-.party-page__col,
-.party-page__main,
-.party-page__side {
-  /*
-   * 用「底色的半透明」而不是「白色的半透明」。
-   *
-   * 白 tint 盖在深色壁纸上只会更亮，浅色的字反而更糊；压一层深色底，壁纸还在
-   * 底下透出来，字也压得住。backdrop-filter 在这里没生效（祖先有合成层），
-   * 所以不靠模糊，靠这一层底。
-   */
-  background: rgb(var(--ink-850-rgb) / 0.72);
-}
-
-.party-page .input {
-  border: 1px solid rgb(var(--tint-rgb) / 0.26);
-  background: rgb(var(--tint-rgb) / 0.1);
-}
-
-.party-page .input:focus {
-  border-color: rgb(var(--accent-rgb) / 0.6);
-  background: rgb(var(--tint-rgb) / 0.16);
-}
-
-/* 樱花页的主区也是一块底：它的内容（登录、路径、隧道列表）直接铺在壁纸上读不清。 */
-.party-page__main:not(:has(.party-page__col)) {
-  padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 14px;
-}
-
-.sakura-panel {
+.party-stage__foot {
   display: flex;
-  flex-direction: column;
   gap: var(--s3);
+  width: 100%;
+  margin-top: var(--s2);
 }
 
-/* 樱花页顶行：登录状态 + 一颗键。 */
-.sakura-first {
+.party-stage__big {
+  width: 100%;
+  padding: 12px 18px;
+  font-size: var(--fs-title);
+  /* 这一页只有一颗主动作，它就该是最亮的那一块。 */
+  background: rgb(var(--accent-rgb) / 0.92);
+  border-color: transparent;
+  color: #0b0f14;
+}
+
+.party-stage__big:hover:not(:disabled) {
+  background: rgb(var(--accent-rgb) / 1);
+}
+
+.party-stage__split {
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  margin-bottom: var(--s3);
-  padding-bottom: var(--s3);
-  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.08);
-}
-
-.sakura-first__state {
-  flex: 1;
+  gap: var(--s2);
+  width: 100%;
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.08);
   font-size: var(--fs-meta);
   color: var(--text-mid);
+}
+
+.party-stage__split .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.party-stage .input {
+  border: 1px solid rgb(var(--tint-rgb) / 0.26);
+  background: rgb(var(--tint-rgb) / 0.1);
+  text-align: left;
 }
