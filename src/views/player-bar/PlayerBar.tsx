@@ -82,24 +82,29 @@ export function PlayerBar({
 
   return (
     <footer className="player">
-      <TrackInfo track={track} onOpenNow={onOpenNow} />
+      {/*
+        两条带：上面一行放「在放什么 / 怎么放 / 看什么」，下面一整条是进度。
+        进度以前缩在中间那一栏里，两边各留一大截空；铺满整条之后它才像一条
+        时间轴，而不是中间那块控件下面的一根短尺。
+      */}
+      <div className="player__main">
+        <TrackInfo track={track} onOpenNow={onOpenNow} />
 
-      <div className="pb-core">
-        <Transport
-          playing={playing}
-          loading={loading}
-          disabled={!track}
-          mode={mode}
-          onToggle={onToggle}
-          onNext={onNext}
-          onPrev={onPrev}
-          onCycleMode={onCycleMode}
-          hideModes={roaming}
-        />
-        <Progress duration={duration} disabled={!track} onSeekRatio={onSeekRatio} />
-      </div>
+        <div className="pb-core">
+          <Transport
+            playing={playing}
+            loading={loading}
+            disabled={!track}
+            mode={mode}
+            onToggle={onToggle}
+            onNext={onNext}
+            onPrev={onPrev}
+            onCycleMode={onCycleMode}
+            hideModes={roaming}
+          />
+        </div>
 
-      <div className="pb-side">
+        <div className="pb-side">
         <ControlButton
           label="桌面歌词"
           tip="桌面歌词"
@@ -156,8 +161,11 @@ export function PlayerBar({
 
         <span className="pb-sep" aria-hidden="true" />
 
-        <Volume volume={volume} muted={muted} onVolume={onVolume} onToggleMute={onToggleMute} />
+          <Volume volume={volume} muted={muted} onVolume={onVolume} onToggleMute={onToggleMute} />
+        </div>
       </div>
+
+      <Progress duration={duration} disabled={!track} onSeekRatio={onSeekRatio} />
     </footer>
   )
 }

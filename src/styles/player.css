@@ -15,12 +15,10 @@
    */
   margin: 4px 16px 12px;
   border-radius: 16px;
-  padding: 0 var(--s3);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 2.4fr) minmax(0, 1fr);
-  grid-template-areas: 'info core side';
-  align-items: center;
-  gap: var(--s4);
+  padding: 6px var(--s4) 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   /*
    * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
    * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
@@ -74,6 +72,26 @@
     0 10px 30px -6px rgb(var(--shade-rgb) / 0.45),
     inset 0 1px 0 rgb(var(--tint-rgb) / 0.16),
     inset 0 3px 10px -4px rgb(var(--tint-rgb) / 0.12);
+}
+
+/*
+ * 上面那一行：三个区域横排。进度条不在这里，它在整条底栏的最下面铺满——
+ * 以前它缩在中列里，两边各空一大截，读起来像一根短尺而不是时间轴。
+ */
+.player__main {
+  display: grid;
+  /*
+   * 中间那栏用 auto，两侧各占剩下的 1fr。
+   *
+   * 写成 1fr 1.5fr 1fr 时，右栏那一排图标比左栏宽，grid 会按内容最小宽重新
+   * 分配，播放键就一路偏到右边去——播放键必须落在整条的几何中心，这是这类
+   * 底栏最基本的读法。
+   */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: 'info core side';
+  align-items: center;
+  gap: var(--s4);
+  min-width: 0;
 }
 
 /* --- 左：在放什么 --------------------------------------------------------- */
@@ -220,10 +238,8 @@
 .pb-core {
   grid-area: core;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
 }
 
@@ -373,9 +389,9 @@
 
 /* 进度行：时间、可拖的条、总时长。 */
 .pb-rail {
-  grid-area: rail;
   display: flex;
   align-items: center;
+  width: 100%;
   gap: 10px;
   width: 100%;
 }
@@ -458,7 +474,7 @@
   .pb-sep {
     display: none;
   }
-  .player {
+  .player__main {
     column-gap: var(--s3);
   }
 }
@@ -470,25 +486,24 @@
  * .pb-core 用 display: contents 让自己消失，传输行与进度行直接参与外层 grid——
  * 否则没法把「播放键在上排、进度条在下排」排出来。
  */
+/*
+ * 900 以下：控制键从中间挪到第二行占满，信息与功能键留在第一行。
+ *
+ * 进度条本来就在最底下一行，所以这里不需要再「把它挪下去」——新版式一开始
+ * 就是这么排的，这一段只处理中间那一栏放不放得下。
+ */
 @media (max-width: 900px) {
-  .player {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  .player__main {
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     grid-template-areas:
-      'info transport side'
-      'rail rail rail';
-    align-content: center;
-    row-gap: 1px;
+      'info side'
+      'core core';
+    row-gap: 4px;
     column-gap: var(--s3);
   }
   .pb-core {
-    display: contents;
-  }
-  .pb-transport {
-    grid-area: transport;
-  }
-  .pb-side {
-    grid-area: side;
+    justify-content: center;
   }
   .pb-rail {
     gap: 8px;
