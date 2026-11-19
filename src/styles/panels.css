@@ -1156,3 +1156,45 @@
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
 }
+
+/* 卡片右上角那颗开关，仿官方启动器。 */
+.sakura-card {
+  position: relative;
+}
+
+.sakura-card__map {
+  grid-column: 1 / -1;
+}
+
+.sakura-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 17px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.18);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+
+.sakura-toggle.is-on {
+  background: rgb(var(--accent-rgb) / 0.85);
+}
+
+.sakura-toggle__knob {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fff;
+  transition: translate var(--dur-1) var(--ease-out);
+}
+
+.sakura-toggle.is-on .sakura-toggle__knob {
+  translate: 13px 0;
+}

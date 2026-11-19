@@ -140,11 +140,30 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     setTunnelNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
   }
 
+  /** 用表单里那三个值启动（沿用原来的按钮）。 */
   const startTunnel = async (): Promise<void> => {
     localStorage.setItem('aurora.party.frpc', frpcPath)
     localStorage.setItem('aurora.party.token', token)
     localStorage.setItem('aurora.party.tunnel', tunnelId)
     await useParty.getState().startTunnel({ frpcPath, token, tunnelId })
+  }
+
+  /**
+   * 卡片上的开关：用这一条隧道启动。
+   *
+   * 一次只跑一条——frpc 是一个进程，同时起两条要两套状态（各自的公网地址、
+   * 各自的错误），而一起听只需要一条出口。所以在跑就停，不在跑就用这条起。
+   */
+  const toggleTunnel = async (id: number): Promise<void> => {
+    if (tunnel.running) {
+      await useParty.getState().stopTunnel()
+      return
+    }
+    localStorage.setItem('aurora.party.frpc', frpcPath)
+    localStorage.setItem('aurora.party.token', token)
+    setTunnelId(String(id))
+    localStorage.setItem('aurora.party.tunnel', String(id))
+    await useParty.getState().startTunnel({ frpcPath, token, tunnelId: String(id) })
   }
 
   const say = async (text: string): Promise<void> => {
@@ -335,6 +354,17 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                       <span className="sakura-card__map">
                         {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
                       </span>
+                      <button
+                        className={'sakura-toggle' + (tunnel.running && tunnelId === String(item.id) ? ' is-on' : '')}
+                        type="button"
+                        title={
+                          tunnel.running && tunnelId === String(item.id) ? '停掉这条隧道' : '用这条隧道把房间开到公网'
+                        }
+                        aria-label="启停隧道"
+                        onClick={() => void toggleTunnel(item.id)}
+                      >
+                        <span className="sakura-toggle__knob" />
+                      </button>
                     </li>
                   ))}
                 </ul>
