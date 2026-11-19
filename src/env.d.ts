@@ -1523,7 +1523,7 @@ export interface PartyState {
 
 /** 一起听：局域网房间。状态由主进程推，命令往下发。 */
 interface PartyApi {
-  host(name: string): Promise<PartyState>
+  host(name: string, port?: number): Promise<PartyState>
   join(address: string, code: string, name: string): Promise<PartyState>
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>

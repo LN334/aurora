@@ -873,3 +873,8 @@
   margin-top: 2px;
   accent-color: var(--accent);
 }
+
+/* 开房前那一格端口：与加入房间的输入框同一套样式。 */
+.party__port .input {
+  width: 100%;
+}

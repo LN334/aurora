@@ -65,6 +65,8 @@ let lastTrackId = ''
 let lastPlaying = false
 /** 客人最近一次自己拖过进度的时刻；之前的时间窗里不去把他拉回房主那儿。 */
 let holdUntil = 0
+/** 最近一次由隧道写进房间的公网地址；用来判断断开时该不该撤。 */
+let tunnelPublished = ''
 /** 我们自己的 seek 时刻：那一下的跳变不是用户拖的。 */
 let selfSeekAt = 0
 /** 上一次播放采样，用来认出「这次位置跳了一截」。 */
@@ -320,6 +322,20 @@ export const useParty = create<PartyStore>((set, get) => ({
       set({ tunnel })
       if (tunnel.address && tunnel.address !== get().state.publicAddress && get().state.role === 'host') {
         void get().setPublic(tunnel.address)
+        tunnelPublished = tunnel.address
+      }
+      /*
+       * 隧道断了，房间的公网地址要跟着撤。
+       *
+       * 不撤的话客人手上还留着一条连不上的地址，点加入就是「连不上房主」，
+       * 而房主那边看起来一切正常。只撤隧道自己写进去的那个值——房主手填的
+       * 地址不受影响。
+       */
+      if (!tunnel.running && !tunnel.address && get().state.role === 'host') {
+        if (tunnelPublished && get().state.publicAddress === tunnelPublished) {
+          tunnelPublished = ''
+          void get().setPublic('')
+        }
       }
     })
     void bridge.tunnelState?.().then((tunnel) => {
@@ -361,7 +377,12 @@ export const useParty = create<PartyStore>((set, get) => ({
     set({ busy: true })
     resetWatch()
     try {
-      const state = await window.aurora?.party?.host(name)
+      /*
+       * 端口记在本机：固定下来之后，樱花隧道里那个「本地端口」只要配一次。
+       * 没填过就交 0，房间随机挑一个。
+       */
+      const saved = Number(localStorage.getItem('aurora.party.port') ?? '')
+      const state = await window.aurora?.party?.host(name, Number.isInteger(saved) ? saved : 0)
       if (state) set({ state })
     } finally {
       set({ busy: false })

@@ -72,8 +72,11 @@ export function registerPartyIpc(): void {
   })
 
   ipcMain.handle('party:host', (_event, args: unknown) => {
-    const name = asText(asRecord(args).name, '房主').slice(0, 24) || '房主'
-    return startHost(name)
+    const raw = asRecord(args)
+    const name = asText(raw.name, '房主').slice(0, 24) || '房主'
+    const wanted = Number(raw.port)
+    const port = Number.isInteger(wanted) && wanted > 1024 && wanted < 65536 ? wanted : 0
+    return startHost(name, port)
   })
 
   ipcMain.handle('party:join', (_event, args: unknown) => {

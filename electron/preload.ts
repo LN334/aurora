@@ -624,7 +624,7 @@ const api = {
    * 推回来（成员随时变），命令往下发。
    */
   party: {
-    host: (name: string) => ipcRenderer.invoke('party:host', { name }),
+    host: (name: string, port?: number) => ipcRenderer.invoke('party:host', { name, port }),
     join: (address: string, code: string, name: string) =>
       ipcRenderer.invoke('party:join', { address, code, name }),
     leave: () => ipcRenderer.invoke('party:leave'),

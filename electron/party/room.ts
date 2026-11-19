@@ -315,7 +315,14 @@ function handleHttp(
   void proxyStream(entry, request, response)
 }
 
-export function startHost(name: string): PartyState {
+/**
+ * 开房。
+ *
+ * `port` 给了就固定监听它——这一条是「樱花与房间绑定」的前提：隧道里填的本地
+ * 端口是写死的，房间每次换一个随机端口，房主就得回樱花面板改一次。固定之后，
+ * 隧道配一次就够了。端口被占用时退回随机，并在状态里把实际端口带出去。
+ */
+export function startHost(name: string, port = 0): PartyState {
   stopParty()
   hostCode = makeCode()
   /*
@@ -327,7 +334,19 @@ export function startHost(name: string): PartyState {
   hostHttp = http
   const server = new WebSocketServer({ server: http })
   hostServer = server
-  http.listen(0, '0.0.0.0')
+  /*
+   * 想要的端口被占（上一个实例没退干净、别的程序占着），退回随机端口。
+   * 这里不要报错让房主去查：端口是给他照着填隧道的，能开起来更重要。
+   */
+  http.once('error', () => {
+    if (hostHttp !== http) return
+    try {
+      http.listen(0, '0.0.0.0')
+    } catch {
+      /* 连随机端口都开不了，下面 listening 不会来，界面停在 idle */
+    }
+  })
+  http.listen(port, '0.0.0.0')
   http.on('listening', () => {
     const address = http.address()
     hostPort = typeof address === 'object' && address ? address.port : 0
