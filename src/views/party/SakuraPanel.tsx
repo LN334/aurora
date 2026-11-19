@@ -103,6 +103,15 @@ export function SakuraPanel() {
     }
     persist()
     if (item.localPort) {
+      /*
+       * 改端口会重开房间，房间里的人会被踢下线。房间有人时不替用户做这个决定：
+       * 先把话说明白，让他自己选「等房间空了再开」还是「先让人走」。
+       */
+      const occupied = state.role !== 'idle' && state.members.length > 1
+      if (occupied) {
+        setNote('房间里还有 ' + (state.members.length - 1) + ' 位听众，改端口会让他们掉线。等房间空了再开这条隧道。')
+        return
+      }
       localStorage.setItem(KEYS.port, String(item.localPort))
       if (state.role !== 'idle') await useParty.getState().host('房主')
     }
