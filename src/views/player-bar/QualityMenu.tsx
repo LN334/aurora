@@ -27,16 +27,27 @@ export function QualityMenu() {
   const track = usePlayer((state) => state.current())
   const source = track?.source ?? ''
   if (!source || source === 'local') return null
-  return <QualityBody source={source} />
+  return <QualityBody source={source} onlineId={track?.onlineId} />
 }
 
-function QualityBody({ source }: { source: string }) {
+function QualityBody({ source, onlineId }: { source: string; onlineId?: number }) {
   const provider = getProvider(source)
   /*
    * 订阅而不是 getState()：账号状态是会变的，登录/退出之后会员档位该马上跟着
    * 出现或消失。读一次当前值的话，用户得等下一次重渲染才看得到。
    */
   const vip = useOnlineStore(source)((state) => state.account?.vip ?? null)
+  /*
+   * 上游实际给了哪一档。
+   *
+   * 请求的是「想要的」，拿到的是「平台给得起的」——会员过期、这首歌没有更高档，
+   * 都会让后者低于前者。以前只有播放页说这件事，用户最常盯的播放条看起来一切
+   * 正常。这里订阅它，把「实际」写进 title，并在按钮上点一个小记号。
+   */
+  const actual = useOnlineStore(source)((state) =>
+    typeof onlineId === 'number' && state.deliveredLevelSongId === onlineId ? state.deliveredLevel : null
+  )
+  const fellBack = useOnlineStore(source)((state) => state.deliveredFellBack)
   const tiers = (provider?.qualityTiers ?? []).filter((tier) => tierAllowed(provider!, tier, vip))
 
   const [tier, setTier] = useState<QualityTier | null>(null)
@@ -112,9 +123,13 @@ function QualityBody({ source }: { source: string }) {
       <button
         ref={buttonRef}
         type="button"
-        className={'pb-btn pb-btn--ghost pb-quality' + (open ? ' is-on' : '')}
+        className={'pb-btn pb-btn--ghost pb-quality' + (open ? ' is-on' : '') + (fellBack && actual ? ' is-fell' : '')}
         onClick={toggle}
-        title={provider.displayName + ' 的取流档位，换档从下一首起生效'}
+        title={
+          provider.displayName +
+          ' 的取流档位，换档从下一首起生效' +
+          (fellBack && actual ? '；这一首实际拿到的是 ' + QUALITY_LABELS[actual] : '')
+        }
         aria-label={'音质：' + (tier ? QUALITY_LABELS[tier] : provider.displayName)}
         aria-haspopup="menu"
         aria-expanded={open}

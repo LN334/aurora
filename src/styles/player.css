@@ -613,3 +613,20 @@
   color: var(--text-low);
   font-size: 10.5px;
 }
+
+/*
+ * 上游给的档低于所选时，音质键右上角点一个小记号。
+ *
+ * 只改颜色不够：这颗键本来就浅色，深色主题下几乎看不出差别；一个点在任何
+ * 底色上都读得出来，也不会让人误以为「键坏了」。
+ */
+.pb-quality.is-fell::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
