@@ -140,14 +140,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     setTunnelNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
   }
 
-  /** 用表单里那三个值启动（沿用原来的按钮）。 */
-  const startTunnel = async (): Promise<void> => {
-    localStorage.setItem('aurora.party.frpc', frpcPath)
-    localStorage.setItem('aurora.party.token', token)
-    localStorage.setItem('aurora.party.tunnel', tunnelId)
-    await useParty.getState().startTunnel({ frpcPath, token, tunnelId })
-  }
-
   /**
    * 卡片上的开关：用这一条隧道启动。
    *
@@ -414,18 +406,10 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                 value={token}
                 onChange={(event) => setToken(event.target.value)}
               />
-              <input
-                className="input"
-                placeholder="隧道 ID"
-                value={tunnelId}
-                onChange={(event) => setTunnelId(event.target.value)}
-              />
-              <button
-                className="rh-btn"
-                onClick={() => void (tunnel.running ? useParty.getState().stopTunnel() : startTunnel())}
-              >
-                {tunnel.running ? '停止隧道' : '启动隧道'}
-              </button>
+              {/*
+                隧道 ID 不再手填：上面的卡片就是选隧道的地方，卡片上的开关就是启停。
+                这里只留两个必须手填的值——frpc 在哪、账号的访问密钥是什么。
+              */}
               {tunnel.address ? <p className="pg-note">隧道已通：{tunnel.address}</p> : null}
               {!tunnel.address && tunnel.line ? <p className="pg-note">{tunnel.line}</p> : null}
               {tunnel.error ? <p className="pg-note">{tunnel.error}</p> : null}
