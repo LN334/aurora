@@ -47,14 +47,14 @@ export function invalidatePlatformLiked(): void {
 /**
  * 每家自己失败就自己空着，一家登不上不该让整页变白。
  *
- * 传了 `platforms` 就只问这几家（漫游只该拿勾选的那几家）；不传是全量。没被问
- * 到的平台连 `init` 都不跑，后端不会为它起来。
+ * 传了 `platforms` 就只问这几家；不传是全量。没被问到的平台连 `init` 都不跑，
+ * 后端不会为它起来。
  *
  * 返回值带一份 `failed`：几家没问出来。空列表有两种意思——「读完了，确实没有」
  * 与「没读到」，界面必须分得开。2026-11-17 那次就是这样：上游 502 断了两秒，首页
  * 把「没读到」画成了「我喜欢的音乐 0 首」。
  */
-export async function loadPlatformLiked(platforms?: ProviderId[]): Promise<LikedFold> {
+async function loadPlatformLiked(platforms?: ProviderId[]): Promise<LikedFold> {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {

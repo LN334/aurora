@@ -1,59 +1,40 @@
 import { songsAcrossPlatforms } from '../online/artist-merge'
-import { loadPlatformDaily } from '../online/daily'
-import { loadPlatformLiked } from '../online/platform-liked'
 import { getProvider, listAvailableProviders } from '../online/registry'
 import { useOnlineStore, type PlatformBackend } from '../online/store'
 import type { ProviderId } from '../online/types'
 import { mergeVersions, trackKey } from '../online/unify'
 import { rankBySeed } from './roam-pure'
 import { sourceOrder } from '../settings/source-order'
-import { useLibrary } from '../library/store'
-import { useHistory } from './history-store'
 import type { Track } from '../../types'
 import { SLOTS } from '../online/slots'
 
 interface RoamPool {
   /** 池子里所有的歌，同曲多版本已并成一行。 */
   tracks: Track[]
-  /** 池子里不在「我的」里的那部分：平台推过来、还没收藏过的。 */
+  /**
+   * 这一趟可放的新歌。
+   *
+   * 池子只剩私人漫游之后，它与 `tracks` 是同一批；字段留着是因为开趟、补池、
+   * 补批三处都按「这一趟该放什么」读它，各自再判一次迟早会偏。
+   */
   freshTracks: Track[]
 }
 
 /**
- * 漫游池：平台每天推的，混上我有的。
+ * 漫游池：只取平台的「私人漫游」。
  *
- * 只有「我有的」不算漫游——那些歌本来就在列表里，随机一遍只是换个顺序，听两
- * 次就腻了。所以先要各平台的推荐（每日推荐 + 私人漫游），再把本机、最近听过、
- * 收藏进来的一起并上。同一首在推荐与收藏里都出现时，`mergeVersions` 并成一行，
- * 不会因为「今天推了」就多出一份。
+ * 上一版把每日推荐、收藏、本机、最近听过全并了进来，理由是「混着才不像一份换个
+ * 顺序的收藏夹」。实际效果相反：池子里大半是用户本来就有的歌，点开漫游看到的是
+ * 熟悉的列表换了个排法。原生客户端的漫游就是一个接口一条流——这里跟着只用一个
+ * 来源，同曲多版本照样由 `mergeVersions` 并成一行。
  */
 /**
  * 池子。`platforms` 是用户勾的推流平台，空数组表示一家都没勾。
  */
 export async function loadRoamPool(platforms?: ProviderId[]): Promise<RoamPool> {
-  const order = sourceOrder()
-  const local = useLibrary.getState().tracks
-  const recent = useHistory
-    .getState()
-    .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
-  const [liked, daily, stream] = await Promise.all([
-    /*
-     * 这里也按勾选问：漫游是「从这几家给我找歌」。不勾的平台连喜欢都不该并进来——
-     * 否则用户明明没勾 QQ，漫游里却飘出一首 QQ 的歌，看着像设置没生效。
-     * 收藏页那边不传参数，照样四家全量。
-     */
-    loadPlatformLiked(platforms)
-      .then((fold) => fold.tracks)
-      .catch(() => [] as Track[]),
-    loadPlatformDaily(platforms).catch(() => [] as Track[]),
-    loadRoamStream(SLOTS.roam, platforms).catch(() => [] as Track[])
-  ])
-
-  const mine = mergeVersions([...local, ...recent, ...liked], order)
-  const pushed = mergeVersions([...daily, ...stream], order)
-  const tracks = mergeVersions([...pushed, ...mine], order)
-  const known = new Set(mine.map((track) => trackKey(track)))
-  return { tracks, freshTracks: tracks.filter((track) => !known.has(trackKey(track))) }
+  const stream = await loadRoamStream(SLOTS.roam, platforms).catch(() => [] as Track[])
+  const tracks = mergeVersions(stream, sourceOrder())
+  return { tracks, freshTracks: tracks }
 }
 
 /**
@@ -103,8 +84,9 @@ export function buildRoamQueue(
  * 一批「还没听过的」，朝 SLOTS.roam 这个总量走。
  *
  * 原生客户端的漫游是一条流，不是一份列表：听到底就再要一批。这里把这件事做成
- * 一次请求——先问平台的私人漫游（网易云有 `personalFm`），没有这个接口的退回
- * 它的每日推荐。
+ * 一次请求——问的是各家的「私人漫游」。名字不一样（网易云 personalFm、QQ 与汽水
+ * 同名接口、酷狗只有每日推荐），内核是同一件事：平台按你的口味一直往下推。所以
+ * 有 personalFm 就用它，没有的那家用它的每日推荐当这条流。
  *
  * 早年每家固定取 12 首，于是「这一批有多少」跟着勾选平台数变：勾一家 12 首、
  * 勾四家 48 首。现在把总量摊到各家，再对同一家问几轮（私人漫游一次只回几首，
@@ -202,7 +184,12 @@ export function loadRoamQuick(platforms?: ProviderId[]): Promise<Track[]> {
   })
 }
 
-/** 能推流的这几家，按用户勾选筛过。 */
+/**
+ * 能开漫游的这几家，按用户勾选筛过。
+ *
+ * 判据是「有没有漫游这个内核」：有 personalFm 的用它，没有的（酷狗）用每日推荐——
+ * 那不是另一个东西，就是它自己的漫游流。
+ */
 function roamProviders(platforms?: ProviderId[]): ReturnType<typeof listAvailableProviders> {
   const wanted = platforms === undefined ? null : new Set(platforms)
   return listAvailableProviders().filter(
