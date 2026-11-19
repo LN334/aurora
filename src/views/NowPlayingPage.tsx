@@ -4,6 +4,7 @@ import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
 import { trackKey } from '../features/online/unify'
 import { RoamRail } from './RoamRail'
+import { PartyRibbon } from './PartyRibbon'
 import type { Lyrics } from '../features/lyrics/lrc'
 import { activeLineAt, spokenWords } from '../features/lyrics/lrc'
 import { splitLyricLine } from '../features/lyrics/line-parts'
@@ -256,6 +257,8 @@ function LyricRoll({
   }
 
   return (
+    <>
+      <PartyRibbon />
     <div
       className="np__lyr-window"
       ref={win}
@@ -296,6 +299,7 @@ function LyricRoll({
         })}
       </div>
     </div>
+    </>
   )
 }
 /**
