@@ -138,7 +138,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
   }
 
   return (
-    <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="一起听">
+    <aside className={`party-dialog${closing ? ' is-closing' : ''}`} aria-label="一起听">
       <header className="panel__head">
         <h2 className="panel__title">一起听</h2>
         <button className="icon-btn" onClick={onClose} title="关闭" aria-label="关闭一起听">
@@ -148,9 +148,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
 
       {!inRoom ? (
         <div className="panel__body">
-          <p className="pg-note">
-            房间开在这台电脑上。同一 WiFi 下的人用「局域网地址 + 房间码」进来；不在同一个网络，需要房主先把端口穿到公网，再把公网地址发给你。同步的是听什么、听到哪，音频各自取。
-          </p>
+          <p className="pg-note">同一 WiFi 用「局域网地址 + 房间码」进；跨网络要房主先穿到公网。</p>
           {/*
             端口先定下来再开房：樱花隧道里那个「本地端口」是写死的，房间每次
             换随机端口的话，房主每开一次房就得回面板改一次。固定之后配一次就够。

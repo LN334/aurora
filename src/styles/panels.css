@@ -97,11 +97,16 @@
   width: min(400px, 92vw);
   display: flex;
   flex-direction: column;
-  /* 和播放条同一块玻璃：抽屉浮在内容之上，底下的封面要隐约透出来。 */
-  background: rgb(var(--ink-850-rgb) / 0.7);
-  /* 和播放条同一块玻璃，同样为了折射把模糊压到 10px（理由见 app.css 的 .player）。 */
-  backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
-  -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.45);
+  /*
+   * 抽屉是实心面板，不做透视。
+   *
+   * 玻璃质感留给播放条那一条：它压在内容之上、面积小、不承载正文。抽屉不一样——
+   * 它整列都是字，背后还是大块封面的专辑墙，一透过来正文就得和图片抢注意力，
+   * 浅色主题下尤其糊成一片。所以这里用实色底，只在顶缘留一道极淡的提亮保持
+   * 边界的存在感。没有透视也就不需要 backdrop-filter 了，顺带省一层 GPU。
+   */
+  background-color: var(--ink-850);
+  background-image: linear-gradient(180deg, rgb(var(--tint-rgb) / 0.03), transparent 22%);
   border-left: 1px solid rgb(var(--tint-rgb) / 0.09);
   box-shadow:
     -24px 0 60px rgb(var(--shade-rgb) / 0.5),
@@ -723,16 +728,29 @@
   gap: var(--s2);
 }
 
+/*
+ * 输入框的边框原来写的是 `var(--tint-rgb)`——那是个颜色三元组（`255 255 255`），
+ * 不是颜色值，整条 border 声明因此无效，输入框等于没有轮廓。面板还是玻璃底时
+ * 勉强能看出下面有一条线，改成实色底之后直接隐形了。
+ */
 .party__join .input,
 .party__say .input,
 .party__tunnel .input {
   width: 100%;
   padding: 7px 10px;
-  border: 1px solid var(--tint-rgb);
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
   border-radius: 8px;
-  background: transparent;
+  background: rgb(var(--tint-rgb) / 0.04);
   color: var(--text-hi);
   font: inherit;
+}
+
+.party__join .input:focus,
+.party__say .input:focus,
+.party__tunnel .input:focus {
+  outline: none;
+  border-color: rgb(var(--accent-rgb) / 0.5);
+  background: rgb(var(--tint-rgb) / 0.07);
 }
 
 .party__join .input::placeholder,
@@ -877,4 +895,66 @@
 /* 开房前那一格端口：与加入房间的输入框同一套样式。 */
 .party__port .input {
   width: 100%;
+}
+
+/*
+ * 一起听是一张大弹窗，不是右侧抽屉。
+ *
+ * 它要同时放房间码、两个地址、樱花隧道那一组输入、转发开关和聊天，400px 宽的
+ * 抽屉里只能竖着堆，一屏放不下还得滚。弹窗有宽度，地址与隧道可以并排。
+ *
+ * 居中用 inset + margin auto 而不是 transform：项目里踩过一次——带 fill-mode
+ * 的 transform 动画会把矩阵留在计算样式里，容器变成 fixed 子元素的定位祖先。
+ */
+.party-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(760px, 92vw);
+  height: fit-content;
+  max-height: min(680px, 86vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 40;
+  border-radius: 18px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  background-color: var(--ink-850);
+  background-image: linear-gradient(180deg, rgb(var(--tint-rgb) / 0.04), transparent 16%);
+  box-shadow:
+    0 26px 70px -14px rgb(var(--shade-rgb) / 0.6),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.1);
+  animation: partyIn var(--dur-2) var(--ease-out) both;
+}
+
+.party-dialog.is-closing {
+  animation: partyOut var(--dur-2) var(--ease-out) both;
+}
+
+@keyframes partyIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes partyOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* 弹窗里那几块沿用抽屉的排版，只是左右留白更宽一点。 */
+.party-dialog .panel__head {
+  padding: var(--s4) var(--s5);
+}
+
+/*
+ * min-height: 0 是必须的。
+ *
+ * 这是个 flex 子项，默认 min-height: auto 会按内容撑开，于是 overflow: auto
+ * 永远不触发——内容超出 max-height 之后被直接裁掉，下半截（开房按钮、聊天输入）
+ * 就"没有后续"了。给了 0 才真的会滚。
+ */
+.party-dialog .panel__body {
+  min-height: 0;
+  padding: var(--s3) var(--s5) var(--s4);
+  overflow: auto;
 }

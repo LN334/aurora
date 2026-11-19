@@ -972,3 +972,29 @@
   font-size: var(--fs-micro);
   color: var(--danger);
 }
+
+/* 设置页里的文本输入：路径、密钥、端口这类。宽度用 --wide 给需要长文本的。 */
+.settings__input {
+  width: 120px;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--tint-rgb) / 0.04);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+}
+
+.settings__input--wide {
+  width: 320px;
+}
+
+.settings__input:focus {
+  outline: none;
+  border-color: rgb(var(--accent-rgb) / 0.5);
+  background: rgb(var(--tint-rgb) / 0.07);
+}
+
+.settings__input::placeholder {
+  color: var(--text-low);
+}
