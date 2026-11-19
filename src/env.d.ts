@@ -1485,6 +1485,17 @@ export interface PartyNow {
   at: number
   position: number
   playing: boolean
+  /** 这首歌是什么。客人队列里没有它时，靠这份描述就地装进来。 */
+  track?: {
+    id: string
+    source: string
+    title: string
+    artist: string
+    album: string
+    duration: number
+    coverUrl: string | null
+    hasArt: boolean
+  }
   /**
    * 房主手上那份播放地址。
    *

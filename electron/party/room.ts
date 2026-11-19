@@ -35,6 +35,17 @@ export interface PartyNow {
    */
   position: number
   playing: boolean
+  /** 这首歌是什么；客人队列里没有它时靠它就地装进来。 */
+  track?: {
+    id: string
+    source: string
+    title: string
+    artist: string
+    album: string
+    duration: number
+    coverUrl: string | null
+    hasArt: boolean
+  }
   /** 房主那份播放地址；有它，客人听到的就是房主这一档的音质。 */
   stream?: { url: string; quality: string }
 }

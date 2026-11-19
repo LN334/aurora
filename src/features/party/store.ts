@@ -5,6 +5,7 @@ import { useOnlineStore } from '../online/store'
 import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
 import { rememberSharedStream } from './shared-stream'
+import { partyTrackInfoOf, trackFromParty } from './shared-track'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
 import type { PlaybackTick } from './pure'
 
@@ -90,6 +91,7 @@ function pushMoment(): void {
   const stream = playback.streamUrl
     ? { url: playback.streamUrl, quality: qualityNameOf(track) }
     : undefined
+  const info = partyTrackInfoOf(track)
   void useParty.getState().push({
     trackId: track.id,
     title: track.title,
@@ -97,6 +99,7 @@ function pushMoment(): void {
     at: Date.now(),
     position: playback.position,
     playing: playback.playing,
+    ...(info ? { track: info } : {}),
     ...(stream ? { stream } : {})
   })
 }
@@ -116,13 +119,29 @@ function qualityNameOf(track: { source?: string }): string {
  * 不在就留下一条说明，界面照实显示——而不是假装切换成功。
  */
 function follow(now: PartyNow): void {
-  const { queue, order } = usePlayer.getState()
-  const index = queue.findIndex((track) => track.id === now.trackId)
+  let { queue, order } = usePlayer.getState()
+  let index = queue.findIndex((track) => track.id === now.trackId)
   if (index < 0) {
-    useParty.setState((current) => ({
-      state: { ...current.state, error: '房主在放一首不在你队列里的歌' }
-    }))
-    return
+    /*
+     * 客人这边没有这首。
+     *
+     * 以前到这里就断了——「房主在放一首不在你队列里的歌」。房主现在会把曲目
+     * 描述一起推过来，在线曲可以就地装进队列；配合他带过来的播放地址，客人
+     * 有没有那个平台的账号、有没有会员，都不影响他听到。
+     *
+     * 本机文件装不了：对面没有那个文件，推一个路径过来也放不出声。
+     */
+    const rebuilt = now.track ? trackFromParty(now.track) : null
+    if (!rebuilt) {
+      useParty.setState((current) => ({
+        state: { ...current.state, error: '房主在放一首不在你队列里的歌，而且这首是本机文件' }
+      }))
+      return
+    }
+    usePlayer.getState().enqueue([rebuilt], 'next')
+    ;({ queue, order } = usePlayer.getState())
+    index = queue.findIndex((track) => track.id === now.trackId)
+    if (index < 0) return
   }
   const orderPosition = order.indexOf(index)
   if (orderPosition < 0) return
