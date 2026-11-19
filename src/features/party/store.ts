@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PartyNow, PartyState } from '../../env'
+import { usePlayer } from '../player/store'
 
 /**
  * 一起听的界面状态。
@@ -22,6 +23,34 @@ interface PartyStore {
 }
 
 let wired = false
+let watching = false
+let lastTrackId = ''
+
+/**
+ * 切歌自动同步。
+ *
+ * 房主每换一首就把「现在听什么」推出去，其他人跟着换——这是房间存在的主要
+ * 理由，不该靠手点。只推切歌这一刻：进度不逐秒广播，那会把网络当播放器用。
+ * 离开房间后 `role` 不再是 host，订阅自然什么都不做，不必解绑。
+ */
+function watchPlayback(): void {
+  if (watching) return
+  watching = true
+  usePlayer.subscribe((state) => {
+    if (useParty.getState().state.role !== 'host') return
+    const track = state.queue[state.index] ?? null
+    if (!track || track.id === lastTrackId) return
+    lastTrackId = track.id
+    void useParty.getState().push({
+      trackId: track.id,
+      title: track.title,
+      artist: track.artist,
+      at: Date.now(),
+      position: Math.floor(state.position ?? 0),
+      playing: state.playing
+    })
+  })
+}
 
 export const useParty = create<PartyStore>((set, get) => ({
   state: IDLE,
@@ -33,6 +62,7 @@ export const useParty = create<PartyStore>((set, get) => ({
     const bridge = typeof window === 'undefined' ? undefined : window.aurora?.party
     if (!bridge) return
     bridge.onState((state) => set({ state }))
+    watchPlayback()
     void bridge.state().then((state) => {
       if (state) set({ state })
     })
