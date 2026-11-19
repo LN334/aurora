@@ -1495,3 +1495,40 @@ body.is-party-window {
 .party-page__main {
   min-height: 320px;
 }
+
+/* 页面内容别贴着顶部：给一屏的呼吸，但也不要散成一条。 */
+.party-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(100vh - 220px);
+}
+
+/*
+ * 三块底用薄 tint + 背后模糊，不用实色。
+ *
+ * 这一页没有面板垫底：纯 tint 会让壁纸直接透上来说明文字读不清（上一版就是
+ * 这样），纯实色又违背整套界面「薄片盖在壁纸上」的调子。tint 加一层模糊，
+ * 两边都保住——字清楚，壁纸还在。
+ */
+.party-page__col,
+.party-page__side {
+  /*
+   * 用「底色的半透明」而不是「白色的半透明」。
+   *
+   * 白 tint 盖在深色壁纸上只会更亮，浅色的字反而更糊；压一层深色底，壁纸还在
+   * 底下透出来，字也压得住。backdrop-filter 在这里没生效（祖先有合成层），
+   * 所以不靠模糊，靠这一层底。
+   */
+  background: rgb(var(--ink-850-rgb) / 0.72);
+}
+
+.party-page .input {
+  border: 1px solid rgb(var(--tint-rgb) / 0.26);
+  background: rgb(var(--tint-rgb) / 0.1);
+}
+
+.party-page .input:focus {
+  border-color: rgb(var(--accent-rgb) / 0.6);
+  background: rgb(var(--tint-rgb) / 0.16);
+}
