@@ -392,7 +392,7 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
                 </ul>
               ) : null}
               <p className="pg-note">
-                需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:${roomPort}</code>，
+                需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:{roomPort}</code>，
                 类型选 TCP；再把面板下载的<b>独立版</b> frpc 路径填在下面。启动器安装目录里那份不能被别的程序调用。
               </p>
               <button
