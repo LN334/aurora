@@ -4,6 +4,7 @@ import { useRoam } from '../../features/player/roam-session'
 import { DesktopLyrics, Expand, Queue, Sliders, User } from '../../ui/icons'
 import { ControlButton } from './ControlButton'
 import { Progress } from './Progress'
+import { QualityMenu } from './QualityMenu'
 import { TrackInfo } from './TrackInfo'
 import { Transport } from './Transport'
 import { Volume } from './Volume'
@@ -150,6 +151,8 @@ export function PlayerBar({
         >
           <Expand size={17} />
         </ControlButton>
+
+        <QualityMenu />
 
         <span className="pb-sep" aria-hidden="true" />
 

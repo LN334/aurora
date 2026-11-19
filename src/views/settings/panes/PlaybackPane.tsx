@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getProvider, listAvailableProviders, listProviders } from '../../../features/online/registry'
-import { useOnlineStore } from '../../../features/online/store'
+import { applyQuality } from '../../../features/online/quality'
 import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
 import {
   QUALITY_LABELS as TIER_LABELS,
@@ -135,18 +135,9 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
    */
   const applyTier = (tier: QualityTier) => {
     setQuality(tier)
-    const store = useOnlineStore(provider.id)
-    if (!store) {
-      void provider.setQuality?.(tier).then(setQuality)
-      return
-    }
-    void store
-      .getState()
-      .setQuality(tier)
-      .then(() => {
-        const applied = store.getState().quality
-        setQuality(applied)
-      })
+    void applyQuality(provider, tier).then((applied) => {
+      if (applied) setQuality(applied)
+    })
   }
 
   return (
