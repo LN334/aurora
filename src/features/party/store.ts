@@ -106,6 +106,11 @@ function follow(now: PartyNow): void {
  */
 function alignWith(now: PartyNow): void {
   const playback = usePlayer.getState()
+  /*
+   * 房主那首得先在这台机器的队列里。不在时 follow 已经留过话，这里再对着它调
+   * play() 只会在一个空元素上反复失败——那是每两秒一条日志，不是同步。
+   */
+  if (playback.queue[playback.index]?.id !== now.trackId) return
   const at = Date.now()
   const local = { position: playback.position, playing: playback.playing }
   const target = seekTarget(now, local, at, at < holdUntil)
