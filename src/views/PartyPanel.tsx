@@ -290,6 +290,14 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
               <summary>
                 樱花隧道
                 <span className="party__tunnel-state">
+                  {/* 仿照官方启动器的状态灯：灰＝没开，黄＝在连，绿＝通了。 */}
+                  <span
+                    className={
+                      'party__lamp' +
+                      (tunnel.address ? ' is-on' : tunnel.running ? ' is-busy' : '')
+                    }
+                    aria-hidden="true"
+                  />
                   {tunnel.address ? '已连接 ' + tunnel.address : tunnel.running ? '启动中…' : '未使用'}
                 </span>
               </summary>

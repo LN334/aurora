@@ -1090,3 +1090,26 @@
 .party__room-grid > .party__col {
   min-width: 0;
 }
+
+/* 樱花隧道状态灯：官方启动器里隧道列表左边那颗点的同一种读法。 */
+.party__tunnel-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.party__lamp {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.25);
+}
+
+.party__lamp.is-busy {
+  background: #e0b341;
+}
+
+.party__lamp.is-on {
+  background: #45c07a;
+  box-shadow: 0 0 0 3px rgb(69 192 122 / 0.18);
+}
