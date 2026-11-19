@@ -218,6 +218,8 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
         </div>
       ) : (
         <div className="panel__body">
+          <div className="party__room-grid">
+            <section className="party__col">
           <dl className="party__facts">
             <dt>房间码</dt>
             <dd>{state.code || '—'}</dd>
@@ -233,21 +235,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             </dd>
             <dt>端口</dt>
             <dd>{roomPort || '—'}</dd>
-            <dt>成员</dt>
-            <dd>{state.members.map((member) => member.name).join('、') || '—'}</dd>
-            <dt>现在</dt>
-            <dd>
-              {state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}
-              {/* 房主带了地址过来时，这一首听到的是他那一档，不是自己账号的。 */}
-              {state.now?.stream ? (
-                <span className="party__src">
-                  {' · 音质由房主提供'}
-                  {state.now.stream.quality ? `（${state.now.stream.quality}` : '（'}
-                  {state.now.stream.via === 'relay' ? '，经房间转发' : '，平台直链'}
-                  {'）'}
-                </span>
-              ) : null}
-            </dd>
             <dt>公网</dt>
             <dd>{state.publicAddress || '—'}</dd>
           </dl>
@@ -347,6 +334,25 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             </details>
           ) : null}
 
+            </section>
+            <section className="party__col">
+          <dl className="party__facts">
+            <dt>成员</dt>
+            <dd>{state.members.map((member) => member.name).join('、') || '—'}</dd>
+            <dt>现在</dt>
+            <dd>
+              {state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}
+              {/* 房主带了地址过来时，这一首听到的是他那一档，不是自己账号的。 */}
+              {state.now?.stream ? (
+                <span className="party__src">
+                  {' · 音质由房主提供'}
+                  {state.now.stream.quality ? `（${state.now.stream.quality}` : '（'}
+                  {state.now.stream.via === 'relay' ? '，经房间转发' : '，平台直链'}
+                  {'）'}
+                </span>
+              ) : null}
+            </dd>
+          </dl>
           <div className="party__chat">
             {state.messages.length === 0 ? (
               <p className="pg-note">房间里还没人说话</p>
@@ -396,6 +402,8 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             </div>
           </div>
 
+            </section>
+          </div>
           {state.role === 'host' ? (
             <button className="rh-btn" onClick={() => void push()}>
               同步我现在这首

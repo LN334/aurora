@@ -1072,3 +1072,21 @@
   font-size: var(--fs-micro);
   color: var(--text-low);
 }
+
+/*
+ * 房间视图两栏：左边「怎么连进来」，右边「房间里在发生什么」。
+ *
+ * 单列时房间码、地址、开关、樱花、聊天一个接一个排下来，一屏放不下还得滚；
+ * 底部两个动作键被挤到看不见。两栏之后左边是配置、右边是动态，动作键回到
+ * 弹窗底部一行。
+ */
+.party__room-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: var(--s4) var(--s5);
+  align-items: start;
+}
+
+.party__room-grid > .party__col {
+  min-width: 0;
+}
