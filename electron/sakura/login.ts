@@ -80,6 +80,41 @@ async function tokenFromApi(partitionSession: Electron.Session): Promise<{ token
   return { token: '', detail: tried.join(' · ') }
 }
 
+/**
+ * 挨个走候选页找访问密钥。
+ *
+ * 不知道它在哪一页（设置 / 资料 / 安全 / 令牌），也不值得让用户去翻——登录之后
+ * 把这几页都走一遍，谁有就记谁。每一步的页面文本都写进日志，下次就不用再猜。
+ */
+const CANDIDATES = ['user/settings', 'user/profile', 'user/security', 'user/token', 'user']
+const TOKEN_ANY = /\b(?:[0-9a-f]{32}|[A-Za-z0-9_-]{32,64})\b/
+
+async function sweepPages(win: BrowserWindow, note: (line: string) => void): Promise<string> {
+  const original = win.webContents.getURL()
+  for (const page of CANDIDATES) {
+    try {
+      await win.loadURL('https://www.natfrp.com/' + page)
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      const body = String(await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''", true))
+      const flat = body.replace(/\s+/g, ' ')
+      note('sweep ' + page + ' → ' + flat.slice(0, 200))
+      /* 认「访问密钥」这几个字附近的那一串，比全页盲扫准。 */
+      const near = /访问密钥[^A-Za-z0-9]{0,40}([A-Za-z0-9_-]{16,64})/.exec(body)
+      if (near) return near[1]
+      const any = TOKEN_ANY.exec(body)
+      if (any) return any[0]
+    } catch (error) {
+      note('sweep ' + page + ' 失败 ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+  try {
+    await win.loadURL(original)
+  } catch {
+    /* 回不去就算了 */
+  }
+  return ''
+}
+
 /** 从页面里找：设置页把密钥渲染在页面上，按形状捞一次。 */
 async function tokenFromPage(win: BrowserWindow): Promise<string> {
   try {
@@ -129,6 +164,7 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
   return await new Promise<SakuraLoginResult>((resolve) => {
     let done = false
     let lastDetail = ''
+    let lastSweep = false
     const finish = (result: SakuraLoginResult): void => {
       if (done) return
       done = true
@@ -150,7 +186,11 @@ export async function sakuraLogin(): Promise<SakuraLoginResult> {
       }
       /* 把接口那几句诊断留给最后一次结算用，窗口关时一起报出来。 */
       lastDetail = fromApi.detail
-      const fromPage = await tokenFromPage(win)
+      let fromPage = await tokenFromPage(win)
+      if (!fromPage && !lastSweep) {
+        lastSweep = true
+        fromPage = await sweepPages(win, note)
+      }
       if (fromPage) note('页面里找到候选 ' + shape(fromPage))
       try {
         const text = String(await win.webContents.executeJavaScript("document.body ? document.body.innerText : ''", true))
