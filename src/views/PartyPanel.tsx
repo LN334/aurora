@@ -110,6 +110,9 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     setNote('公网地址已更新，房间里的人都看得到')
   }
 
+  /** 房间监听的端口；樱花隧道要指向它。 */
+  const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
+
   const startTunnel = async (): Promise<void> => {
     localStorage.setItem('aurora.party.frpc', frpcPath)
     localStorage.setItem('aurora.party.token', token)
@@ -236,8 +239,19 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
           {state.role === 'host' ? (
             <div className="party__tunnel">
               <p className="pg-note">
-                樱花隧道（可选）：用面板下载的独立版 frpc 把房间开到公网。启动器安装目录里那份不能被别的程序调用。
+                樱花隧道（可选）：把房间开到公网，不在同一个 WiFi 也能进来。
               </p>
+              <p className="pg-note">
+                需要一个樱花账号：登录后建一条 <b>TCP</b> 隧道，本地地址填 <code>127.0.0.1:${roomPort}</code>，
+                类型选 TCP；再把面板下载的<b>独立版</b> frpc 路径填在下面。启动器安装目录里那份不能被别的程序调用。
+              </p>
+              <button
+                className="rh-btn"
+                type="button"
+                onClick={() => void window.aurora?.app?.openExternal('https://www.natfrp.com/user/')}
+              >
+                打开樱花面板（注册 / 登录 / 建隧道）
+              </button>
               <input
                 className="input"
                 placeholder="frpc.exe 的完整路径"

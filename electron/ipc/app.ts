@@ -32,13 +32,14 @@ export function registerAppIpc(deps: WindowSource): void {
   })
 
   /*
-   * 打开外部链接：只放行 GitHub。
+   * 打开外部链接：只放行 GitHub 与樱花面板。
    *
-   * 关于页的仓库与反馈按钮走这里。渲染层永远拿不到 shell，白名单放在主进程，
-   * 页面即使被注入脚本也打不开 file:// 或任意站点。
+   * 关于页的仓库与反馈按钮、以及一起听里「去注册樱花账号」走这里。渲染层永远
+   * 拿不到 shell，白名单放在主进程，页面即使被注入脚本也打不开 file:// 或任意站点。
    */
+  const EXTERNAL_ALLOWED = [/^https:\/\/github\.com\//, /^https:\/\/www\.natfrp\.com\//]
   ipcMain.handle('app:openExternal', (_event, url: unknown) => {
-    if (typeof url !== 'string' || !/^https:\/\/github\.com\//.test(url)) return false
+    if (typeof url !== 'string' || !EXTERNAL_ALLOWED.some((pattern) => pattern.test(url))) return false
     void shell.openExternal(url)
     return true
   })
