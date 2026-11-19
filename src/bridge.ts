@@ -22,6 +22,7 @@ export const isNative = Boolean(native)
 const IDLE_PARTY = {
   role: 'idle' as const,
   address: '',
+  addresses: [],
   code: '',
   members: [],
   now: null,

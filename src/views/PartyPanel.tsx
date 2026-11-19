@@ -201,7 +201,15 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             <dt>房间码</dt>
             <dd>{state.code || '—'}</dd>
             <dt>局域网</dt>
-            <dd>{state.address || '—'}</dd>
+            <dd>
+              {/*
+                多网卡（VPN、虚拟机、第二个网卡）时第一个未必是客人能到的那个，
+                房主看到全部候选，挑一个发出去。
+              */}
+              {state.role === 'host' && state.addresses.length > 1
+                ? state.addresses.join(' · ')
+                : state.address || '—'}
+            </dd>
             <dt>端口</dt>
             <dd>{roomPort || '—'}</dd>
             <dt>成员</dt>

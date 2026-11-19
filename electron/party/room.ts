@@ -67,8 +67,14 @@ export interface PartyMessage {
 
 export interface PartyState {
   role: 'host' | 'guest' | 'idle'
-  /** 房主那台机器的 `IP:端口`。 */
+  /** 房主那台机器的 `IP:端口`（候选里的第一个）。 */
   address: string
+  /**
+   * 房主这台机器所有可用的 `IP:端口` 候选。
+   *
+   * 多网卡时第一个未必是客人能到的那个，列出来让房主挑。
+   */
+  addresses: string[]
   /** 6 位房间码，客人在 hello 里带回来。 */
   code: string
   members: PartyMember[]
@@ -106,6 +112,7 @@ function idle(): PartyState {
   return {
     role: 'idle',
     address: '',
+    addresses: [],
     code: '',
     members: [],
     now: null,
@@ -141,13 +148,27 @@ function makeCode(): string {
   return code
 }
 
-function lanAddress(): string {
+/**
+ * 这台机器的全部局域网地址。
+ *
+ * 只取第一个是错的：装了 VPN、开了虚拟机、插了第二个网卡，`networkInterfaces`
+ * 的顺序并不保证第一个就是客人能到的那个。所以把候选都列出来让房主挑，而不是
+ * 替他猜一个——猜错的表现是「我这明明开着房，他说连不上」。
+ */
+function lanAddresses(): string[] {
+  const found: string[] = []
   for (const list of Object.values(networkInterfaces())) {
     for (const item of list ?? []) {
-      if (item.family === 'IPv4' && !item.internal) return item.address
+      if (item.family === 'IPv4' && !item.internal && !found.includes(item.address)) {
+        found.push(item.address)
+      }
     }
   }
-  return '127.0.0.1'
+  return found.length ? found : ['127.0.0.1']
+}
+
+function lanAddress(): string {
+  return lanAddresses()[0] as string
 }
 
 type Listener = (state: PartyState) => void
@@ -350,9 +371,11 @@ export function startHost(name: string, port = 0): PartyState {
   http.on('listening', () => {
     const address = http.address()
     hostPort = typeof address === 'object' && address ? address.port : 0
+    const candidates = lanAddresses().map((ip) => ip + ':' + hostPort)
     publish({
       role: 'host',
       address: lanAddress() + ':' + hostPort,
+      addresses: candidates,
       code: hostCode,
       members: [{ id: 'host', name, host: true }],
       now: null,

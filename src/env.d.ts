@@ -1514,6 +1514,8 @@ export interface PartyNow {
 export interface PartyState {
   role: 'host' | 'guest' | 'idle'
   address: string
+  /** 房主的全部本机地址候选；多网卡时房主自己挑一个发出去。 */
+  addresses: string[]
   code: string
   members: PartyMember[]
   now: PartyNow | null

@@ -20,6 +20,7 @@ import type { PlaybackTick } from './pure'
 const IDLE: PartyState = {
   role: 'idle',
   address: '',
+  addresses: [],
   code: '',
   members: [],
   now: null,
