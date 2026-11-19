@@ -605,11 +605,25 @@
   align-self: flex-start;
   gap: var(--s4);
   margin: 0 0 var(--s5);
-  padding: var(--s3) var(--s4) var(--s3) var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.13);
+  padding: var(--s3) var(--s4);
+  /*
+   * 材质跟着同一页的搜索框与范围胶囊走：极淡的一层底 + 一圈几乎看不见的边。
+   *
+   * 这一块原来是 0.66 的实底，在深色壁纸上是一整块近黑的方块——页面上别的
+   * 元素都是「浮在壁纸上的半透明薄片」，只有它像贴上去的纸。统计不是主角，
+   * 比搜索框还重就本末倒置了。
+   */
+  /*
+   * 用 tint 而不是 plane：plane 在两套主题里是「正黑 / 正白」，乘上透明度之后
+   * 深色主题下是一块黑补丁、浅色主题下是一块白蒙；tint 是「往当前底色上叠的
+   * 一层中性色」，深色主题偏白、浅色主题偏黑，两边都是「比背景稍亮/稍暗的薄片」。
+   */
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
   border-radius: var(--r-lg);
-  background: rgb(var(--plane-rgb) / 0.66);
-  backdrop-filter: blur(16px) saturate(1.15);
+  background: rgb(var(--tint-rgb) / 0.045);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
 }
 
 .rv-stats__nums {
@@ -642,7 +656,8 @@
 
 .rv-stats__num span {
   font-size: var(--fs-micro);
-  color: var(--text-low);
+  /* 薄片上的灰字要提一档，否则深色主题下这三个标签等于没写。 */
+  color: var(--text-mid);
 }
 
 .rv-stats__note {
