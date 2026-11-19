@@ -1449,6 +1449,41 @@ export interface BilibiliVideo {
 
 export type BilibiliQuality = 'standard' | 'higher' | 'exhigh' | 'lossless' | 'hires'
 
+export interface PartyMember {
+  id: string
+  name: string
+  host: boolean
+}
+
+/** 房间里「现在在听什么」。 */
+export interface PartyNow {
+  trackId: string
+  title: string
+  artist: string
+  at: number
+  position: number
+  playing: boolean
+}
+
+export interface PartyState {
+  role: 'host' | 'guest' | 'idle'
+  address: string
+  code: string
+  members: PartyMember[]
+  now: PartyNow | null
+  error: string
+}
+
+/** 一起听：局域网房间。状态由主进程推，命令往下发。 */
+interface PartyApi {
+  host(name: string): Promise<PartyState>
+  join(address: string, code: string, name: string): Promise<PartyState>
+  leave(): Promise<PartyState>
+  pushNow(now: PartyNow): Promise<PartyState>
+  state(): Promise<PartyState>
+  onState(listener: (state: PartyState) => void): () => void
+}
+
 interface BilibiliApi {
   search(keywords: string, limit?: number): Promise<{ videos: BilibiliVideo[] }>
   streamUrl(
@@ -1537,6 +1572,7 @@ export interface AuroraApi {
   kugou: KugouApi
   qishui: QishuiApi
   bilibili: BilibiliApi
+  party: PartyApi
   wallpaper: WallpaperApi
   maintenance: MaintenanceApi
   window: WindowApi

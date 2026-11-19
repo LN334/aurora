@@ -13,6 +13,21 @@ const native: AuroraApi | undefined = typeof window !== 'undefined' ? window.aur
 
 export const isNative = Boolean(native)
 
+/**
+ * 浏览器预览里「一起听」的空房间。
+ *
+ * 没有主进程就没有房间；界面据此显示「只在桌面版可用」，而不是让按钮点下去
+ * 什么都不发生。
+ */
+const IDLE_PARTY = {
+  role: 'idle' as const,
+  address: '',
+  code: '',
+  members: [],
+  now: null,
+  error: ''
+}
+
 const demoRoots = ['C:\\Users\\PC\\Music', 'D:\\Audio\\Lossless']
 
 const emptyIndex = () => ({
@@ -470,6 +485,18 @@ const webFallback: AuroraApi = {
      */
     search: async () => ({ videos: [] }),
     streamUrl: async () => ({ ok: false, reason: 'service-unavailable' })
+  },
+  party: {
+    /*
+     * 一起听要主进程起 WebSocket 服务，浏览器预览里没有。这里只让类型成立：
+     * 界面据此显示「只在桌面版可用」，而不是点了没反应。
+     */
+    host: async () => IDLE_PARTY,
+    join: async () => ({ ...IDLE_PARTY, error: '浏览器预览模式没有一起听后端' }),
+    leave: async () => IDLE_PARTY,
+    pushNow: async () => IDLE_PARTY,
+    state: async () => IDLE_PARTY,
+    onState: () => () => {}
   },
   wallpaper: {
     /*

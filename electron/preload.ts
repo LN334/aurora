@@ -613,6 +613,23 @@ const api = {
       ipcRenderer.invoke('bilibili:search', { keywords, limit }),
     streamUrl: (songId: number, quality: string) =>
       ipcRenderer.invoke('bilibili:streamUrl', { songId, quality })
+  },
+  /*
+   * 一起听：房间开在本机进程里，同一 WiFi 下的人填地址进来。状态从主进程
+   * 推回来（成员随时变），命令往下发。
+   */
+  party: {
+    host: (name: string) => ipcRenderer.invoke('party:host', { name }),
+    join: (address: string, code: string, name: string) =>
+      ipcRenderer.invoke('party:join', { address, code, name }),
+    leave: () => ipcRenderer.invoke('party:leave'),
+    pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
+    state: () => ipcRenderer.invoke('party:state'),
+    onState: (listener: (state: unknown) => void) => {
+      const handler = (_event: unknown, state: unknown): void => listener(state)
+      ipcRenderer.on('party:state', handler)
+      return () => ipcRenderer.removeListener('party:state', handler)
+    }
   }
 }
 

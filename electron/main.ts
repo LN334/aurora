@@ -15,6 +15,7 @@ import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
 import { registerBilibiliIpc } from './bilibili/ipc'
+import { registerPartyIpc } from './party/ipc'
 import { registerWarmUpIpc } from './warmup'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { applyStartupProfile } from './startup-profile'
@@ -839,6 +840,7 @@ if (!app.requestSingleInstanceLock()) {
      */
     registerQishuiIpc()
   registerBilibiliIpc()
+  registerPartyIpc()
     registerWarmUpIpc()
 
     /*
