@@ -51,7 +51,8 @@ function mapTunnel(value: unknown): SakuraTunnel | null {
   return {
     id,
     name: String(pick(record, ['name', 'tunnel_name', 'remark']) ?? ''),
-    node: String(pick(record, ['node_name', 'node', 'nodeName', 'server']) ?? ''),
+    /* 真实响应里 node 是节点 id（数字），不是节点名。 */
+    node: String(pick(record, ['node_name', 'nodeName', 'server', 'node']) ?? ''),
     type: String(pick(record, ['type', 'protocol']) ?? 'tcp').toLowerCase(),
     localPort: toNumber(pick(record, ['local_port', 'localPort', 'local'])),
     remotePort: toNumber(pick(record, ['remote_port', 'remotePort', 'remote'])),
@@ -69,21 +70,34 @@ export async function sakuraTunnels(token: string): Promise<SakuraTunnelsResult>
       }
     })
     const text = await response.text()
-    let body: { code?: number; msg?: string; data?: unknown } | null = null
+    /*
+     * 两种成功形状都要认：
+     *   /tunnels 直接回一个数组；
+     *   出错时回 { code, msg }（例如 code 401 访问密钥无效）。
+     * 之前只按 {code,data} 解析，于是正常响应被当成失败，列表永远是空的。
+     */
+    let parsed: unknown = null
     try {
-      body = JSON.parse(text) as { code?: number; msg?: string; data?: unknown }
+      parsed = JSON.parse(text)
     } catch {
       /* 不是 JSON：把原文留作证据 */
     }
-    if (!body || body.code !== 0) {
-      return {
-        ok: false,
-        message: body?.msg ?? '接口回了 HTTP ' + response.status,
-        tunnels: [],
-        raw: text.slice(0, 400)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const envelope = parsed as { code?: number; msg?: string; data?: unknown }
+      if (typeof envelope.code === 'number' && envelope.code !== 0) {
+        return {
+          ok: false,
+          message: envelope.msg ?? '接口回了 HTTP ' + response.status,
+          tunnels: [],
+          raw: text.slice(0, 400)
+        }
       }
     }
-    const list = Array.isArray(body.data) ? body.data : []
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { data?: unknown })?.data)
+        ? ((parsed as { data: unknown[] }).data)
+        : []
     return {
       ok: true,
       message: '',
