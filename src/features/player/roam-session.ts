@@ -7,12 +7,18 @@ import { onQueueReset, player } from './actions'
 import {
   appendFresh,
   carryHeard,
+  knownFrom,
   remainingSeconds,
   roamProgress,
   shouldPullMore,
-  type RoamProgress,
+  tasteOrder,
   withoutTrack
 } from './roam-pure'
+import type { KnownTaste, RoamProgress } from './roam-pure'
+import { roamMode } from './roam-mode'
+import { useFavorites } from '../favorites/store'
+import { useHistory } from './history-store'
+import { useLibrary } from '../library/store'
 import { buildRoamQueue, loadRoamPool, loadRoamQuick, loadRoamStream, loadSeedTracks } from './roam'
 import { roamPlatforms } from './roam-sources'
 import { listAvailableProviders } from '../online/registry'
@@ -175,6 +181,28 @@ async function signedCount(ids: ProviderId[]): Promise<number> {
   return list.filter((provider) => Boolean(useOnlineStore(provider.id).getState().account)).length
 }
 
+/**
+ * 认识的来源：收藏、最近听过、本机库。
+ *
+ * 只拿来判断「认得不认得」，不并进池子。池子里仍然只有各家私人漫游推来的歌——
+ * 这是「别混池子」与「分模式」两条要求的交点。
+ */
+function knownSources(): KnownTaste {
+  const liked = useFavorites.getState().liked.map((entry) => entry.track)
+  const recent = useHistory
+    .getState()
+    .history.recent.flatMap((entry) => (entry.track ? [entry.track] : []))
+  const local = useLibrary.getState().tracks
+  return knownFrom([...liked, ...recent, ...local])
+}
+
+/** 按当前偏好把这批歌排一遍。默认模式原样返回，一次遍历都不做。 */
+function tasteOf(tracks: Track[]): Track[] {
+  const mode = roamMode()
+  if (mode === 'default') return tracks
+  return tasteOrder(tracks, mode, knownSources())
+}
+
 /** 当前这首在不在这趟里。不在就不该显示漫游那套东西。 */
 function isRoamTrack(track: Track | null): boolean {
   if (!track) return false
@@ -332,7 +360,7 @@ async function fillRoamPool(wanted: ProviderId[]): Promise<void> {
      * SLOTS.roam，buildRoamQueue 就是拿 freshTracks 洗一遍切这个数；这里跟着它，
      * 快池那几首之外再补十几首，一趟仍然是二十首。
      */
-    const extra = appendFresh(state.tracks, buildRoamQueue(full), browsedOut())
+    const extra = appendFresh(state.tracks, tasteOf(buildRoamQueue(full)), browsedOut())
     if (extra.length === 0) return
     useRoam.setState((prev) => ({ tracks: [...prev.tracks, ...extra] }))
     player.addToQueue(extra, 'end')
@@ -453,7 +481,13 @@ export async function startRoam(seed?: Track): Promise<RoamStart> {
          */
         filling += 1
         try {
-          if (commitRoam(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam), undefined, epoch)) {
+          if (
+            commitRoam(
+              tasteOf(buildRoamQueue({ tracks: quick, freshTracks: quick }, SLOTS.roam)),
+              undefined,
+              epoch
+            )
+          ) {
             void fillRoamPool(wanted)
             return 'ok'
           }
@@ -476,11 +510,13 @@ export async function startRoam(seed?: Track): Promise<RoamStart> {
      * 同艺人的歌多半是用户手上已有的，严格说不算「新的」；但这一趟要的就是从这一
      * 首走进这个人的作品里，所以并进来一起排序。种子自己也在 near 里，建队列时去重。
      */
-    const queue = buildRoamQueue(
+    const built = buildRoamQueue(
       chosen ? { ...pool, freshTracks: [...near, ...pool.freshTracks] } : pool,
       SLOTS.roam,
       chosen
     )
+    /* 种子模式是「从这首出发」的明确意图，不按口味重排。 */
+    const queue = chosen ? built : tasteOf(built)
     if (!commitRoam(queue, chosen, epoch)) {
       /*
        * 分两种原因：真没登录，还是今天真没推。
@@ -530,7 +566,7 @@ async function pullRoamMore(): Promise<boolean> {
   useRoam.setState({ pulling: true, error: '' })
   let got = false
   try {
-    const more = await loadRoamStream(ROAM_MORE, wanted)
+    const more = tasteOf(await loadRoamStream(ROAM_MORE, wanted))
     /*
      * 这一处是「漫游不肯退出」的老窝：等歌的那两三秒里用户点开一张专辑，
      * 队列换了、漫游也清了，这批随后落地把 tracks 重新填满——底栏又写「漫游中」，

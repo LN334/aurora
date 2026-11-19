@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { dropSeed, endRoam, hideRoamTrack, undoDrop, useRoam, useRoamProgress } from '../features/player/roam-session'
+import { ROAM_MODES, setRoamMode, useRoamMode } from '../features/player/roam-mode'
 import { usePlayer } from '../features/player/store'
 import { Close } from '../ui/icons'
 
@@ -23,6 +25,8 @@ export function RoamRail() {
   const seed = useRoam((state) => state.seed)
   const current = usePlayer((state) => state.current())
   const progress = useRoamProgress(current)
+  const mode = useRoamMode()
+  const [modeOpen, setModeOpen] = useState(false)
 
   if (tracks.length === 0) return null
 
@@ -54,6 +58,43 @@ export function RoamRail() {
       <span className="rr__count">
         {inRoam ? `已听 ${progress.heard} 首` : '不在这一趟里'}
       </span>
+
+      {/*
+        模式：三种取用偏好。展开就贴在条里另起一行，不做浮层——这一条在页面最
+        底下，向上弹的浮层会被外面的滚动容器裁掉。
+      */}
+      <button
+        type="button"
+        className="rr__mode-btn"
+        onClick={() => setModeOpen(!modeOpen)}
+        aria-expanded={modeOpen}
+        title="换一种挑歌方式：只影响接下来这几批"
+      >
+        {ROAM_MODES.find((item) => item.id === mode)?.name ?? '默认'}
+        <span className="rr__mode-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      {modeOpen ? (
+        <div className="rr__mode-list">
+          {ROAM_MODES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`rr__mode-chip${item.id === mode ? ' is-active' : ''}`}
+              title={item.hint}
+              onClick={() => {
+                setRoamMode(item.id)
+                setModeOpen(false)
+              }}
+            >
+              {item.name}
+            </button>
+          ))}
+          <span className="rr__mode-note">只换挑选方式，下一批起生效</span>
+        </div>
+      ) : null}
 
       <div className="rr__acts">
         {/*

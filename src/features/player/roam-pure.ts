@@ -156,3 +156,87 @@ export function rankBySeed(tracks: readonly Track[], seed: Track): Track[] {
   scored.sort((left, right) => left.rank - right.rank || left.index - right.index)
   return scored.map((row) => row.track)
 }
+
+/**
+ * 漫游的三种取用偏好。
+ *
+ * 平台那边的「漫游模式」是服务端算法参数，Aurora 调不到；这里能做的是在同一批
+ * 私人漫游的歌上换一种取法——三个名字与原生客户端对齐，含义按各自能做到的说清。
+ */
+export type RoamTaste = 'default' | 'familiar' | 'explore'
+
+/** 认识什么：出现过的艺人名与专辑。收藏、播放历史、本机库一起并进来。 */
+export interface KnownTaste {
+  artists: Set<string>
+  albums: Set<string>
+}
+
+/** 艺人字段常写成「甲 / 乙」，拆开逐个比；整串相等会漏掉合作曲。 */
+function artistKeys(track: Track): string[] {
+  return track.artist
+    .split(/[/、,，&]/)
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+function albumKey(track: Track): string {
+  const album = track.album.trim().toLowerCase()
+  if (!album) return ''
+  return album + '\u0000' + track.albumArtist.trim().toLowerCase()
+}
+
+/** 从一堆曲目里抽出「认识谁、认识哪张专辑」。 */
+export function knownFrom(tracks: readonly Track[]): KnownTaste {
+  const artists = new Set<string>()
+  const albums = new Set<string>()
+  for (const track of tracks) {
+    for (const key of artistKeys(track)) artists.add(key)
+    const album = albumKey(track)
+    if (album) albums.add(album)
+  }
+  return { artists, albums }
+}
+
+function isKnown(track: Track, known: KnownTaste): boolean {
+  if (artistKeys(track).some((key) => known.artists.has(key))) return true
+  const album = albumKey(track)
+  return album !== '' && known.albums.has(album)
+}
+
+/**
+ * 按偏好重排一批歌。长度不变，只改先后——调用方随后 `slice` 多少就是它的事。
+ *
+ * - `default`：原样。调用方已经洗过牌。
+ * - `familiar`：认识的排前面，其余垫后。挑不出认得的就退回原序，不会少歌。
+ * - `explore`：不认识的、且同一个艺人只留第一首的排前面；其余垫后。这样前几十
+ *   首不会连着同一张专辑。
+ *
+ * 不删歌：池子只有二十首时，按偏好过滤会把一趟削短；垫后既保住了长度，也让
+ * 「探索模式听到的仍然是私人漫游推的歌」。
+ */
+export function tasteOrder(
+  tracks: readonly Track[],
+  taste: RoamTaste,
+  known: KnownTaste
+): Track[] {
+  if (taste === 'default') return tracks.slice()
+  const front: Track[] = []
+  const back: Track[] = []
+  if (taste === 'familiar') {
+    for (const track of tracks) (isKnown(track, known) ? front : back).push(track)
+    return [...front, ...back]
+  }
+  const seen = new Set<string>()
+  for (const track of tracks) {
+    const keys = artistKeys(track)
+    const stranger = keys.every((key) => !known.artists.has(key))
+    const firstOfArtist = keys.every((key) => !seen.has(key))
+    if (stranger && firstOfArtist) {
+      front.push(track)
+      for (const key of keys) seen.add(key)
+    } else {
+      back.push(track)
+    }
+  }
+  return [...front, ...back]
+}
