@@ -629,7 +629,8 @@
   gap: var(--s2);
 }
 
-.party__join .input {
+.party__join .input,
+.party__say .input {
   width: 100%;
   padding: 7px 10px;
   border: 1px solid var(--tint-rgb);
@@ -639,8 +640,75 @@
   font: inherit;
 }
 
-.party__join .input::placeholder {
+.party__join .input::placeholder,
+.party__say .input::placeholder {
   color: var(--text-low);
+}
+
+/* 消息列表与输入行：面板本身已经是 grid，这里只再分一层。 */
+.party__chat {
+  display: grid;
+  gap: var(--s2);
+}
+
+.party__messages {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.party__message {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--s2);
+  align-items: baseline;
+  color: var(--text-mid);
+  font-size: var(--fs-body);
+  overflow-wrap: anywhere;
+}
+
+.party__message.is-host .party__message-text {
+  color: var(--text-hi);
+}
+
+.party__message-name {
+  color: var(--text-low);
+}
+
+.party__message-at {
+  color: var(--text-low);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.party__say {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2);
+}
+
+.party__emojis {
+  display: flex;
+  gap: 2px;
+}
+
+.party__emoji {
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.party__emoji:hover {
+  background: var(--ink-850);
 }
 
 .party__facts {

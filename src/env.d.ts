@@ -1455,6 +1455,16 @@ export interface PartyMember {
   host: boolean
 }
 
+/** 房间里的一句话。 */
+export interface PartyMessage {
+  id: string
+  name: string
+  text: string
+  at: number
+  /** 房主说的话，界面上靠另一边。 */
+  host: boolean
+}
+
 /** 房间里「现在在听什么」。 */
 export interface PartyNow {
   trackId: string
@@ -1471,6 +1481,8 @@ export interface PartyState {
   code: string
   members: PartyMember[]
   now: PartyNow | null
+  /** 房间里最近的话；中途进来的人也看得到上一段。 */
+  messages: PartyMessage[]
   error: string
 }
 
@@ -1480,6 +1492,7 @@ interface PartyApi {
   join(address: string, code: string, name: string): Promise<PartyState>
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>
+  chat(text: string): Promise<PartyState>
   state(): Promise<PartyState>
   onState(listener: (state: PartyState) => void): () => void
 }

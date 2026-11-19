@@ -624,6 +624,7 @@ const api = {
       ipcRenderer.invoke('party:join', { address, code, name }),
     leave: () => ipcRenderer.invoke('party:leave'),
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
+    chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     state: () => ipcRenderer.invoke('party:state'),
     onState: (listener: (state: unknown) => void) => {
       const handler = (_event: unknown, state: unknown): void => listener(state)

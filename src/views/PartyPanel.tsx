@@ -11,7 +11,13 @@ import { usePresence } from '../ui/presence'
  * 房间开在本机进程里：房主这边显示「地址 + 6 位码」，同一 WiFi 下的人在自己
  * 面板里填这两样进来。同步的是「听什么、听到哪」，不是音频本体——每台机器
  * 各自取流，所以房间里的人都得能听到同一首歌（同一平台、同一账号权限）。
+ *
+ * 消息也走同一条连接：谁说了什么由房主那边记账再广播，客人不等本地回显，
+ * 免得同一条话走两条路回来变成两句。
  */
+
+/** 一排随手点的表情。打字也能发，这几个只是省事。 */
+const EMOJIS = ['👏', '🎉', '❤️', '😂', '🔥', '🎵']
 
 function currentNow(): PartyNow | null {
   const playback = usePlayer.getState()
@@ -27,12 +33,19 @@ function currentNow(): PartyNow | null {
   }
 }
 
+/** 消息旁边的时间：只到分钟，一天之内够用了。 */
+function clock(at: number): string {
+  const date = new Date(at)
+  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0')
+}
+
 export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }) {
   const { mounted, closing } = usePresence(open, 320)
   const state = useParty((s) => s.state)
   const busy = useParty((s) => s.busy)
   const [address, setAddress] = useState('')
   const [code, setCode] = useState('')
+  const [draft, setDraft] = useState('')
   const [note, setNote] = useState('')
 
   useEffect(() => {
@@ -50,6 +63,13 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
     }
     await useParty.getState().push(now)
     setNote('已把你现在这首同步给房间')
+  }
+
+  const say = async (text: string): Promise<void> => {
+    const body = text.trim()
+    if (!body) return
+    await useParty.getState().say(body)
+    setDraft('')
   }
 
   return (
@@ -106,6 +126,56 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             <dt>现在</dt>
             <dd>{state.now ? state.now.title + ' — ' + state.now.artist : '还没同步'}</dd>
           </dl>
+
+          <div className="party__chat">
+            {state.messages.length === 0 ? (
+              <p className="pg-note">房间里还没人说话</p>
+            ) : (
+              <ul className="party__messages">
+                {state.messages.map((message) => (
+                  <li
+                    key={message.id}
+                    className={'party__message' + (message.host ? ' is-host' : '')}
+                  >
+                    <span className="party__message-name">{message.name}</span>
+                    <span className="party__message-text">{message.text}</span>
+                    <span className="party__message-at">{clock(message.at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="party__say">
+              <input
+                className="input"
+                placeholder="说点什么"
+                value={draft}
+                maxLength={200}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void say(draft)
+                  }
+                }}
+              />
+              <button className="rh-btn" disabled={!draft.trim()} onClick={() => void say(draft)}>
+                发送
+              </button>
+            </div>
+            <div className="party__emojis">
+              {EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  className="party__emoji"
+                  title={'发一个 ' + emoji}
+                  onClick={() => void say(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {state.role === 'host' ? (
             <button className="rh-btn" onClick={() => void push()}>
               同步我现在这首

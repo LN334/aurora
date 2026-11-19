@@ -37,6 +37,18 @@ export interface PartyNow {
   playing: boolean
 }
 
+/** 房间里的一句话。 */
+export interface PartyMessage {
+  id: string
+  /** 发言者显示名。 */
+  name: string
+  text: string
+  /** Unix 毫秒。 */
+  at: number
+  /** 房主说的话，界面上靠另一边。 */
+  host: boolean
+}
+
 export interface PartyState {
   role: 'host' | 'guest' | 'idle'
   /** 房主那台机器的 `IP:端口`。 */
@@ -45,6 +57,13 @@ export interface PartyState {
   code: string
   members: PartyMember[]
   now: PartyNow | null
+  /**
+   * 房间里最近的话。
+   *
+   * 跟着 state 一起走，所以中途进来的人也能看到上一段——否则每次有人加入，
+   * 房间的记忆就断一次。只留最近几十条，再多就该滑动条了。
+   */
+  messages: PartyMessage[]
   /** 最近一次拒绝的原因，给界面用；成功时为空串。 */
   error: string
 }
@@ -53,7 +72,25 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const CODE_LENGTH = 6
 
 function idle(): PartyState {
-  return { role: 'idle', address: '', code: '', members: [], now: null, error: '' }
+  return { role: 'idle', address: '', code: '', members: [], now: null, messages: [], error: '' }
+}
+
+/** 一条消息最多这么多个字。 */
+const MESSAGE_MAX = 200
+
+/** 房间里留最近多少条。 */
+const MESSAGES_KEPT = 30
+
+/**
+ * 聊天文本：去掉控制字符、把连续空白压成一个、限长。
+ *
+ * 房主与客人的消息都过这一道。谁都能发，不收口的话，一条带两千个换行的
+ * 消息就能让房间里所有人的面板同时跳一下。
+ */
+export function cleanChatText(raw: string): string {
+  const flat = raw.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+  /* 按码点截，不按 UTF-16 单元：一刀切在代理对中间会留下半个 emoji。 */
+  return [...flat].slice(0, MESSAGE_MAX).join('')
 }
 
 function makeCode(): string {
@@ -126,6 +163,12 @@ function broadcast(state: PartyState): void {
   }
 }
 
+/** 往房间里放一句话，然后广播出去。 */
+function appendMessage(message: PartyMessage): void {
+  publish({ messages: [...current.messages, message].slice(-MESSAGES_KEPT) })
+  broadcast(current)
+}
+
 export function startHost(name: string): PartyState {
   stopParty()
   hostCode = makeCode()
@@ -140,6 +183,7 @@ export function startHost(name: string): PartyState {
       code: hostCode,
       members: [{ id: 'host', name, host: true }],
       now: null,
+      messages: [],
       error: ''
     })
   })
@@ -166,6 +210,24 @@ export function startHost(name: string): PartyState {
         socket.send(JSON.stringify({ t: 'state', state: current }))
         publish({ members: membersNow() })
         broadcast(current)
+        return
+      }
+      if (message.t === 'chat') {
+        /*
+         * 客人说的话由房主这边落进消息表：真正的房间状态只有一份，谁说了什么
+         * 都要经过服务端，不然两个客人各说各的，第三个人看到的顺序就散了。
+         */
+        const peer = peers.get(socket)
+        if (!peer) return
+        const text = cleanChatText(String(message.text ?? ''))
+        if (!text) return
+        appendMessage({
+          id: randomBytes(6).toString('hex'),
+          name: peer.name,
+          text,
+          at: Date.now(),
+          host: false
+        })
         return
       }
       if (message.t === 'now' && typeof message.now === 'object' && message.now) {
@@ -218,6 +280,30 @@ export function pushNow(now: PartyNow): void {
   if (current.role !== 'host') return
   publish({ now })
   broadcast(current)
+}
+
+/**
+ * 房间里说一句话。
+ *
+ * 房主这边直接进消息表；客人这边只是把话交给房主，等那边的广播回来才显示。
+ * 不做本地回显——同一条话走两条路回来会变成两句。
+ */
+export function sendChat(raw: string): void {
+  const text = cleanChatText(raw)
+  if (!text) return
+  if (current.role === 'host') {
+    appendMessage({
+      id: randomBytes(6).toString('hex'),
+      name: current.members[0]?.name ?? '房主',
+      text,
+      at: Date.now(),
+      host: true
+    })
+    return
+  }
+  if (current.role === 'guest' && guestSocket?.readyState === WebSocket.OPEN) {
+    guestSocket.send(JSON.stringify({ t: 'chat', text }))
+  }
 }
 
 

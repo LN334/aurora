@@ -1,5 +1,13 @@
 import { BrowserWindow, ipcMain } from 'electron'
-import { joinParty, onPartyState, partyState, pushNow, startHost, stopParty } from './room'
+import {
+  joinParty,
+  onPartyState,
+  partyState,
+  pushNow,
+  sendChat,
+  startHost,
+  stopParty
+} from './room'
 import type { PartyNow } from './room'
 
 /**
@@ -47,6 +55,11 @@ export function registerPartyIpc(): void {
     const raw = asRecord(args)
     const now = raw.now as PartyNow | undefined
     if (now && typeof now.trackId === 'string') pushNow(now)
+    return partyState()
+  })
+
+  ipcMain.handle('party:chat', (_event, args: unknown) => {
+    sendChat(asText(asRecord(args).text))
     return partyState()
   })
 

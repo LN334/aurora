@@ -13,7 +13,15 @@ import type { PlaybackTick } from './pure'
  * 落到 bridge 的空实现，界面据此提示「只在桌面版可用」。
  */
 
-const IDLE: PartyState = { role: 'idle', address: '', code: '', members: [], now: null, error: '' }
+const IDLE: PartyState = {
+  role: 'idle',
+  address: '',
+  code: '',
+  members: [],
+  now: null,
+  messages: [],
+  error: ''
+}
 
 /**
  * 房主每隔这么久报一次自己的位置。
@@ -37,6 +45,7 @@ interface PartyStore {
   join(address: string, code: string, name: string): Promise<void>
   leave(): Promise<void>
   push(now: PartyNow): Promise<void>
+  say(text: string): Promise<void>
 }
 
 let wired = false
@@ -242,6 +251,15 @@ export const useParty = create<PartyStore>((set, get) => ({
   async leave() {
     const state = await window.aurora?.party?.leave()
     set({ state: state ?? IDLE })
+  },
+
+  async say(text) {
+    const state = await window.aurora?.party?.chat(text)
+    if (state) set({ state })
+    else {
+      // 同 push：浏览器里没有后端，说清楚，而不是让输入框看起来发过
+      set({ state: { ...get().state, error: '浏览器预览模式没有一起听后端' } })
+    }
   },
 
   async push(now) {
