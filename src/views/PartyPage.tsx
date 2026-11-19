@@ -186,11 +186,6 @@ export function PartyPage() {
             <i className={'party-lamp' + (state.publicAddress ? ' is-on' : '')} />
             <b>公网</b>
             <span>{state.publicAddress || '仅限同一个网络'}</span>
-            {host && !state.publicAddress ? (
-              <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
-                让外网可进
-              </button>
-            ) : null}
           </li>
           <li>
             <i className="party-lamp" />
@@ -227,6 +222,11 @@ export function PartyPage() {
         ) : null}
 
         <div className="party-room__tools">
+          {host ? (
+            <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
+              樱花面板
+            </button>
+          ) : null}
           <button className="rh-btn" onClick={() => void window.aurora?.party?.openChat()}>
             聊天室
           </button>
