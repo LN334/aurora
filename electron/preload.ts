@@ -631,6 +631,8 @@ const api = {
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
+    registerStream: (trackId: string, url: string) =>
+      ipcRenderer.invoke('party:stream', { trackId, url }),
     tunnelStart: (config: { frpcPath: string; token: string; tunnelId: string }) =>
       ipcRenderer.invoke('party:tunnelStart', config),
     tunnelStop: () => ipcRenderer.invoke('party:tunnelStop'),

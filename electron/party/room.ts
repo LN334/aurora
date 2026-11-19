@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto'
+import { createServer, type Server } from 'node:http'
 import { networkInterfaces } from 'node:os'
+import { Readable } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
 
 /**
@@ -199,13 +201,91 @@ function appendMessage(message: PartyMessage): void {
   broadcast(current)
 }
 
+/**
+ * 房主这一侧能转发的流。
+ *
+ * 有些平台的直链认 IP 或一次性 token，客人拿去放不出声。房主在自己机器上代拉、
+ * 再原样转出去，平台看到的是房主的 IP，客人拿到的就是我们自己这条地址——
+ * 走同一个房间端口，穿透怎么连的，音频就怎么走。
+ */
+const streams = new Map<string, { url: string; headers: Record<string, string> }>()
+let hostHttp: Server | null = null
+
+/** 房主取流成功后登记一份；同一首重复登记以最新地址为准。 */
+export function registerStream(trackId: string, url: string, headers: Record<string, string> = {}): void {
+  if (!trackId || !url) return
+  streams.set(trackId, { url, headers })
+}
+
+/** 换房间时清空，免得把上一个房间的地址留在表里。 */
+export function clearStreams(): void {
+  streams.clear()
+}
+
+async function proxyStream(
+  entry: { url: string; headers: Record<string, string> },
+  request: { headers: Record<string, string | string[] | undefined> },
+  response: import('node:http').ServerResponse
+): Promise<void> {
+  try {
+    const headers: Record<string, string> = { ...entry.headers }
+    const range = request.headers.range
+    if (typeof range === 'string') headers.Range = range
+    const upstream = await fetch(entry.url, { headers })
+    const out: Record<string, string> = { 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' }
+    const type = upstream.headers.get('content-type')
+    if (type) out['Content-Type'] = type
+    const length = upstream.headers.get('content-length')
+    if (length) out['Content-Length'] = length
+    const contentRange = upstream.headers.get('content-range')
+    if (contentRange) out['Content-Range'] = contentRange
+    response.writeHead(upstream.status, out)
+    if (!upstream.body) {
+      response.end()
+      return
+    }
+    Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]).pipe(response)
+  } catch {
+    response.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' })
+    response.end('上游取流失败')
+  }
+}
+
+function handleHttp(
+  request: import('node:http').IncomingMessage,
+  response: import('node:http').ServerResponse
+): void {
+  const url = new URL(request.url ?? '/', 'http://room.local')
+  if (!url.pathname.startsWith('/stream/')) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    response.end('not found')
+    return
+  }
+  const trackId = decodeURIComponent(url.pathname.slice('/stream/'.length))
+  const entry = streams.get(trackId)
+  if (!entry) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    response.end('这首歌没有登记转发')
+    return
+  }
+  void proxyStream(entry, request, response)
+}
+
 export function startHost(name: string): PartyState {
   stopParty()
   hostCode = makeCode()
-  const server = new WebSocketServer({ host: '0.0.0.0', port: 0 })
+  /*
+   * 一个 HTTP 服务同时干两件事：房间本身走 WebSocket 升级，/stream/<id> 走
+   * 音频转发。合成一个端口是必须的——内网穿透只映射一条隧道，两条端口会让
+   * 房主还得再建一条。
+   */
+  const http = createServer(handleHttp)
+  hostHttp = http
+  const server = new WebSocketServer({ server: http })
   hostServer = server
-  server.on('listening', () => {
-    const address = server.address()
+  http.listen(0, '0.0.0.0')
+  http.on('listening', () => {
+    const address = http.address()
     hostPort = typeof address === 'object' && address ? address.port : 0
     publish({
       role: 'host',
@@ -282,6 +362,15 @@ export function startHost(name: string): PartyState {
 }
 
 export function stopParty(): void {
+  clearStreams()
+  if (hostHttp) {
+    try {
+      hostHttp.close()
+    } catch {
+      /* 已经关了 */
+    }
+    hostHttp = null
+  }
   for (const peer of peers.values()) {
     try {
       peer.socket.close()

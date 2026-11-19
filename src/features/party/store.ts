@@ -88,9 +88,28 @@ function pushMoment(): void {
    * 房主这一档——他选了母带，你听到的也是母带，不是你自己账号能给的那一档。
    * 地址有时效，所以每次心跳都重推一次，不缓存。
    */
-  const stream = playback.streamUrl
-    ? { url: playback.streamUrl, quality: qualityNameOf(track) }
-    : undefined
+  /*
+   * 地址怎么给客人，分三种：
+   *
+   * 1. 房间有公开地址（局域网 IP 或穿透出来的域名）→ 给房间自己的转发地址，
+   *    由房主这台机器代拉。平台的直链认 IP 时，这是唯一能让对面听到的方式。
+   * 2. 没有公开地址，但房主手上确实有直链 → 原样给出去。
+   * 3. 都没有 → 不给，客人各自解析。
+   */
+  const party = useParty.getState().state
+  const base = party.publicAddress || party.address
+  let stream: { url: string; quality: string } | undefined
+  if (playback.streamUrl) {
+    if (base) {
+      void window.aurora?.party?.registerStream(track.id, playback.streamUrl)
+      stream = {
+        url: 'http://' + base + '/stream/' + encodeURIComponent(track.id),
+        quality: qualityNameOf(track)
+      }
+    } else {
+      stream = { url: playback.streamUrl, quality: qualityNameOf(track) }
+    }
+  }
   const info = partyTrackInfoOf(track)
   void useParty.getState().push({
     trackId: track.id,

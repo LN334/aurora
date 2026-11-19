@@ -504,6 +504,7 @@ const webFallback: AuroraApi = {
     pushNow: async () => IDLE_PARTY,
     chat: async () => ({ ...IDLE_PARTY, error: '浏览器预览模式没有一起听后端' }),
     setPublic: async () => IDLE_PARTY,
+    registerStream: async () => false,
     tunnelStart: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道' }),
     tunnelStop: async () => ({ running: false, address: '', line: '', error: '' }),
     tunnelState: async () => ({ running: false, address: '', line: '', error: '' }),
