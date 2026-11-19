@@ -1464,3 +1464,34 @@ body.is-party-window {
   margin: 0;
   color: var(--text-hi);
 }
+
+/*
+ * 这一页里的输入框、以及「别空着」的两块底板。
+ *
+ * 输入框在主界面上没有面板底色托着，0.14 的描边几乎看不见，所以这里单独加深
+ * 一档；两栏各给一块底，免得整页只剩几行字浮在壁纸上。
+ */
+.party-page .input {
+  border: 1px solid rgb(var(--tint-rgb) / 0.22);
+  background: rgb(var(--tint-rgb) / 0.09);
+}
+
+.party-page .input:focus {
+  border-color: rgb(var(--accent-rgb) / 0.6);
+  background: rgb(var(--tint-rgb) / 0.13);
+}
+
+.party-page .input::placeholder {
+  color: var(--text-low);
+}
+
+.party-page__col {
+  padding: var(--s5);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.035);
+}
+
+.party-page__main {
+  min-height: 320px;
+}

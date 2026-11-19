@@ -21,6 +21,7 @@ export type ViewId =
   | 'settings'
   /** 一起听：房间的门面。房间本身活在主进程里，离开这一页不等于退房。 */
   | 'party'
+  | 'sakura'
   /**
    * One route per online platform, named by the platform's own id.
    *

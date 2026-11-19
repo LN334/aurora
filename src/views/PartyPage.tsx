@@ -190,11 +190,9 @@ export function PartyPage() {
             <button className="rh-btn" type="button" onClick={() => void window.aurora?.party?.openChat()}>
               聊天室
             </button>
-            {state.role === 'host' ? (
-              <button className="rh-btn" type="button" onClick={() => void window.aurora?.party?.openSakura()}>
-                樱花隧道
-              </button>
-            ) : null}
+            <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
+              樱花隧道
+            </button>
           </div>
         </aside>
       </div>

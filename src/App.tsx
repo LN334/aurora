@@ -58,6 +58,7 @@ import { useOnlineStore } from './features/online/store'
 import { DesktopLyricsBridge } from './overlay/DesktopLyricsBridge'
 import { SettingsPage } from './views/settings/SettingsPage'
 import { PartyPage } from './views/PartyPage'
+import { SakuraPage } from './views/SakuraPage'
 import { useWindowVisibility } from './visibility'
 import { Backdrop } from './features/wallpaper/Backdrop'
 import { chooseEntry } from './features/wallpaper/pure'
@@ -964,6 +965,7 @@ export function App() {  if (!isNative) {
     }
     if (view === 'sources') return <Sources roots={roots} onAdd={addFolders} onRemove={remove} busy={busy} />
     if (view === 'party') return <PartyPage />
+    if (view === 'sakura') return <SakuraPage />
     if (view === 'settings') return <SettingsPage />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
