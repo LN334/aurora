@@ -1,7 +1,7 @@
 <div align="center">
   <img src="build/icon.png" width="96" height="96" alt="Aurora" />
   <h1>Aurora</h1>
-  <p>Windows 上的多源音乐客户端 —— 四个平台加本机文件夹，同一首歌只占一行</p>
+  <p>Windows 上的多源音乐客户端 —— 五个平台加本机文件夹，同一首歌只占一行</p>
 
   <a href="https://github.com/LN334/aurora/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/LN334/aurora?style=flat-square&color=4c8bf5"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20x64-4c8bf5?style=flat-square">
@@ -10,7 +10,7 @@
 
 ---
 
-Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、汽水账号。四个平台在同一个列表里，以统一合并为设计思路。
+Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、汽水账号，外加 B 站视频里的音频轨。五个平台在同一个列表里，以统一合并为设计思路。
 
 播的时候按你排的音源顺序挑一个能放的。界面配色跟着当前封面走，首页是一堵能转的封面墙，点「漫游」进一条放不完的推荐流。
 
@@ -40,7 +40,7 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 
 ### 曲库与多源
 
-- 四个平台的搜索、歌单、专辑、艺人、每日推荐，加本机文件夹，收进同一个曲库。不登录也能搜、能播免费歌，登录后才有每日推荐、红心、收藏与关注。
+- 五个平台的搜索、歌单、专辑、艺人、每日推荐，加本机文件夹，收进同一个曲库。不登录也能搜、能播免费歌，登录后才有每日推荐、红心、收藏与关注。
 - 同一首歌只占一行，行上标出在哪几家能放；收藏专辑与关注艺人多平台同名合并，亮几颗色点就是几家有。
 - 每日推荐：从你勾选的几家各要一批，按来源交错混成 30 首，一天之内不变。
 - 推荐歌单 / 推荐专辑 / 最近新歌三块混排，各自「换一批」都真去平台再要一次。
@@ -77,7 +77,7 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 
 | 分区 | 内容 |
 | --- | --- |
-| 播放与音质 | 交叉淡化、均衡器、四个平台的音质档位、在线歌词 |
+| 播放与音质 | 交叉淡化、均衡器、五个平台的音质档位、在线歌词 |
 | 推荐来源 | 哪几个平台参与推荐 |
 | 首页 | 首页各分区的显隐与顺序 |
 | 外观与桌面 | 主题、背景（标准 / 轻薄亚克力）、模糊程度、跟随封面取色、桌面歌词、动态背景与壁纸库、壁纸画质 |
@@ -106,9 +106,10 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 | QQ 音乐 | 可用，不登录只能播免费歌（会员歌拿不到），建议登录 |
 | 酷狗音乐 | 可用（含概念版签名） |
 | 汽水音乐 | 可用 |
+| B 站 | 可用，把视频当歌听（DASH 音频轨，最高 192k），没有歌词 |
 | Spotify / Apple Music / Navidrome / Jellyfin | 未实现，代码里留了接入位置 |
 
-四个平台都是**非官方接入，没有得到任何授权**。网易云走社区逆向接口 [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，QQ 音乐走 [@yakult-green-tea/qq-music-api](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api)（[Rain120/qq-music-api](https://github.com/Rain120/qq-music-api) 的活跃分支，在主进程里当本地 Koa 服务跑），酷狗和汽水照着网页端与 App 的接口自己接。
+五个平台都是**非官方接入，没有得到任何授权**。网易云走社区逆向接口 [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)，QQ 音乐走 [@yakult-green-tea/qq-music-api](https://www.npmjs.com/package/@yakult-green-tea/qq-music-api)（[Rain120/qq-music-api](https://github.com/Rain120/qq-music-api) 的活跃分支，在主进程里当本地 Koa 服务跑），酷狗和汽水照着网页端与 App 的接口自己接。
 
 由此带来的限制：
 
@@ -162,7 +163,7 @@ Aurora 是一款音乐播放器。曲库来自网易云、QQ 音乐、酷狗、�
 
 - 四个在线平台都依赖第三方逆向接口，随时可能失效。
 - 安装包没有代码签名。
-- 歌词：四个平台都能取词，译文是平台自带的另一条轨（网易云 `tlyric`、QQ `trans`、酷狗 KRC 里的 `language` 轨、汽水 `lang_translations`），主进程把它并到原文行上、界面再拆成两行。逐字只对带词级时间标签的增强 LRC 生效，四家接口都只给整行时间（网易云的 `yrc` 实测为空）。
+- 歌词：四个平台能取词（B 站没有，视频里没有结构化歌词），译文是平台自带的另一条轨（网易云 `tlyric`、QQ `trans`、酷狗 KRC 里的 `language` 轨、汽水 `lang_translations`），主进程把它并到原文行上、界面再拆成两行。逐字只对带词级时间标签的增强 LRC 生效，四家接口都只给整行时间（网易云的 `yrc` 实测为空）。
 - 系统级全屏检测靠一个常驻 PowerShell 进程读 `SHQueryUserNotificationState`，只在桌面歌词开着时运行。
 - 大曲库第一次扫描要把每个文件的元数据读一遍，之后增量重扫很快。
 - 均衡器是 10 段固定频点，不是参数均衡。

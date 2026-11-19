@@ -64,7 +64,8 @@ const SOURCE_NAMES: Record<string, string> = {
   netease: '网易云',
   qq: 'QQ 音乐',
   kugou: '酷狗',
-  qishui: '汽水'
+  qishui: '汽水',
+  bilibili: 'B 站'
 }
 
 function sourceName(track: Track | null): string {

@@ -21,7 +21,7 @@ P1-1 的两处实现要点：缓存键是渲染层给的 `provider:onlineId`（�
 
 | 块 | 落在哪 | 状态 |
 | --- | --- | --- |
-| 四家平台接入 | `src/features/online/*-provider.ts`、`electron/{netease,qq,kugou,qishui}/` | 搜索、歌单、专辑、艺人、取流、喜欢（QQ 与酷狗部分写接口缺失） |
+| 五家平台接入 | `src/features/online/*-provider.ts`、`electron/{netease,qq,kugou,qishui,bilibili}/` | 搜索、歌单、专辑、艺人、取流、喜欢（QQ 与酷狗部分写接口缺失）；B 站只有搜索与取流，无歌词与账号 |
 | 播放 | `src/features/player/`（engine / driver / actions / pick / queue / crossfade / roam） | 取流去重入、无源跳过、跨源版本合并、漫游流式补池 |
 | 歌词 | `src/features/library/hooks.ts` 的 `resolveLyrics`、`electron/lyrics.ts`、`src/stage/LyricsStage.tsx`、`src/views/NowPlayingPage.tsx` 的 LyricRoll | 本家 → 跨源版本 → LRCLIB 三级兜底；译文分行；逐行平滑滚动；桌面歌词窗 |
 | 评论 | `electron/comments.ts`、`src/features/comments/api.ts`、`src/views/CommentSection.tsx` | 四家可读、游标翻页；网易云/QQ/酷狗可发，网易云可赞；汽水只读 |
