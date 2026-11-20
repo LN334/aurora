@@ -634,7 +634,21 @@ export function joinParty(url: string, code: string, name: string): PartyState {
   const target = /^wss?:\/\//.test(trimmed) ? trimmed : 'ws://' + trimmed
   const socket = new WebSocket(target)
   guestSocket = socket
-  publish({ role: 'guest', address: trimmed, code: code.trim().toUpperCase(), error: '' })
+  /* 界面上那一行是给人看的：wss:// 前缀对判断「连没连上」没有帮助。 */
+  const shown = trimmed.replace(/^wss?:\/\//i, '')
+  publish({ role: 'guest', address: shown, code: code.trim().toUpperCase(), error: '' })
+
+  /*
+   * 握上手却迟迟没有一份状态——多半是两边版本对不上，或者房主那边卡住了。
+   *
+   * 之前这种情况界面就一直停在「正在加入的一起听 · 0 人」，用户只能猜是网、
+   * 是码、还是对面根本没开。等六秒给一句能照做的话，比一直转圈有用。
+   */
+  let heard = false
+  const waitTimer = setTimeout(() => {
+    if (heard || guestSocket !== socket) return
+    publish({ error: '连上了，但房主没有回话：确认两台版本一致，或者让房主重开一次房间' })
+  }, 6000)
 
   socket.on('open', () => {
     socket.send(JSON.stringify({ t: 'hello', id: partyIdentity(), code: code.trim().toUpperCase(), name }))
@@ -648,21 +662,26 @@ export function joinParty(url: string, code: string, name: string): PartyState {
       return
     }
     if (message.t === 'refused') {
+      clearTimeout(waitTimer)
       publish({ error: String(message.reason ?? '房主拒绝了这次加入') })
       return
     }
     if (message.t === 'state' && message.state && typeof message.state === 'object') {
+      heard = true
+      clearTimeout(waitTimer)
       const incoming = message.state as unknown as PartyState
-      publish({ ...incoming, role: 'guest', address: trimmed, error: '' })
+      publish({ ...incoming, role: 'guest', address: shown, error: '' })
     }
   })
 
   socket.on('error', () => {
+    clearTimeout(waitTimer)
     // 公网场景下「是否在同一网络」是句错话：地址、房间码、隧道任一处不对都连不上。
     publish({ error: '连不上房主：检查地址与房间码，房主那边如果走的是公网，还要确认隧道开着' })
   })
 
   socket.on('close', () => {
+    clearTimeout(waitTimer)
     if (current.role === 'guest') {
       guestSocket = null
       publish({ ...idle(), error: '房间已关闭：房主结束了这一趟，或者他那边断网、隧道断了' })
