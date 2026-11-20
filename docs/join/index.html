@@ -2,160 +2,368 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aurora · 加入一起听</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b11">
+<title>Aurora · 一起听</title>
 <style>
-  /* 和桌面端同一套墨色：落地页是房间的第一印象，不该像另一个产品。 */
+  /*
+   * 一起听的落地页。
+   *
+   * 它是别人收到邀请后看到的第一屏，不该长得像一张表单——所以按分享页的样子做：
+   * 一块会呼吸的「唱片」当主角，房间码是唯一的大字，其余信息全部退到它下面。
+   */
   :root {
     color-scheme: dark;
-    --ink: #0c1017;
-    --ink-soft: #151b25;
-    --line: rgb(255 255 255 / 0.1);
-    --hi: rgb(255 255 255 / 0.94);
-    --mid: rgb(255 255 255 / 0.62);
-    --low: rgb(255 255 255 / 0.38);
-    --accent: #7cc4ff;
+    --ink: #080b11;
+    --hi: rgb(255 255 255 / 0.95);
+    --mid: rgb(255 255 255 / 0.60);
+    --low: rgb(255 255 255 / 0.36);
+    --line: rgb(255 255 255 / 0.09);
+    --blue: #79b6ff;
+    --violet: #a98bff;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
   body {
     margin: 0;
-    min-height: 100vh;
     display: grid;
     place-items: center;
-    padding: 24px;
-    background: radial-gradient(1200px 600px at 50% -10%, #1b2534, var(--ink));
+    padding: 28px 20px calc(28px + env(safe-area-inset-bottom));
+    background: var(--ink);
     color: var(--hi);
-    font: 15px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow-x: hidden;
   }
+  /* 两团很淡的光：让背景像夜里亮着的一盏灯，而不是一块死黑。 */
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    border-radius: 50%;
+    filter: blur(80px);
+  }
+  body::before {
+    width: 520px; height: 520px;
+    top: -220px; left: 50%;
+    translate: -50% 0;
+    background: radial-gradient(circle, rgb(86 124 224 / 0.34), transparent 68%);
+  }
+  body::after {
+    width: 460px; height: 460px;
+    bottom: -240px; right: -140px;
+    background: radial-gradient(circle, rgb(150 96 220 / 0.22), transparent 70%);
+  }
+
   main {
-    width: min(440px, 100%);
-    padding: 32px 28px 26px;
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    background: var(--ink-soft);
-    box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
-  }
-  .brand {
+    position: relative;
+    width: min(392px, 100%);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 22px;
-    font-size: 13px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--low);
-  }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-  h1 { margin: 0 0 6px; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
-  p.lead { margin: 0 0 24px; color: var(--mid); }
-  .code {
-    padding: 18px;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: rgb(255 255 255 / 0.04);
     text-align: center;
   }
-  .code span { display: block; font-size: 11px; letter-spacing: 0.18em; color: var(--low); text-transform: uppercase; }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 26px;
+    color: var(--low);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .brand svg { width: 15px; height: 15px; opacity: 0.85; }
+
+  /* 主角：一张会缓慢呼吸的封面，代替「头像/图标」那种标配方块。 */
+  .disc {
+    position: relative;
+    width: 164px;
+    height: 164px;
+    margin-bottom: 30px;
+    border-radius: 30px;
+    background:
+      radial-gradient(circle at 28% 22%, rgb(255 255 255 / 0.5), transparent 42%),
+      linear-gradient(145deg, #6fa8ff 0%, #9a7bff 48%, #f174c0 100%);
+    box-shadow:
+      0 24px 60px rgb(96 128 240 / 0.34),
+      inset 0 1px 0 rgb(255 255 255 / 0.35);
+    display: grid;
+    place-items: center;
+    animation: rise 0.8s 0.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .disc::after {
+    /* 一圈缓慢扩散的呼吸光，暗示「房间里正在放歌」。 */
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 44px;
+    background: radial-gradient(circle, rgb(120 150 255 / 0.28), transparent 70%);
+    animation: breath 4.5s ease-in-out infinite;
+    z-index: -1;
+  }
+  .disc svg { width: 62px; height: 62px; color: #0a1424; opacity: 0.82; }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(21px, 6.2vw, 25px);
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    animation: rise 0.8s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .lead {
+    margin: 0 0 26px;
+    color: var(--mid);
+    font-size: 14px;
+    animation: rise 0.8s 0.14s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* 房间码：整页唯一允许「大」的东西。点一下也能复制。 */
+  .code {
+    width: 100%;
+    padding: 20px 16px 17px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: rgb(255 255 255 / 0.035);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    animation: rise 0.8s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .code:hover { background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.14); }
+  .code:active { transform: scale(0.995); }
+  .code span {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--low);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
   .code strong {
     display: block;
-    margin-top: 6px;
-    font: 600 30px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace;
-    letter-spacing: 0.16em;
+    font: 600 clamp(28px, 8.6vw, 36px)/1.15 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    letter-spacing: 0.18em;
+    text-indent: 0.18em;
   }
+  .code strong.empty { color: var(--low); font-size: 20px; letter-spacing: 0.08em; text-indent: 0; }
+
   .host {
-    margin: 14px 0 0;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: rgb(255 255 255 / 0.04);
-    color: var(--mid);
-    font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
-    overflow-wrap: anywhere;
-  }
-  .host b { color: var(--low); font-weight: 500; }
-  .acts { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
-  button {
-    padding: 12px 16px;
-    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin: 12px 0 0;
+    padding: 9px 12px;
     border-radius: 12px;
-    background: rgb(255 255 255 / 0.06);
-    color: var(--hi);
+    color: var(--low);
+    font: 12px/1.5 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    overflow-wrap: anywhere;
+    animation: rise 0.8s 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .host svg { flex: none; width: 13px; height: 13px; opacity: 0.6; }
+
+  .acts {
+    width: 100%;
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: rise 0.8s 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  button.act {
+    width: 100%;
+    padding: 15px 18px;
+    border: 1px solid transparent;
+    border-radius: 15px;
     font: inherit;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  button:hover { background: rgb(255 255 255 / 0.1); }
-  button.primary {
-    border-color: transparent;
-    background: var(--accent);
-    color: #06121d;
     font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.14s, filter 0.18s, background 0.18s;
   }
-  button.primary:hover { background: #9bd4ff; }
-  .note { margin: 18px 0 0; font-size: 12px; line-height: 1.7; color: var(--low); }
-  .note code { color: var(--mid); }
-  .warn { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: rgb(255 190 90 / 0.12); color: #ffcf8f; font-size: 12px; display: none; }
+  button.act:active { transform: translateY(1px) scale(0.994); }
+  .act--primary {
+    background: linear-gradient(180deg, #86c0ff 0%, #5b9be8 100%);
+    color: #06121d;
+    box-shadow: 0 10px 24px rgb(80 140 240 / 0.26), inset 0 1px 0 rgb(255 255 255 / 0.4);
+  }
+  .act--primary:hover { filter: brightness(1.06); }
+  .act--ghost {
+    background: rgb(255 255 255 / 0.04);
+    border-color: var(--line);
+    color: var(--hi);
+    font-weight: 500;
+  }
+  .act--ghost:hover { background: rgb(255 255 255 / 0.08); }
+
+  .note {
+    margin: 22px 0 0;
+    max-width: 34ch;
+    color: var(--low);
+    font-size: 12px;
+    line-height: 1.75;
+    animation: rise 0.8s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .note code { color: var(--mid); font-family: ui-monospace, Consolas, monospace; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    translate: -50% 12px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgb(20 26 36 / 0.92);
+    border: 1px solid var(--line);
+    color: var(--hi);
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s, translate 0.22s;
+    backdrop-filter: blur(12px);
+  }
+  .toast.show { opacity: 1; translate: -50% 0; }
+
+  @keyframes rise {
+    from { opacity: 0; translate: 0 12px; }
+    to { opacity: 1; translate: 0 0; }
+  }
+  @keyframes breath {
+    0%, 100% { opacity: 0.55; scale: 1; }
+    50% { opacity: 1; scale: 1.06; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <div class="brand"><span class="dot"></span>Aurora · 一起听</div>
-  <h1>有人请你去他的房间</h1>
-  <p class="lead">房间码在下面。装了 Aurora 的电脑点「打开 Aurora」就能进。</p>
-
-  <div class="code">
-    <span>房间码</span>
-    <strong id="code">——————</strong>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <path d="M4 15V9M8 18V6M12 20V4M16 17V7M20 14V10"/>
+    </svg>
+    Aurora · 一起听
   </div>
-  <p class="host" id="host" hidden></p>
+
+  <div class="disc" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9 18.5a2.5 2.5 0 1 1-1.2-2.14V8.2l9.4-2.2v7.06a2.5 2.5 0 1 1-1.2-2.13V9.3L9 10.9v7.6Z"/>
+    </svg>
+  </div>
+
+  <h1>有人请你去一起听</h1>
+  <p class="lead">房间码在下面。电脑上装了 Aurora，点一下就能进。</p>
+
+  <button class="code" id="codeBox" type="button" aria-label="复制房间码">
+    <span>房间码</span>
+    <strong id="code">— — — — — —</strong>
+  </button>
+
+  <p class="host" id="host" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 2.6 15.4 0 18M12 3c-2.6 2.6-2.6 15.4 0 18"/>
+    </svg>
+    <span id="hostText"></span>
+  </p>
 
   <div class="acts">
-    <button class="primary" id="open">打开 Aurora</button>
-    <button id="copy">复制「地址 + 房间码」</button>
+    <button class="act act--primary" id="open" type="button">在 Aurora 中打开</button>
+    <button class="act act--ghost" id="copy" type="button">复制地址与房间码</button>
   </div>
 
-  <div class="warn" id="warn">这台设备上可能没有装 Aurora。把下面这行抄到 Windows 上的 Aurora 里，点「加入房间」粘贴即可。</div>
-
-  <p class="note">
-    手动加入：在 Aurora 的房间页把 <code>地址</code> 与 <code>房间码</code> 填进加入框，或者直接粘贴
-    <code>地址 房间码</code> 这一行。
+  <p class="note" id="note">
+    没装 Aurora？在 Windows 上装好后，把上面的地址与房间码填进「加入房间」。
   </p>
 </main>
+
+<div class="toast" id="toast"></div>
+
 <script>
-  const params = new URLSearchParams(location.search)
-  /* 兼容三种来源：新链接（host/secure）、旧链接（h/s）、以及手抄的纯文本。 */
-  const code = (params.get('c') || params.get('code') || params.get('room') || '').trim()
-  const rawHost = (params.get('host') || params.get('h') || '').trim()
-  const secure = ['1', 'true', 'wss'].includes((params.get('secure') || params.get('s') || '').toLowerCase())
-  const host = rawHost.replace(/^wss?:\/\//i, '')
+  var params = new URLSearchParams(location.search)
+  /* 兼容三种来源：新链接（host/secure）、旧链接（h/s）、以及没有 host 的纯房间码。 */
+  var code = (params.get('c') || params.get('code') || params.get('room') || '').trim()
+  var rawHost = (params.get('host') || params.get('h') || '').trim()
+  var secure = ['1', 'true', 'wss'].indexOf((params.get('secure') || params.get('s') || '').toLowerCase()) >= 0
+  var host = rawHost.replace(/^wss?:\/\//i, '')
 
-  const codeEl = document.getElementById('code')
-  const hostEl = document.getElementById('host')
-  const openEl = document.getElementById('open')
-  const copyEl = document.getElementById('copy')
-  const warnEl = document.getElementById('warn')
+  var codeEl = document.getElementById('code')
+  var hostBox = document.getElementById('host')
+  var hostText = document.getElementById('hostText')
+  var openEl = document.getElementById('open')
+  var copyEl = document.getElementById('copy')
+  var codeBox = document.getElementById('codeBox')
+  var note = document.getElementById('note')
+  var toastEl = document.getElementById('toast')
 
-  codeEl.textContent = code || '没有房间码'
+  var shown = secure ? 'wss://' + host : host
+  var plain = [shown, code].filter(Boolean).join(' ')
+  var joinLink = 'aurora://join/' + encodeURIComponent(code) +
+    (host ? '?host=' + encodeURIComponent(host) + (secure ? '&secure=1' : '') : '')
+
+  if (code) {
+    codeEl.textContent = code
+  } else {
+    codeEl.textContent = '没有房间码'
+    codeEl.className = 'empty'
+  }
   if (host) {
-    hostEl.hidden = false
-    hostEl.innerHTML = '<b>地址</b><br>' + (secure ? 'wss://' : '') + host
+    hostBox.hidden = false
+    hostText.textContent = shown
   }
 
-  const joinLink = 'aurora://join/' + encodeURIComponent(code) + (host ? '?host=' + encodeURIComponent(host) + (secure ? '&secure=1' : '') : '')
-  const plain = [secure ? 'wss://' + host : host, code].filter(Boolean).join(' ')
+  function toast(text) {
+    toastEl.textContent = text
+    toastEl.classList.add('show')
+    clearTimeout(toastEl._t)
+    toastEl._t = setTimeout(function () { toastEl.classList.remove('show') }, 1600)
+  }
 
-  openEl.addEventListener('click', () => {
-    /* 微信/QQ 的内置浏览器多半拦自定义协议：拦了就给出抄写这条退路。 */
-    location.href = joinLink
-    setTimeout(() => { warnEl.style.display = 'block' }, 1200)
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text)
+    }
+    /* 微信内置浏览器里 clipboard 可能不可用：退回临时输入框。 */
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      try { document.execCommand('copy') ? resolve() : reject(new Error('copy failed')) } catch (e) { reject(e) }
+      document.body.removeChild(ta)
+    })
+  }
+
+  codeBox.addEventListener('click', function () {
+    if (!code) return
+    copyText(code).then(function () { toast('房间码已复制') }, function () { toast(code) })
   })
 
-  copyEl.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(plain)
-      copyEl.textContent = '已复制'
-    } catch {
-      copyEl.textContent = plain
-    }
+  copyEl.addEventListener('click', function () {
+    var value = plain || code
+    if (!value) return
+    copyText(value).then(function () { toast('已复制：' + value) }, function () { toast(value) })
+  })
+
+  openEl.addEventListener('click', function () {
+    location.href = joinLink
+    /*
+     * 微信、QQ 的内置浏览器会拦自定义协议：拦下时页面不会跳走，两秒后给一条
+     * 能照做的退路，而不是让人对着一个「点了没反应」的按钮。
+     */
+    setTimeout(function () {
+      if (document.visibilityState === 'visible') {
+        note.textContent = '这个浏览器不支持直接打开 Aurora。把上面那行「地址 房间码」复制到电脑上的 Aurora 里就能进。'
+        note.style.color = 'rgb(255 194 120 / 0.85)'
+      }
+    }, 1600)
   })
 </script>
 </body>
