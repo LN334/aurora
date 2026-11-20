@@ -327,6 +327,42 @@ export async function sakuraCreateTunnel(token: string, input: SakuraCreateInput
   }
 }
 
+/**
+ * 删一条隧道。
+ *
+ * 参数名是 `ids`（复数）、值是字符串，不是 `id`，也不是数组——写成别的形状
+ * 只会拿回一句「参数错误」；写成数组时服务端直接抛 ClassCastException。实测
+ * 出来的形状，别再改。
+ */
+export async function sakuraDeleteTunnel(token: string, ids: string): Promise<{ ok: boolean; message: string }> {
+  if (!token.trim()) return { ok: false, message: '还没有访问密钥' }
+  if (!ids.trim()) return { ok: false, message: '不知道删哪一条' }
+  try {
+    const response = await requestWithRoute(
+      BASE + '/tunnel/delete',
+      {
+        Authorization: 'Bearer ' + token.trim(),
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      'POST',
+      new URLSearchParams({ ids }).toString()
+    )
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(response.text)
+    } catch {
+      return { ok: false, message: '接口回了非 JSON（HTTP ' + response.status + '）' }
+    }
+    const body = parsed as { deleted?: unknown[]; failed?: unknown[]; code?: number; msg?: string }
+    if (Array.isArray(body?.deleted) && body.deleted.length) return { ok: true, message: '' }
+    if (body?.msg) return { ok: false, message: body.msg }
+    return { ok: false, message: '没删掉（HTTP ' + response.status + '）' }
+  } catch (error) {
+    return { ok: false, message: '连不上樱花接口：' + explainNetwork(error) }
+  }
+}
+
 interface SakuraEditInput {
   id: number
   note?: string

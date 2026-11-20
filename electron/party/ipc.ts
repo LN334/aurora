@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
-import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
+import { sakuraCreateTunnel, sakuraDeleteTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
 import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/frpc'
 import { chatWindowOpen } from '../chat-window'
@@ -145,6 +145,11 @@ export function registerPartyIpc(): void {
       localPort: Number(raw.localPort ?? 0),
       remote: asText(raw.remote)
     })
+  })
+
+  ipcMain.handle('sakura:delete', async (_event, args: unknown) => {
+    const raw = asRecord(args)
+    return await sakuraDeleteTunnel(asText(raw.token), String(raw.id ?? ''))
   })
 
   ipcMain.handle('sakura:edit', async (_event, args: unknown) => {

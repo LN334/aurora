@@ -121,6 +121,8 @@ export interface PartyApi {
     localPort: number
     remote?: string
   }): Promise<{ ok: boolean; message: string; id: number }>
+  /** 删一条隧道（樱花面板里也会一起消失）。 */
+  sakuraDelete(token: string, id: number): Promise<{ ok: boolean; message: string }>
   /** 改一条隧道的备注或本地端口。 */
   sakuraEdit(input: {
     token: string

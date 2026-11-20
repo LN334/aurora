@@ -635,6 +635,7 @@ const api = {
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     setRelay: (relay: boolean) => ipcRenderer.invoke('party:relay', { relay }),
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
+    sakuraDelete: (token: string, id: number) => ipcRenderer.invoke('sakura:delete', { token, id }),
     sakuraNodes: (token: string) => ipcRenderer.invoke('sakura:nodes', { token }),
     sakuraCreate: (input: { token: string; name: string; node: number; localPort: number; remote?: string }) =>
       ipcRenderer.invoke('sakura:create', input),

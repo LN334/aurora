@@ -2194,3 +2194,43 @@ body.is-party-window {
 .sakura-log__empty {
   color: var(--text-low);
 }
+
+/* —— 隧道卡片上的两个动作：改端口 / 删除；删除要先确认 —— */
+.sakura-card__acts {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--s3);
+}
+
+.sakura-card__act.is-danger {
+  color: rgb(220 53 80 / 0.72);
+}
+
+.sakura-card__act.is-danger:hover {
+  color: #dc3550;
+}
+
+/* 确认条：一整行，说明在前，两颗键在后。 */
+.sakura-card__confirm {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding: 7px 9px;
+  border: 1px solid rgb(220 53 80 / 0.28);
+  border-radius: 9px;
+  background: rgb(220 53 80 / 0.08);
+}
+
+.sakura-card__confirm > span {
+  flex: 1 1 100%;
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+
+.sakura-card__confirm .rh-btn.is-danger {
+  border-color: rgb(220 53 80 / 0.45);
+  color: #b8263d;
+}

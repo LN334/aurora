@@ -46,6 +46,8 @@ export function SakuraPanel() {
   /* 编辑：改一条隧道的本地端口，改完房间跟着挪过去。 */
   const [editingId, setEditingId] = useState(0)
   const [editPort, setEditPort] = useState('')
+  /* 删除：樱花那边也跟着没，点一次不够，得再确认一次。 */
+  const [removingId, setRemovingId] = useState(0)
   /* 节点 id → 名字。拉一次存着；拉不到就照旧显示数字，不影响别的。 */
   const [nodeNames, setNodeNames] = useState<Record<number, string>>({})
   /*
@@ -223,8 +225,22 @@ export function SakuraPanel() {
       return
     }
     setEditingId(0)
-    setNote('已改成本地端口 ' + port)
+    /* 提示放在刷新之后：load 成功时会把 note 清空，先说就先被抹掉。 */
     await load()
+    setNote('已改成本地端口 ' + port)
+  }
+
+  const removeTunnel = async (id: number): Promise<void> => {
+    /* 正跑着的那条要先停：进程还连着，删了它下次点开关也只是连一个不存在的隧道。 */
+    if (tunnel.running && tunnelId === String(id)) await useParty.getState().stopTunnel()
+    const result = await window.aurora?.party?.sakuraDelete(token, id)
+    if (!result || !result.ok) {
+      setNote(result?.message ?? '删不掉')
+      return
+    }
+    setRemovingId(0)
+    await load()
+    setNote('隧道已删除')
   }
 
   /**
@@ -493,17 +509,37 @@ export function SakuraPanel() {
                   </button>
                 </span>
               ) : (
-                <button
-                  className="sakura-card__act"
-                  type="button"
-                  onClick={() => {
-                    setEditingId(item.id)
-                    setEditPort(String(item.localPort || ''))
-                  }}
-                >
-                  改本地端口
-                </button>
+                <span className="sakura-card__acts">
+                  <button
+                    className="sakura-card__act"
+                    type="button"
+                    onClick={() => {
+                      setEditingId(item.id)
+                      setEditPort(String(item.localPort || ''))
+                    }}
+                  >
+                    改本地端口
+                  </button>
+                  <button
+                    className="sakura-card__act is-danger"
+                    type="button"
+                    onClick={() => setRemovingId(item.id)}
+                  >
+                    删除
+                  </button>
+                </span>
               )}
+              {removingId === item.id ? (
+                <span className="sakura-card__confirm">
+                  <span>删掉这条隧道？樱花面板里也会一起消失，房间本身不受影响。</span>
+                  <button className="rh-btn is-danger" type="button" onClick={() => void removeTunnel(item.id)}>
+                    确认删除
+                  </button>
+                  <button className="rh-btn" type="button" onClick={() => setRemovingId(0)}>
+                    取消
+                  </button>
+                </span>
+              ) : null}
               {item.localPort && roomPort && String(item.localPort) !== roomPort ? (
                 <span className="sakura-card__warn">
                   房间现在在 {roomPort}，点开这条会把房间改到 {item.localPort} 再穿出去

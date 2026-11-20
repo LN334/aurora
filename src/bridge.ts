@@ -518,6 +518,7 @@ const webFallback: AuroraApi = {
     registerStream: async () => '',
     setRelay: async () => IDLE_PARTY,
     sakuraTunnels: async () => ({ ok: false, message: '预览里没有隧道接口', tunnels: [], raw: '' }),
+    sakuraDelete: async () => ({ ok: false, message: '预览里删不了隧道' }),
     sakuraNodes: async () => ({ ok: false, message: '预览里没有节点接口', nodes: [] }),
     sakuraCreate: async () => ({ ok: false, message: '预览里不能建隧道', id: 0 }),
     sakuraEdit: async () => ({ ok: false, message: '预览里不能改隧道' }),
