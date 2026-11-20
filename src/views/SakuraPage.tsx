@@ -21,7 +21,7 @@ export function SakuraPage() {
           </p>
           <h2 className="party-page__h">顺序</h2>
           <p className="party-page__hint">
-            ① 登录，密钥自己带回来，不用复制 ② 建一条 TCP 隧道，本地地址填房间端口 ③ 回到这里拉列表，点卡片上的开关。
+            ① 去面板复制一次访问密钥，填进左边（只填这一次，之后记在本机） ② 建一条 TCP 隧道，本地地址填房间端口 ③ 回到这里刷新列表，点卡片上的开关。
           </p>
           <h2 className="party-page__h">frpc 用哪一份</h2>
           <p className="party-page__hint">
