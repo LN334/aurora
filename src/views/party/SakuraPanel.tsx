@@ -71,12 +71,7 @@ export function SakuraPanel() {
    */
   useEffect(() => {
     /* 节点名要现拉，拉不到不影响列表——卡片上退回显示 id。 */
-    void window.aurora?.party?.sakuraNodes(localStorage.getItem(KEYS.token) ?? '').then((result) => {
-      if (!result?.ok) return
-      const map: Record<number, string> = {}
-      for (const node of result.nodes) map[node.id] = node.name
-      setNodeNames(map)
-    })
+    void loadNodeNames(localStorage.getItem(KEYS.token) ?? '')
     void window.aurora?.party?.sakuraFrpc().then((found) => {
       if (!found) {
         setFrpcNote('桌面版才能装 frpc')
@@ -143,6 +138,22 @@ export function SakuraPanel() {
     } finally {
       setInstalling(false)
     }
+  }
+
+  /**
+   * 节点 id → 名字。
+   *
+   * 单独抽出来是因为它有两次机会：进页面时一次，刷新列表成功后再一次。第一次
+   * 赶上网络还没好，卡片就会一直显示「节点 47」这种数字，而列表其实早拉到了。
+   */
+  const loadNodeNames = async (withToken: string): Promise<void> => {
+    const value = (withToken ?? token).trim()
+    if (!value) return
+    const result = await window.aurora?.party?.sakuraNodes(value)
+    if (!result?.ok) return
+    const map: Record<number, string> = {}
+    for (const node of result.nodes) map[node.id] = node.name
+    setNodeNames(map)
   }
 
   const reloadNodes = async (): Promise<void> => {
@@ -240,6 +251,8 @@ export function SakuraPanel() {
       if (result.ok) {
         setTunnels(result.tunnels as Tunnel[])
         setNote('')
+        /* 名字可能上次没拉到：列表既然通了，就顺手补一次。 */
+        if (!Object.keys(nodeNames).length) void loadNodeNames(value)
       } else {
         setNote(result.message)
       }
