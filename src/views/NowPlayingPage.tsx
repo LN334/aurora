@@ -508,6 +508,11 @@ export function NowPlayingPage({
               onClick={(event) => {
                 setLikePop(true)
                 /*
+                 * 兜底复位：animationend 不一定来（动画被跳过时），
+                 * 挂着的 is-pop 会让下一次点击不再有动画。
+                 */
+                window.setTimeout(() => setLikePop(false), 520)
+                /*
                  * 与列表行同一个规矩：一个落点就直接写，写完说清写进了哪家；
                  * 一首歌挂着两家版本时先问落到哪儿。这里以前直接
                  * `toggleLiked(track)`——只写主版本、没有任何提示，用户不知道
@@ -648,7 +653,7 @@ export function NowPlayingPage({
             </div>
             <button
               type="button"
-              className="icon-btn"
+              className="icon-btn np-opt"
               data-tip="一起听"
               aria-label="一起听"
               onClick={() => {
@@ -659,14 +664,14 @@ export function NowPlayingPage({
             </button>
             <button
               type="button"
-              className="icon-btn"
+              className="icon-btn np-opt"
               data-tip="桌面歌词"
               aria-label="桌面歌词"
               onClick={() => void bridge.overlay.toggle()}
             >
               <DesktopLyrics size={17} />
             </button>
-            <button type="button" className="icon-btn" data-tip="舞台" aria-label="舞台" onClick={onOpenStage}>
+            <button type="button" className="icon-btn np-opt" data-tip="舞台" aria-label="舞台" onClick={onOpenStage}>
               <Expand size={17} />
             </button>
             </div>

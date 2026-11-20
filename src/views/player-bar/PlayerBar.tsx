@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Track } from '../../types'
 import type { PlayMode } from '../../features/player/mode'
 import { usePlayer } from '../../features/player/store'
@@ -98,7 +98,23 @@ export function PlayerBar({
   const likedIds = useLikedIds()
   const targets = useMemo(() => (track ? likeTargets(track) : []), [track])
   const liked = track ? likedIds.has(trackKey(track)) : false
+  /*
+   * 点赞要当场有反应。
+   *
+   * 原来的反馈只有页面顶那条 flash，而按钮长在底栏最右——人点完眼睛还盯着这里，
+   * 上面飘过一句话等于没看见。这里补一个心跳动画，写盘成不成功都先弹一下。
+   */
+  const [likePop, setLikePop] = useState(false)
   const handleLike = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    setLikePop(true)
+    /*
+     * 自己复位，不靠 animationend。
+     *
+     * 挂上 is-pop 之后如果动画没跑（元素被隐藏、系统开了减少动效、或者这一帧
+     * 正好在重渲染），animationend 永远不来，is-pop 就一直挂着——之后再点，
+     * 类名没变，动画不会重播，看起来就是「第二次点没反应」。
+     */
+    window.setTimeout(() => setLikePop(false), 520)
     if (!track) return
     if (targets.length > 1) {
       const rect = event.currentTarget.getBoundingClientRect()
@@ -142,6 +158,7 @@ export function PlayerBar({
 
         <div className="pb-side">
         <ControlButton
+          className="pb-opt"
           label="桌面歌词"
           tip="桌面歌词"
           hint="桌面歌词 (Ctrl+Alt+L)"
@@ -164,6 +181,7 @@ export function PlayerBar({
           <Queue size={17} />
         </ControlButton>
         <ControlButton
+          className="pb-opt"
           label="一起听"
           tip="一起听"
           hint="一起听"
@@ -186,6 +204,7 @@ export function PlayerBar({
           <Sliders size={17} />
         </ControlButton>
         <ControlButton
+          className="pb-opt"
           label="舞台"
           tip="舞台"
           hint="舞台 (L)"
@@ -208,6 +227,7 @@ export function PlayerBar({
           {rate}×
         </button>
         <ControlButton
+          className={likePop ? 'is-pop' : ''}
           label={liked ? '取消喜欢' : '喜欢'}
           tip={liked ? '已喜欢' : '喜欢'}
           active={liked}

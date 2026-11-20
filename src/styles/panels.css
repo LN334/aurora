@@ -2632,3 +2632,25 @@ body.is-party-window {
 .panel:has(.panel__bands) {
   min-height: calc(100vh - var(--titlebar-h) - var(--player-h) - 30px);
 }
+
+/*
+ * 一起听的入口卡在窄窗口改上下堆叠。
+ *
+ * 900 宽下两列各只有约 420px：地址输入框被压到 230px，「邀请链接或地址（留空就
+ * 凭房间码找）」的提示被裁成半句，密码框更只剩「密码（没设就」。堆成一列之后
+ * 每张卡都拿满宽，输入框回到正常长度。
+ */
+@media (max-width: 980px) {
+  .party-pick {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .party-pick__card {
+    border-right: 0;
+    border-bottom: 1px solid rgb(var(--tint-rgb) / 0.1);
+  }
+
+  .party-pick__card:last-child {
+    border-bottom: 0;
+  }
+}

@@ -679,3 +679,29 @@
   background: rgb(var(--accent-rgb) / 0.18);
   color: var(--accent);
 }
+
+/*
+ * 底栏那一颗心的点击反馈。
+ *
+ * 它离页面顶那条 flash 很远，点完人是不会抬头的——所以按钮自己先弹一下，
+ * 和播放页那颗大心同一个动画。
+ */
+.pb-btn.is-pop svg {
+  animation: heartPop 460ms var(--ease-spring);
+}
+
+.pb-btn.is-pop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: likeRing 460ms var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+/* 点亮时用实心 + 主色，比只换颜色更容易看出来。 */
+.pb-btn.is-on svg {
+  fill: currentColor;
+}

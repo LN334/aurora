@@ -3688,17 +3688,29 @@
  * 右（音量/一起听/桌面歌词/舞台），各四个，播放键落在封面中线上。
  */
 .np__acts {
+  /*
+   * 三段 grid：左、播放键、右。
+   *
+   * 关键是两侧的列宽必须相等——grid 的 1fr 在内容不超宽时就平分，播放键自然落在
+   * 中线。之前它偏，是因为 .np__acts-side 咬着 78px 的固定宽（那是「左二右一」时代
+   * 的对称值），四颗图标塞进去溢出，列也被撑歪。
+   */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  /*
-   * 组与组之间 16px，组内 8px。
-   *
-   * 全用 8px 时「喜欢/循环/队列/调音台 | 播放控制 | 音量/一起听/桌面歌词/舞台」
-   * 三组连成一条，看不出中间那三颗是一组专门的播放控制。拉开一倍，分组才读得出来。
-   */
-  column-gap: 16px;
+  justify-items: stretch;
+  width: 100%;
 }
+
+.np__acts .np__acts-side {
+  width: auto;
+  min-width: 0;
+}
+
+.np__acts-side--end {
+  justify-self: end;
+}
+
 
 .np__acts-side {
   display: flex;
@@ -3765,4 +3777,44 @@
 /* 倍速与前面那串只读文字分开：它有边框、能点，和「艺人/专辑」不是一类。 */
 .np__sub .np__rate {
   margin-left: 6px;
+}
+
+/*
+ * 底栏在窄窗口里只留常用入口。
+ *
+ * 桌面歌词、一起听、舞台三个都有别的入口（播放页、快捷键、房间页），窄窗口下
+ * 挤在一排会让图标互相压住、徽章像叠在别人身上。倍速与音质再窄才收——它们
+ * 是「怎么听」的设置，偶尔才动一次。
+ */
+@media (max-width: 1080px) {
+  /* 提高特异性：.pb-btn 自己也设了 display: grid，同权重时谁在后谁赢。 */
+  .player .pb-btn.pb-opt {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .player .pb-rate,
+  .player .pb-quality {
+    display: none;
+  }
+}
+
+/*
+ * 中等宽度下控制行放不下。
+ *
+ * 左栏是 38%，1200 宽时只有约 550px；而四个入口 + 播放键 + 四个入口要 550px 以上，
+ * 最左边那颗会被推出左栏、压在歌词区上。和底栏一样分级让位：先收一起听、桌面歌词、
+ * 舞台（都有别的入口），再窄再收队列与调音台。
+ */
+@media (max-width: 1400px) {
+  .np__acts .np-opt {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .np__acts .icon-btn {
+    display: none;
+  }
 }
