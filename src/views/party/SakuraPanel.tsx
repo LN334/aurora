@@ -42,6 +42,8 @@ export function SakuraPanel() {
   /* 编辑：改一条隧道的本地端口，改完房间跟着挪过去。 */
   const [editingId, setEditingId] = useState(0)
   const [editPort, setEditPort] = useState('')
+  /* 节点 id → 名字。拉一次存着；拉不到就照旧显示数字，不影响别的。 */
+  const [nodeNames, setNodeNames] = useState<Record<number, string>>({})
   const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
@@ -55,6 +57,13 @@ export function SakuraPanel() {
    */
   /* frpc 与密钥都自己找：不给用户留空要填。 */
   useEffect(() => {
+    /* 节点名要现拉，拉不到不影响列表——卡片上退回显示 id。 */
+    void window.aurora?.party?.sakuraNodes(localStorage.getItem(KEYS.token) ?? '').then((result) => {
+      if (!result?.ok) return
+      const map: Record<number, string> = {}
+      for (const node of result.nodes) map[node.id] = node.name
+      setNodeNames(map)
+    })
     void window.aurora?.party?.sakuraFrpc().then((found) => {
       if (!found) return
       setFrpc(found)
@@ -297,10 +306,15 @@ export function SakuraPanel() {
           {tunnels.map((item) => (
             <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
               {/* 隧道名当标题：官方启动器那张卡最上面就是它，id 退成角标。 */}
-              <span className="sakura-card__name">{item.name || '未命名隧道'}</span>
+              <span className="sakura-card__name">
+                <i className={'party-lamp' + (item.online ? ' is-on' : '')} />
+                {item.name || '未命名隧道'}
+              </span>
               <span className="sakura-card__id">#{item.id}</span>
               {/* 接口里 node 是节点 id（数字），不是名字，照原样标成「节点 47」比印个裸数字清楚。 */}
-              <span className="sakura-card__node">{item.node ? '节点 ' + item.node : '—'}</span>
+              <span className="sakura-card__node">
+                {nodeNames[Number(item.node)] ?? (item.node ? '节点 ' + item.node : '—')}
+              </span>
               <span className="sakura-card__map">
                 {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
               </span>

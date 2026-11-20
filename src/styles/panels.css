@@ -1949,3 +1949,10 @@ body.is-party-window {
   padding: 0 8px;
   outline: none;
 }
+
+/* 卡片标题前面那颗灯：绿＝这条隧道此刻在樱花那边跑着。 */
+.sakura-card__name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
