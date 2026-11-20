@@ -176,19 +176,29 @@ export function PartyPage() {
         <ul className="party-room__lines">
           <li>
             <i className={'party__lamp' + (state.address ? ' is-on' : '')} />
-            <b>局域网</b>
-            <span>{state.address || '正在起'}</span>
+            {/*
+              同一条地址，两种身份两种叫法：房主看到的是自己这条局域网地址，
+              客人看到的是他连进来的那条——可能正是房主的公网隧道。
+              写成「局域网」会让客人以为 frp-act.com 是内网地址。
+            */}
+            <b>{host ? '局域网' : '连接'}</b>
+            <span>{state.address || (host ? '正在起' : '正在连')}</span>
           </li>
-          <li>
-            <i className={'party__lamp' + (state.publicAddress ? ' is-on' : '')} />
-            <b>公网</b>
-            <span>{state.publicAddress || '仅限同一个网络'}</span>
-          </li>
-          <li>
-            <i className="party__lamp" />
-            <b>端口</b>
-            <span>{state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : '—'}</span>
-          </li>
+          {/* 公网入口与端口是房主的事：客人的连接地址里已经带着端口了。 */}
+          {host ? (
+            <li>
+              <i className={'party__lamp' + (state.publicAddress ? ' is-on' : '')} />
+              <b>公网</b>
+              <span>{state.publicAddress || '仅限同一个网络'}</span>
+            </li>
+          ) : null}
+          {host ? (
+            <li>
+              <i className="party__lamp" />
+              <b>端口</b>
+              <span>{state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : '—'}</span>
+            </li>
+          ) : null}
         </ul>
 
         <div className="party-room__now">
