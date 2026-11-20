@@ -88,13 +88,18 @@ export function SakuraPanel() {
   const load = async (): Promise<void> => {
     persist()
     setNote('正在拉取…')
-    const result = await window.aurora?.party?.sakuraTunnels(token)
-    if (!result) {
-      setNote('桌面版才有隧道列表')
-      return
+    try {
+      const result = await window.aurora?.party?.sakuraTunnels(token)
+      if (!result) {
+        setNote('桌面版才有隧道列表')
+        return
+      }
+      setTunnels(result.tunnels as Tunnel[])
+      setNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
+    } catch (error) {
+      /* 不许永远停在「正在拉取」：拉不到也要给一句人话。 */
+      setNote('拉取失败：' + (error instanceof Error ? error.message : String(error)))
     }
-    setTunnels(result.tunnels as Tunnel[])
-    setNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
   }
 
   const toggle = async (item: Tunnel): Promise<void> => {

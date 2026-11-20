@@ -1,3 +1,7 @@
+import { createConnection } from 'node:net'
+import { session } from 'electron'
+import { LOCAL_PROXY_PORTS, proxyRulesFor } from '../pure/proxy'
+import { write } from '../startup-log'
 /**
  * 樱花隧道列表。
  *
@@ -60,10 +64,89 @@ function mapTunnel(value: unknown): SakuraTunnel | null {
   }
 }
 
+/**
+ * 找一个能通的路去问樱花接口。
+ *
+ * api.natfrp.com 在这台机器上直连时通时不通（实测连着四次 000），走本地代理才稳。
+ * 但别人不一定挂着代理，所以顺序是「先直连、再逐个本地代理端口试」，谁先给出
+ * 响应就用谁；全都不通才报连不上。
+ */
+/**
+ * 给一个请求加死线。
+ *
+ * AbortSignal.timeout 在 Electron 的 session.fetch 上没能把请求拉回来（实测十四秒
+ * 都没返回），所以改成自己 race：到点就判失败，请求在后台自生自灭。
+ */
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label + ' 超时 ' + ms + 'ms')), ms)
+    work.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      }
+    )
+  })
+}
+
+/** 这个端口上有没有东西在听：几十毫秒就能有答案，比等满超时便宜得多。 */
+function portOpen(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: '127.0.0.1', port })
+    const done = (open: boolean): void => {
+      socket.removeAllListeners()
+      socket.destroy()
+      resolve(open)
+    }
+    socket.setTimeout(400)
+    socket.once('connect', () => done(true))
+    socket.once('timeout', () => done(false))
+    socket.once('error', () => done(false))
+  })
+}
+
+async function fetchWithRoute(url: string, init: RequestInit): Promise<Response> {
+  /*
+   * 直连先试，但走 Chromium 的网络栈（session.fetch）而不是 Node 的 fetch。
+   *
+   * Node 的 fetch 在这台机器上碰到这个域名会一直挂着，AbortSignal 也没能把它拉
+   * 回来（实测十四秒都没返回）。session.fetch 的超时是可靠的。
+   */
+  try {
+    const direct = await withTimeout(session.defaultSession.fetch(url, init), 5000, '直连')
+    return direct
+  } catch (error) {
+  }
+  /*
+   * 只对「确实有东西在听」的端口试代理。
+   *
+   * 之前十五个端口挨个试，每一个都要等满才失败，一次刷新能拖三十多秒——界面
+   * 一直停在「正在拉取」。先花几十毫秒探一下端口开着没，只试开着的。
+   */
+  const order = [7890, 7891, ...LOCAL_PROXY_PORTS.filter((port) => port !== 7890 && port !== 7891)]
+  for (const port of order) {
+    if (!(await portOpen(port))) continue
+    try {
+      const route = session.fromPartition('sakura-api-' + port)
+      /* 格式要对：Electron 要的是 http=host:port;https=host:port，不是 URL。 */
+      await route.setProxy({ proxyRules: proxyRulesFor({ host: '127.0.0.1', port }) })
+      const viaProxy = await withTimeout(route.fetch(url, init), 6000, '代理 ' + port)
+      return viaProxy
+    } catch (error) {
+    }
+  }
+  write('sakura: 直连与本地代理都不通')
+  throw new Error('直连与本地代理都不通')
+}
+
 export async function sakuraTunnels(token: string): Promise<SakuraTunnelsResult> {
   if (!token.trim()) return { ok: false, message: '还没有访问密钥', tunnels: [], raw: '' }
   try {
-    const response = await fetch(BASE + '/tunnels', {
+    const response = await fetchWithRoute(BASE + '/tunnels', {
       headers: {
         Authorization: 'Bearer ' + token.trim(),
         Accept: 'application/json'
