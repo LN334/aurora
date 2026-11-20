@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import type { TunnelState } from './tunnel.ts'
+import { parseCloudflareLine } from '../pure/cloudflare-url.ts'
 import { partyState } from './room.ts'
 
 /**
@@ -27,7 +28,7 @@ const CANDIDATES = [
 ]
 
 /** 找一份可用的 cloudflared。找不到不是错误，界面上说一句就够。 */
-export function findCloudflared(): string | null {
+function findCloudflared(): string | null {
   for (const path of CANDIDATES) {
     if (path && existsSync(path)) return path
   }
@@ -36,20 +37,6 @@ export function findCloudflared(): string | null {
 
 const EMPTY: TunnelState = { running: false, address: '', line: '', error: '', log: [] }
 const LOG_LIMIT = 300
-
-/**
- * 快速隧道的地址长这样：`https://adrian-when-coalition-urw.trycloudflare.com`。
- *
- * 必须要求四段以上子域：日志里还会出现 `api.trycloudflare.com`（cloudflared
- * 启动时调的接口），只写 `[a-z0-9-]+` 会先把它认成隧道地址——第一次实测就栽在这里。
- */
-const QUICK_URL = /https:\/\/([a-z0-9]+(?:-[a-z0-9]+){3,}\.trycloudflare\.com)/i
-
-/** 从一行输出里认出隧道地址；抽成纯函数是为了能单测。 */
-export function parseCloudflareLine(line: string): string | null {
-  const match = QUICK_URL.exec(line)
-  return match ? 'wss://' + match[1] : null
-}
 
 let child: ChildProcess | null = null
 let state: TunnelState = { ...EMPTY }

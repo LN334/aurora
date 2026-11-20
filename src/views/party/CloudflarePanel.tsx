@@ -46,7 +46,7 @@ export function CloudflarePanel() {
           {cf.address || (cf.running ? '正在建立隧道…（通常 5–20 秒）' : '没在跑')}
         </span>
         <button
-          className="rh-btn"
+          className="rh-btn rh-btn--main"
           type="button"
           disabled={cf.running}
           onClick={() => void useParty.getState().startCloudflare()}

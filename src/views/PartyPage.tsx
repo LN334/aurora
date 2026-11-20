@@ -328,6 +328,8 @@ export function PartyPage() {
             <span className="party-pick__hint">
               你的播放、暂停、切歌都会同步给朋友。开好之后可以改房间码、设密码。
             </span>
+            {/* 整卡可点，但得先看得出来点它会发生什么——不然只是一块大色块。 */}
+            <span className="rh-btn party-pick__cta">创建并开始 →</span>
           </div>
           <div className="party-pick__card is-flat">
             <span className="party-pick__icon" aria-hidden="true">⌁</span>

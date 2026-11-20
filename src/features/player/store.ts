@@ -300,7 +300,6 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
   setActiveStorageProfile(profileId)
 
   const stored = createProfileScopedStorage().getItem(PREFS_KEY)
-  console.log('[prefs] load profile=' + profileId + ' stored=' + (stored === null ? 'EMPTY' : 'HIT'))
   if (stored === null) {
     usePlayer.setState({ ...defaultPrefs(), queue: [], index: -1, order: [] })
     return
@@ -312,8 +311,6 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
   } finally {
     restoringPrefs = false
   }
-  /* 落盘里是什么、读回来是什么，两行都留着：音量「重启回 85%」就差这一对读数。 */
-  console.log('[prefs] after rehydrate volume=' + usePlayer.getState().volume)
 
   /*
    * 开关关掉时连读都不读。只靠 partialize 只管写：关掉后盘上仍留着上一次

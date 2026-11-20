@@ -1313,7 +1313,13 @@ body.is-party-window {
   align-items: flex-start;
   gap: var(--s3);
   padding: var(--s6);
-  min-height: 168px;
+  /*
+   * 一屏只干两件事，这两块就该有点分量。
+   *
+   * 原来 168px：两张卡在 1400px 高的窗口里只占了顶上一条，下面三分之二全是壁纸，
+   * 看着像没加载完。用视口高度算，窄屏也不会被撑出滚动条。
+   */
+  min-height: clamp(236px, 30vh, 312px);
   /* 外圈由 .party-pick 画，这里只留中间那道缝。 */
   border: 0;
   border-right: 1px solid rgb(var(--tint-rgb) / 0.1);
@@ -1367,8 +1373,13 @@ body.is-party-window {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgb(var(--accent-rgb) / 0.2);
-  color: var(--accent);
+  /*
+   * 用中性色，不用 accent：封面主色偏灰的时候，那个「＋」会淡到看不见，
+   * 卡片只剩标题，谁也不知道左边能点。
+   */
+  background: rgb(var(--tint-rgb) / 0.1);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.12);
+  color: var(--text-hi);
   font-size: 19px;
 }
 
@@ -1440,8 +1451,13 @@ body.is-party-window {
   flex-direction: column;
   gap: var(--s2);
   width: 100%;
-  margin-top: auto;
-  padding-top: var(--s2);
+  /*
+   * 不贴底。
+   *
+   * 卡片一撑高，margin-top: auto 就把表单甩到卡片下沿，中间空出一大条——
+   * 那一块比原来的「卡片矮」更难看。内容从上往下排，卡片高度只做下限。
+   */
+  margin-top: var(--s3);
 }
 
 .party-pick__form .party-pick__join {
@@ -2484,9 +2500,11 @@ body.is-party-window {
   gap: var(--s2);
   padding: var(--s4);
   margin-bottom: var(--s4);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
   border-radius: 14px;
-  background: rgb(var(--tint-rgb) / 0.06);
+  /* 和下面的入口板同一套：一层很薄的 tint 加一道内高光，边界才在亮壁纸上立得住。 */
+  background: rgb(var(--tint-rgb) / 0.05);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.16);
 }
 
 .cf-tunnel__head {
@@ -2548,4 +2566,16 @@ body.is-party-window {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/*
+ * 入口卡的动作提示：把「这张卡是可以点的」这件事说出来。
+ *
+ * 不用主色做底——这套界面里 accent 跟着封面主色走，封面偏灰时那块胶囊会糊成
+ * 一片，看着像禁用。沿用 .rh-btn 的中性底，和旁边「加入」那颗一致。
+ */
+.party-pick__cta {
+  align-self: flex-start;
+  margin-top: var(--s3);
+  pointer-events: none;
 }

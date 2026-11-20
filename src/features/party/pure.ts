@@ -48,7 +48,7 @@ export const HOLD_MS = 8000
  * 「消息在路上」，而是心跳断了、或者两台机器的钟对不上——照着差值往下算，
  * 得到的是一个比歌还长的位置，界面上就成了一条「差 1812 秒」。
  */
-export const MAX_EXTRAPOLATION_SECONDS = 300
+const MAX_EXTRAPOLATION_SECONDS = 300
 
 /** 房主那一刻的位置，按到现在的流逝补到当前。 */
 export function expectedPosition(moment: PartyMoment, at: number): number {
