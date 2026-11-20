@@ -11,7 +11,6 @@ import { player } from '../features/player/actions'
  */
 export function PartyRibbon() {
   const state = useParty((store) => store.state)
-  const playing = useParty((store) => store.tunnel)
 
   if (state.role === 'idle') return null
 
@@ -40,7 +39,13 @@ export function PartyRibbon() {
       <b>{state.code}</b>
       <span>{state.members.map((member) => member.name).join('、')}</span>
       {now ? <span>正在放 {now.title}</span> : <span>还没同步</span>}
-      {playing.address ? <span className="np-party__public">公网 {playing.address}</span> : null}
+      {/*
+        公网入口念的是房间自己那一栏，不是樱花隧道的状态：换成 Cloudflare 之后
+        tunnel.address 一直是空的，这条带子会假装房间里没有公网入口。
+      */}
+      {state.publicAddress ? (
+        <span className="np-party__public">公网 {state.publicAddress.replace(/^wss:\/\//, '')}</span>
+      ) : null}
       <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#party' }}>
         回房间
       </button>

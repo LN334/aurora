@@ -180,6 +180,18 @@ export interface PartyApi {
   /** 清空日志面板，不影响隧道本身。 */
   tunnelLogClear(): Promise<TunnelState>
   onTunnel(listener: (state: TunnelState) => void): () => void
+  /**
+   * Cloudflare 快速隧道。
+   *
+   * 不需要账号或备案：把房间端口挂到 `wss://<随机名>.trycloudflare.com`，
+   * 给樱花节点回 503/501 时留一条能走的公网通道。地址随进程变。
+   */
+  cloudflare: {
+    start(port?: number): Promise<TunnelState>
+    stop(): Promise<TunnelState>
+    state(): Promise<TunnelState>
+    onState(listener: (state: TunnelState) => void): () => void
+  }
   state(): Promise<PartyState>
   onState(listener: (state: PartyState) => void): () => void
 }

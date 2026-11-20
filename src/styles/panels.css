@@ -1132,12 +1132,19 @@
 .sakura-card__warn {
   grid-column: 1 / -1;
   justify-self: start;
-  padding: 2px 8px;
+  padding: 4px 9px;
   border-radius: 7px;
   background: rgb(224 179 65 / 0.2);
   font-size: var(--fs-micro);
-  line-height: 1.5;
-  color: #7a4d05;
+  line-height: 1.55;
+  /* 默认是深色主题：深琥珀字压在深底上读不出来，先给亮一档。 */
+  color: #f0c977;
+}
+
+/* 浅色主题反过来：亮壁纸上要深字。 */
+:root[data-theme='light'] .sakura-card__warn {
+  background: rgb(224 179 65 / 0.24);
+  color: #6b4204;
 }
 
 /* 顶部徽条：房间码 + 复制邀请。 */
@@ -1931,6 +1938,11 @@ body.is-party-window {
   padding: 4px 10px;
 }
 
+/* 有按钮的那一格要多留一列，否则按钮会压到地址上。 */
+.party-room__lines li:has(.rh-btn) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
 /* 邀请：两种写法各占一行，长链接自己换行，不把整页撑出去。 */
 .party-room__invite {
   display: flex;
@@ -2463,4 +2475,77 @@ body.is-party-window {
 .sakura-card__confirm .rh-btn.is-danger {
   border-color: rgb(220 53 80 / 0.45);
   color: #b8263d;
+}
+
+/* —— Cloudflare 隧道：隧道页最上面那一块 —— */
+.cf-tunnel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.06);
+}
+
+.cf-tunnel__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.cf-tunnel__head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-hi);
+}
+
+.cf-tunnel__hint {
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+.cf-tunnel__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* 地址会很长：允许在任意位置折行，别把这一行撑出去。 */
+.cf-tunnel__addr {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: var(--fs-meta);
+  color: var(--text-hi);
+  overflow-wrap: anywhere;
+}
+
+.cf-tunnel__logwrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  align-items: flex-start;
+}
+
+/* 原始日志：等宽、小字、可滚。超过一屏就在自己里面滚，不用把整页顶长。 */
+.cf-tunnel__log {
+  width: 100%;
+  max-height: 220px;
+  margin: 0;
+  padding: var(--s3);
+  overflow: auto;
+  border-radius: 10px;
+  background: rgb(var(--shade-rgb) / 0.18);
+  color: var(--text-mid);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
 }

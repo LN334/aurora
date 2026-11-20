@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
 import { discover } from './discover'
+import { cloudflareState, onCloudflareState, startCloudflared, stopCloudflared } from './cloudflared'
 import { sakuraCreateTunnel, sakuraDeleteTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
 import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/frpc'
@@ -52,6 +53,13 @@ function broadcastTunnel(state: unknown): void {
   }
 }
 
+/** Cloudflare 隧道的状态，同样推给每个窗口。 */
+function broadcastCloudflare(state: unknown): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('party:cloudflare', state)
+  }
+}
+
 let tunnelWired = false
 function onTunnelBroadcast(): void {
   if (tunnelWired) return
@@ -86,7 +94,17 @@ export function registerPartyIpc(): void {
    * Windows 不会因为父进程没了就结束子进程：不显式杀掉的话，退出 Aurora 之后
    * 隧道还挂在后台，用户再开一次就是两条隧道抢同一条线路。
    */
-  app.on('before-quit', () => stopTunnel())
+  /*
+   * 退出时把两条隧道都收掉。
+   *
+   * frpc 和 cloudflared 都是本进程起的子进程，Windows 不会因为它们的主人
+   * 没了就结束它们：不收的话，退出 Aurora 之后云端还挂着一条隧道，下次启动
+   * 再起一条，端口与地址越积越多。
+   */
+  app.on('before-quit', () => {
+    stopTunnel()
+    stopCloudflared()
+  })
 
   ipcMain.handle('party:tunnelLogClear', () => {
     clearTunnelLog()
@@ -226,6 +244,21 @@ export function registerPartyIpc(): void {
   onTunnelBroadcast()
 
   ipcMain.handle('party:tunnelState', () => tunnelState())
+
+  /*
+   * Cloudflare 快速隧道：樱花那些 503/501 的绕行方案。
+   * 启动会去连 cloudflare 的边缘，慢的话要几秒才拿到地址——所以这里 resolve
+   * 的是「进程已起」，地址由 party:cloudflare 推过来。
+   */
+  onCloudflareState(broadcastCloudflare)
+  ipcMain.handle('party:cfStart', async (_event, args: unknown) => {
+    return await startCloudflared(Number(asRecord(args).port) || 0)
+  })
+  ipcMain.handle('party:cfStop', () => {
+    stopCloudflared()
+    return cloudflareState()
+  })
+  ipcMain.handle('party:cfState', () => cloudflareState())
 
   /*
    * 同一网络里凭房间码找房间。找不到就返回 null，由界面退回去让房主发地址——

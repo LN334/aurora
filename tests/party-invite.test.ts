@@ -101,3 +101,20 @@ test('带引号的参数也能认出来', () => {
     'aurora://join?h=1.2.3.4:7890&c=PARTY'
   )
 })
+
+test('wss:// 域名整条保留，不会被当成房间码', () => {
+  assert.deepEqual(parseInvite('wss://music.example.com ABCDEF'), {
+    place: 'wss://music.example.com',
+    code: 'ABCDEF'
+  })
+  assert.deepEqual(parseInvite('wss://music.example.com:8443 ABCDEF'), {
+    place: 'wss://music.example.com:8443',
+    code: 'ABCDEF'
+  })
+})
+
+test('带 wss 地址的邀请链接能原样换回来', () => {
+  const link = inviteLink('wss://music.example.com', 'PARTY')
+  assert.equal(link, 'aurora://join?h=wss://music.example.com&c=PARTY')
+  assert.deepEqual(parseInvite(link), { place: 'wss://music.example.com', code: 'PARTY' })
+})

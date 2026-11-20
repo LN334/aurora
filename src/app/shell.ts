@@ -78,7 +78,8 @@ export const SHELL_TITLES: Record<ShellView, string> = {
   nowplaying: '正在播放',
   stage: '舞台',
   party: '一起听',
-  sakura: '樱花隧道',
+  /* 这一页现在以 Cloudflare 为主（在上面），樱花是备选，标题跟着实际内容走。 */
+  sakura: '公网隧道',
   settings: '设置',
   me: '我',
   search: '搜索',

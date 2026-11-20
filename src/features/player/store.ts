@@ -290,9 +290,17 @@ export function isRestoringPrefs(): boolean {
 }
 
 export async function loadProfilePlayerPrefs(profileId: string | null): Promise<void> {
+  /*
+   * 没有档案就什么都不做。
+   *
+   * 以前这一路会去读「default」那一格，读不到就把默认偏好（音量 85%）写回去：
+   * 启动早期只要有一次拿到空 id，用户调好的音量就会被当成「新档案」重置掉。
+   */
+  if (!profileId) return
   setActiveStorageProfile(profileId)
 
   const stored = createProfileScopedStorage().getItem(PREFS_KEY)
+  console.log('[prefs] load profile=' + profileId + ' stored=' + (stored === null ? 'EMPTY' : 'HIT'))
   if (stored === null) {
     usePlayer.setState({ ...defaultPrefs(), queue: [], index: -1, order: [] })
     return
@@ -304,6 +312,8 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
   } finally {
     restoringPrefs = false
   }
+  /* 落盘里是什么、读回来是什么，两行都留着：音量「重启回 85%」就差这一对读数。 */
+  console.log('[prefs] after rehydrate volume=' + usePlayer.getState().volume)
 
   /*
    * 开关关掉时连读都不读。只靠 partialize 只管写：关掉后盘上仍留着上一次

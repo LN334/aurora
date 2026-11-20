@@ -27,9 +27,19 @@ export function normalizeCode(raw: string): string {
   return raw.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, 8)
 }
 
-/** 剥掉协议与尾部斜杠：`ws://1.2.3.4:7890/` → `1.2.3.4:7890`。 */
+/**
+ * 剥掉「可以省略」的协议与尾部斜杠：`ws://1.2.3.4:7890/` → `1.2.3.4:7890`。
+ *
+ * `wss://` 不剥。它不是装饰：ws:// 走 80、wss:// 走 443，剥掉之后客人会去连
+ * 80 口，而节点对裸域名一律回 503。安全与否必须一路带到握手为止。
+ */
 function bare(value: string): string {
-  return value.replace(/^(?:wss?|https?):\/\//i, '').replace(/\/+$/, '')
+  return value.replace(/^(?:ws|https?):\/\//i, '').replace(/\/+$/, '')
+}
+
+/** `wss://域名` 这种「没有端口但有协议」的地址。 */
+function isSecurePlace(value: string): boolean {
+  return /^wss:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?$/i.test(value)
 }
 
 /** 地址长这样：`1.2.3.4:7890`、`demo.natfrp.cloud:23456`、`localhost:3000`。 */
@@ -82,7 +92,7 @@ export function parseInvite(raw: string): ParsedInvite | null {
   let code = ''
   for (const part of parts) {
     const value = bare(part)
-    if (!place && looksLikePlace(value)) {
+    if (!place && (looksLikePlace(value) || isSecurePlace(value))) {
       place = value
       continue
     }
@@ -106,7 +116,11 @@ export function parseInvite(raw: string): ParsedInvite | null {
  * 冒号在查询串里本来就合法，不必编码。
  */
 export function inviteLink(place: string, code: string): string {
-  const query = new URLSearchParams({ h: place, c: code }).toString().replace(/%3A/gi, ':')
+  /* 冒号与斜杠都还原：`wss://域名` 写成 `wss%3A%2F%2F域名` 会让人以为链接坏了。 */
+  const query = new URLSearchParams({ h: place, c: code })
+    .toString()
+    .replace(/%3A/gi, ':')
+    .replace(/%2F/gi, '/')
   return 'aurora://join?' + query
 }
 

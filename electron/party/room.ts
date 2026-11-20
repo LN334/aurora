@@ -651,23 +651,34 @@ export function stopParty(): void {
  */
 export function setPublicAddress(raw: string): void {
   if (current.role !== 'host') return
-  const clean = raw
-    .trim()
-    .replace(/^(wss?|https?):\/\//i, '')
-    .replace(/\/+$/, '')
-    .slice(0, 80)
-  /*
-   * 公网地址必须带端口。
-   *
-   * 只写域名时，房间会把它原样放进邀请链接，客人拿到的是 ws://域名——默认走
-   * 80 口，而樱花这类免费节点对「直接用节点域名访问」一律回 503（节点域名没
-   * 备案）。房主在浏览器里看到 503 会以为隧道坏了，其实只是少了一个端口号。
-   */
-  if (clean && !/^[a-z0-9.-]+:\d{1,5}$/i.test(clean)) {
-    publish({ error: '公网地址要带端口，形如 frp-act.com:23456' })
+  const trimmed = raw.trim().slice(0, 120)
+  if (!trimmed) {
+    publish({ publicAddress: '' })
+    broadcast(current)
     return
   }
-  publish({ publicAddress: clean })
+  /*
+   * 两种写法，对应两种隧道：
+   *
+   *   host:port   —— 直连 TCP 隧道的端口，ws://host:port
+   *   wss://域名  —— 走 HTTPS 的隧道（樱花 HTTP 隧道绑定自己的域名），443
+   *
+   * 只写裸域名不行：默认 80 口，免费节点对「直接用节点域名访问」一律回 503
+   * （节点域名没备案），房主在浏览器里看到 503 会以为是隧道坏了。而 wss://
+   * 是明确的，不许省——省掉就退回上面那个坏情况。
+   */
+  const secure = /^wss:\/\//i.test(trimmed)
+  const rest = trimmed
+    .replace(/^wss?:\/\//i, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+  const withPort = /^[a-z0-9.-]+:\d{1,5}$/i.test(rest)
+  const hostOnly = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(rest)
+  if (!withPort && !(secure && hostOnly)) {
+    publish({ error: '公网地址填「域名:端口」，或者「wss://你的域名」' })
+    return
+  }
+  publish({ publicAddress: secure ? 'wss://' + rest : rest })
   broadcast(current)
 }
 
@@ -810,8 +821,14 @@ export function joinParty(url: string, code: string, name: string, pass = ''): P
   const target = /^wss?:\/\//.test(trimmed) ? trimmed : 'ws://' + trimmed
   const socket = new WebSocket(target)
   guestSocket = socket
-  /* 界面上那一行是给人看的：wss:// 前缀对判断「连没连上」没有帮助。 */
-  const shown = trimmed.replace(/^wss?:\/\//i, '')
+  /*
+   * 界面上那一行照原样显示，协议不剥。
+   *
+   * 以前剥掉 wss:// 是因为它「对判断连没连上没有帮助」；现在 Cloudflare 隧道
+   * 走的就是 wss://，剥掉之后客人看到的是一条没有协议的域名，出问题时也分不清
+   * 自己走的是哪条路。这里只去掉尾部斜杠。
+   */
+  const shown = trimmed.replace(/\/+$/, '')
   publish({ role: 'guest', address: shown, code: wanted, connecting: true, error: '', refused: '' })
 
   /*
@@ -875,6 +892,22 @@ export function joinParty(url: string, code: string, name: string, pass = ''): P
       const incoming = message.state as unknown as PartyState
       publish({ ...incoming, role: 'guest', address: shown, connecting: false, error: '', refused: '' })
     }
+  })
+
+  /*
+   * 握手上不去的另一种样子：对面回了 HTTP 错误页。
+   *
+   * 樱花这类端口映射在隧道没开、或者隧道是 HTTP 类型（节点对未备案域名回
+   * 503 / 501）时，WS 升级请求根本到不了房间。以前这种情况统一报「连不上
+   * 房主」，把「地址写错」「隧道没开」「隧道类型不对」混成一句——用户拿着
+   * 邀请链接只会反复重试。这里把对面包的 HTTP 状态原样说出来。
+   */
+  socket.on('unexpected-response', (_request, response) => {
+    const status = response.statusCode ?? 0
+    fail(
+      `连到了 ${shown}，但对面回的是 HTTP ${status}：这个地址不是一起听房间。` +
+        '走樱花隧道的话，确认隧道在线，并且类型是 TCP（HTTP 隧道会被节点按域名备案拦掉）'
+    )
   })
 
   socket.on('error', () => {

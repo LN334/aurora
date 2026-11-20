@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CloudflarePanel } from './party/CloudflarePanel'
 import { SakuraPanel } from './party/SakuraPanel'
 import { TunnelLog } from './party/TunnelLog'
 import { useParty } from '../features/party/store'
@@ -18,6 +19,8 @@ export function SakuraPage() {
     <div className="party-page party-page--wide">
       <div className="party-page__grid">
         <section className="party-page__main">
+          {/* Cloudflare 排在上面：它不需要账号和备案，是更省事的那条路。 */}
+          <CloudflarePanel />
           <SakuraPanel />
         </section>
         <aside className="party-page__side sakura-side">

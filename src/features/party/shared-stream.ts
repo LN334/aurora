@@ -40,9 +40,20 @@ export function sharedStreamFor(trackId: string): SharedStream | null {
   return shared
 }
 
-/** 把相对路径补成客人能直接请求的地址；没有路径时返回空串。 */
+/**
+ * 把相对路径补成客人能直接请求的地址；没有路径时返回空串。
+ *
+ * origin 可能自带协议：客人用 `wss://` 连进来时（Cloudflare 隧道就是这么连的），
+ * 直接拼 `http://` 会得到 `http://wss://…` 这种根本不存在的地址，音频静默失败。
+ * 所以要先认出协议，再补对应的 http/https。
+ */
 export function resolveSharedUrl(stream: SharedStream): string {
   if (stream.url) return stream.url
   if (!stream.path || !origin) return ''
-  return 'http://' + origin + stream.path
+  const secure = /^wss:\/\//i.test(origin)
+  const host = origin
+    .replace(/^wss?:\/\//i, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+  return (secure ? 'https://' : 'http://') + host + stream.path
 }

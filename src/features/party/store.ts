@@ -72,6 +72,10 @@ interface PartyStore {
   /** 房主把某个成员请出房间；客人调用无效果。 */
   kick(id: string): Promise<void>
   setRelay(relay: boolean): Promise<void>
+  /** Cloudflare 快速隧道：不用账号与备案，地址随进程变。 */
+  cloudflare: TunnelState
+  startCloudflare(): Promise<void>
+  stopCloudflare(): Promise<void>
   startTunnel(config: { frpcPath: string; token: string; tunnelId: string }): Promise<void>
   stopTunnel(): Promise<void>
   /** 清空日志面板。 */
@@ -90,6 +94,8 @@ let lastPlaying = false
 let holdUntil = 0
 /** 最近一次由隧道写进房间的公网地址；用来判断断开时该不该撤。 */
 let tunnelPublished = ''
+/** Cloudflare 隧道写进去的那一条，断开时要撤掉——地址随进程变，留下的只能是死链。 */
+let cloudflarePublished = ''
 /** 我们自己的 seek 时刻：那一下的跳变不是用户拖的。 */
 let selfSeekAt = 0
 /** 上一次播放采样，用来认出「这次位置跳了一截」。 */
@@ -332,6 +338,7 @@ function watchPlayback(): void {
 export const useParty = create<PartyStore>((set, get) => ({
   state: IDLE,
   tunnel: { running: false, address: '', line: '', error: '', log: [] },
+  cloudflare: { running: false, address: '', line: '', error: '', log: [] },
   busy: false,
 
   init() {
@@ -365,6 +372,29 @@ export const useParty = create<PartyStore>((set, get) => ({
     })
     void bridge.tunnelState?.().then((tunnel) => {
       if (tunnel) set({ tunnel })
+    })
+    /*
+     * Cloudflare 隧道：地址一出现就写进房间，断开就撤回。
+     *
+     * 地址是随机的、进程一停就失效；留在房间页上就是一条连不上的公网入口，
+     * 客人拿着邀请链接只会反复重试。所以它和樱花那条一样要「来去成对」。
+     * 唯一区别：不覆盖房主自己填的地址，只在那一栏空着时自动填。
+     */
+    bridge.cloudflare?.onState?.((cloudflare) => {
+      set({ cloudflare })
+      const party = get().state
+      if (party.role !== 'host') return
+      if (cloudflare.address && !party.publicAddress) {
+        cloudflarePublished = cloudflare.address
+        void get().setPublic(cloudflare.address)
+      }
+      if (!cloudflare.address && cloudflarePublished && party.publicAddress === cloudflarePublished) {
+        cloudflarePublished = ''
+        void get().setPublic('')
+      }
+    })
+    void bridge.cloudflare?.state?.().then((cloudflare) => {
+      if (cloudflare) set({ cloudflare })
     })
     bridge.onState((state) => {
       /*
@@ -520,6 +550,16 @@ export const useParty = create<PartyStore>((set, get) => ({
   async stopTunnel() {
     const tunnel = await window.aurora?.party?.tunnelStop()
     if (tunnel) set({ tunnel })
+  },
+
+  async startCloudflare() {
+    const cloudflare = await window.aurora?.party?.cloudflare?.start()
+    if (cloudflare) set({ cloudflare })
+  },
+
+  async stopCloudflare() {
+    const cloudflare = await window.aurora?.party?.cloudflare?.stop()
+    if (cloudflare) set({ cloudflare })
   },
 
   async clearTunnelLog() {

@@ -659,6 +659,17 @@ const api = {
       ipcRenderer.invoke('party:tunnelStart', config),
     tunnelStop: () => ipcRenderer.invoke('party:tunnelStop'),
     tunnelState: () => ipcRenderer.invoke('party:tunnelState'),
+    /* Cloudflare 快速隧道：一边听自己的公网通道，与樱花互不影响。 */
+    cloudflare: {
+      start: (port?: number) => ipcRenderer.invoke('party:cfStart', { port }) as Promise<unknown>,
+      stop: () => ipcRenderer.invoke('party:cfStop') as Promise<unknown>,
+      state: () => ipcRenderer.invoke('party:cfState') as Promise<unknown>,
+      onState: (listener: (state: unknown) => void) => {
+        const handler = (_event: unknown, state: unknown): void => listener(state)
+        ipcRenderer.on('party:cloudflare', handler)
+        return () => ipcRenderer.removeListener('party:cloudflare', handler)
+      }
+    },
     tunnelLogClear: () => ipcRenderer.invoke('party:tunnelLogClear'),
     onTunnel: (listener: (state: unknown) => void) => {
       const handler = (_event: unknown, state: unknown): void => listener(state)

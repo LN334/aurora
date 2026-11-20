@@ -540,6 +540,13 @@ const webFallback: AuroraApi = {
     tunnelStop: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
     tunnelState: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
     tunnelLogClear: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
+    /* Cloudflare 隧道同样要主进程起进程，浏览器预览里只让类型成立。 */
+    cloudflare: {
+      start: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道', log: [] }),
+      stop: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
+      state: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
+      onState: () => () => {}
+    },
     onTunnel: () => () => {},
     state: async () => IDLE_PARTY,
     onState: () => () => {}

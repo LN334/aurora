@@ -154,6 +154,8 @@ export function PartyPage() {
   const mounted = usePresence(true, 0).mounted
   const state = useParty((s) => s.state)
   const busy = useParty((s) => s.busy)
+  /* 公网那一行要一键开关 Cloudflare，所以这一页也读它的状态。 */
+  const cloudflare = useParty((s) => s.cloudflare)
   const [place, setPlace] = useState('')
   const [code, setCode] = useState('')
   const [pass, setPass] = useState('')
@@ -220,11 +222,8 @@ export function PartyPage() {
   }
 
   const savePublic = async (): Promise<void> => {
-    const clean = publicDraft
-      .trim()
-      .replace(/^wss?:\/\//, '')
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '')
+    /* wss:// 不在这里剥：它决定走 443，剥掉就退回「裸域名 + 80 口」。 */
+    const clean = publicDraft.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '')
     await useParty.getState().setPublic(clean)
     /*
      * 没写进去就是被校验拦了：原因已经在 state.error 里，这里再盖一句
@@ -483,6 +482,26 @@ export function PartyPage() {
               <i className={'party__lamp' + (state.publicAddress ? ' is-on' : '')} />
               <b>公网</b>
               <span>{state.publicAddress || '仅限同一个网络'}</span>
+              {/*
+                开公网不该要人先跑去另一个页面找隧道：房主在这一行看到「仅限同一个
+                网络」，缺的就是下一颗键。Cloudflare 快速隧道不用账号与备案，点了
+                就把地址写进这一栏。
+              */}
+              <button
+                className="rh-btn"
+                type="button"
+                disabled={cloudflare.running && !cloudflare.address}
+                onClick={() => {
+                  if (cloudflare.running) void useParty.getState().stopCloudflare()
+                  else void useParty.getState().startCloudflare()
+                }}
+              >
+                {cloudflare.running && !cloudflare.address
+                  ? '建立中'
+                  : cloudflare.running
+                    ? '关公网'
+                    : '开公网'}
+              </button>
             </li>
           ) : null}
           {host ? (
@@ -634,7 +653,7 @@ export function PartyPage() {
         <div className="party-room__tools">
           {host ? (
             <button className="rh-btn" type="button" onClick={() => { window.location.hash = '#sakura' }}>
-              樱花面板
+              公网隧道
             </button>
           ) : null}
           <button className="rh-btn" onClick={() => void window.aurora?.party?.openChat()}>
