@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { inviteFromArgv } from '../electron/pure/invite-arg.ts'
 import {
   inviteLink,
+  landingLink,
   inviteText,
   normalizeCode,
   parseInvite
@@ -17,7 +18,7 @@ import {
 test('自己生成的链接能被自己解析回来', () => {
   const link = inviteLink('192.168.1.5:7890', 'PARTY')
   /* 冒号不编码：这条链接要给人看，%3A 只会让人以为自己复制错了。 */
-  assert.equal(link, 'aurora://join?h=192.168.1.5:7890&c=PARTY')
+  assert.equal(link, 'aurora://join/PARTY?host=192.168.1.5:7890')
   assert.deepEqual(parseInvite(link), { place: '192.168.1.5:7890', code: 'PARTY' })
 })
 
@@ -113,8 +114,44 @@ test('wss:// 域名整条保留，不会被当成房间码', () => {
   })
 })
 
-test('带 wss 地址的邀请链接能原样换回来', () => {
+test('邀请链接是标准形状：房间码走路径，主机与协议走查询', () => {
   const link = inviteLink('wss://music.example.com', 'PARTY')
-  assert.equal(link, 'aurora://join?h=wss://music.example.com&c=PARTY')
+  /*
+   * 整条链接只能有一个 ://。以前把 wss:// 塞进查询参数，系统解析到第二个
+   * :// 就断开，&c= 之后全丢，点开是死的。
+   */
+  assert.equal(link, 'aurora://join/PARTY?host=music.example.com&secure=1')
   assert.deepEqual(parseInvite(link), { place: 'wss://music.example.com', code: 'PARTY' })
+})
+
+test('局域网地址生成的链接不带 secure', () => {
+  const link = inviteLink('192.168.1.5:51234', 'ABCDEF')
+  assert.equal(link, 'aurora://join/ABCDEF?host=192.168.1.5:51234')
+  assert.deepEqual(parseInvite(link), { place: '192.168.1.5:51234', code: 'ABCDEF' })
+})
+
+test('老链接的三种写法都还认', () => {
+  assert.deepEqual(parseInvite('aurora://join?h=wss://music.example.com&c=PARTY'), {
+    place: 'wss://music.example.com',
+    code: 'PARTY'
+  })
+  assert.deepEqual(parseInvite('aurora://join?h=music.example.com&c=PARTY&s=1'), {
+    place: 'wss://music.example.com',
+    code: 'PARTY'
+  })
+  assert.deepEqual(parseInvite('aurora://join?h=1.2.3.4:7890&c=PARTY'), {
+    place: '1.2.3.4:7890',
+    code: 'PARTY'
+  })
+})
+
+test('落地页链接是 https，房间码与主机都在查询里', () => {
+  assert.equal(
+    landingLink('wss://music.example.com', 'ABC123'),
+    'https://ln334.github.io/aurora/join/?c=ABC123&host=music.example.com&secure=1'
+  )
+  assert.equal(
+    landingLink('192.168.1.5:51234', 'ABC123'),
+    'https://ln334.github.io/aurora/join/?c=ABC123&host=192.168.1.5:51234'
+  )
 })

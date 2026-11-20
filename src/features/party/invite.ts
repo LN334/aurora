@@ -47,7 +47,15 @@ function looksLikePlace(value: string): boolean {
   return /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9-]+:\d{1,5}$/i.test(value)
 }
 
-/** 链接：`aurora://join?h=…&c=…`。参数名不挑，顺序也不挑。 */
+/**
+ * 链接：`aurora://join/房间码?host=主机&secure=1`。
+ *
+ * 房间码走路径、主机与协议走查询——和常见的分享链接一个样子（Discord 的
+ * `discord.gg/邀请码` 就是这个结构）。参数名也写全，别用 h/c/s 这种缩写：
+ * 这条链接要发给人看，看得懂比省两个字符重要。
+ *
+ * 老格式（`?h=…&c=…&s=1`，甚至 h 里直接写 wss://）继续认，已经发出去的不废。
+ */
 function parseLink(text: string): ParsedInvite | null {
   let url: URL
   try {
@@ -58,7 +66,7 @@ function parseLink(text: string): ParsedInvite | null {
   if (url.protocol !== 'aurora:') return null
   /*
    * 参数名放宽是有理由的：链接可能由别人手拼，也可能来自以后手机端。
-   * 我们自己只发 h 与 c，但读的时候 address / code 这两种写法也该认。
+   * 我们自己只发 host / secure 与路径里的房间码，但读的时候老写法也该认。
    */
   const pick = (names: string[]): string => {
     for (const name of names) {
@@ -67,8 +75,23 @@ function parseLink(text: string): ParsedInvite | null {
     }
     return ''
   }
-  const place = bare(pick(['h', 'host', 'address', 'addr', 'a']))
-  const code = normalizeCode(pick(['c', 'code', 'room', 'r']))
+  const rawPlace = pick(['host', 'h', 'address', 'addr', 'a'])
+  /*
+   * 协议由 secure=1 表示，不塞进 host：链接里摞一个完整网址，聊天软件与浏览器
+   * 会在第二个 :// 处断开，&c= 之后全丢。
+   */
+  const secure =
+    /^(1|true|wss)$/i.test(pick(['secure', 's'])) || /^wss:\/\//i.test(rawPlace)
+  const host = bare(rawPlace).replace(/^wss?:\/\//i, '')
+
+  let pathCode = ''
+  try {
+    pathCode = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
+  } catch {
+    pathCode = ''
+  }
+  const place = secure && host ? 'wss://' + host : host
+  const code = normalizeCode(pick(['c', 'code', 'room', 'r']) || pathCode)
   if (!place && !code) return null
   return { place, code }
 }
@@ -116,12 +139,43 @@ export function parseInvite(raw: string): ParsedInvite | null {
  * 冒号在查询串里本来就合法，不必编码。
  */
 export function inviteLink(place: string, code: string): string {
-  /* 冒号与斜杠都还原：`wss://域名` 写成 `wss%3A%2F%2F域名` 会让人以为链接坏了。 */
-  const query = new URLSearchParams({ h: place, c: code })
-    .toString()
-    .replace(/%3A/gi, ':')
-    .replace(/%2F/gi, '/')
-  return 'aurora://join?' + query
+  /*
+   * 一条标准形状的邀请链接：
+   *
+   *   aurora://join/ABC123?host=demo.trycloudflare.com&secure=1
+   *
+   * 房间码在路径里、主机在查询里。不要写成 `?h=…&c=…`：缩写没人看得懂；更不要
+   * 把 `wss://` 整个塞进参数——那样链接里会出现第二个 ://，系统解析到那里就断，
+   * 后面的房间码全丢，点开是死的。
+   */
+  const secure = /^wss:\/\//i.test(place)
+  const host = place.replace(/^wss:\/\//i, '')
+  const params = new URLSearchParams()
+  if (host) params.set('host', host)
+  if (secure) params.set('secure', '1')
+  const query = params.toString().replace(/%3A/gi, ':').replace(/%2F/gi, '/')
+  const room = encodeURIComponent(code)
+  return 'aurora://join/' + room + (query ? '?' + query : '')
+}
+
+/**
+ * 落地页链接：分享用的 https 版本。
+ *
+ * `aurora://` 不是标准协议，微信、QQ、浏览器都不会把它识别成网址——发出去就是
+ * 一段点不动的灰字。https 链接哪儿都能点，落地页上再给「打开 Aurora」与「复制
+ * 地址+房间码」两条路：前者一步进房，后者在拦自定义协议的内置浏览器里兜底。
+ */
+const LANDING_BASE = 'https://ln334.github.io/aurora/join/'
+
+export function landingLink(place: string, code: string): string {
+  const secure = /^wss:\/\//i.test(place)
+  const host = place.replace(/^wss:\/\//i, '')
+  const params = new URLSearchParams()
+  if (code) params.set('c', code)
+  if (host) params.set('host', host)
+  if (secure) params.set('secure', '1')
+  const query = params.toString().replace(/%3A/gi, ':').replace(/%2F/gi, '/')
+  return LANDING_BASE + (query ? '?' + query : '')
 }
 
 /** 聊天软件里更稳的那一行：地址 + 房间码，手抄也不会错位。 */

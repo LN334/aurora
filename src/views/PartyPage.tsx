@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { inviteLink, inviteText, normalizeCode, parseInvite } from '../features/party/invite'
+import { inviteLink, inviteText, landingLink, normalizeCode, parseInvite } from '../features/party/invite'
 import { Lock } from '../ui/icons'
 import { useParty } from '../features/party/store'
 import { usePresence } from '../ui/presence'
@@ -206,7 +206,11 @@ export function PartyPage() {
   }
 
   /* 两种写法先生成好：房间还在起的时候两样都是空串，界面上就写「稍等」。 */
-  const inviteOf = linkPlace ? inviteLink(linkPlace, state.code) : ''
+  /*
+   * 邀请块里展示的是 https 落地页，不是 aurora:// 直链：后者在微信、浏览器里
+   * 根本不会被识别成网址，发出去是一段点不动的灰字。直链仍然由解析层支持。
+   */
+  const inviteOf = linkPlace ? landingLink(linkPlace, state.code) : ''
   const invitePlain = linkPlace ? inviteText(linkPlace, state.code) : ''
 
   const copyLink = (): void => {
@@ -214,7 +218,7 @@ export function PartyPage() {
       setNote('房间还在起，稍等一下')
       return
     }
-    void copy(inviteLink(linkPlace, state.code), '邀请链接已复制：对方点开就能进房')
+    void copy(inviteLink(linkPlace, state.code), '直链已复制：装了 Aurora 的电脑点开就进房')
   }
 
   const copyCode = (): void => {
