@@ -1852,3 +1852,30 @@ body.is-party-window {
   border-color: rgb(var(--accent-rgb) / 0.62);
   box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.16);
 }
+
+/*
+ * 隧道卡片照官方启动器那排：两列网格，一张卡一条。
+ *
+ * 名字当标题（用户自己起的那串），id 退成角标，节点与映射在下面，开关在右上。
+ * 单列长条在宽屏上会把每张卡拉得又长又空。
+ */
+.sakura-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.sakura-card__name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  color: var(--text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sakura-card__id {
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--text-low);
+}

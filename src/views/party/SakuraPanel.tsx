@@ -184,7 +184,9 @@ export function SakuraPanel() {
         <ul className="sakura-list">
           {tunnels.map((item) => (
             <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
-              <span className="sakura-card__id">{item.id}</span>
+              {/* 隧道名当标题：官方启动器那张卡最上面就是它，id 退成角标。 */}
+              <span className="sakura-card__name">{item.name || '未命名隧道'}</span>
+              <span className="sakura-card__id">#{item.id}</span>
               {/* 接口里 node 是节点 id（数字），不是名字，照原样标成「节点 47」比印个裸数字清楚。 */}
               <span className="sakura-card__node">{item.node ? '节点 ' + item.node : '—'}</span>
               <span className="sakura-card__map">
