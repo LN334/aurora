@@ -1,7 +1,7 @@
 {
   "name": "aurora-player",
   "private": true,
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "把网易云、QQ 音乐、酷狗、汽水拼成一个曲库的 Windows 桌面客户端：同曲合并、按音源优先级播放，首页是会转的封面墙，漫游是一条放不完的推荐流",
   "author": "Aurora contributors",
   "license": "MIT",
@@ -34,6 +34,12 @@
   "build": {
     "appId": "com.aurora.player",
     "productName": "Aurora",
+    "protocols": [
+      {
+        "name": "Aurora",
+        "schemes": ["aurora"]
+      }
+    ],
     "copyright": "Copyright © 2026 LN334",
     "directories": {
       "output": "release",

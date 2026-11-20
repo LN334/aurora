@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
+import { discover } from './discover'
 import { sakuraCreateTunnel, sakuraDeleteTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
 import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/frpc'
@@ -7,11 +8,15 @@ import { chatWindowOpen } from '../chat-window'
 import { clearTunnelLog, onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
+  kickMember,
   onPartyState,
   partyState,
   pushNow,
+  renameRoom,
   sendChat,
+  setHostPassword,
   setPublicAddress,
+  setRoomCode,
   startHost,
   stopParty
 } from './room'
@@ -98,7 +103,12 @@ export function registerPartyIpc(): void {
 
   ipcMain.handle('party:join', (_event, args: unknown) => {
     const raw = asRecord(args)
-    return joinParty(asText(raw.address), asText(raw.code), asText(raw.name, '听众'))
+    return joinParty(
+      asText(raw.address),
+      asText(raw.code),
+      asText(raw.name, '听众'),
+      asText(raw.pass)
+    )
   })
 
   ipcMain.handle('party:leave', () => {
@@ -116,6 +126,25 @@ export function registerPartyIpc(): void {
   ipcMain.handle('party:public', (_event, args: unknown) => {
     setPublicAddress(asText(asRecord(args).address))
     return partyState()
+  })
+
+  ipcMain.handle('party:rename', (_event, args: unknown) => {
+    renameRoom(asText(asRecord(args).name))
+    return partyState()
+  })
+
+  /* 房间码与口令都只有房主能改；客人调用时 room.ts 会原样返回当前状态。 */
+  ipcMain.handle('party:code', (_event, args: unknown) => {
+    return setRoomCode(asText(asRecord(args).code))
+  })
+
+  ipcMain.handle('party:password', (_event, args: unknown) => {
+    return setHostPassword(asText(asRecord(args).password))
+  })
+
+  /* 请出某人：只有房主有效，客人调用时 room.ts 原样返回。 */
+  ipcMain.handle('party:kick', (_event, args: unknown) => {
+    return kickMember(asText(asRecord(args).id))
   })
 
   ipcMain.handle('party:chat', (_event, args: unknown) => {
@@ -197,6 +226,14 @@ export function registerPartyIpc(): void {
   onTunnelBroadcast()
 
   ipcMain.handle('party:tunnelState', () => tunnelState())
+
+  /*
+   * 同一网络里凭房间码找房间。找不到就返回 null，由界面退回去让房主发地址——
+   * 发现是省事的一条近路，不是唯一的路。
+   */
+  ipcMain.handle('party:discover', async (_event, args: unknown) => {
+    return await discover(asText(asRecord(args).code))
+  })
 
   ipcMain.handle('party:state', () => partyState())
 }

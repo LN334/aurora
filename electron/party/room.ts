@@ -6,6 +6,8 @@ import { networkInterfaces } from 'node:os'
 import { Readable } from 'node:stream'
 import { WebSocket, WebSocketServer } from 'ws'
 import { upstreamHeaders } from '../upstream-headers.ts'
+import { cleanCode } from './code.ts'
+import { startAnswering, stopAnswering } from './discover.ts'
 
 /**
  * 一起听：局域网房间。
@@ -85,6 +87,13 @@ export interface PartyState {
   addresses: string[]
   /** 6 位房间码，客人在 hello 里带回来。 */
   code: string
+  /**
+   * 房间名，房主起。
+   *
+   * 空串是「还没起名」，界面显示默认的那句；不能拿它当「房间叫空字符串」——
+   * 客人看到标题是空的会以为没连上。
+   */
+  name: string
   members: PartyMember[]
   now: PartyNow | null
   /**
@@ -102,6 +111,28 @@ export interface PartyState {
    * 客人没账号就听不到——这是一个明确的取舍，不是隐藏开关。
    */
   relay: boolean
+  /**
+   * 房间有没有上锁。
+   *
+   * 密码本身不出主进程：广播给客人的状态里只有这一位。设了密码的房间，新人
+   * 得在 hello 里带上它；已经在房里的人不受影响——改密码不是踢人。
+   */
+  locked: boolean
+  /**
+   * 客人这一侧：还没收到房主的第一份状态。
+   *
+   * 加入是两段——连上端口，和握手成事。中间这一截如果直接显示房间页，用户
+   * 看到的就是一个「0 人、没有在播的歌」的空房间；连不上的话，这个空房间
+   * 还会一直挂着，看起来像进成功了一个没人的房。
+   */
+  connecting: boolean
+  /**
+   * 被房主拒掉的原因；空串表示没被拒过。
+   *
+   * 和 `error` 分开：`error` 是给人看的一句话，这一位是给界面判断用的
+   * 「门没开」——被拒之后不该再替用户自动重连同一个房间。
+   */
+  refused: string
   /**
    * 房间里最近的话。
    *
@@ -157,10 +188,15 @@ function idle(): PartyState {
     address: '',
     addresses: [],
     code: '',
+    /* 房间名：房主起的，空串表示还没起，界面用默认那句。 */
+    name: '',
     members: [],
     now: null,
     publicAddress: '',
     relay: true,
+    locked: false,
+    connecting: false,
+    refused: '',
     messages: [],
     error: ''
   }
@@ -190,6 +226,8 @@ function makeCode(): string {
   for (const byte of bytes) code += CODE_ALPHABET[byte % CODE_ALPHABET.length]
   return code
 }
+
+/* 房间码归一放在 code.ts：房间与局域网发现两边都要用同一套规则。 */
 
 /**
  * 这台机器的全部局域网地址。
@@ -249,6 +287,13 @@ interface Peer {
 const peers = new Map<WebSocket, Peer>()
 let hostServer: WebSocketServer | null = null
 let hostCode = ''
+/**
+ * 房主设的进房口令；空串表示这间房不上锁。
+ *
+ * 只活在内存里：房间本身也是临时的，关了就该忘掉。它也不进 `PartyState`——
+ * 那份状态会广播给房间里所有人，密码放进去等于当场告诉每个客人。
+ */
+let hostPassword = ''
 let hostPort = 0
 let guestSocket: WebSocket | null = null
 
@@ -450,10 +495,14 @@ export function startHost(name: string, port = 0): PartyState {
     address: '',
     addresses: [],
     code: hostCode,
+    name: '',
     members: [{ id: 'host', name, host: true }],
     now: null,
     publicAddress: '',
     relay: true,
+    locked: false,
+    connecting: false,
+    refused: '',
     messages: [],
     error: ''
   })
@@ -467,6 +516,17 @@ export function startHost(name: string, port = 0): PartyState {
       addresses: lanAddresses().map((ip) => ip + ':' + hostPort)
     })
     broadcast(current)
+    /*
+     * 同一网络里凭房间码就能找过来：朋友不必再抄一遍 `IP:端口`。
+     *
+     * lookup 是现取的——房间名、密码、端口在房间活着的时候都能改，缓存一份
+     * 就会出现「明明改了名，朋友还是看到旧名字」。
+     */
+    startAnswering(() =>
+      hostPort
+        ? { code: hostCode, port: hostPort, name: current.name, locked: hostPassword !== '' }
+        : null
+    )
   })
   server.on('connection', (socket) => {
     socket.on('message', (raw) => {
@@ -477,8 +537,20 @@ export function startHost(name: string, port = 0): PartyState {
         return
       }
       if (message.t === 'hello') {
-        if (String(message.code ?? '').toUpperCase() !== hostCode) {
-          socket.send(JSON.stringify({ t: 'refused', reason: '房间码不对' }))
+        /*
+         * 两道门，先房再锁。
+         *
+         * 房间码是房间号，念给别人听是正常的；密码是锁，只给被邀请的人。
+         * 先核房号再核口令，拒绝的理由才对得上——码都没对上的人，不必知道
+         * 这间房有没有设口令。
+         */
+        if (cleanCode(String(message.code ?? '')) !== hostCode) {
+          socket.send(JSON.stringify({ t: 'refused', reason: '房间码不对：跟房主再核对一遍那几位' }))
+          socket.close()
+          return
+        }
+        if (hostPassword && String(message.pass ?? '') !== hostPassword) {
+          socket.send(JSON.stringify({ t: 'refused', reason: '房间密码不对：这间房设了口令' }))
           socket.close()
           return
         }
@@ -536,6 +608,8 @@ export function startHost(name: string, port = 0): PartyState {
 
 export function stopParty(): void {
   clearStreams()
+  /* 房间关了就不该再答话：留着的话，朋友会找到一个连不上的「房间」。 */
+  stopAnswering()
   if (hostHttp) {
     try {
       hostHttp.close()
@@ -565,6 +639,7 @@ export function stopParty(): void {
     guestSocket = null
   }
   hostCode = ''
+  hostPassword = ''
   hostPort = 0
   publish(idle())
 }
@@ -578,6 +653,90 @@ export function setPublicAddress(raw: string): void {
   if (current.role !== 'host') return
   publish({ publicAddress: raw.trim().slice(0, 80) })
   broadcast(current)
+}
+
+/**
+ * 房主给房间起名。
+ *
+ * 空串等于恢复默认，不是「一个没有名字的房间」——标题空着比没有标题更让人担心。
+ * 客人那边调用无效果：名字是房间的属性，不是谁的偏好。
+ */
+export function renameRoom(raw: string): void {
+  if (current.role !== 'host') return
+  const name = raw.trim().replace(/\s+/g, ' ').slice(0, 24)
+  if (name === current.name) return
+  publish({ name })
+  broadcast(current)
+}
+
+/**
+ * 房主把房间码改成自己好念的那一串。
+ *
+ * 随机码的问题不是不好猜，是不好念：`K7QMX2` 在电话里要念半天。改成
+ * `PARTY` 之后一句话就说完，同一条邀请两个人念出来还是一个东西。
+ *
+ * 只收字母与数字、4–8 位。放任更长更花，念错的概率只会跟着涨——这个码是
+ * 给人念的，不是给机器存的。
+ */
+export function setRoomCode(raw: string): PartyState {
+  if (current.role !== 'host') return current
+  const next = cleanCode(raw)
+  if (next.length < 4) {
+    publish({ error: '房间码至少 4 位，只能是字母和数字' })
+    return current
+  }
+  if (next === hostCode) return current
+  hostCode = next
+  publish({ code: next, error: '' })
+  broadcast(current)
+  return current
+}
+
+/**
+ * 房主给房间上锁。
+ *
+ * 空串是解锁，不是「设一个空密码」。锁定只影响**接下来**要进的人：已经在
+ * 房里的人不会被赶出去——改口令是为了挡住陌生人，不是为了踢熟人。
+ */
+export function setHostPassword(raw: string): PartyState {
+  if (current.role !== 'host') return current
+  const next = raw.trim().slice(0, 32)
+  if (next === hostPassword) return current
+  hostPassword = next
+  publish({ locked: hostPassword !== '', error: '' })
+  broadcast(current)
+  return current
+}
+
+/**
+ * 房主把某个人请出房间。
+ *
+ * 密码能挡住不认识的人，挡不住「密码被转发到群里」之后进来的那几位。已经
+ * 进来的人只能请出去——而且请出去之后不能让他自动重连回来，否则一秒钟后
+ * 他又在房间里，看起来像是请人这个按钮坏了。
+ *
+ * 客人调用无效果：一个客人能踢别人，这间房就没法待了。
+ */
+export function kickMember(id: string): PartyState {
+  if (current.role !== 'host' || !id || id === 'host') return current
+  for (const [socket, peer] of peers) {
+    if (peer.id !== id) continue
+    try {
+      socket.send(JSON.stringify({ t: 'kicked', reason: '房主把你请出了房间' }))
+    } catch {
+      /* 已经断了 */
+    }
+    try {
+      socket.close()
+    } catch {
+      /* 已经断了 */
+    }
+    peers.delete(socket)
+    break
+  }
+  publish({ members: membersNow() })
+  broadcast(current)
+  return current
 }
 
 /** 房主开关转发。客人调用无效果。 */
@@ -624,34 +783,58 @@ export function sendChat(raw: string): void {
  * 地址要么 `1.2.3.4:7890`，要么带 `ws://` 前缀；房间码在这里只做大写归一，
  * 认不认是房主那边的事——拒绝理由由房主发回，界面照原样显示。
  */
-export function joinParty(url: string, code: string, name: string): PartyState {
+export function joinParty(url: string, code: string, name: string, pass = ''): PartyState {
   stopParty()
   const trimmed = url.trim()
   if (!trimmed) {
     publish({ error: '先填房主的地址' })
     return current
   }
+  const wanted = cleanCode(code)
   const target = /^wss?:\/\//.test(trimmed) ? trimmed : 'ws://' + trimmed
   const socket = new WebSocket(target)
   guestSocket = socket
   /* 界面上那一行是给人看的：wss:// 前缀对判断「连没连上」没有帮助。 */
   const shown = trimmed.replace(/^wss?:\/\//i, '')
-  publish({ role: 'guest', address: shown, code: code.trim().toUpperCase(), error: '' })
+  publish({ role: 'guest', address: shown, code: wanted, connecting: true, error: '', refused: '' })
+
+  /*
+   * 一次加入只有两种结局：房主回了状态，或者没有。
+   *
+   * 以前三种失败（码不对、连不上、房主不回话）都只往 error 里写一句话，role
+   * 还停在 guest——界面上就是「进了一个没有人的房间」，退回去再进来还是它。
+   * 现在失败一律回到 idle，把原因留在入口页。空房间只该出现在真的没人的时候。
+   */
+  let failed = false
+  let waitTimer: ReturnType<typeof setTimeout> | null = null
+  const fail = (reason: string): void => {
+    if (failed) return
+    failed = true
+    if (waitTimer) clearTimeout(waitTimer)
+    waitTimer = null
+    guestSocket = null
+    try {
+      socket.close()
+    } catch {
+      /* 已经断了 */
+    }
+    publish({ ...idle(), error: reason, refused: reason })
+  }
 
   /*
    * 握上手却迟迟没有一份状态——多半是两边版本对不上，或者房主那边卡住了。
    *
-   * 之前这种情况界面就一直停在「正在加入的一起听 · 0 人」，用户只能猜是网、
-   * 是码、还是对面根本没开。等六秒给一句能照做的话，比一直转圈有用。
+   * 等六秒给一句能照做的话，比一直转圈有用：用户至少知道该去核对版本或让
+   * 房主重开，而不是对着一个空的房间页猜。
    */
-  let heard = false
-  const waitTimer = setTimeout(() => {
-    if (heard || guestSocket !== socket) return
-    publish({ error: '连上了，但房主没有回话：确认两台版本一致，或者让房主重开一次房间' })
+  waitTimer = setTimeout(() => {
+    fail('连上了，但房主没有回话：确认两台版本一致，或者让房主重开一次房间')
   }, 6000)
 
   socket.on('open', () => {
-    socket.send(JSON.stringify({ t: 'hello', id: partyIdentity(), code: code.trim().toUpperCase(), name }))
+    socket.send(
+      JSON.stringify({ t: 'hello', id: partyIdentity(), code: wanted, name, pass: pass.trim() })
+    )
   })
 
   socket.on('message', (raw) => {
@@ -662,26 +845,32 @@ export function joinParty(url: string, code: string, name: string): PartyState {
       return
     }
     if (message.t === 'refused') {
-      clearTimeout(waitTimer)
-      publish({ error: String(message.reason ?? '房主拒绝了这次加入') })
+      fail(String(message.reason ?? '房主拒绝了这次加入'))
+      return
+    }
+    /* 被请出去和「码不对」一样是终局：回入口、不再自动重连。 */
+    if (message.t === 'kicked') {
+      fail(String(message.reason ?? '房主把你请出了房间'))
       return
     }
     if (message.t === 'state' && message.state && typeof message.state === 'object') {
-      heard = true
-      clearTimeout(waitTimer)
+      if (waitTimer) clearTimeout(waitTimer)
+      waitTimer = null
       const incoming = message.state as unknown as PartyState
-      publish({ ...incoming, role: 'guest', address: shown, error: '' })
+      publish({ ...incoming, role: 'guest', address: shown, connecting: false, error: '', refused: '' })
     }
   })
 
   socket.on('error', () => {
-    clearTimeout(waitTimer)
     // 公网场景下「是否在同一网络」是句错话：地址、房间码、隧道任一处不对都连不上。
-    publish({ error: '连不上房主：检查地址与房间码，房主那边如果走的是公网，还要确认隧道开着' })
+    fail('连不上房主：检查地址与房间码，房主那边如果走的是公网，还要确认隧道开着')
   })
 
   socket.on('close', () => {
-    clearTimeout(waitTimer)
+    /* 已经按失败收过尾的那一次，close 只是它的回声，不该再把原因改成「房间已关闭」。 */
+    if (failed) return
+    if (waitTimer) clearTimeout(waitTimer)
+    waitTimer = null
     if (current.role === 'guest') {
       guestSocket = null
       publish({ ...idle(), error: '房间已关闭：房主结束了这一趟，或者他那边断网、隧道断了' })

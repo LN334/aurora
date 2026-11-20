@@ -27,6 +27,7 @@ import { warmChosenPlatforms } from './features/online/push-platforms'
 import { useLikes } from './features/favorites/likes'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { useAccounts } from './features/accounts/store'
+import { useParty } from './features/party/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
 import { applyRowDensity, readRowDensity } from './features/settings/row-density'
 import { applyLyricSize, readLyricSize } from './features/settings/lyric-size'
@@ -52,6 +53,14 @@ applyTheme(readTheme())
 applyBackdrop(readBackdrop())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
+/*
+ * 一起听的状态常驻订阅。
+ *
+ * 以前这一步在「一起听」页挂载时才做：人没进过那一页，别人点他发来的邀请
+ * 链接，主进程把链接递过来也没有人接——点了没反应。房间本来就活在主进程里，
+ * 界面开没开都不影响它，那就该从启动起就听着。
+ */
+useParty.getState().init()
 /*
  * The same for the library, which lives in the main process.
  *

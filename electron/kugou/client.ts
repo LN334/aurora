@@ -80,7 +80,10 @@ import type {
 let activeProfileId = 'default'
 
 export function setActiveProfile(profileId: string): boolean {
-  activeProfileId = String(profileId ?? '').trim() || 'default'
+  /* 空值不覆盖已有档案，理由同 netease/client.ts 的 setActiveProfile。 */
+  const next = String(profileId ?? '').trim()
+  if (!next) return false
+  activeProfileId = next
   return true
 }
 

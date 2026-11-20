@@ -6,6 +6,7 @@ import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { User } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { sourceLabelById } from '../features/online/registry'
 
 /**
@@ -59,7 +60,13 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
       <section className="rh-sec">
         {/* 同收藏专辑：页头已经写着「关注艺人」，这一行不再复述一遍。 */}
         <div className="shelf-bar">
-          <ShelfSearch value={query} placeholder="搜索艺人" onChange={setQuery} />
+          <ShelfSearch
+          value={query}
+          placeholder="搜索艺人"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
           <span className="shelf-bar__count">
             {query.trim() ? `${shown.length} / ${artists.length} 位` : `${artists.length} 位`}
           </span>

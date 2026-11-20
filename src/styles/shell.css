@@ -705,6 +705,26 @@
   font-size: var(--fs-meta);
 }
 
+/*
+ * 收藏列表上方那一行进度。
+ *
+ * 它替代的是整页的「正在读取各平台的收藏…」：那句话在数据没到的时候是对的，
+ * 到了以后还留着，就把「读了一半」说成「你没有」。现在退成一行 11px 的旁注，
+ * 只报「还差几家、到了多少首」。
+ */
+.lk-stage {
+  margin: 0 0 var(--s2);
+  padding-left: 1px;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 有平台没读到：同一行字换成琥珀色。收藏没丢，只是这次没问到。 */
+.lk-stage.is-warn {
+  color: #d9a441;
+}
+
 /* 「我喜欢的音乐」的搜索行：框在左，命中数在右。 */
 /*
  * 搜索这一行是「下面那份列表的工具条」，不是独立一段内容：上边不留下一次
@@ -715,6 +735,15 @@
   align-items: center;
   gap: var(--s3);
   margin: 0 0 var(--s4);
+}
+
+/*
+ * 筛选框收起之后这一行是空的——但它仍然是一个带下边距的 flex 行，
+ * 在列表上方留出一条谁也不知道在等什么的空白。空着就整行撤掉。
+ * 展开、或者有命中计数时它才回来。
+ */
+.lk-search:empty {
+  display: none;
 }
 .lk-search__count {
   color: var(--text-low);

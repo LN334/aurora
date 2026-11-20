@@ -15,10 +15,14 @@
    */
   margin: 4px 16px 12px;
   border-radius: 16px;
-  padding: 6px var(--s4) 4px;
+  /*
+   * 下内边距从 4px 提到 9px：进度条原来几乎是贴着玻璃下缘画的，
+   * 时间数字被挤在那条弧线上，看起来像被裁掉半截。
+   */
+  padding: 6px var(--s4) 9px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
   /*
    * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
    * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
@@ -412,7 +416,7 @@
   height: 20px;
 }
 .pb-rail .bar__track {
-  height: 3px;
+  height: 4px;
   transition: height 120ms var(--ease-out);
 }
 .pb-rail .bar:hover .bar__track,
@@ -428,7 +432,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  /* 四个像素是「挤」，六个是「一排」：图标之间要能看出是各自独立的键。 */
+  gap: 6px;
 }
 
 /* 视图键与音量不是一个层级，用一根发丝线分开。 */

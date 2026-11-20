@@ -627,12 +627,20 @@ const api = {
    */
   party: {
     host: (name: string, port?: number) => ipcRenderer.invoke('party:host', { name, port }),
-    join: (address: string, code: string, name: string) =>
-      ipcRenderer.invoke('party:join', { address, code, name }),
+    join: (address: string, code: string, name: string, pass = '') =>
+      ipcRenderer.invoke('party:join', { address, code, name, pass }),
     leave: () => ipcRenderer.invoke('party:leave'),
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
+    rename: (name: string) => ipcRenderer.invoke('party:rename', { name }),
+    /* 房主的门：房间码与口令。客人调用时主进程原样返回，不会改到别人的房间。 */
+    setCode: (code: string) => ipcRenderer.invoke('party:code', { code }),
+    setPassword: (password: string) => ipcRenderer.invoke('party:password', { password }),
+    /* 只凭房间码在同一个网络里找房；找不到回来的是 null。 */
+    discover: (code: string) => ipcRenderer.invoke('party:discover', { code }),
+    /* 房主把某个成员请出房间。 */
+    kick: (id: string) => ipcRenderer.invoke('party:kick', { id }),
     setRelay: (relay: boolean) => ipcRenderer.invoke('party:relay', { relay }),
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
     sakuraDelete: (token: string, id: number) => ipcRenderer.invoke('sakura:delete', { token, id }),
@@ -662,6 +670,15 @@ const api = {
       const handler = (_event: unknown, state: unknown): void => listener(state)
       ipcRenderer.on('party:state', handler)
       return () => ipcRenderer.removeListener('party:state', handler)
+    },
+    /*
+     * 邀请链接：主进程从命令行或第二次启动里捞到 `aurora://join?…` 就推过来。
+     * 只递原文，解析交给渲染层那份 invite.ts。
+     */
+    onInvite: (listener: (link: string) => void) => {
+      const handler = (_event: unknown, link: unknown): void => listener(String(link ?? ''))
+      ipcRenderer.on('party:invite', handler)
+      return () => ipcRenderer.removeListener('party:invite', handler)
     }
   }
 }

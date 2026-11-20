@@ -118,6 +118,12 @@
      fill-mode 为 both 时 transform 的矩阵会一直留在计算样式里，把容器变成
      fixed 子元素的定位祖先，抽屉里的固定层就跟着错位。 */
   animation: panelIn var(--dur-3) var(--ease-out) both;
+  /*
+   * 内容比可视高度高时，抽屉自己滚，而不是让底下的按钮掉到播放条后面。
+   * 以前没有这一行：均衡器的三颗底按钮正好被播放条盖住，看得见一半、点不到。
+   */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 @keyframes panelIn {
@@ -149,12 +155,17 @@
   }
 }
 
+/* 滚起来之后标题与开关留在原地：滚动的是推子与按钮，不是面板的身份。 */
 .panel__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--s3);
   padding: var(--s4) var(--s4) var(--s3);
   border-bottom: var(--line-soft);
+  background: var(--ink-850);
 }
 
 .panel__title {
@@ -570,14 +581,35 @@
   outline-offset: 2px;
 }
 
-/* 均衡器：推子只占一段固定高度，不再拉满整个抽屉。 */
+/*
+ * 推子区：一块有刻度的面板，不是十个空列。
+ *
+ * 上一版只有十根 3px 的竖轨落在近乎同色的底上，0 dB 又只有一条 0.1 的白线：
+ * 打开抽屉看到的是十片空白，谁也读不出「现在是平的」还是「没加载出来」。
+ * 现在画三种线——上界与下界（0.06）、每 6 dB 一条（0.05）、0 dB 中线（0.14）——
+ * 高度是固定的 318px，所以刻度就是 ±12 与 ±6 的位置，不需要再标数字。
+ */
 .panel__bands {
   flex: 0 0 auto;
   height: 318px;
+  /*
+   * 面板整体是固定高度、内容会超出：抽屉里那三颗按钮曾压到播放条下面。
+   * 让这一截可以缩，缩不动时由外层滚动，也不许把底栏顶出去。
+   */
+  min-height: 0;
   margin: 6px var(--s4) 0;
   padding: 14px 0 8px;
   border-radius: 14px;
-  background: rgb(var(--tint-rgb) / 0.022);
+  background:
+    linear-gradient(rgb(var(--tint-rgb) / 0.14), rgb(var(--tint-rgb) / 0.14)) left 50% / 100% 1px no-repeat,
+    linear-gradient(rgb(var(--tint-rgb) / 0.06), rgb(var(--tint-rgb) / 0.06)) left top / 100% 1px no-repeat,
+    linear-gradient(rgb(var(--tint-rgb) / 0.06), rgb(var(--tint-rgb) / 0.06)) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(
+      to bottom,
+      rgb(var(--tint-rgb) / 0.045) 0 1px,
+      transparent 1px 25%
+    ),
+    rgb(var(--tint-rgb) / 0.022);
 }
 .panel__foot {
   margin-top: auto;
@@ -610,13 +642,9 @@
 }
 
 
-/* 推子区上下留白均分，并在两端补一条参考线。 */
+/* 推子区上下留白均分：位移交给外边距，刻度线上面那一段已经画了。 */
 .panel__bands {
   margin: auto var(--s4);
-  background:
-    linear-gradient(rgb(var(--tint-rgb) / 0.05), rgb(var(--tint-rgb) / 0.05)) left top / 100% 1px no-repeat,
-    linear-gradient(rgb(var(--tint-rgb) / 0.05), rgb(var(--tint-rgb) / 0.05)) left bottom / 100% 1px no-repeat,
-    rgb(var(--tint-rgb) / 0.022);
 }
 
 /*
@@ -1250,41 +1278,68 @@ body.is-party-window {
 }
 
 /* —— 入口 —— */
+/*
+ * 两块合起来读作一块。
+ *
+ * 原来两张卡隔着 24px 并排，各自只装得下一行标题和一句说明，下面空出一大截——
+ * 读起来是两张没填满的占位卡。中缝取消、圆角只留外圈两道，它就成了「一页一件事，
+ * 左边开、右边进」的一张板。高度也降下来，空白不再被拉长成四分之三张卡。
+ */
 .party-pick {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s5);
+  gap: 0;
   width: 100%;
-  /* 跟内容区同宽，不留一条右边空着。 */
   max-width: none;
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
+  border-radius: 18px;
+  background: rgb(var(--tint-rgb) / 0.045);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.16);
+  overflow: hidden;
 }
 
 .party-pick__card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--s2);
-  padding: var(--s7) var(--s6);
-  min-height: 200px;
-  /* 壁纸太亮时，纯 tint 会把字糊掉：背后模糊一层，细节压下去，字才立得住。 */
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 16px;
-  /*
-   * 统一一层「半透的深」：纯 tint 在这张亮壁纸上会把字糊掉，纯 backdrop-filter
-   * 在两张卡上表现还不一致（一深一浅）。0.5 的墨色既压得住字，也还看得见壁纸。
-   */
-  background: rgb(var(--ink-850-rgb) / 0.5);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
+  gap: var(--s3);
+  padding: var(--s6);
+  min-height: 168px;
+  /* 外圈由 .party-pick 画，这里只留中间那道缝。 */
+  border: 0;
+  border-right: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 0;
+  /* 底色与描边都由外层那块板给了，这里只留给悬停和主色微光。 */
+  position: relative;
+  background: none;
   color: var(--text-hi);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out);
+}
+
+/* 右栏没有中缝。 */
+.party-pick__card:last-child {
+  border-right: 0;
 }
 
 .party-pick__card:hover:not(.is-flat) {
-  border-color: rgb(var(--accent-rgb) / 0.45);
-  background: rgb(var(--ink-850-rgb) / 0.85);
+  background: rgb(var(--tint-rgb) / 0.06);
+}
+
+
+
+/*
+ * 两张卡有主次：创建是这一页的主动作，给它一层从左上角散开的主色微光。
+ * 两张一样白、一样空的卡并排放着，读者看不出该先点哪一张。
+ */
+.party-pick__card:first-child:not(.is-flat) {
+  background-image: radial-gradient(
+    120% 130% at 0% 0%,
+    rgb(var(--accent-rgb) / 0.16),
+    transparent 62%
+  );
 }
 
 .party-pick__card.is-flat {
@@ -1292,19 +1347,20 @@ body.is-party-window {
 }
 
 .party-pick__card strong {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .party-pick__icon {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: rgb(var(--accent-rgb) / 0.18);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgb(var(--accent-rgb) / 0.2);
   color: var(--accent);
-  font-size: 17px;
+  font-size: 19px;
 }
 
 .party-pick__hint {
@@ -1318,7 +1374,7 @@ body.is-party-window {
   gap: var(--s2);
   width: 100%;
   margin-top: auto;
-  padding-top: var(--s3);
+  padding-top: var(--s2);
 }
 
 /*
@@ -1369,6 +1425,32 @@ body.is-party-window {
   height: 36px;
 }
 
+/* 加入表单：两行——地址与那颗按钮一行，房间码与密码各占半行。 */
+.party-pick__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: 100%;
+  margin-top: auto;
+  padding-top: var(--s2);
+}
+
+.party-pick__form .party-pick__join {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* 房间码与密码都是短字符串，各占半行才不显得空。 */
+.party-pick__join.is-split .input {
+  flex: 1 1 0;
+}
+
+/* 正在加入时，创建房间那颗卡不该还能点：同一台机器上开不了两个房间。 */
+.party-pick__card.is-disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* —— 房间 —— */
 .party-room {
   display: flex;
@@ -1377,33 +1459,79 @@ body.is-party-window {
   /* flex 容器里的子项宽度是 auto，不写这一条就只按内容撑开，右边空一大截。 */
   width: 100%;
   max-width: none;
-  padding: var(--s5) var(--s6);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 16px;
-  background: rgb(var(--ink-850-rgb) / 0.5);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
+  /*
+   * 不再是一张包住整页的大卡。
+   *
+   * 专辑页、艺人页、歌单页、最近播放、收藏页全是「头 + 统计条 + 内容」平铺在
+   * 壁纸上，只有局部（统计条、列表行）带一条发丝线；一起听却把全部内容装进一块
+   * 62% 墨的圆角板里，于是它读起来是另一个应用里弹出来的面板，而不是同一个
+   * 应用里的一页。这里去掉板子，版式交给下面几条与详情页头部对齐的规则。
+   */
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  gap: var(--s5);
 }
 
+/* 和详情页的头部同一套盒模型，只是没有左边那张图。 */
 .party-room__head {
   display: flex;
   align-items: flex-start;
-  gap: var(--s4);
+  gap: 26px;
+  margin: 6px 0 0;
 }
 
+/* 标题字号与权重照抄详情页：同一个应用里的页标题只有一档。 */
 .party-room__title {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--text-hi);
+}
+
+/* 房主点标题就能改名：悬停给一道虚线下划线，说明这里能改。 */
+.party-room__title.is-editable {
+  cursor: text;
+}
+
+.party-room__title.is-editable:hover {
+  text-decoration: underline dotted rgb(var(--tint-rgb) / 0.3);
+  text-underline-offset: 7px;
+}
+
+/* 编辑态：同一个字号，换成输入框，宽到装得下二十四个字。 */
+.party-room__title--input {
+  width: min(100%, 480px);
+  padding: 4px 10px;
+  margin-left: -10px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.55);
+  border-radius: 12px;
+  background: rgb(var(--tint-rgb) / 0.07);
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.14);
+  color: var(--text-hi);
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  outline: none;
 }
 
 .party-room__meta {
   display: flex;
   align-items: center;
-  gap: 7px;
+  flex-wrap: wrap;
+  gap: 9px;
   margin: 0;
-  font-size: var(--fs-micro);
-  color: var(--text-low);
+  font-size: 12.5px;
+  color: var(--text-mid);
 }
 
 .party-room__meta b {
@@ -1419,6 +1547,124 @@ body.is-party-window {
   margin-left: auto;
 }
 
+/* 房间码：房主点一下能改，悬停给虚线下划线——和房间名同一个手势。 */
+.party-room__code.is-editable {
+  cursor: text;
+}
+
+.party-room__code.is-editable:hover {
+  text-decoration: underline dotted rgb(var(--tint-rgb) / 0.3);
+  text-underline-offset: 5px;
+}
+
+/* 编辑态：字号跟着元信息走，别在那一行里撑出一个大框。 */
+.party-room__code-input {
+  width: 112px;
+  padding: 2px 8px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.55);
+  border-radius: 8px;
+  background: rgb(var(--tint-rgb) / 0.07);
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.14);
+  color: var(--text-hi);
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  outline: none;
+}
+
+/* 元信息里的「已上锁」：一个安静的标记，不跟房间码抢位置。 */
+.party-room__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+}
+
+.party-room__lock::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* 多网卡：房主点一条，邀请链接就用这一条。 */
+.party-room__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.party-room__pick {
+  padding: 3px 9px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.16);
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.06);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--ease-out),
+    background 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.party-room__pick:hover {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+
+.party-room__pick.is-chosen {
+  border-color: rgb(var(--accent-rgb) / 0.55);
+  background: rgb(var(--accent-rgb) / 0.16);
+  color: var(--text-hi);
+}
+
+/* 房间密码：说明、输入框与两个动作在一条线上，窄屏时自然折行。 */
+.party-room__guard {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.party-room__guard > b {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-hi);
+}
+
+.party-room__guard-state {
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+/* 和公网地址那一格同一套：低底、细描边，聚焦时 accent 边加一道光环。 */
+.party-room__guard .input {
+  width: 190px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.26);
+  border-radius: 9px;
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  outline: none;
+}
+
+.party-room__guard .input:focus,
+.party-room__row .input:focus {
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.16);
+}
+
 /* 正在播放：一块比周围深一点的底，左边封面位。 */
 .party-room__now {
   display: flex;
@@ -1431,14 +1677,7 @@ body.is-party-window {
   background: rgb(var(--tint-rgb) / 0.03);
 }
 
-.party-room__cover {
-  width: 96px;
-  height: 96px;
-  flex: none;
-  border-radius: 12px;
-  background: linear-gradient(140deg, #3b6ea8, #1e2f4a);
-}
-
+/* 房间不放头图：这一页要认的是标题与那串房间码，不是一张装饰。 */
 .party-room__song {
   display: flex;
   flex-direction: column;
@@ -1462,13 +1701,13 @@ body.is-party-window {
 }
 
 .party-room__empty strong {
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
+  font-size: var(--fs-body);
+  color: var(--text-hi);
 }
 
 .party-room__empty span {
-  font-size: var(--fs-micro);
-  color: var(--text-low);
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
 }
 
 .party-room__tools {
@@ -1503,9 +1742,9 @@ body.is-party-window {
 .party-room__foot {
   margin: var(--s2) 0 0;
   padding-top: var(--s3);
-  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
-  font-size: var(--fs-micro);
-  color: var(--text-low);
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.1);
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
 }
 
 .party-page__hint {
@@ -1539,10 +1778,10 @@ body.is-party-window {
 .party-page__main,
 .party-page__side {
   padding: var(--s5);
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
   border-radius: 16px;
-  background: rgb(var(--ink-850-rgb) / 0.5);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
+  /* 同上：不再叠一层白，壁纸要从这里透出来。 */
+  background: none;
 }
 
 .party-page__side {
@@ -1633,10 +1872,17 @@ body.is-party-window {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
 }
 
-/* 房间里的连接信息：一行一件事，左边一颗灯。 */
+/*
+ * 连接信息：三张并排的小卡，不是三行「灯 + 标签 + 值」。
+ *
+ * 三个值回答的是同一个问题——别人怎么进得来——并排才比得出来；排成三行时，
+ * 眼睛要来回扫三次才能确认公网那条通不通。每张卡里标签在上、地址在下，
+ * 地址用正文字号，因为那才是房主真正要念给别人听的那串东西。
+ */
 .party-room__lines {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1645,24 +1891,157 @@ body.is-party-window {
 }
 
 .party-room__lines li {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'lamp name'
+    'lamp value';
   align-items: center;
-  gap: var(--s2);
+  column-gap: 10px;
+  padding: 11px var(--s3);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 12px;
+  /* 一薄层把字托起来：整块不做白板，但也不让地址压在壁纸的花上。 */
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.14);
+}
+
+.party-room__lines li > .party__lamp {
+  grid-area: lamp;
 }
 
 .party-room__lines b {
+  grid-area: name;
+  min-width: 0;
+  font-size: var(--fs-micro);
   font-weight: 400;
-  color: var(--text-low);
-  min-width: 42px;
+  /* 标签压在亮壁纸上：low 那档在这里读不出来，提到 mid。 */
+  color: var(--text-mid);
 }
 
 .party-room__lines span {
+  grid-area: value;
+  overflow: hidden;
   color: var(--text-hi);
+  font-size: var(--fs-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .party-room__lines .rh-btn {
   margin-left: auto;
   padding: 4px 10px;
+}
+
+/* 邀请：两种写法各占一行，长链接自己换行，不把整页撑出去。 */
+.party-room__invite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px var(--s3);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 12px;
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.14);
+}
+
+.party-room__invite-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.party-room__invite-row > b {
+  flex: 0 0 auto;
+  font-size: var(--fs-micro);
+  font-weight: 400;
+  color: var(--text-mid);
+}
+
+/* 点一下复制：悬停给一层主色，说明这不是普通的一段字。 */
+.party-room__invite-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgb(var(--tint-rgb) / 0.05);
+  color: var(--text-hi);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: var(--fs-meta);
+  line-height: 1.7;
+  word-break: break-all;
+  cursor: pointer;
+  transition: background 140ms var(--ease-out);
+}
+
+.party-room__invite-text:hover {
+  background: rgb(var(--accent-rgb) / 0.16);
+}
+
+/* 这一行解释「什么时候发码、什么时候发链接」，别让它抢走两行邀请的份量。 */
+.party-room__invite-note {
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--text-mid);
+}
+
+/* 成员名单：一排小胶囊，房主那边每个客人带一个请出键。 */
+.party-room__members {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.party-room__members > b {
+  font-size: var(--fs-micro);
+  font-weight: 400;
+  color: var(--text-mid);
+}
+
+.party-room__member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.06);
+  color: var(--text-mid);
+  font-size: var(--fs-micro);
+  line-height: 1;
+}
+
+.party-room__member.is-host {
+  border-color: rgb(var(--accent-rgb) / 0.4);
+  color: var(--text-hi);
+}
+
+/* 请出：一个小圆叉，平时安静，悬停才露出拒绝的颜色。 */
+.party-room__kick {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--tint-rgb) / 0.14);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.party-room__kick:hover {
+  /* 与 .rh-btn--danger 同一档红：不可撤销的动作只该红一次。 */
+  background: rgb(217 82 78 / 0.3);
+  color: var(--text-hi);
 }
 
 .party-room__relay {
@@ -1678,19 +2057,10 @@ body.is-party-window {
   justify-content: center;
 }
 
-/* 房间头部：左封面、右信息，和专辑页那套 hero 一致。 */
+/* 房间头部：没有图，一行标题加一行事实，右边一颗动作。 */
 .party-room__head {
   align-items: flex-start;
   gap: var(--s5);
-}
-
-.party-room__head .party-room__cover {
-  width: 132px;
-  height: 132px;
-  border-radius: 12px;
-  object-fit: cover;
-  flex: none;
-  background: linear-gradient(140deg, #3b6ea8, #1e2f4a);
 }
 
 .party-room__info {

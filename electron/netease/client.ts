@@ -64,6 +64,71 @@ const API_PACKAGE = '@neteasecloudmusicapienhanced/api'
 /** How long one upstream call may hang before we call it a network failure. */
 const REQUEST_TIMEOUT_MS = 12_000
 
+/**
+ * 网络抖动下可以安全重发几次，以及每次之间等多久。
+ *
+ * 这不是补丁式的「多试几次」：网易云在这台机器上是真间歇——实测连打六次
+ * `cloudsearch`，第二、三次挂掉（`read ECONNRESET`），第四、五次直接成功。
+ * 上游把连接重置包成一个普通对象 reject（`{status: 502, body: {code: 502}}`），
+ * 于是 `guard` 把一次抖动照实报成失败，页面就变成「这首歌还没有歌词」「喜欢是空的」。
+ * 重试把「一次抖动」和「真的不可用」分开了。
+ */
+const CALL_ATTEMPTS = 3
+const CALL_BACKOFF_MS = [180, 420]
+
+/**
+ * 只读接口的名单——只有它们允许重发。
+ *
+ * 反向列写接口（`like`、`comment_add`、`playlist_*`、登录那一串）更省字，但那样
+ * 以后新加的写接口会默认享受重试，「同一条评论发两遍」这种错不该由默认值埋下。
+ */
+const RETRYABLE = new Set<string>([
+  'cloudsearch',
+  'song_detail',
+  'album',
+  'artist_top_song',
+  'artist_detail',
+  'artist_songs',
+  'artist_album',
+  'lyric',
+  'comment_music',
+  'song_url_v1',
+  'login_status',
+  'user_level',
+  'user_playlist',
+  'playlist_track_all',
+  'playlist_detail',
+  'recommend_songs',
+  'personal_fm_mode',
+  'personal_fm',
+  'personalized_newsong',
+  'personalized',
+  'top_playlist_highquality',
+  'top_playlist',
+  'user_cloud',
+  'likelist',
+  'album_newest',
+  'artist_sublist',
+  'album_sublist'
+])
+
+/**
+ * 这次失败是不是「换个连接再来一次就好了」。
+ *
+ * 上游不抛 Error，抛的是响应信封本身（`{status, body}`），所以 `instanceof Error`
+ * 在这里一律为假，只能按形状读。
+ */
+function isTransientUpstreamError(error: unknown): boolean {
+  const record = asRecord(error)
+  const body = asRecord(record.body)
+  const code = asNumber(record.status) || asNumber(body.code)
+  if (code === 502 || code === 503 || code === 504) return true
+  const text = [record.message, body.msg, body.message]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+  return /ECONNRESET|ETIMEDOUT|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|EPIPE|socket hang up/i.test(text)
+}
+
 const TMP = os.tmpdir()
 const TOKEN_PATH = path.join(TMP, 'anonymous_token')
 const DEVICE_PATH = path.join(TMP, 'aurora_device_id')
@@ -188,7 +253,17 @@ let anonymousCookie = ''
 let activeProfileId = 'default'
 
 export function setActiveProfile(profileId: string): boolean {
-  const next = String(profileId ?? '').trim() || 'default'
+  const next = String(profileId ?? '').trim()
+  /*
+   * 空字符串是「我还没想好」，不是「切回默认档案」——这一条曾经把收藏清空。
+   *
+   * 渲染层在档案还没从磁盘读出来的时候会绑一次空值（`online/store` 的 init 是
+   * `bindProfile(profileId ?? '')`）。以前这一下把主进程刚按 `profiles/` 里最新一份
+   * 挑好的档案踩回 `'default'`，而 `default` 没有会话文件：用户明明登录着，
+   * 「我喜欢的」却是空的，刷新一次页面又回来了——因为那时档案已经加载好。
+   * 现在空值到此为止，不动已有的选择。
+   */
+  if (!next) return false
   if (next !== activeProfileId) {
     /*
      * Switching profiles must not leave the previous account's answers behind.
@@ -430,7 +505,25 @@ async function call(name: keyof Upstream, params: Record<string, unknown>): Prom
   const payload: Record<string, unknown> = { ...params, timeout: REQUEST_TIMEOUT_MS }
   const cookie = cookieForCall()
   if (cookie) payload.cookie = cookie
-  return await fn(payload)
+
+  /*
+   * 只读接口遇到抖动就再来一次。
+   *
+   * 为什么不是「重试三次就完事」：上游把连接重置包成一个普通对象 reject，
+   * 而这个对象没有 `message`，所以 `guard` 只能把原文当字符串写进日志——用户那边
+   * 看到的是「没有歌词」「喜欢是空的」，两种结论中间没有任何提示。
+   * 一次 180ms 后的重发就能把「抖动」和「真的不可用」分开，实测六次里失败两次、
+   * 紧接着就成功。
+   */
+  const attempts = RETRYABLE.has(name) ? CALL_ATTEMPTS : 1
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fn(payload)
+    } catch (error) {
+      if (attempt >= attempts || !isTransientUpstreamError(error)) throw error
+      await sleep(CALL_BACKOFF_MS[Math.min(attempt - 1, CALL_BACKOFF_MS.length - 1)])
+    }
+  }
 }
 
 // --- status --------------------------------------------------------------
@@ -1009,13 +1102,13 @@ function invalidateAccount(): void {
 async function safeAccount(): Promise<NeteaseAccount | null> {
   if (accountCache && Date.now() - accountCache.at < ACCOUNT_TTL_MS) return accountCache.value
 
-  let value: NeteaseAccount | null = null
   try {
     const res = await call('login_status', {})
     const body = asRecord(res.body)
     const payload = payloadOf(body)
     const profile = asRecord(payload.profile)
     const userId = asNumber(profile.userId)
+    let value: NeteaseAccount | null = null
     if (userId) {
       value = {
         userId,
@@ -1025,12 +1118,20 @@ async function safeAccount(): Promise<NeteaseAccount | null> {
         level: await levelOfUser()
       }
     }
+    /*
+     * 只有上游真的答了才缓存。
+     *
+     * 以前无论成败都在末尾写一次缓存（失败时 value 是 null），于是一次
+     * ECONNRESET 就把「没问到」记成了「没登录」，接下来三十秒里每一个需要
+     * uid 的接口都直接返回空——收藏页在启动那一瞬变空、刷新一次又好，
+     * 看起来就是「我喜欢的没了」。没问到就不记账，让下一次调用重新去问。
+     */
+    accountCache = { value, at: Date.now() }
+    return value
   } catch {
-    // Signed out, offline or an expired cookie all look the same from here.
+    // 网络抖了、离线了、cookie 过期了：这一趟没问到，不写缓存，下次重问。
+    return null
   }
-
-  accountCache = { value, at: Date.now() }
-  return value
 }
 
 async function levelOfUser(): Promise<number> {

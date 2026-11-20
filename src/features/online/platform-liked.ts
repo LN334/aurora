@@ -54,7 +54,10 @@ export function invalidatePlatformLiked(): void {
  * 与「没读到」，界面必须分得开。2026-11-17 那次就是这样：上游 502 断了两秒，首页
  * 把「没读到」画成了「我喜欢的音乐 0 首」。
  */
-async function loadPlatformLiked(platforms?: ProviderId[]): Promise<LikedFold> {
+async function loadPlatformLiked(
+  platforms?: ProviderId[],
+  onPart?: (fold: LikedFold, done: number, total: number) => void
+): Promise<LikedFold> {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
@@ -66,28 +69,77 @@ async function loadPlatformLiked(platforms?: ProviderId[]): Promise<LikedFold> {
     (provider) =>
       Boolean(provider.capabilities.likes) && (wanted === null || wanted.has(provider.id))
   )
+  const total = providers.length
+  const parts: LikedPart[] = []
+
+  /*
+   * 一家读回来就先交一次，不等四家到齐。
+   *
+   * 从前这里是 `Promise.all`：哪家慢，整页就等哪家。网易云这个接口慢起来是
+   * 十几秒，于是收藏页在数据其实早就到齐的情况下一直停在「正在读取各平台的收藏…」；
+   * 用户看到的是「我的喜欢没了」。现在慢的那家自己慢，别的先上屏。
+   */
   const lists = await Promise.all(
     providers.map(async (provider): Promise<LikedPart> => {
+      let part: LikedPart
       try {
         /*
          * 必须先把这家 store 叫起来：绑定当前档案、读出账号都发生在 init 里，
          * 跳过去直接取数据的话主进程还停在默认档案上，于是「未登录」。
          */
         await useOnlineStore(provider.id as never).getState().init().catch(() => {})
-        const backend = (getProvider(provider.id)?.backend as PlatformBackend | undefined) ?? null
-        // 这家不提供喜欢，是「没有这条通道」，不是「这次没问出来」。
-        if (!backend?.collection) return { tracks: [], failed: false }
-        const songs = await backend.collection('likes', 200)
-        const tracks = songs.map((song: OnlineSong) => backend.toTrack(song))
+        const impl = getProvider(provider.id)
+        const backend = (impl?.backend as PlatformBackend | undefined) ?? null
         /*
-         * 交一份给喜欢模块：列表上的心形按钮读的是那份缓存。不交的话，这一页
-         * 里的歌在别处（播放条、详情页、跨平台合并的行）看着像没喜欢过。
+         * 分三种：注册表没这家（启动那一瞬）、有这家但后端还没接上、有后端但没有
+         * 喜欢这条通道。前两种是「这次没问到」，第三种是「这家本来就没有」——
+         * 混成一个会让一次冷启动报出「1 家没读到」，而其实什么都没坏。
          */
-        useLikes.getState().seed(provider.id, tracks)
-        return { tracks, failed: false }
-      } catch {
-        return { tracks: [], failed: true }
+        if (!impl || !backend) {
+          part = { tracks: [], failed: true }
+        } else if (!backend.collection) {
+          /*
+           * 这家不支持喜欢：空结果，不算失败。
+           */
+          part = { tracks: [], failed: false }
+        } else {
+          const songs = await backend.collection('likes', 200)
+          /*
+           * 一首坏数据不该毁掉整份收藏。
+           *
+           * `map` 里抛一个异常，581 首就一起没了，页面只好说「没读到」——而其实
+           * 只坏了一首。逐条转，坏的跳过并留一句，其余照常上屏。
+           */
+          const tracks: Track[] = []
+          for (const song of songs as OnlineSong[]) {
+            try {
+              tracks.push(backend.toTrack(song))
+            } catch (error) {
+              console.warn('[liked] ' + provider.id + ' 跳过一条坏数据：', error)
+            }
+          }
+          /*
+           * 交一份给喜欢模块：列表上的心形按钮读的是那份缓存。不交的话，这一页
+           * 里的歌在别处（播放条、详情页、跨平台合并的行）看着像没喜欢过。
+           */
+          useLikes.getState().seed(provider.id, tracks)
+          part = { tracks, failed: false }
+        }
+      } catch (error) {
+        /*
+         * 一个平台整份读失败时留一句。收藏页只会说「N 家没读到」，
+         * 到底是哪家、错在哪，靠这一行；否则排查只能靠猜。
+         */
+        console.warn('[liked] ' + provider.id + ' 读取失败：', error)
+        part = { tracks: [], failed: true }
       }
+      parts.push(part)
+      try {
+        onPart?.(foldLikedParts(parts), parts.length, total)
+      } catch {
+        // 一次上屏失败不该让整趟读取失败。
+      }
+      return part
     })
   )
 
@@ -105,6 +157,8 @@ interface PlatformLikedState {
   loading: boolean
   /** 这一趟有几家没问出来。0 才是「真的读完了」。 */
   failed: number
+  /** 还在读的还有几家。逐家上屏之后，页面靠它说「还有 2 家在读」，而不是整页空白。 */
+  pending: number
 }
 
 /**
@@ -116,8 +170,8 @@ export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
   const [state, setState] = useState<PlatformLikedState>(() => {
     const hit = cache.get(key)
     return hit
-      ? { tracks: hit.tracks, loading: false, failed: hit.failed }
-      : { tracks: [], loading: true, failed: 0 }
+      ? { tracks: hit.tracks, loading: false, failed: hit.failed, pending: 0 }
+      : { tracks: [], loading: true, failed: 0, pending: 0 }
   })
 
   useEffect(() => {
@@ -136,22 +190,41 @@ export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
     const read = (keep: boolean): void => {
       const hit = cache.get(key)
       if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
-        if (alive) setState({ tracks: hit.tracks, loading: false, failed: hit.failed })
+        if (alive) setState({ tracks: hit.tracks, loading: false, failed: hit.failed, pending: 0 })
         return
       }
       if (alive) {
-        setState((prev) => ({ tracks: keep ? prev.tracks : [], loading: true, failed: prev.failed }))
+        setState((prev) => ({
+          tracks: keep ? prev.tracks : [],
+          loading: true,
+          failed: prev.failed,
+          pending: prev.pending
+        }))
       }
-      void loadPlatformLiked(ids)
+      void loadPlatformLiked(ids, (fold, done, total) => {
+        /*
+         * 半份也上屏：到一家画一家，loading 只在还差人家时留着。
+         * 慢的那家（多半是网易云）自己转，页面已经能看能放了。
+         */
+        if (!alive) return
+        setState({ tracks: fold.tracks, loading: done < total, failed: fold.failed, pending: total - done })
+      })
         .then((next) => {
-          if (alive) setState({ tracks: next.tracks, loading: false, failed: next.failed })
+          if (alive) setState({ tracks: next.tracks, loading: false, failed: next.failed, pending: 0 })
         })
         .catch(() => {
           /*
            * 这一次没读到不代表喜欢被删了：保留上一份，并把失败数抬起来，
            * 让界面说「没读到」而不是「你没有」。
            */
-          if (alive) setState((prev) => ({ tracks: prev.tracks, loading: false, failed: prev.failed + 1 }))
+          if (alive) {
+            setState((prev) => ({
+              tracks: prev.tracks,
+              loading: false,
+              failed: prev.failed + 1,
+              pending: 0
+            }))
+          }
         })
     }
 

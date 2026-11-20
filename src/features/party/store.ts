@@ -7,6 +7,7 @@ import { player } from '../player/actions'
 import { usePlayer } from '../player/store'
 import { rememberSharedOrigin, rememberSharedStream } from './shared-stream'
 import { partyTrackInfoOf, trackFromParty } from './shared-track'
+import { normalizeCode, parseInvite } from './invite'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
 import type { PlaybackTick } from './pure'
 
@@ -23,10 +24,14 @@ const IDLE: PartyState = {
   address: '',
   addresses: [],
   code: '',
+  name: '',
   members: [],
   now: null,
   publicAddress: '',
   relay: true,
+  locked: false,
+  connecting: false,
+  refused: '',
   messages: [],
   error: ''
 }
@@ -51,11 +56,21 @@ interface PartyStore {
   busy: boolean
   init(): void
   host(name: string): Promise<void>
-  join(address: string, code: string, name: string): Promise<void>
+  join(address: string, code: string, name: string, pass?: string): Promise<void>
   leave(): Promise<void>
   push(now: PartyNow): Promise<void>
   say(text: string): Promise<void>
   setPublic(address: string): Promise<void>
+  /** 房主给房间改名；客人调用无效果。 */
+  rename(name: string): Promise<void>
+  /** 房主给房间上锁；空串是解锁。客人调用无效果。 */
+  setPassword(password: string): Promise<void>
+  /** 房主把随机房间码改成自己好念的一串；客人调用无效果。 */
+  setCode(code: string): Promise<void>
+  /** 只凭房间码在同一个网络里找房；找不到返回 null，由界面让房主发地址。 */
+  discover(code: string): Promise<{ address: string; name: string; locked: boolean } | null>
+  /** 房主把某个成员请出房间；客人调用无效果。 */
+  kick(id: string): Promise<void>
   setRelay(relay: boolean): Promise<void>
   startTunnel(config: { frpcPath: string; token: string; tunnelId: string }): Promise<void>
   stopTunnel(): Promise<void>
@@ -65,7 +80,7 @@ interface PartyStore {
 
 let wired = false
 /** 「我想待在这一间」：客人断线后据此自动回去；null 表示不打算在房间里。 */
-let wantIn: { address: string; code: string; name: string } | null = null
+let wantIn: { address: string; code: string; name: string; pass: string } | null = null
 /** 已经重试过几次，退避用。 */
 let attempt = 0
 let watching = false
@@ -353,6 +368,15 @@ export const useParty = create<PartyStore>((set, get) => ({
     })
     bridge.onState((state) => {
       /*
+       * 被房主拒掉（房间码不对、密码不对）不是「意外断线」：拿着同一条链接
+       * 再试一百次也是同一个结果。这时必须放下「我想待在这一间」，否则界面
+       * 刚说完原因，转头就开始自动重连，最后停在一个连不上的空房间里。
+       */
+      if (state.refused) {
+        wantIn = null
+        attempt = 0
+      }
+      /*
        * 客房断线后自己回去。
        *
        * 房主那边可能因为换端口把房间重开了一次，客人这边看到的就是「突然掉出房间」。
@@ -365,7 +389,7 @@ export const useParty = create<PartyStore>((set, get) => ({
         attempt += 1
         window.setTimeout(() => {
           if (wantIn === target && useParty.getState().state.role === 'idle') {
-            void useParty.getState().join(target.address, target.code, target.name)
+            void useParty.getState().join(target.address, target.code, target.name, target.pass)
           }
         }, wait)
       }
@@ -401,6 +425,25 @@ export const useParty = create<PartyStore>((set, get) => ({
       /* 同一首歌里的位置与起停，按消息校一次；剩下的交给定时器。 */
       alignWith(state.now)
     })
+    /*
+     * 有人点了邀请链接。主进程把原文递过来，解析在这一侧做——两边共用一份
+     * 规则，才不会出现「主进程认、页面不认」的分叉。
+     *
+     * 收到链接的意思是「我要进这一间」，所以先离了当前的房间再进去：不然
+     * 主进程那边会先停掉房间再开始，界面在中间会闪一下「已离开」。
+     */
+    bridge.onInvite?.((link) => {
+      const invite = parseInvite(link)
+      if (!invite || !invite.place || !invite.code) {
+        set({ state: { ...get().state, error: '这条邀请链接不完整：里面没有地址或房间码' } })
+        return
+      }
+      void (async () => {
+        if (get().state.role !== 'idle') await get().leave()
+        window.location.hash = '#party'
+        await get().join(invite.place, invite.code, '听众')
+      })()
+    })
     watchPlayback()
     void bridge.state().then((state) => {
       if (state) set({ state })
@@ -435,17 +478,22 @@ export const useParty = create<PartyStore>((set, get) => ({
     }
   },
 
-  async join(address, code, name) {
+  async join(address, code, name, pass = '') {
     set({ busy: true })
     resetWatch()
     const who = useAccounts.getState().active()?.label?.trim() || name
     /* 记下「我想在这一间」：断线之后靠它自动回去，直到用户主动离开。 */
-    wantIn = { address: address.trim(), code: code.trim().toUpperCase(), name: who }
+    wantIn = {
+      address: address.trim(),
+      code: normalizeCode(code),
+      name: who,
+      pass: pass.trim()
+    }
     attempt = 0
     // 记下这次连的是哪个地址：房主给的转发是相对路径，主机要按这个补。
     rememberSharedOrigin(address.trim())
     try {
-      const state = await window.aurora?.party?.join(address, code, who)
+      const state = await window.aurora?.party?.join(address, code, who, pass)
       if (state) set({ state })
     } finally {
       set({ busy: false })
@@ -486,6 +534,31 @@ export const useParty = create<PartyStore>((set, get) => ({
 
   async setPublic(address) {
     const state = await window.aurora?.party?.setPublic(address)
+    if (state) set({ state })
+  },
+
+  async rename(name) {
+    const state = await window.aurora?.party?.rename(name)
+    if (state) set({ state })
+  },
+
+  async setPassword(password) {
+    const state = await window.aurora?.party?.setPassword(password)
+    if (state) set({ state })
+  },
+
+  async setCode(code) {
+    const state = await window.aurora?.party?.setCode(code)
+    if (state) set({ state })
+  },
+
+  async discover(code) {
+    const hit = await window.aurora?.party?.discover(code)
+    return hit ?? null
+  },
+
+  async kick(id) {
+    const state = await window.aurora?.party?.kick(id)
     if (state) set({ state })
   },
 

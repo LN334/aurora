@@ -7,6 +7,7 @@ import { Artwork } from '../ui/Artwork'
 import { ArtistById } from '../ui/NameRef'
 import { Note } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { sourceLabelById } from '../features/online/registry'
 
 /**
@@ -62,7 +63,13 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
           * 「专辑」，等于同一句话说两次。总数跟搜索并成一行，够用了。
           */}
         <div className="shelf-bar">
-          <ShelfSearch value={query} placeholder="搜索专辑或歌手" onChange={setQuery} />
+          <ShelfSearch
+          value={query}
+          placeholder="搜索专辑或歌手"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
           <span className="shelf-bar__count">
             {query.trim() ? `${shown.length} / ${albums.length} 张` : `${albums.length} 张`}
           </span>

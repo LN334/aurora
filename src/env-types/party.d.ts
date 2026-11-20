@@ -73,12 +73,28 @@ export interface PartyState {
   /** 房主的全部本机地址候选；多网卡时房主自己挑一个发出去。 */
   addresses: string[]
   code: string
+  /** 房主起的房间名；空串表示还没起，界面用默认那句。 */
+  name: string
   members: PartyMember[]
   now: PartyNow | null
   /** 房主填的公网地址（`host:端口`）；空串是没有。 */
   publicAddress: string
   /** 房主是否替房间转发音频；关着就各取各的。 */
   relay: boolean
+  /**
+   * 房间有没有上锁。
+   *
+   * 只是「有没有」这一位：密码本身不进这份状态——它会被广播给房间里所有人。
+   */
+  locked: boolean
+  /**
+   * 客人这一侧：还没收到房主的第一份状态。
+   *
+   * 这一段不该显示房间页——否则用户看到的是一个「0 人、没有歌」的空房间。
+   */
+  connecting: boolean
+  /** 被房主拒掉的原因；空串表示没被拒过。界面据此决定要不要自动重连。 */
+  refused: string
   /** 房间里最近的话；中途进来的人也看得到上一段。 */
   messages: PartyMessage[]
   error: string
@@ -87,12 +103,34 @@ export interface PartyState {
 /** 一起听：局域网房间。状态由主进程推，命令往下发。 */
 export interface PartyApi {
   host(name: string, port?: number): Promise<PartyState>
-  join(address: string, code: string, name: string): Promise<PartyState>
+  /** 加入别人的房间；`pass` 是房间口令，没设密码时留空。 */
+  join(address: string, code: string, name: string, pass?: string): Promise<PartyState>
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>
   chat(text: string): Promise<PartyState>
   /** 房主填公网地址；客人调用无效果。 */
   setPublic(address: string): Promise<PartyState>
+  /** 房主给房间改名；客人调用无效果。 */
+  rename(name: string): Promise<PartyState>
+  /** 房主给房间上锁或解锁（空串即解锁）；客人调用无效果。 */
+  setPassword(password: string): Promise<PartyState>
+  /** 房主把随机房间码改成自己好念的一串；客人调用无效果。 */
+  setCode(code: string): Promise<PartyState>
+  /**
+   * 只凭房间码，在同一个局域网里找这间房。
+   *
+   * 找不到（防火墙、跨网络、房间没开）返回 null，界面退回让房主发地址。
+   */
+  discover(code: string): Promise<{ address: string; name: string; locked: boolean } | null>
+  /** 房主把某个成员请出房间；客人调用无效果。 */
+  kick(id: string): Promise<PartyState>
+  /**
+   * 有人点了邀请链接（`aurora://join?…`）时回调。
+   *
+   * 主进程只把那条链接原样递过来，解析在渲染层做——两边各写一套解析规则，
+   * 迟早出现「主进程认、页面不认」。
+   */
+  onInvite(listener: (link: string) => void): () => void
   /** 房主把当前这首的播放地址交给房间转发，返回地址里用的令牌。 */
   registerStream(trackId: string, url: string): Promise<string>
   /** 房主开关转发；客人调用无效果。 */

@@ -307,7 +307,10 @@ function reasonOf(code: string): 'auth-required' | 'vip-required' | 'unavailable
 /* -------------------------------------------------------------------- 对外 */
 
 export function setActiveProfile(profileId: string): boolean {
-  activeProfileId = profileId || 'default'
+  /* 空值不覆盖已有档案，理由同 netease/client.ts 的 setActiveProfile。 */
+  const next = String(profileId ?? '').trim()
+  if (!next) return false
+  activeProfileId = next
   return true
 }
 

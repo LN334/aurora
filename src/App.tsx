@@ -9,6 +9,8 @@ import { usePresets } from './features/presets/store'
 import { EqPanel } from './views/EqPanel'
 import { DailyPage } from './views/DailyPage'
 import { LikedPage } from './views/LikedPage'
+import { FILTER_EVENT } from './ui/filter-event'
+import { invalidatePlatformLiked } from './features/online/platform-liked'
 import { LocalPage } from './views/LocalPage'
 import { OnlinePage } from './views/OnlinePage'
 import { bindDetailNavigate, refreshOnlinePlaylist } from './features/refs/navigate'
@@ -38,7 +40,7 @@ import { UpdateDialog } from './ui/UpdateDialog'
 import { WhatsNew } from './views/WhatsNew'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
-import { ChevronLeft, Close, Expand, Plus, Queue, Refresh } from './ui/icons'
+import { ChevronLeft, Close, Expand, Plus, Queue, Refresh, Search } from './ui/icons'
 import { bridge, isNative } from './bridge'
 import { demoLibrary } from './features/library/demo'
 import { useLyrics, usePalette } from './features/library/hooks'
@@ -859,6 +861,22 @@ export function App() {  if (!isNative) {
    * 跟着「音乐库」这一层到处出现，在别人的目录和头像列表下面显得莫名其妙。
    */
   const fileTools = shell.view === 'local' || shell.view === 'album'
+  /*
+   * 哪些页有「在列表里筛选」。
+   *
+   * 就是那些铺着一长串卡片或曲目的页：收藏、最近、本机、收藏专辑、关注艺人、
+   * 歌单（本地与在线各一套）。它们的筛选框收起来之后只剩一颗放大镜，而那颗
+   * 放大镜在页面里单独占一行怎么看都像贴错了位置——归到标题栏，和标题同一行。
+   */
+  const FILTER_VIEWS = new Set<ShellView>([
+    'liked',
+    'recent',
+    'local',
+    'collections',
+    'followedartists',
+    'playlist',
+    'onlineplaylist'
+  ])
   const headTitle = SHELL_TITLES[shell.view]
   /*
    * Only scan state belongs here now. The header used to also report "N tracks"
@@ -1211,6 +1229,37 @@ export function App() {  if (!isNative) {
                 <button className="btn" onClick={() => void addFolders()} disabled={busy}>
                   <Plus size={15} />
                   添加文件夹
+                </button>
+              ) : null}
+              {/*
+                * 收藏页的两件事归位到标题栏。
+                *
+                * 它们原先是列表上方单独一行：一颗刷新漂在中间、一颗放大镜贴在最右，
+                * 中间隔着半个屏幕的空白。两件事都只作用于下面那份列表，和标题在同
+                * 一行说得清「这是这一页的工具」；放进页面里反而像两块贴错位置的零件。
+                */}
+              {FILTER_VIEWS.has(shell.view) ? (
+                <button
+                  className="btn"
+                  onClick={() => window.dispatchEvent(new Event(FILTER_EVENT))}
+                  title="在这份列表里筛选（Ctrl F）"
+                >
+                  <Search size={15} />
+                  筛选
+                </button>
+              ) : null}
+              {/*
+                * 刷新只属于收藏页：它重读的是各平台账号里的红心，
+                * 而别的列表要么是本地文件、要么已经在上游缓存里。
+                */}
+              {shell.view === 'liked' ? (
+                <button
+                  className="btn"
+                  onClick={() => invalidatePlatformLiked()}
+                  title="重新读一次各平台的收藏"
+                >
+                  <Refresh size={15} />
+                  刷新
                 </button>
               ) : null}
             </div>

@@ -511,7 +511,12 @@ function createOnlineStore(providerId: ProviderId) {
             boundProfile = profileId
             reset()
           }
-          await platform.bindProfile?.(profileId ?? '')
+          /*
+           * 只有真拿到档案才绑。空值曾经被当成「默认档案」发给主进程，把它在启动时
+           * 按 profiles/ 挑好的那一份踩掉——会话读不到，收藏与关注列表于是全空。
+           * 主进程那边也加了同样的守卫，这里是语义上更直接的那一道。
+           */
+          if (profileId) await platform.bindProfile?.(profileId)
 
           const status = await platform.loginStatus().then(
             (account) => ({ ok: true as const, account }),

@@ -125,7 +125,10 @@ const SONG_INDEX_LIMIT = 4000
 const VIP_TTL_MS = 10 * 60 * 1000
 
 export function setActiveProfile(profileId: string): boolean {
-  const next = String(profileId ?? '').trim() || 'default'
+  /* 空值是「还没想好」，不是「切回默认」：渲染层的 init 在档案就绪前会绑一次空值，
+     以前这一下会把主进程挑好的档案踩掉，会话读不到，收藏与关注列表跟着空。 */
+  const next = String(profileId ?? '').trim()
+  if (!next) return false
   if (next !== activeProfileId) {
     // Nothing is cached across a switch: the quality, the cookie and the
     // account all belong to the profile that was active when they were read.

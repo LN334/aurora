@@ -11,7 +11,10 @@ import { usePlayer } from '../features/player/store'
 import { formatSpan } from '../ui/format'
 import { Play } from '../ui/icons'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
+
+
 
 /**
  * 我喜欢的音乐。
@@ -42,7 +45,8 @@ export function LikedPage({
   const {
     tracks: platformLiked,
     loading: platformLoading,
-    failed: platformFailed
+    failed: platformFailed,
+    pending: platformPending
   } = usePlatformLiked()
   const order = useMemo(() => sourceOrder(), [])
   /*
@@ -174,35 +178,39 @@ export function LikedPage({
         </span>
       </button>
 
-      <div className="lk-search">
-        <ShelfSearch value={query} placeholder="搜歌名、歌手、专辑" onChange={setQuery} />
-        {query.trim() ? (
-          <span className="lk-search__count">
-            {shown.length} / {tracks.length} 首
-          </span>
-        ) : null}
-        {/*
-          * 只剩「刷新」这一件事。
-          *
-          * 原来这里还有一颗「随机」——它和播放条上那颗播放模式键做的是同一件事
-          * 的两种说法：一颗是「这次按随机顺序排进去」，一颗是「之后一直随机」，
-          * 并排放着只会让人以为其中一颗坏了。模式交给播放条，这里不留。
-          */}
-        <span className="lk-search__acts">
-          {/*
-           * 平台那半边是十分钟缓存。在这个页面之外（手机 App、网页版）点了心，
-           * 或者想立刻确认刚点的这一下，就靠这颗按钮重读一次；不必重启应用。
-           */}
-          <button
-            className="rh-btn"
-            type="button"
-            onClick={() => invalidatePlatformLiked()}
-            title="重新读一次各平台的收藏"
-          >
-            刷新
-          </button>
-        </span>
-      </div>
+      {/*
+        * 筛选框自己占一行：收起时什么都不画（页头那颗「筛选」代管），
+        * 展开时才是真的输入框。以前这里是「空行 + 一颗漂在中间的刷新」——
+        * 既不像标题也不像列表，读起来像两件贴错地方的零件。
+        */}
+      <ShelfSearch
+        value={query}
+        placeholder="搜歌名、歌手、专辑"
+        onChange={setQuery}
+        listenEvent={FILTER_EVENT}
+        hideTrigger
+      />
+
+      {/*
+        * 读到哪儿了，就一行字。
+        *
+        * 「正在读取各平台的收藏…」占满整页时不说话是有道理的——那时确实什么都没有；
+        * 但列表已经能看了还摆着一句空态，等于把「一部分到了」说成「没有了」。
+        * 现在它退成列表上方的一行小字，说清还差几家、已经到多少首。
+        */}
+      {query.trim() ? (
+        <p className="lk-stage">
+          命中 {shown.length} / {tracks.length} 首
+        </p>
+      ) : platformPending > 0 ? (
+        <p className="lk-stage">
+          还有 {platformPending} 家没读完 · 已经到 {tracks.length} 首
+        </p>
+      ) : platformFailed > 0 ? (
+        <p className="lk-stage is-warn">
+          {platformFailed} 家这次没读到（收藏没被删）· 点上面的刷新再问一次
+        </p>
+      ) : null}
 
       {shown.length === 0 ? (
         <p className="shelf-empty">没有匹配的歌。</p>

@@ -15,11 +15,21 @@ import { readSearchHistory, rememberSearch } from '../features/library/search-hi
 export function ShelfSearch({
   value,
   placeholder,
-  onChange
+  onChange,
+  listenEvent,
+  hideTrigger
 }: {
   value: string
   placeholder: string
   onChange(next: string): void
+  /**
+   * 由页面标题栏上那颗「筛选」代劳展开时用：这里只听这个事件，不画自己的放大镜。
+   *
+   * 收藏页把筛选与刷新放进了页头（页面里单独一行工具条，只有两颗小东西，漂在
+   * 列表上方既不像标题也不像内容），所以收起态不再需要一个本地触发按钮。
+   */
+  listenEvent?: string
+  hideTrigger?: boolean
 }) {
   const input = useRef<HTMLInputElement>(null)
   const [recent, setRecent] = useState<string[]>(() => readSearchHistory())
@@ -82,7 +92,25 @@ export function ShelfSearch({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
+  /*
+   * 页头那颗「筛选」点下来时把框展开并接住焦点。
+   * 监听挂在 window 上：触发按钮在 App 里，与这个组件不在同一棵子树。
+   */
+  useEffect(() => {
+    if (!listenEvent) return
+    const open$ = () => {
+      setOpen(true)
+      requestAnimationFrame(() => {
+        input.current?.focus()
+        input.current?.select()
+      })
+    }
+    window.addEventListener(listenEvent, open$)
+    return () => window.removeEventListener(listenEvent, open$)
+  }, [listenEvent])
+
   if (!open) {
+    if (hideTrigger) return null
     return (
       <button
         type="button"

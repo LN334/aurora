@@ -8,6 +8,7 @@ import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
 import { Artwork } from '../ui/Artwork'
 import { ShelfSearch } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { filterPlaylistRows } from '../features/library/playlist-filter'
 import { Note, Play, Trash, Wave } from '../ui/icons'
 import { DetailHero } from './DetailHero'
@@ -160,7 +161,13 @@ export function PlaylistDetailPage({
             </span>
           </div>
           <div className="lk-search">
-            <ShelfSearch value={query} placeholder="在这个歌单里找" onChange={setQuery} />
+            <ShelfSearch
+          value={query}
+          placeholder="在这个歌单里找"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
             <span className="lk-search__count">
               {filtering ? `${rows.length} / ${tracks.length} 首` : `${tracks.length} 首`}
             </span>

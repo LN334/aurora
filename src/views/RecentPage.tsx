@@ -10,6 +10,7 @@ import { usePlayer } from '../features/player/store'
 import type { Track } from '../types'
 import { formatSpan } from '../ui/format'
 import { ShelfSearch } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -226,7 +227,13 @@ export function RecentPage({
 
       {plays.length || recent.length ? (
         <div className="lk-search">
-          <ShelfSearch value={query} placeholder="搜标题、歌手" onChange={setQuery} />
+          <ShelfSearch
+          value={query}
+          placeholder="搜标题、歌手"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
           {query.trim() ? (
             <span className="lk-search__count">
               {groups.reduce((sum, group) => sum + group.entries.length, 0)} 条

@@ -4,6 +4,7 @@ import { artworkFor } from '../features/library/source'
 import { groupAlbums, groupArtists, useLibrary } from '../features/library/store'
 import { shelfMatches } from '../features/library/playlist-filter'
 import { ShelfSearch } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { buildFolderTree } from '../features/library/tree'
 import { orderTracks, playCounts, type SongOrder } from '../features/library/views'
 import { player } from '../features/player/actions'
@@ -144,7 +145,13 @@ export function LocalPage({
 
       {tab === 'songs' && tracks.length > 0 ? (
         <div className="lk-search">
-          <ShelfSearch value={query} placeholder="搜标题、歌手、专辑" onChange={setQuery} />
+          <ShelfSearch
+          value={query}
+          placeholder="搜标题、歌手、专辑"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
           {query.trim() ? (
             <span className="lk-search__count">
               {rows.length} / {shown.length} 首

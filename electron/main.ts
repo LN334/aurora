@@ -17,6 +17,10 @@ import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
 import { registerBilibiliIpc } from './bilibili/ipc'
 import { registerPartyIpc } from './party/ipc'
+/*
+ * 从命令行里捞出那条邀请链接；这么薄也放 pure 里，是为了能直接喂几种 argv 测。
+ */
+import { inviteFromArgv } from './pure/invite-arg'
 import { registerWarmUpIpc } from './warmup'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { applyStartupProfile } from './startup-profile'
@@ -509,7 +513,15 @@ function createWindow(): void {
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     write(`renderer[${level}] ${message} (${sourceId}:${line})`)
   })
-  mainWindow.webContents.on('did-finish-load', () => write('did-finish-load'))
+  mainWindow.webContents.on('did-finish-load', () => {
+    write('did-finish-load')
+    /* 冷启动带进来的邀请：页面这时才订阅得上，在这里补一次投递。 */
+    if (pendingInvite) {
+      const link = pendingInvite
+      pendingInvite = null
+      mainWindow?.webContents.send('party:invite', link)
+    }
+  })
   mainWindow.webContents.on('did-stop-loading', () => write('did-stop-loading'))
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     write(`render-process-gone reason=${details.reason} exitCode=${details.exitCode}`)
@@ -720,6 +732,44 @@ function registerIpc(): void {
  * 它就成了另一个「应用」，可以和用户窗口同时活着。只做验证时用，正常启动
  * 不设这个变量，行为与从前一致。
  */
+/*
+ * 邀请链接：`aurora://join?h=…&c=…`。
+ *
+ * 注册一次，系统就把这个前缀认成 Aurora——聊天软件里点一下直接开房进人，
+ * 不必再复制粘贴。不注册的话，同一个字符串在聊天软件里只是一段没人认的文本，
+ * 链接长得像能点，点下去却没反应，这正是「分享出去却走不通」的样子。
+ */
+const INVITE_SCHEME = 'aurora'
+
+function registerInviteScheme(): void {
+  try {
+    /*
+     * 开发态双击链接时系统拉起的是 electron 本身，不带我们的入口脚本——那样
+     * 只会打开一个空白的 Electron。所以这两个参数要一起写进注册表。
+     */
+    if (process.defaultApp && process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(INVITE_SCHEME, process.execPath, [
+        path.resolve(process.argv[1])
+      ])
+      return
+    }
+    app.setAsDefaultProtocolClient(INVITE_SCHEME)
+  } catch {
+    /* 写不进注册表只意味着链接点不开，应用本身照常用。 */
+  }
+}
+
+/** 窗口还没到位时先存着，等页面加载完再递过去。 */
+let pendingInvite: string | null = null
+
+function deliverInvite(link: string): void {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isLoading()) {
+    pendingInvite = link
+    return
+  }
+  mainWindow.webContents.send('party:invite', link)
+}
+
 const scratchProfile = process.env.AURORA_PROFILE
 if (scratchProfile) {
   app.setPath('userData', path.join(app.getPath('temp'), 'aurora-' + scratchProfile))
@@ -730,7 +780,7 @@ if (scratchProfile) {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     /*
      * 快捷方式再点一次、从开始菜单启动第二次，都落到这里。
      *
@@ -739,6 +789,9 @@ if (!app.requestSingleInstanceLock()) {
      * 同时覆盖「最小化」「收进托盘」「窗口已经销毁」三种状态。
      */
     if (!app.isReady()) return
+    /* 第二次启动可能带的是邀请链接：先把它交给窗口，再把人叫过来。 */
+    const invite = inviteFromArgv(argv)
+    if (invite) deliverInvite(invite)
     showWindow()
   })
 
@@ -752,6 +805,8 @@ if (!app.requestSingleInstanceLock()) {
      * renderer made and what the main process answered.
      */
     openStartupLog(app.getPath('userData'), app.getVersion(), app.isPackaged)
+    registerInviteScheme()
+    write(`invite arg=${inviteFromArgv(process.argv) ?? '(none)'}`)
     write(`userData=${app.getPath('userData')}`)
     write(`appPath=${app.getAppPath()}`)
     write(`argv=${process.argv.slice(1).join(' ')}`)
@@ -803,6 +858,9 @@ if (!app.requestSingleInstanceLock()) {
     // 登录项按设置文件重写一次：重装或换路径后注册表里的那条可能已经不在了。
     syncLoginItem()
     createWindow()
+    /* 冷启动就带着邀请链接：窗口刚建好，页面还没加载完，这一条会先存着。 */
+    const coldInvite = inviteFromArgv(process.argv)
+    if (coldInvite) deliverInvite(coldInvite)
     createTray(trayHandlers())
     // 图标换了以后托盘得跟着换：窗口图标由 app-icon 自己铺，这里只管托盘。
     onIconChanged(() => refreshTrayImage())

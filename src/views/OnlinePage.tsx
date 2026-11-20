@@ -23,6 +23,7 @@ import { formatSpan } from '../ui/format'
 import { Note, Play } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { ShelfSearch } from '../ui/ShelfSearch'
+import { FILTER_EVENT } from '../ui/filter-event'
 import { filterPlaylistRows } from '../features/library/playlist-filter'
 import { DetailHero } from './DetailHero'
 import type { Track } from '../types'
@@ -171,7 +172,13 @@ function PlaylistPage({
 
       {rows.length > 0 ? (
         <div className="lk-search">
-          <ShelfSearch value={query} placeholder="在这个歌单里找" onChange={setQuery} />
+          <ShelfSearch
+          value={query}
+          placeholder="在这个歌单里找"
+          onChange={setQuery}
+          listenEvent={FILTER_EVENT}
+          hideTrigger
+        />
           <span className="lk-search__count">
             {filtering ? `${visible.length} / ${rows.length} 首` : `${rows.length} 首`}
           </span>
