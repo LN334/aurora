@@ -58,6 +58,8 @@ interface PartyStore {
   setRelay(relay: boolean): Promise<void>
   startTunnel(config: { frpcPath: string; token: string; tunnelId: string }): Promise<void>
   stopTunnel(): Promise<void>
+  /** 清空日志面板。 */
+  clearTunnelLog(): Promise<void>
 }
 
 let wired = false
@@ -313,7 +315,7 @@ function watchPlayback(): void {
 
 export const useParty = create<PartyStore>((set, get) => ({
   state: IDLE,
-  tunnel: { running: false, address: '', line: '', error: '' },
+  tunnel: { running: false, address: '', line: '', error: '', log: [] },
   busy: false,
 
   init() {
@@ -455,6 +457,11 @@ export const useParty = create<PartyStore>((set, get) => ({
 
   async stopTunnel() {
     const tunnel = await window.aurora?.party?.tunnelStop()
+    if (tunnel) set({ tunnel })
+  },
+
+  async clearTunnelLog() {
+    const tunnel = await window.aurora?.party?.tunnelLogClear()
     if (tunnel) set({ tunnel })
   },
 

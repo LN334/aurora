@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
 import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
@@ -6,7 +6,7 @@ import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/fr
 import { chatWindowOpen } from '../chat-window'
 import { sakuraWindowOpen } from '../sakura-window'
 import { partyWindowOpen } from '../party-window'
-import { onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
+import { clearTunnelLog, onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
   joinParty,
   onPartyState,
@@ -74,6 +74,19 @@ export function registerPartyIpc(): void {
 
   ipcMain.handle('party:tunnelStop', () => {
     stopTunnel()
+    return tunnelState()
+  })
+
+  /*
+   * 应用退出时把 frpc 一起收掉。
+   *
+   * Windows 不会因为父进程没了就结束子进程：不显式杀掉的话，退出 Aurora 之后
+   * 隧道还挂在后台，用户再开一次就是两条隧道抢同一条线路。
+   */
+  app.on('before-quit', () => stopTunnel())
+
+  ipcMain.handle('party:tunnelLogClear', () => {
+    clearTunnelLog()
     return tunnelState()
   })
 

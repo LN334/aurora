@@ -650,6 +650,7 @@ const api = {
       ipcRenderer.invoke('party:tunnelStart', config),
     tunnelStop: () => ipcRenderer.invoke('party:tunnelStop'),
     tunnelState: () => ipcRenderer.invoke('party:tunnelState'),
+    tunnelLogClear: () => ipcRenderer.invoke('party:tunnelLogClear'),
     onTunnel: (listener: (state: unknown) => void) => {
       const handler = (_event: unknown, state: unknown): void => listener(state)
       ipcRenderer.on('party:tunnel', handler)

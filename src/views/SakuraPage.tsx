@@ -1,8 +1,14 @@
 import { useEffect } from 'react'
 import { SakuraPanel } from './party/SakuraPanel'
+import { TunnelLog } from './party/TunnelLog'
 import { useParty } from '../features/party/store'
 
-/** 樱花隧道：一页。与房间分开——房间管听什么，这里管怎么穿出去。 */
+/**
+ * 樱花隧道：一页。
+ *
+ * 左边是隧道本身（卡片 + 开关），右边是 frpc 的原始日志——出了问题就看这里，
+ * 不用去樱花启动器里再翻一遍。
+ */
 export function SakuraPage() {
   useEffect(() => {
     useParty.getState().init()
@@ -14,19 +20,8 @@ export function SakuraPage() {
         <section className="party-page__main">
           <SakuraPanel />
         </section>
-        <aside className="party-page__side">
-          <h2 className="party-page__h">它是干什么的</h2>
-          <p className="party-page__hint">
-            把房间开到公网，不在同一个 WiFi 也能进来。隧道是一条 TCP 通道：樱花服务端给你一个公网地址，转发到这台机器上的房间端口。
-          </p>
-          <h2 className="party-page__h">顺序</h2>
-          <p className="party-page__hint">
-            ① 去面板复制一次访问密钥，填进左边（只填这一次，之后记在本机） ② 建一条 TCP 隧道，本地地址填房间端口 ③ 回到这里刷新列表，点卡片上的开关。
-          </p>
-          <h2 className="party-page__h">frpc 用哪一份</h2>
-          <p className="party-page__hint">
-            官方独立发行的 frpc，在面板「软件下载」里下。启动器安装目录里那份只允许 SakuraFrp Service 调用，裸跑会直接退出。
-          </p>
+        <aside className="party-page__side sakura-side">
+          <TunnelLog />
         </aside>
       </div>
     </div>

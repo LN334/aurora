@@ -518,9 +518,10 @@ const webFallback: AuroraApi = {
     sakuraLogin: async () => ({ ok: false, token: '', message: '预览里没有登录接口' }),
     sakuraFrpc: async () => ({ path: '', ok: false, message: '预览里没有 frpc' }),
     sakuraInstallFrpc: async () => ({ ok: false, message: '预览里不能下 frpc', path: '' }),
-    tunnelStart: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道' }),
-    tunnelStop: async () => ({ running: false, address: '', line: '', error: '' }),
-    tunnelState: async () => ({ running: false, address: '', line: '', error: '' }),
+    tunnelStart: async () => ({ running: false, address: '', line: '', error: '浏览器预览没有隧道', log: [] }),
+    tunnelStop: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
+    tunnelState: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
+    tunnelLogClear: async () => ({ running: false, address: '', line: '', error: '', log: [] }),
     onTunnel: () => () => {},
     state: async () => IDLE_PARTY,
     onState: () => () => {}

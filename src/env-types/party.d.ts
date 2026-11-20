@@ -18,6 +18,8 @@ export interface TunnelState {
   /** 最近一行输出，给「在动」一个可见的迹象。 */
   line: string
   error: string
+  /** 最近的原始日志（最多几百行），给日志面板看。 */
+  log: string[]
 }
 
 /** 房间里的一句话。 */
@@ -139,6 +141,8 @@ export interface PartyApi {
   tunnelStart(config: { frpcPath: string; token: string; tunnelId: string }): Promise<TunnelState>
   tunnelStop(): Promise<TunnelState>
   tunnelState(): Promise<TunnelState>
+  /** 清空日志面板，不影响隧道本身。 */
+  tunnelLogClear(): Promise<TunnelState>
   onTunnel(listener: (state: TunnelState) => void): () => void
   state(): Promise<PartyState>
   onState(listener: (state: PartyState) => void): () => void

@@ -23,6 +23,8 @@ interface SakuraTunnel {
   localPort: number
   remotePort: number
   online: boolean
+  /** 面板上给这条隧道起的备注；没有就是空串。 */
+  note: string
 }
 
 interface SakuraTunnelsResult {
@@ -56,6 +58,7 @@ function mapTunnel(value: unknown): SakuraTunnel | null {
   return {
     id,
     name: String(pick(record, ['name', 'tunnel_name', 'remark']) ?? ''),
+    note: String(pick(record, ['note', 'description']) ?? ''),
     /* 真实响应里 node 是节点 id（数字），不是节点名。 */
     node: String(pick(record, ['node_name', 'nodeName', 'server', 'node']) ?? ''),
     type: String(pick(record, ['type', 'protocol']) ?? 'tcp').toLowerCase(),

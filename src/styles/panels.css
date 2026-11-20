@@ -1199,12 +1199,21 @@
   translate: 13px 0;
 }
 
-/* 隧道端口与房间对不上时的提醒。 */
+/*
+ * 隧道端口与房间对不上时的提醒。
+ *
+ * 原来只是一行琥珀色小字：在这页的亮底上糊得看不清（和「没找到 frpc」同一个毛病）。
+ * 改成一小条浅琥珀底 + 深琥珀字，亮暗两种壁纸上都站得住。
+ */
 .sakura-card__warn {
   grid-column: 1 / -1;
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: rgb(224 179 65 / 0.2);
   font-size: var(--fs-micro);
   line-height: 1.5;
-  color: #e0b341;
+  color: #7a4d05;
 }
 
 /* 顶部徽条：房间码 + 复制邀请。 */
@@ -1283,7 +1292,7 @@ body.is-party-window {
 }
 
 .sakura-head .party__section {
-  flex: 1;
+  flex: none;
   margin: 0;
   padding: 0;
   border: 0;
@@ -1637,11 +1646,12 @@ body.is-party-window {
 
 .party-page__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  /* 和别的页一样撑满内容区：右栏放日志，剩下的全给隧道，不卡在 1040px。 */
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: var(--s5);
   align-items: start;
   width: 100%;
-  max-width: 1040px;
+  max-width: none;
 }
 
 .party-page__main,
@@ -1882,10 +1892,10 @@ body.is-party-window {
 
 /* 新建隧道：一行三个字段 + 两颗键，展开时占一块。 */
 .sakura-create {
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
   gap: var(--s3);
-  flex-wrap: wrap;
   padding: var(--s4);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 12px;
@@ -1893,8 +1903,7 @@ body.is-party-window {
 }
 
 .sakura-create .party__field {
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .sakura-create .input {
@@ -1955,4 +1964,213 @@ body.is-party-window {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+/* —— 樱花隧道：两项状态、空状态、已通地址、建隧道面板的细节 —— */
+.sakura-first__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+/* 把右侧按钮推到边上：标题与计数靠左，动作靠右。 */
+.sakura-first__grow {
+  flex: 1;
+}
+
+.sakura-head__count {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.12);
+  font-size: var(--fs-micro);
+  color: var(--text-mid);
+}
+
+.sakura-create__wide {
+  grid-column: 1 / -1;
+}
+
+.sakura-create__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--s2);
+}
+
+/* 节点七十多个：左边按名字找，右边选。两个框一样高，右边宽一点。 */
+.sakura-nodes {
+  display: flex;
+  gap: var(--s2);
+}
+
+.sakura-nodes .input {
+  min-width: 0;
+}
+
+.sakura-nodes .input:first-child {
+  flex: 1;
+}
+
+.sakura-nodes .input:last-child {
+  flex: 1.6;
+}
+
+.sakura-create__hint {
+  display: block;
+  margin-top: 5px;
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: var(--text-low);
+}
+
+/* 拉回空列表：一张虚线卡，说清下一步，而不是一行灰字。 */
+.sakura-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: var(--s5);
+  border: 1px dashed rgb(var(--tint-rgb) / 0.18);
+  border-radius: 14px;
+  background: rgb(var(--ink-850-rgb) / 0.28);
+}
+
+.sakura-empty strong {
+  font-size: var(--fs-title);
+  color: var(--text-hi);
+}
+
+.sakura-empty span {
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+  color: var(--text-mid);
+}
+
+.sakura-empty .rh-btn {
+  margin-top: var(--s2);
+}
+
+/* 隧道已通：地址要能一眼抄走，所以这一行带复制。 */
+.sakura-live {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 8px var(--s3);
+  border: 1px solid rgb(69 192 122 / 0.35);
+  border-radius: 10px;
+  background: rgb(69 192 122 / 0.1);
+}
+
+.sakura-live span {
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+.sakura-live .rh-btn {
+  margin-left: auto;
+}
+
+/* 卡片上的备注：一行的位置，太长就省略，不把卡片撑高。 */
+.sakura-card__note {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: var(--text-low);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* —— 隧道日志：右栏那一块，照樱花启动器那扇日志窗 —— */
+/* 右栏不要自己的底板：日志卡自己就是一层，套两层会看成两个框。 */
+.sakura-side {
+  display: flex;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.sakura-log {
+  display: flex;
+  flex-direction: column;
+  /*
+   * 日志自己定高，不跟着左边拉伸：左边就两张卡，拉长了就是一大块空白。
+   * 高度跟着窗口走，但留出顶栏、标题与底栏，最后一行不会被盖住。
+   */
+  height: min(720px, calc(100vh - 300px));
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 16px;
+  background: rgb(var(--ink-850-rgb) / 0.55);
+  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
+}
+
+.sakura-log__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 10px var(--s4);
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.1);
+}
+
+.sakura-log__title {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+/* 状态跟在标题后面，把「清空」推到右边。 */
+.sakura-log__state {
+  flex: 1;
+  overflow: hidden;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sakura-log__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* 能滚，但不露滚动条：日志窗里有条竖线比没有更难看，滚轮和触摸板照样好用。 */
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: var(--s3) var(--s4);
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--text-mid);
+  /* 长行折行而不是横向滚：日志里最长的恰好是那句错误说明。 */
+  word-break: break-all;
+}
+
+.sakura-log__body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.sakura-log__line {
+  white-space: pre-wrap;
+}
+
+.sakura-log__line.is-bad {
+  color: #e0b341;
+}
+
+/* 「—— 启动隧道 ——」这类分隔行，比正文淡一档。 */
+.sakura-log__line.is-mark {
+  color: var(--text-low);
+}
+
+.sakura-log__empty {
+  color: var(--text-low);
 }
