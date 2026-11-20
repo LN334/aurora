@@ -320,8 +320,9 @@ export function SakuraPanel() {
           <i className={'party__lamp' + (token ? ' is-on' : '')} />
           密钥{token ? '已配置' : '还没填'}
         </span>
-        <span className={'sakura-first__state' + (frpcReady ? '' : ' is-warn')}>
-          <i className={'party__lamp' + (frpcReady ? ' is-on' : '')} />
+        <span className="sakura-first__state">
+          {/* 缺 frpc 用琥珀色那颗灯：颜色已经在别处代表「有事要办」，不再另发明一种。 */}
+          <i className={'party__lamp' + (frpcReady ? ' is-on' : ' is-busy')} />
           {frpcNote}
         </span>
         <span className="sakura-first__grow" />
