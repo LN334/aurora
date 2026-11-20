@@ -416,7 +416,15 @@ export const useParty = create<PartyStore>((set, get) => ({
        */
       const saved = Number(localStorage.getItem('aurora.party.port') ?? '')
       const state = await window.aurora?.party?.host(name, Number.isInteger(saved) ? saved : 0)
-      if (state) set({ state })
+      if (state) {
+        /*
+         * 主进程是「先定房主、端口等监听成功再补」，所以它同步返回的那份快照里
+         * 地址还是空的。监听往往在返回值之前就成功了，广播先到、界面先有了地址；
+         * 再用这份空地址盖回去，界面就永远停在「局域网 · 正在起」，直到下一次
+         * 有人说话才突然补上。空地址不覆盖已有地址，就这一条。
+         */
+        set((prev) => ({ state: state.address || !prev.state.address ? state : prev.state }))
+      }
     } finally {
       set({ busy: false })
     }
