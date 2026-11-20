@@ -39,6 +39,9 @@ export function SakuraPanel() {
   const [newName, setNewName] = useState('Aurora 一起听')
   const [newNode, setNewNode] = useState(0)
   const [newPort, setNewPort] = useState('')
+  /* 编辑：改一条隧道的本地端口，改完房间跟着挪过去。 */
+  const [editingId, setEditingId] = useState(0)
+  const [editPort, setEditPort] = useState('')
   const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
@@ -122,6 +125,22 @@ export function SakuraPanel() {
     }
     setCreating(false)
     setNote('隧道已建好，正在刷新列表')
+    await load()
+  }
+
+  const saveEdit = async (id: number): Promise<void> => {
+    const port = Number(editPort)
+    if (!port) {
+      setNote('端口要填数字')
+      return
+    }
+    const result = await window.aurora?.party?.sakuraEdit({ token, id, localPort: port })
+    if (!result || !result.ok) {
+      setNote(result?.message ?? '改不动')
+      return
+    }
+    setEditingId(0)
+    setNote('已改成本地端口 ' + port)
     await load()
   }
 
@@ -285,6 +304,34 @@ export function SakuraPanel() {
               <span className="sakura-card__map">
                 {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
               </span>
+              {editingId === item.id ? (
+                <span className="sakura-card__edit">
+                  <input
+                    className="input"
+                    value={editPort}
+                    inputMode="numeric"
+                    placeholder={String(item.localPort)}
+                    onChange={(event) => setEditPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+                  />
+                  <button className="rh-btn" type="button" onClick={() => void saveEdit(item.id)}>
+                    保存
+                  </button>
+                  <button className="rh-btn" type="button" onClick={() => setEditingId(0)}>
+                    取消
+                  </button>
+                </span>
+              ) : (
+                <button
+                  className="sakura-card__act"
+                  type="button"
+                  onClick={() => {
+                    setEditingId(item.id)
+                    setEditPort(String(item.localPort || ''))
+                  }}
+                >
+                  改本地端口
+                </button>
+              )}
               {item.localPort && roomPort && String(item.localPort) !== roomPort ? (
                 <span className="sakura-card__warn">
                   房间现在在 {roomPort}，点开这条会把房间改到 {item.localPort} 再穿出去

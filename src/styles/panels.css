@@ -1913,3 +1913,39 @@ body.is-party-window {
   border-color: rgb(var(--accent-rgb) / 0.62);
   box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.16);
 }
+
+/* 卡片里的「改本地端口」与它展开后的那一行。 */
+.sakura-card__act {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-low);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.sakura-card__act:hover {
+  color: var(--accent);
+}
+
+.sakura-card__edit {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  grid-column: 1 / -1;
+}
+
+.sakura-card__edit .input {
+  width: 90px;
+  height: 28px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.16);
+  border-radius: 7px;
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  padding: 0 8px;
+  outline: none;
+}
