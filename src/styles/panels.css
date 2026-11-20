@@ -770,13 +770,26 @@
 
 .party__messages {
   display: grid;
+  /*
+   * 容器的行默认会被撑开：消息少的时候两条之间能空出一大块，看着像「分成了两屏」。
+   * 靠上排，剩下的空白就留在下面（发送栏本来就贴底）。
+   */
+  align-content: start;
   gap: 4px;
   max-height: 180px;
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  /* 能滑，但不露滚动条；按住拖动由 useDragScroll 接。 */
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   list-style: none;
-  scrollbar-width: thin;
+}
+
+.party__messages::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .party__message {
@@ -1339,6 +1352,8 @@ body.is-party-window {
 .party-window .party__messages {
   flex: 1;
   min-height: 0;
+  /* 独立窗口里消息区该占满剩余高度，不用 180 那条上限。 */
+  max-height: none;
   overflow: auto;
 }
 

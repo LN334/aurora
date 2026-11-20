@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParty } from '../../features/party/store'
+import { useDragScroll } from '../../ui/useDragScroll'
 
 /** 房间聊天：消息列表 + 输入 + 快捷表情。自带状态，不依赖房间面板。 */
 
@@ -13,6 +14,8 @@ function clock(at: number): string {
 export function ChatPanel() {
   const state = useParty((store) => store.state)
   const [draft, setDraft] = useState('')
+  /* 消息一多要能滑：滚动条藏起来了，滚轮与按住拖动都行。 */
+  const { ref: list, handlers } = useDragScroll<HTMLUListElement>()
 
   const say = async (text: string): Promise<void> => {
     const body = text.trim()
@@ -26,7 +29,7 @@ export function ChatPanel() {
       {state.messages.length === 0 ? (
         <p className="pg-note">房间里还没人说话</p>
       ) : (
-        <ul className="party__messages">
+        <ul className="party__messages" ref={list} {...handlers}>
           {state.messages.map((message) => (
             <li key={message.id} className={'party__message' + (message.host ? ' is-host' : '')}>
               <span className="party__message-name">{message.name}</span>

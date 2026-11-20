@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useParty } from '../../features/party/store'
+import { useDragScroll } from '../../ui/useDragScroll'
 
 /**
  * 隧道日志。
@@ -10,9 +11,8 @@ import { useParty } from '../../features/party/store'
  */
 export function TunnelLog() {
   const tunnel = useParty((store) => store.tunnel)
-  const box = useRef<HTMLDivElement | null>(null)
-  /* 按住拖动也能滑：日志窗没有滚动条，滚轮之外还得给一个看得见手势的操作。 */
-  const drag = useRef({ y: 0, top: 0, on: false })
+  /* 没有滚动条，所以按住拖动也能滑。 */
+  const { ref: box, handlers } = useDragScroll<HTMLDivElement>()
 
   useEffect(() => {
     const el = box.current
@@ -31,33 +31,7 @@ export function TunnelLog() {
           清空
         </button>
       </header>
-      <div
-        className="sakura-log__body"
-        ref={box}
-        onPointerDown={(event) => {
-          const el = box.current
-          if (!el) return
-          drag.current = { y: event.clientY, top: el.scrollTop, on: true }
-          el.setPointerCapture?.(event.pointerId)
-        }}
-        onPointerMove={(event) => {
-          const el = box.current
-          if (!el || !drag.current.on) return
-          const moved = event.clientY - drag.current.y
-          if (Math.abs(moved) < 3) return
-          /* 真的拖起来了才吃掉选择：轻点一下仍能选字复制。 */
-          el.style.userSelect = 'none'
-          el.scrollTop = drag.current.top - moved
-        }}
-        onPointerUp={() => {
-          drag.current.on = false
-          if (box.current) box.current.style.userSelect = ''
-        }}
-        onPointerCancel={() => {
-          drag.current.on = false
-          if (box.current) box.current.style.userSelect = ''
-        }}
-      >
+      <div className="sakura-log__body" ref={box} {...handlers}>
         {tunnel.log.length ? (
           tunnel.log.map((line, index) => (
             <div
