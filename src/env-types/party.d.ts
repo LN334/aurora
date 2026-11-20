@@ -101,6 +101,8 @@ export interface PartyApi {
   openWindow(): Promise<boolean>
   /** 找 frpc 并验一次能不能跑。 */
   sakuraFrpc(): Promise<{ path: string; ok: boolean; message: string }>
+  /** 从樱花官方下载站装一份 frpc 到本机。 */
+  sakuraInstallFrpc(): Promise<{ ok: boolean; message: string; path: string }>
   /** 登录樱花：开一扇内嵌登录窗，登录后自动带回访问密钥。 */
   sakuraLogin(): Promise<{ ok: boolean; token: string; message: string }>
   /** 打开樱花隧道页（单例窗口）。 */

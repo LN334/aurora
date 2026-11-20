@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
 import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
-import { sakuraCheckFrpc, sakuraFindFrpc } from '../sakura/frpc'
+import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/frpc'
 import { chatWindowOpen } from '../chat-window'
 import { sakuraWindowOpen } from '../sakura-window'
 import { partyWindowOpen } from '../party-window'
@@ -150,6 +150,11 @@ export function registerPartyIpc(): void {
     const found = sakuraFindFrpc()
     const check = await sakuraCheckFrpc(found)
     return { path: found, ok: check.ok, message: check.message }
+  })
+
+  /* 一键装 frpc：从樱花自己的下载站取，不随应用再分发。 */
+  ipcMain.handle('sakura:installFrpc', async () => {
+    return await sakuraInstallFrpc()
   })
 
   ipcMain.handle('sakura:login', async () => {

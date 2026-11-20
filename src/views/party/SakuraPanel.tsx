@@ -46,6 +46,7 @@ export function SakuraPanel() {
   const [nodeNames, setNodeNames] = useState<Record<number, string>>({})
   /* frpc 能不能真跑：文件存在不等于能启动。 */
   const [frpcNote, setFrpcNote] = useState('正在检查 frpc…')
+  const [installing, setInstalling] = useState(false)
   const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
@@ -108,6 +109,27 @@ export function SakuraPanel() {
   }
 
 
+
+  const installFrpc = async (): Promise<void> => {
+    setInstalling(true)
+    setFrpcNote('正在下载 frpc…')
+    try {
+      const result = await window.aurora?.party?.sakuraInstallFrpc()
+      if (!result) {
+        setFrpcNote('桌面版才能下载')
+        return
+      }
+      if (result.ok) {
+        setFrpc(result.path)
+        localStorage.setItem(KEYS.frpc, result.path)
+        setFrpcNote('frpc 已装好')
+      } else {
+        setFrpcNote(result.message)
+      }
+    } finally {
+      setInstalling(false)
+    }
+  }
 
   const openCreate = async (): Promise<void> => {
     setCreating(true)
@@ -212,6 +234,11 @@ export function SakuraPanel() {
           {' · '}
           {frpcNote}
         </span>
+        {!frpc ? (
+          <button className="rh-btn rh-btn--main" type="button" disabled={installing} onClick={() => void installFrpc()}>
+            {installing ? '下载中…' : '装 frpc'}
+          </button>
+        ) : null}
         {token && !editing ? (
           <button className="rh-btn" type="button" onClick={() => setEditing(true)}>
             重新填写

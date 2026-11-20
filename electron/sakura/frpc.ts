@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { app } from 'electron'
+import { app, net, session } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -82,6 +82,62 @@ export async function sakuraCheckFrpc(file: string): Promise<{ ok: boolean; mess
       })
     } catch (error) {
       resolve({ ok: false, message: 'frpc 调不起来：' + (error instanceof Error ? error.message : String(error)) })
+    }
+  })
+}
+
+/**
+ * 从樱花官方的 CDN 下 frpc。
+ *
+ * 不把 frpc 打进安装包：那份是樱花定制版，随应用再分发没有明确的许可依据。
+ * 改成「第一次用时从他们自己的下载站取一份放本机」——用户不用自己去翻页面，
+ * 我们也不承担再分发。
+ */
+const FRPC_URL = 'https://nya.globalslb.net/natfrp/client/frpc/0.51.0-sakura-15.1/frpc_windows_amd64.exe'
+
+export async function sakuraInstallFrpc(): Promise<{ ok: boolean; message: string; path: string }> {
+  const dir = path.join(app.getPath('userData'), 'frpc')
+  const target = path.join(dir, 'frpc.exe')
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    const bytes = await download(FRPC_URL)
+    if (bytes.length < 1024 * 1024) {
+      return { ok: false, message: '下载到的文件太小，可能被拦了', path: '' }
+    }
+    fs.writeFileSync(target, bytes)
+    const check = await sakuraCheckFrpc(target)
+    return { ok: check.ok, message: check.ok ? '' : check.message, path: check.ok ? target : '' }
+  } catch (error) {
+    return { ok: false, message: '下载失败：' + (error instanceof Error ? error.message : String(error)), path: '' }
+  }
+}
+
+/** 下载成 Buffer。走 Chromium 的网络栈，和查询接口用同一条路。 */
+function download(target: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    const timer = setTimeout(() => reject(new Error('下载超时')), 90000)
+    try {
+      const request = net.request({ url: target, method: 'GET', session: session.defaultSession, redirect: 'follow' })
+      request.on('response', (response) => {
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+        response.on('end', () => {
+          clearTimeout(timer)
+          resolve(Buffer.concat(chunks))
+        })
+        response.on('error', (error) => {
+          clearTimeout(timer)
+          reject(error)
+        })
+      })
+      request.on('error', (error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+      request.end()
+    } catch (error) {
+      clearTimeout(timer)
+      reject(error instanceof Error ? error : new Error(String(error)))
     }
   })
 }
