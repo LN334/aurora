@@ -415,7 +415,9 @@ export const useParty = create<PartyStore>((set, get) => ({
        * 没填过就交 0，房间随机挑一个。
        */
       const saved = Number(localStorage.getItem('aurora.party.port') ?? '')
-      const state = await window.aurora?.party?.host(name, Number.isInteger(saved) ? saved : 0)
+      /* 设置里填过名字就用它：房主、听众都从这一处取，别各写一个「房主」。 */
+      const who = (localStorage.getItem('aurora.party.name') ?? '').trim() || name
+      const state = await window.aurora?.party?.host(who, Number.isInteger(saved) ? saved : 0)
       if (state) {
         /*
          * 主进程是「先定房主、端口等监听成功再补」，所以它同步返回的那份快照里
@@ -424,6 +426,8 @@ export const useParty = create<PartyStore>((set, get) => ({
          * 有人说话才突然补上。空地址不覆盖已有地址，就这一条。
          */
         set((prev) => ({ state: state.address || !prev.state.address ? state : prev.state }))
+        /* 设置里关掉了「替房间转发」，开房后就照它改一次；房间页里的开关仍可随时改。 */
+        if (localStorage.getItem('aurora.party.relay') === '0') void get().setRelay(false)
       }
     } finally {
       set({ busy: false })
@@ -433,13 +437,14 @@ export const useParty = create<PartyStore>((set, get) => ({
   async join(address, code, name) {
     set({ busy: true })
     resetWatch()
+    const who = (localStorage.getItem('aurora.party.name') ?? '').trim() || name
     /* 记下「我想在这一间」：断线之后靠它自动回去，直到用户主动离开。 */
-    wantIn = { address: address.trim(), code: code.trim().toUpperCase(), name }
+    wantIn = { address: address.trim(), code: code.trim().toUpperCase(), name: who }
     attempt = 0
     // 记下这次连的是哪个地址：房主给的转发是相对路径，主机要按这个补。
     rememberSharedOrigin(address.trim())
     try {
-      const state = await window.aurora?.party?.join(address, code, name)
+      const state = await window.aurora?.party?.join(address, code, who)
       if (state) set({ state })
     } finally {
       set({ busy: false })
