@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
 import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
-import { sakuraFindFrpc } from '../sakura/frpc'
+import { sakuraCheckFrpc, sakuraFindFrpc } from '../sakura/frpc'
 import { chatWindowOpen } from '../chat-window'
 import { sakuraWindowOpen } from '../sakura-window'
 import { partyWindowOpen } from '../party-window'
@@ -145,8 +145,12 @@ export function registerPartyIpc(): void {
   })
 
   /* 登录樱花并直接拿回访问密钥：不让用户去网页里找到再粘过来。 */
-  /* 找 frpc：不让用户填路径。 */
-  ipcMain.handle('sakura:frpc', () => sakuraFindFrpc())
+  /* 找 frpc 并验一次能不能跑：文件存在不等于能启动。 */
+  ipcMain.handle('sakura:frpc', async () => {
+    const found = sakuraFindFrpc()
+    const check = await sakuraCheckFrpc(found)
+    return { path: found, ok: check.ok, message: check.message }
+  })
 
   ipcMain.handle('sakura:login', async () => {
     return await sakuraLogin()

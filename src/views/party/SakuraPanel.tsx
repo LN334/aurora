@@ -44,6 +44,8 @@ export function SakuraPanel() {
   const [editPort, setEditPort] = useState('')
   /* 节点 id → 名字。拉一次存着；拉不到就照旧显示数字，不影响别的。 */
   const [nodeNames, setNodeNames] = useState<Record<number, string>>({})
+  /* frpc 能不能真跑：文件存在不等于能启动。 */
+  const [frpcNote, setFrpcNote] = useState('正在检查 frpc…')
   const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
@@ -65,9 +67,13 @@ export function SakuraPanel() {
       setNodeNames(map)
     })
     void window.aurora?.party?.sakuraFrpc().then((found) => {
-      if (!found) return
-      setFrpc(found)
-      localStorage.setItem(KEYS.frpc, found)
+      if (!found?.path) {
+        setFrpcNote('没找到 frpc')
+        return
+      }
+      setFrpc(found.ok ? found.path : '')
+      setFrpcNote(found.ok ? 'frpc 可用' : found.message)
+      if (found.ok) localStorage.setItem(KEYS.frpc, found.path)
     })
     if (token.trim()) void load()
     // 只在进页面时拉一次，之后靠刷新
@@ -204,7 +210,7 @@ export function SakuraPanel() {
         <span className="sakura-first__state">
           {token ? '密钥已配置' : '还没有访问密钥'}
           {' · '}
-          {frpc ? 'frpc 已找到' : 'frpc 没找到'}
+          {frpcNote}
         </span>
         {token && !editing ? (
           <button className="rh-btn" type="button" onClick={() => setEditing(true)}>
