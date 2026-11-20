@@ -41,6 +41,8 @@ const sources = tracked.filter((file) => /\.(ts|tsx)$/.test(file) && !/\.d\.ts$/
 const entries = [
   'src/main.tsx',
   'src/overlay/main.tsx',
+  // chat.html 用 <script src> 引它，Vite 当多入口打包，审计这里要算一个入口。
+  'src/chat-window.tsx',
   'electron/main.ts',
   'electron/preload.ts',
   // Vite resolves these as build entries, not imports.

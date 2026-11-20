@@ -4,17 +4,10 @@ import { Row, Rows } from '../parts'
 /**
  * 一起听：房主侧那几项长期配置。
  *
- * 房间面板里也能改，但那是「这一趟开房」的上下文；把玩法和隧道参数摊在同一张
- * 设置页上，用户排查「为什么客人连不上」时才有地方对照。两处读写的是同一份
- * localStorage，不存在两份真相。
+ * 这里只留「程序自己决定不了」的两件事：房间端口固定成多少、frpc 是哪一份。
+ * 访问密钥与隧道 ID 曾经也能在这里手填——那套做法已经被樱花隧道页取代（那把
+ * 页自己拉列表、自己选隧道），同一个东西留两个入口只会让人怀疑哪个才算数。
  */
-
-const STORAGE = {
-  port: 'aurora.party.port',
-  frpc: 'aurora.party.frpc',
-  token: 'aurora.party.token',
-  tunnel: 'aurora.party.tunnel'
-}
 
 function useStored(key: string): [string, (next: string) => void] {
   const [value, setValue] = useState(() => localStorage.getItem(key) ?? '')
@@ -27,10 +20,9 @@ function useStored(key: string): [string, (next: string) => void] {
 }
 
 export function PartyPane() {
-  const [port, setPort] = useStored(STORAGE.port)
-  const [frpc, setFrpc] = useStored(STORAGE.frpc)
-  const [token, setToken] = useStored(STORAGE.token)
-  const [tunnel, setTunnel] = useStored(STORAGE.tunnel)
+  const [port, setPort] = useStored('aurora.party.port')
+  /* 只读展示：这一项由程序写入，人不该在这里手抄路径。 */
+  const [frpc] = useStored('aurora.party.frpc')
 
   return (
     <Rows>
@@ -49,34 +41,11 @@ export function PartyPane() {
       </Row>
 
       <Row
-        label="樱花 frpc 路径"
-        hint="面板「软件下载」里下载的独立版 frpc 的完整路径。启动器安装目录里那份不能被别的程序调用。"
+        label="樱花 frpc"
+        hint="程序会自己找；找不到就去樱花隧道页点「装 frpc」，一份就够。这里只是让你看得出它用的是哪一份。"
         title={frpc || undefined}
       >
-        <input
-          className="settings__input settings__input--wide"
-          value={frpc}
-          placeholder="C:\...\frpc_windows_amd64.exe"
-          onChange={(event) => setFrpc(event.target.value)}
-        />
-      </Row>
-
-      <Row label="樱花访问密钥" hint="管理面板里的访问密钥；只存在这台机器上，用来起隧道。">
-        <input
-          className="settings__input settings__input--wide"
-          value={token}
-          placeholder="访问密钥"
-          onChange={(event) => setToken(event.target.value)}
-        />
-      </Row>
-
-      <Row label="樱花隧道 ID" hint="在建好的隧道详情里能看到；多个用逗号分隔。">
-        <input
-          className="settings__input"
-          value={tunnel}
-          placeholder="隧道 ID"
-          onChange={(event) => setTunnel(event.target.value)}
-        />
+        <input className="settings__input settings__input--wide" value={frpc} readOnly placeholder="还没找到" />
       </Row>
     </Rows>
   )

@@ -99,8 +99,6 @@ export interface PartyApi {
   setRelay(relay: boolean): Promise<PartyState>
   /** 打开聊天室页（单例窗口）。 */
   openChat(): Promise<boolean>
-  /** 打开房间窗口（单例）。 */
-  openWindow(): Promise<boolean>
   /** 找 frpc 并验一次能不能跑。 */
   sakuraFrpc(): Promise<{ path: string; ok: boolean; message: string }>
   /** 从樱花官方下载站装一份 frpc 到本机。 */

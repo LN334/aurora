@@ -25,8 +25,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, 'index.html'),
         overlay: resolve(__dirname, 'overlay.html'),
-        chat: resolve(__dirname, 'chat.html'),
-        party: resolve(__dirname, 'party.html')
+        chat: resolve(__dirname, 'chat.html')
       },
       output: {
         /*
