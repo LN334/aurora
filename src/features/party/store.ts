@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PartyNow, PartyState, TunnelState } from '../../env'
+import { useAccounts } from '../accounts/store'
 import { QUALITY_SHORT } from '../online/types'
 import { useOnlineStore } from '../online/store'
 import { player } from '../player/actions'
@@ -415,8 +416,8 @@ export const useParty = create<PartyStore>((set, get) => ({
        * 没填过就交 0，房间随机挑一个。
        */
       const saved = Number(localStorage.getItem('aurora.party.port') ?? '')
-      /* 设置里填过名字就用它：房主、听众都从这一处取，别各写一个「房主」。 */
-      const who = (localStorage.getItem('aurora.party.name') ?? '').trim() || name
+      /* 名字就是当前档案名：切换档案等于换身份，别再多存一份「一起听用的名字」。 */
+      const who = useAccounts.getState().active()?.label?.trim() || name
       const state = await window.aurora?.party?.host(who, Number.isInteger(saved) ? saved : 0)
       if (state) {
         /*
@@ -437,7 +438,7 @@ export const useParty = create<PartyStore>((set, get) => ({
   async join(address, code, name) {
     set({ busy: true })
     resetWatch()
-    const who = (localStorage.getItem('aurora.party.name') ?? '').trim() || name
+    const who = useAccounts.getState().active()?.label?.trim() || name
     /* 记下「我想在这一间」：断线之后靠它自动回去，直到用户主动离开。 */
     wantIn = { address: address.trim(), code: code.trim().toUpperCase(), name: who }
     attempt = 0

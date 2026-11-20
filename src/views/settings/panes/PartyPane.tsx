@@ -26,8 +26,7 @@ export function PartyPane() {
   const [frpc] = useStored('aurora.party.frpc')
   const [token] = useStored('aurora.party.token')
   const [tunnelId] = useStored('aurora.party.tunnel')
-  /* 这两项进房间时才用到：名字显示给房里的人看，转发决定客人能不能只听房主的流。 */
-  const [name, setName] = useStored('aurora.party.name')
+  /* 进房间时才用到：转发决定客人能不能只听房主的流。名字不在这里设——它就是档案名。 */
   const [relay, setRelay] = useStored('aurora.party.relay')
 
   const openTunnels = (): void => {
@@ -36,16 +35,6 @@ export function PartyPane() {
 
   return (
     <Rows>
-      <Row label="我的名字" hint="房间里别人看到的名字。留空就按身份显示「房主」或「听众」。">
-        <input
-          className="settings__input"
-          value={name}
-          maxLength={16}
-          placeholder="留空就按身份"
-          onChange={(event) => setName(event.target.value.slice(0, 16))}
-        />
-      </Row>
-
       <Row
         label="替房间转发音频"
         hint="开着时，客人不用登录也能听到你这一档音质；关着时各听各的。进房间后也能随时改。"

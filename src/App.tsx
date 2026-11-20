@@ -729,6 +729,20 @@ export function App() {  if (!isNative) {
    * this handles every switch after that.
    */
   useEffect(() => {
+    /*
+     * 换档案就是换人：正在放的那首必须当场停下。
+     *
+     * 之前这里只换标签与数据，音频还在响——A 档案的歌会在 B 的档案里继续播，
+     * 歌单、喜欢、音量却都已经换成 B 的，看着像「换了用户但声音没变」。
+     * 先停干净，再让下面那几行把 B 的队列/偏好读回来（读回来的东西不会自己播）。
+     */
+    const player = usePlayer.getState()
+    player.setPlaying(false)
+    player.setStreamUrl('')
+    player.clearQueue()
+    player.setPosition(0)
+    player.setDuration(0)
+
     void loadProfilePlaylists(activeAccountId)
     /*
      * Volume, EQ and crossfade are profile-owned too. Loaded here rather than
