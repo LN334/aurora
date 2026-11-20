@@ -782,6 +782,13 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', (_event, argv) => {
     /*
+     * 点邀请链接时系统会再拉起一个进程，它抢不到单实例锁就退出，链接落在
+     * 这里。把 argv 原样记下来：这条路径以前没有任何痕迹，点下去「没反应」
+     * 时只能猜是协议没注册、参数没传进来，还是页面没接住。
+     */
+    write(`second-instance argv=${argv.slice(1).join(' ')}`)
+    write(`second-instance invite=${inviteFromArgv(argv) ?? '(none)'}`)
+    /*
      * 快捷方式再点一次、从开始菜单启动第二次，都落到这里。
      *
      * 只 focus 不够：窗口收进托盘时是 hide() 状态，focus() 不会让一个隐藏

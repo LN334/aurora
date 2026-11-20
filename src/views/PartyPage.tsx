@@ -226,7 +226,12 @@ export function PartyPage() {
       .replace(/^https?:\/\//, '')
       .replace(/\/$/, '')
     await useParty.getState().setPublic(clean)
-    setNote('公网地址已更新')
+    /*
+     * 没写进去就是被校验拦了：原因已经在 state.error 里，这里再盖一句
+     * 「已更新」只会让人以为填对了。
+     */
+    if (useParty.getState().state.publicAddress !== clean) return
+    setNote(clean ? '公网地址已更新' : '公网入口已撤掉')
   }
 
   const savePassword = async (value: string): Promise<void> => {

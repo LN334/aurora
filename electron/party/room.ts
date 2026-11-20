@@ -651,7 +651,23 @@ export function stopParty(): void {
  */
 export function setPublicAddress(raw: string): void {
   if (current.role !== 'host') return
-  publish({ publicAddress: raw.trim().slice(0, 80) })
+  const clean = raw
+    .trim()
+    .replace(/^(wss?|https?):\/\//i, '')
+    .replace(/\/+$/, '')
+    .slice(0, 80)
+  /*
+   * 公网地址必须带端口。
+   *
+   * 只写域名时，房间会把它原样放进邀请链接，客人拿到的是 ws://域名——默认走
+   * 80 口，而樱花这类免费节点对「直接用节点域名访问」一律回 503（节点域名没
+   * 备案）。房主在浏览器里看到 503 会以为隧道坏了，其实只是少了一个端口号。
+   */
+  if (clean && !/^[a-z0-9.-]+:\d{1,5}$/i.test(clean)) {
+    publish({ error: '公网地址要带端口，形如 frp-act.com:23456' })
+    return
+  }
+  publish({ publicAddress: clean })
   broadcast(current)
 }
 
