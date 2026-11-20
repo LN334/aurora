@@ -1879,3 +1879,37 @@ body.is-party-window {
   letter-spacing: 0.08em;
   color: var(--text-low);
 }
+
+/* 新建隧道：一行三个字段 + 两颗键，展开时占一块。 */
+.sakura-create {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  padding: var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 12px;
+  background: rgb(var(--ink-850-rgb) / 0.4);
+}
+
+.sakura-create .party__field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.sakura-create .input {
+  height: 32px;
+  border-radius: var(--r-panel);
+  background: rgb(var(--tint-rgb) / 0.055);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+  outline: none;
+}
+
+.sakura-create .input:focus {
+  border-color: rgb(var(--accent-rgb) / 0.62);
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.16);
+}

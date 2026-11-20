@@ -105,6 +105,27 @@ export interface PartyApi {
   sakuraLogin(): Promise<{ ok: boolean; token: string; message: string }>
   /** 打开樱花隧道页（单例窗口）。 */
   openSakura(): Promise<boolean>
+  /** 节点列表：建隧道要选一个。 */
+  sakuraNodes(token: string): Promise<{
+    ok: boolean
+    message: string
+    nodes: { id: number; name: string; vip: number; flag: number; band: string }[]
+  }>
+  /** 建一条隧道。 */
+  sakuraCreate(input: {
+    token: string
+    name: string
+    node: number
+    localPort: number
+    remote?: string
+  }): Promise<{ ok: boolean; message: string; id: number }>
+  /** 改一条隧道的备注或本地端口。 */
+  sakuraEdit(input: {
+    token: string
+    id: number
+    note?: string
+    localPort?: number
+  }): Promise<{ ok: boolean; message: string }>
   /** 用访问密钥换樱花隧道列表。 */
   sakuraTunnels(token: string): Promise<{
     ok: boolean

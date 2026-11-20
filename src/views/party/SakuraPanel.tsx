@@ -33,6 +33,12 @@ export function SakuraPanel() {
   const [token, setToken] = useState(() => localStorage.getItem(KEYS.token) ?? '')
   const [tunnelId, setTunnelId] = useState(() => localStorage.getItem(KEYS.tunnel) ?? '')
   const [tunnels, setTunnels] = useState<Tunnel[]>([])
+  /* 建隧道：节点列表要现拉，名字与端口在这里填。 */
+  const [creating, setCreating] = useState(false)
+  const [nodes, setNodes] = useState<{ id: number; name: string; vip: number }[]>([])
+  const [newName, setNewName] = useState('Aurora 一起听')
+  const [newNode, setNewNode] = useState(0)
+  const [newPort, setNewPort] = useState('')
   const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
@@ -84,6 +90,40 @@ export function SakuraPanel() {
   }
 
 
+
+  const openCreate = async (): Promise<void> => {
+    setCreating(true)
+    if (nodes.length || !token.trim()) return
+    setNote('正在拉节点…')
+    const result = await window.aurora?.party?.sakuraNodes(token)
+    if (!result || !result.ok) {
+      setNote(result?.message ?? '节点列表拉不到')
+      return
+    }
+    setNodes(result.nodes)
+    setNewNode(result.nodes[0]?.id ?? 0)
+    setNote('')
+  }
+
+  const createTunnel = async (): Promise<void> => {
+    if (!newName.trim() || !newNode) {
+      setNote('名字和节点都要填')
+      return
+    }
+    const result = await window.aurora?.party?.sakuraCreate({
+      token,
+      name: newName.trim(),
+      node: newNode,
+      localPort: Number(newPort) || Number(roomPort) || 0
+    })
+    if (!result || !result.ok) {
+      setNote(result?.message ?? '建不了')
+      return
+    }
+    setCreating(false)
+    setNote('隧道已建好，正在刷新列表')
+    await load()
+  }
 
   const load = async (): Promise<void> => {
     persist()
@@ -179,10 +219,58 @@ export function SakuraPanel() {
 
       <div className="sakura-head">
         <h3 className="party__section">隧道</h3>
+        <button className="rh-btn" type="button" onClick={() => void openCreate()}>
+          新建
+        </button>
         <button className="rh-btn" type="button" onClick={() => void load()}>
           刷新
         </button>
       </div>
+
+      {/*
+        建隧道：名字、节点、本地端口。端口默认取房间正在听的那个，建完点卡片开关
+        就能直接穿出去——不用先回来改一遍端口。
+      */}
+      {creating ? (
+        <div className="sakura-create">
+          <label className="party__field">
+            <span>名字</span>
+            <input className="input" value={newName} onChange={(event) => setNewName(event.target.value)} />
+          </label>
+          <label className="party__field">
+            <span>节点</span>
+            <select
+              className="input"
+              value={newNode}
+              onChange={(event) => setNewNode(Number(event.target.value))}
+            >
+              {nodes.length === 0 ? <option value={0}>正在拉…</option> : null}
+              {nodes.map((node) => (
+                <option key={node.id} value={node.id}>
+                  {node.name}
+                  {node.vip > 0 ? '（VIP）' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="party__field">
+            <span>本地端口</span>
+            <input
+              className="input"
+              placeholder={roomPort || '房间端口'}
+              value={newPort}
+              inputMode="numeric"
+              onChange={(event) => setNewPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+            />
+          </label>
+          <button className="rh-btn rh-btn--main" type="button" onClick={() => void createTunnel()}>
+            创建隧道
+          </button>
+          <button className="rh-btn" type="button" onClick={() => setCreating(false)}>
+            取消
+          </button>
+        </div>
+      ) : null}
       {note ? <p className="party__hint">{note}</p> : null}
 
       {tunnels.length ? (

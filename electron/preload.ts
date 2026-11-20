@@ -633,6 +633,11 @@ const api = {
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     setRelay: (relay: boolean) => ipcRenderer.invoke('party:relay', { relay }),
     sakuraTunnels: (token: string) => ipcRenderer.invoke('sakura:tunnels', { token }),
+    sakuraNodes: (token: string) => ipcRenderer.invoke('sakura:nodes', { token }),
+    sakuraCreate: (input: { token: string; name: string; node: number; localPort: number; remote?: string }) =>
+      ipcRenderer.invoke('sakura:create', input),
+    sakuraEdit: (input: { token: string; id: number; note?: string; localPort?: number }) =>
+      ipcRenderer.invoke('sakura:edit', input),
     openChat: () => ipcRenderer.invoke('party:chatWindow'),
     openSakura: () => ipcRenderer.invoke('party:sakura'),
     openWindow: () => ipcRenderer.invoke('party:window'),

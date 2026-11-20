@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import { createConnection } from 'node:net'
 import { session } from 'electron'
 import { LOCAL_PROXY_PORTS, proxyRulesFor } from '../pure/proxy'
@@ -72,24 +73,43 @@ function mapTunnel(value: unknown): SakuraTunnel | null {
  * 响应就用谁；全都不通才报连不上。
  */
 /**
- * 给一个请求加死线。
+ * 用 Electron 的 net.request 发一次请求。
  *
- * AbortSignal.timeout 在 Electron 的 session.fetch 上没能把请求拉回来（实测十四秒
- * 都没返回），所以改成自己 race：到点就判失败，请求在后台自生自灭。
+ * session.fetch 在这台机器上会挂住（curl 走同一个代理是 200，Electron 里却十几秒
+ * 没有任何回调），换到这个更底层的实现，超时也在它自己身上做。
  */
-function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+function requestText(
+  target: string,
+  headers: Record<string, string>,
+  route: Electron.Session,
+  ms: number,
+  method = 'GET',
+  body?: string
+): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(label + ' 超时 ' + ms + 'ms')), ms)
-    work.then(
-      (value) => {
-        clearTimeout(timer)
-        resolve(value)
-      },
-      (error) => {
-        clearTimeout(timer)
-        reject(error)
-      }
-    )
+    let settled = false
+    const finish = (fn: () => void): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      fn()
+    }
+    const timer = setTimeout(() => finish(() => reject(new Error('超时 ' + ms + 'ms'))), ms)
+    try {
+      const request = net.request({ url: target, method, session: route, redirect: 'follow' })
+      for (const [key, value] of Object.entries(headers)) request.setHeader(key, value)
+      request.on('response', (response) => {
+        const chunks: string[] = []
+        response.on('data', (chunk) => chunks.push(String(chunk)))
+        response.on('end', () => finish(() => resolve({ status: response.statusCode, text: chunks.join('') })))
+        response.on('error', (error) => finish(() => reject(error)))
+      })
+      request.on('error', (error) => finish(() => reject(error)))
+      if (body !== undefined) request.write(body)
+      request.end()
+    } catch (error) {
+      finish(() => reject(error instanceof Error ? error : new Error(String(error))))
+    }
   })
 }
 
@@ -109,34 +129,32 @@ function portOpen(port: number): Promise<boolean> {
   })
 }
 
-async function fetchWithRoute(url: string, init: RequestInit): Promise<Response> {
-  /*
-   * 直连先试，但走 Chromium 的网络栈（session.fetch）而不是 Node 的 fetch。
-   *
-   * Node 的 fetch 在这台机器上碰到这个域名会一直挂着，AbortSignal 也没能把它拉
-   * 回来（实测十四秒都没返回）。session.fetch 的超时是可靠的。
-   */
+/**
+ * 挑一条能通的路，把响应原样拿回来。
+ *
+ * 顺序：直连 → 只对「确实有东西在听」的本地端口试代理。每个请求自己带死线，
+ * 到点就判失败，绝不让界面停在「正在拉取」上。
+ */
+async function requestWithRoute(
+  url: string,
+  headers: Record<string, string>,
+  method = 'GET',
+  body?: string
+): Promise<{ status: number; text: string }> {
   try {
-    const direct = await withTimeout(session.defaultSession.fetch(url, init), 5000, '直连')
-    return direct
-  } catch (error) {
+    return await requestText(url, headers, session.defaultSession, 6000, method, body)
+  } catch {
+    /* 直连不通，往下试代理 */
   }
-  /*
-   * 只对「确实有东西在听」的端口试代理。
-   *
-   * 之前十五个端口挨个试，每一个都要等满才失败，一次刷新能拖三十多秒——界面
-   * 一直停在「正在拉取」。先花几十毫秒探一下端口开着没，只试开着的。
-   */
   const order = [7890, 7891, ...LOCAL_PROXY_PORTS.filter((port) => port !== 7890 && port !== 7891)]
   for (const port of order) {
     if (!(await portOpen(port))) continue
     try {
       const route = session.fromPartition('sakura-api-' + port)
-      /* 格式要对：Electron 要的是 http=host:port;https=host:port，不是 URL。 */
       await route.setProxy({ proxyRules: proxyRulesFor({ host: '127.0.0.1', port }) })
-      const viaProxy = await withTimeout(route.fetch(url, init), 6000, '代理 ' + port)
-      return viaProxy
-    } catch (error) {
+      return await requestText(url, headers, route, 7000, method, body)
+    } catch {
+      /* 这个端口没有代理，或者它也不通 */
     }
   }
   write('sakura: 直连与本地代理都不通')
@@ -146,13 +164,11 @@ async function fetchWithRoute(url: string, init: RequestInit): Promise<Response>
 export async function sakuraTunnels(token: string): Promise<SakuraTunnelsResult> {
   if (!token.trim()) return { ok: false, message: '还没有访问密钥', tunnels: [], raw: '' }
   try {
-    const response = await fetchWithRoute(BASE + '/tunnels', {
-      headers: {
-        Authorization: 'Bearer ' + token.trim(),
-        Accept: 'application/json'
-      }
+    const response = await requestWithRoute(BASE + '/tunnels', {
+      Authorization: 'Bearer ' + token.trim(),
+      Accept: 'application/json'
     })
-    const text = await response.text()
+    const text = response.text
     /*
      * 两种成功形状都要认：
      *   /tunnels 直接回一个数组；
@@ -194,5 +210,133 @@ export async function sakuraTunnels(token: string): Promise<SakuraTunnelsResult>
       tunnels: [],
       raw: ''
     }
+  }
+}
+
+interface SakuraNode {
+  id: number
+  name: string
+  vip: number
+  flag: number
+  band: string
+}
+
+/** 节点列表：建隧道时要选一个。接口回的是 { "2": {...}, "3": {...} } 这种对象。 */
+export async function sakuraNodes(token: string): Promise<{ ok: boolean; message: string; nodes: SakuraNode[] }> {
+  if (!token.trim()) return { ok: false, message: '还没有访问密钥', nodes: [] }
+  try {
+    const response = await requestWithRoute(BASE + '/nodes', {
+      Authorization: 'Bearer ' + token.trim(),
+      Accept: 'application/json'
+    })
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(response.text)
+    } catch {
+      return { ok: false, message: '节点接口回了非 JSON（HTTP ' + response.status + '）', nodes: [] }
+    }
+    if (!parsed || typeof parsed !== 'object') return { ok: false, message: '节点列表是空的', nodes: [] }
+    const nodes = Object.entries(parsed as Record<string, Record<string, unknown>>).map(([id, value]) => ({
+      id: Number(id),
+      name: String(value.name ?? ''),
+      vip: Number(value.vip ?? 0),
+      flag: Number(value.flag ?? 0),
+      band: String(value.band ?? '')
+    }))
+    return { ok: true, message: '', nodes }
+  } catch (error) {
+    return {
+      ok: false,
+      message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)),
+      nodes: []
+    }
+  }
+}
+
+interface SakuraCreateInput {
+  name: string
+  node: number
+  localPort: number
+  /** http/https 才要绑定域名；tcp 留空。 */
+  remote?: string
+  type?: string
+}
+
+/**
+ * 建一条隧道。
+ *
+ * POST /v4/tunnels，必填 name / type / node，tcp 还要 local_ip 与 local_port。
+ * 官方文档里给 AI 助手那段要求：创建前先确认用途——我们这里是「把房间端口穿到
+ * 公网的一档 TCP」，不属于公开游戏服务器，不触发专用节点那条限制。
+ */
+export async function sakuraCreateTunnel(token: string, input: SakuraCreateInput): Promise<{ ok: boolean; message: string; id: number }> {
+  if (!token.trim()) return { ok: false, message: '还没有访问密钥', id: 0 }
+  const form = new URLSearchParams({
+    name: input.name,
+    type: input.type ?? 'tcp',
+    node: String(input.node),
+    local_ip: '127.0.0.1',
+    local_port: String(input.localPort)
+  })
+  if (input.remote) form.set('remote', input.remote)
+  try {
+    const response = await requestWithRoute(
+      BASE + '/tunnels',
+      {
+        Authorization: 'Bearer ' + token.trim(),
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      'POST',
+      form.toString()
+    )
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(response.text)
+    } catch {
+      return { ok: false, message: '接口回了非 JSON（HTTP ' + response.status + '）', id: 0 }
+    }
+    const body = parsed as { id?: number; name?: string; msg?: string; code?: number }
+    if (body && typeof body.id === 'number') return { ok: true, message: '', id: body.id }
+    return { ok: false, message: body?.msg ?? '接口没有返回隧道 id（HTTP ' + response.status + '）', id: 0 }
+  } catch (error) {
+    return { ok: false, message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)), id: 0 }
+  }
+}
+
+interface SakuraEditInput {
+  id: number
+  note?: string
+  localPort?: number
+}
+
+/** 改一条已有的隧道：只有备注和本地端口是安全可改的。 */
+export async function sakuraEditTunnel(token: string, input: SakuraEditInput): Promise<{ ok: boolean; message: string }> {
+  if (!token.trim()) return { ok: false, message: '还没有访问密钥' }
+  const form = new URLSearchParams({ id: String(input.id) })
+  if (input.note !== undefined) form.set('note', input.note)
+  if (input.localPort !== undefined) form.set('local_port', String(input.localPort))
+  try {
+    const response = await requestWithRoute(
+      BASE + '/tunnel/edit',
+      {
+        Authorization: 'Bearer ' + token.trim(),
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      'POST',
+      form.toString()
+    )
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(response.text)
+    } catch {
+      return { ok: false, message: '接口回了非 JSON（HTTP ' + response.status + '）' }
+    }
+    const body = parsed as { code?: number; msg?: string }
+    if (body && (body.code === undefined || body.code === 0)) return { ok: true, message: '' }
+    return { ok: false, message: body?.msg ?? '改不动（HTTP ' + response.status + '）' }
+  } catch (error) {
+    return { ok: false, message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)) }
   }
 }

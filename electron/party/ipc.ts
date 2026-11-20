@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { registerStream, setRelay } from './room'
-import { sakuraTunnels } from '../sakura/api'
+import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
 import { sakuraLogin } from '../sakura/login'
 import { sakuraFindFrpc } from '../sakura/frpc'
 import { chatWindowOpen } from '../chat-window'
@@ -119,6 +119,29 @@ export function registerPartyIpc(): void {
   /* 隧道列表：仿照官方启动器，用访问密钥换回那一列卡片的数据。 */
   ipcMain.handle('sakura:tunnels', async (_event, args: unknown) => {
     return await sakuraTunnels(asText(asRecord(args).token))
+  })
+
+  ipcMain.handle('sakura:nodes', async (_event, args: unknown) => {
+    return await sakuraNodes(asText(asRecord(args).token))
+  })
+
+  ipcMain.handle('sakura:create', async (_event, args: unknown) => {
+    const raw = asRecord(args)
+    return await sakuraCreateTunnel(asText(raw.token), {
+      name: asText(raw.name),
+      node: Number(raw.node ?? 0),
+      localPort: Number(raw.localPort ?? 0),
+      remote: asText(raw.remote)
+    })
+  })
+
+  ipcMain.handle('sakura:edit', async (_event, args: unknown) => {
+    const raw = asRecord(args)
+    return await sakuraEditTunnel(asText(raw.token), {
+      id: Number(raw.id ?? 0),
+      note: raw.note === undefined ? undefined : asText(raw.note),
+      localPort: raw.localPort === undefined ? undefined : Number(raw.localPort)
+    })
   })
 
   /* 登录樱花并直接拿回访问密钥：不让用户去网页里找到再粘过来。 */
