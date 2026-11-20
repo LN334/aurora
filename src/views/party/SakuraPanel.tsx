@@ -36,7 +36,7 @@ export function SakuraPanel() {
   /* 建隧道：节点列表要现拉，名字与端口在这里填。 */
   const [creating, setCreating] = useState(false)
   const [nodes, setNodes] = useState<{ id: number; name: string; vip: number }[]>([])
-  const [newName, setNewName] = useState('Aurora 一起听')
+  const [newName, setNewName] = useState('Aurora_Party')
   const [newNode, setNewNode] = useState(0)
   const [newPort, setNewPort] = useState('')
   /* 编辑：改一条隧道的本地端口，改完房间跟着挪过去。 */
@@ -145,9 +145,13 @@ export function SakuraPanel() {
     setNote('')
   }
 
+  /* 樱花对隧道名的要求是硬的：3~20 位，只能字母数字下划线。前端先拦一道，
+     否则点下去只会拿回一句「不符合规范」，用户不知道该怎么改。 */
+  const nameOk = /^[A-Za-z0-9_]{3,20}$/.test(newName.trim())
+
   const createTunnel = async (): Promise<void> => {
-    if (!newName.trim() || !newNode) {
-      setNote('名字和节点都要填')
+    if (!nameOk || !newNode) {
+      setNote('名字要 3~20 位，只能用字母、数字、下划线')
       return
     }
     const result = await window.aurora?.party?.sakuraCreate({
@@ -296,7 +300,12 @@ export function SakuraPanel() {
         <div className="sakura-create">
           <label className="party__field">
             <span>名字</span>
-            <input className="input" value={newName} onChange={(event) => setNewName(event.target.value)} />
+            <input
+              className="input"
+              value={newName}
+              placeholder="3~20 位字母数字下划线"
+              onChange={(event) => setNewName(event.target.value.replace(/[^A-Za-z0-9_]/g, '').slice(0, 20))}
+            />
           </label>
           <label className="party__field">
             <span>节点</span>
@@ -324,7 +333,7 @@ export function SakuraPanel() {
               onChange={(event) => setNewPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
             />
           </label>
-          <button className="rh-btn rh-btn--main" type="button" onClick={() => void createTunnel()}>
+          <button className="rh-btn rh-btn--main" type="button" disabled={!nameOk || !newNode} onClick={() => void createTunnel()}>
             创建隧道
           </button>
           <button className="rh-btn" type="button" onClick={() => setCreating(false)}>
