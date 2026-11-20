@@ -1,4 +1,4 @@
-import { app, ipcMain, shell } from 'electron'
+import { app, clipboard, ipcMain, shell } from 'electron'
 import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
 import { mainWindowVisibility } from '../pure/scan-progress'
 import type { WindowSource } from './host'
@@ -48,6 +48,19 @@ export function registerAppIpc(deps: WindowSource): void {
    * 应用图标。读取只回一个预览，选择要开系统对话框，重置要动磁盘——三件事
    * 都只能由主进程做，所以都从这里过。
    */
+  /*
+   * 复制文本。
+   *
+   * 渲染层的 navigator.clipboard 在 aurora-app:// 下不是安全上下文，写剪贴板
+   * 会直接失败——界面只能退回到「把地址显示出来让你自己抄」。主进程没有这个
+   * 限制，所以复制一律走这里。
+   */
+  ipcMain.handle('app:copy', (_event, text: unknown) => {
+    if (typeof text !== 'string' || !text) return false
+    clipboard.writeText(text.slice(0, 8192))
+    return true
+  })
+
   ipcMain.handle('app:icon:get', () => iconPreview())
   ipcMain.handle('app:icon:choose', () => chooseIcon())
   ipcMain.handle('app:icon:reset', () => resetIcon())

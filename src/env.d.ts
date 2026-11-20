@@ -84,6 +84,8 @@ export interface WindowVisibilityState {
  interface AppApi {
   /** 在系统浏览器里打开外链；主进程只放行 GitHub。 */
   openExternal(url: string): Promise<boolean>
+  /** 写系统剪贴板。页面里的 navigator.clipboard 在这个协议下不可用。 */
+  copy(text: string): Promise<boolean>
   /** 重启应用（导入备份之后要让新的数据重新加载一次）。 */
   relaunch(): Promise<void>
   getVisibility(): Promise<WindowVisibilityState>

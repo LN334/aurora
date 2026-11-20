@@ -66,12 +66,9 @@ export function PartyPage() {
       return
     }
     const link = inviteLink(place, state.code)
-    try {
-      await navigator.clipboard.writeText(link)
-      setNote('邀请链接已复制')
-    } catch {
-      setNote(link)
-    }
+    /* 主进程写剪贴板：这个协议下页面自己的 clipboard API 用不了。 */
+    const copied = await window.aurora?.app?.copy(link)
+    setNote(copied ? '邀请链接已复制' : link)
   }
 
   const savePublic = async (): Promise<void> => {

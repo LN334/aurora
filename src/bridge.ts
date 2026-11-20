@@ -117,6 +117,15 @@ const webFallback: AuroraApi = {
       window.open(url, '_blank', 'noreferrer')
       return true
     },
+    // 预览里是正常网页，navigator.clipboard 可用；失败就当没复制。
+    copy: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch {
+        return false
+      }
+    },
     // 浏览器里「重启」就是刷新页面。
     relaunch: async () => {
       window.location.reload()

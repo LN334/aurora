@@ -174,12 +174,8 @@ export function EqPanel({
    */
   const copyShareCode = async () => {
     const code = encodePreset({ name: '均衡曲线', eqEnabled: enabled, gains, crossfadeSec: 0 })
-    try {
-      await navigator.clipboard.writeText(code)
-      flash('已复制分享码')
-    } catch {
-      flash('复制失败，剪贴板不可用')
-    }
+    const done = await window.aurora?.app?.copy(code)
+    flash(done ? '已复制分享码' : '复制失败，剪贴板不可用')
   }
 
   /**

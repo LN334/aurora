@@ -53,6 +53,8 @@ const api = {
   app: {
     /** 关于页的仓库与反馈按钮；主进程只放行 GitHub 链接。 */
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url) as Promise<boolean>,
+    /** 写系统剪贴板；渲染层的 clipboard API 在自定义协议下用不了。 */
+    copy: (text: string) => ipcRenderer.invoke('app:copy', text) as Promise<boolean>,
     /** 重启应用：导入备份之后要把新数据重新加载一遍。 */
     relaunch: () => ipcRenderer.invoke('app:relaunch') as Promise<void>,
     getVisibility: () => ipcRenderer.invoke('app:visibility') as Promise<WindowVisibilityState>,

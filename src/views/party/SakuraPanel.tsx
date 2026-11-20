@@ -300,12 +300,9 @@ export function SakuraPanel() {
   const copyAddress = async (): Promise<void> => {
     const value = tunnel.address
     if (!value) return
-    try {
-      await navigator.clipboard.writeText(value)
-      setNote('地址已复制：' + value)
-    } catch {
-      setNote(value)
-    }
+    /* 走主进程写剪贴板：页面里的 navigator.clipboard 在 aurora-app:// 下不是安全上下文，写不进去。 */
+    const done = await window.aurora?.app?.copy(value)
+    setNote(done ? '地址已复制：' + value : value)
   }
 
   /*
