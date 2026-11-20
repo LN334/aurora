@@ -155,7 +155,11 @@ export function PartyPage() {
             <p className="party-room__meta">
               <b>{state.code}</b>
               <span>·</span>
-              <span>{state.members.length} 人</span>
+              {/*
+                客人刚连上那一刻还没收到房主推的成员表，这里会是 0 人——
+                读起来像「房间里一个人都没有」。写「正在连」，半秒后它自己会变成数字。
+              */}
+              <span>{state.members.length ? state.members.length + ' 人' : host ? '1 人' : '正在连'}</span>
               <span>·</span>
               <span>{state.now ? '在放一首' : '还没有在播的歌'}</span>
               <span>·</span>
