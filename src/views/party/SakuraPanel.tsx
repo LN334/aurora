@@ -34,7 +34,9 @@ export function SakuraPanel() {
   const [tunnelId, setTunnelId] = useState(() => localStorage.getItem(KEYS.tunnel) ?? '')
   const [tunnels, setTunnels] = useState<Tunnel[]>([])
   const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
+  /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
 
   const roomPort = state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : ''
 
@@ -60,29 +62,28 @@ export function SakuraPanel() {
   }
 
   /**
-   * 登录：开内嵌登录窗，登录完把访问密钥带回来直接填上。
+   * 保存访问密钥。
    *
-   * 不让用户去网页里找到密钥再粘过来——那正是「手动复制」。
+   * 原本想做「登录完自动带回来」，但樱花走 Nyatwork OpenID，登录发生在另一个
+   * 域名，跳回面板后还得点「复制访问密钥」再读剪贴板——这条链一直没跑通。
+   * 降级成「填一次」：粘贴一次、存本机、之后永不再问。访问密钥本来就是给人
+   * 复制粘贴用的，一次性成本换掉整个不确定性。
    */
-  const login = async (): Promise<void> => {
-    setBusy(true)
-    try {
-      const result = await window.aurora?.party?.sakuraLogin()
-      if (!result) {
-        setNote('桌面版才有登录')
-        return
-      }
-      if (result.ok && result.token) {
-        setToken(result.token)
-        localStorage.setItem('aurora.party.token', result.token)
-        setNote('登录成功，密钥已填好')
-      } else {
-        setNote(result.ok ? '登录窗口关了，没拿到密钥' : result.message)
-      }
-    } finally {
-      setBusy(false)
+  const saveToken = (): void => {
+    const value = draft.trim()
+    if (!value) {
+      setNote('密钥是空的')
+      return
     }
+    setToken(value)
+    localStorage.setItem(KEYS.token, value)
+    setEditing(false)
+    setDraft('')
+    setNote('已保存，正在拉隧道列表')
+    void load()
   }
+
+
 
   const load = async (): Promise<void> => {
     persist()
@@ -128,14 +129,47 @@ export function SakuraPanel() {
       */}
       <div className="sakura-first">
         <span className="sakura-first__state">
-          {token ? '已登录' : '未登录'}
+          {token ? '密钥已配置' : '还没有访问密钥'}
           {' · '}
           {frpc ? 'frpc 已找到' : 'frpc 没找到'}
         </span>
-        <button className="rh-btn" type="button" disabled={busy} onClick={() => void login()}>
-          {busy ? '登录中…' : token ? '重新登录' : '登录樱花'}
-        </button>
+        {token && !editing ? (
+          <button className="rh-btn" type="button" onClick={() => setEditing(true)}>
+            重新填写
+          </button>
+        ) : null}
       </div>
+
+      {/*
+        只出现一次的输入：没有密钥、或者点了「重新填写」时才有。存进去之后就只剩
+        上面那行状态——不让同一个东西反复挡在脸上。
+      */}
+      {!token || editing ? (
+        <div className="sakura-setup">
+          <label className="party__field">
+            <span>访问密钥</span>
+            <input
+              className="input"
+              placeholder="樱花面板 · 账号设置里复制来的那一串"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') saveToken()
+              }}
+            />
+          </label>
+          <button className="rh-btn rh-btn--main" type="button" onClick={saveToken}>
+            保存
+          </button>
+          <button
+            className="rh-btn"
+            type="button"
+            onClick={() => void window.aurora?.app?.openExternal('https://www.natfrp.com/user/')}
+          >
+            去面板复制
+          </button>
+        </div>
+      ) : null}
 
 
       <div className="sakura-head">
