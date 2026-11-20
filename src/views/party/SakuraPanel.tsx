@@ -154,11 +154,16 @@ export function SakuraPanel() {
       setNote('名字要 3~20 位，只能用字母、数字、下划线')
       return
     }
+    const port = Number(newPort) || Number(roomPort) || 0
+    if (port < 1 || port > 65535) {
+      setNote('先开一个房间，或者在这里填上本地端口')
+      return
+    }
     const result = await window.aurora?.party?.sakuraCreate({
       token,
       name: newName.trim(),
       node: newNode,
-      localPort: Number(newPort) || Number(roomPort) || 0
+      localPort: port
     })
     if (!result || !result.ok) {
       setNote(result?.message ?? '建不了')
@@ -336,6 +341,11 @@ export function SakuraPanel() {
           <button className="rh-btn rh-btn--main" type="button" disabled={!nameOk || !newNode} onClick={() => void createTunnel()}>
             创建隧道
           </button>
+          {nodes.length === 0 ? (
+            <button className="rh-btn" type="button" onClick={() => void openCreate()}>
+              重拉节点
+            </button>
+          ) : null}
           <button className="rh-btn" type="button" onClick={() => setCreating(false)}>
             取消
           </button>
