@@ -126,7 +126,7 @@
   const code = (params.get('c') || params.get('code') || params.get('room') || '').trim()
   const rawHost = (params.get('host') || params.get('h') || '').trim()
   const secure = ['1', 'true', 'wss'].includes((params.get('secure') || params.get('s') || '').toLowerCase())
-  const host = rawHost.replace(/^wss?:///i, '')
+  const host = rawHost.replace(/^wss?:\/\//i, '')
 
   const codeEl = document.getElementById('code')
   const hostEl = document.getElementById('host')
