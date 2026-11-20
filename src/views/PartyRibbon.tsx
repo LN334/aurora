@@ -26,7 +26,7 @@ export function PartyRibbon() {
 
   return (
     <div className="np-party">
-      <i className="party-lamp is-on" />
+      <i className="party__lamp is-on" />
       <b>{state.code}</b>
       <span>{state.members.map((member) => member.name).join('、')}</span>
       {state.now ? <span>正在放 {state.now.title}</span> : <span>还没同步</span>}

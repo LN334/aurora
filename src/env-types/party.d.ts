@@ -132,7 +132,7 @@ export interface PartyApi {
   sakuraTunnels(token: string): Promise<{
     ok: boolean
     message: string
-    tunnels: { id: number; name: string; node: string; type: string; localPort: number; remotePort: number; online: boolean }[]
+    tunnels: { id: number; name: string; node: string; type: string; localPort: number; remotePort: number; online: boolean; note: string }[]
     raw: string
   }>
   /** 起樱花隧道（官方独立版 frpc）。 */

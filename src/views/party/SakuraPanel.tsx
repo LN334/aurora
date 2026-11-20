@@ -17,6 +17,8 @@ interface Tunnel {
   localPort: number
   remotePort: number
   online: boolean
+  /** 面板上给这条隧道起的备注；没有就是空串。 */
+  note: string
 }
 
 const KEYS = {
@@ -29,13 +31,15 @@ const KEYS = {
 export function SakuraPanel() {
   const tunnel = useParty((store) => store.tunnel)
   const state = useParty((store) => store.state)
-  const [frpc, setFrpc] = useState(() => localStorage.getItem(KEYS.frpc) ?? '')
   const [token, setToken] = useState(() => localStorage.getItem(KEYS.token) ?? '')
   const [tunnelId, setTunnelId] = useState(() => localStorage.getItem(KEYS.tunnel) ?? '')
   const [tunnels, setTunnels] = useState<Tunnel[]>([])
+  const [loading, setLoading] = useState(false)
+  const [note, setNote] = useState('')
   /* 建隧道：节点列表要现拉，名字与端口在这里填。 */
   const [creating, setCreating] = useState(false)
-  const [nodes, setNodes] = useState<{ id: number; name: string; vip: number }[]>([])
+  const [nodes, setNodes] = useState<{ id: number; name: string; vip: number; flag: number }[]>([])
+  const [nodeQuery, setNodeQuery] = useState('')
   const [newName, setNewName] = useState('Aurora_Party')
   const [newNode, setNewNode] = useState(0)
   const [newPort, setNewPort] = useState('')
@@ -44,10 +48,17 @@ export function SakuraPanel() {
   const [editPort, setEditPort] = useState('')
   /* 节点 id → 名字。拉一次存着；拉不到就照旧显示数字，不影响别的。 */
   const [nodeNames, setNodeNames] = useState<Record<number, string>>({})
-  /* frpc 能不能真跑：文件存在不等于能启动。 */
+  /*
+   * frpc：找到 ≠ 能用。
+   *
+   * localStorage 里可能留着上一次那条路径，而那个文件早就没了（比如从启动器
+   * 目录挪走的那份）。所以这一项只认「检查通过」：没通过就当没有，界面给出
+   * 「装一份」的出口，不让用户对着一个灰开关猜。
+   */
+  const [frpc, setFrpc] = useState('')
+  const [frpcReady, setFrpcReady] = useState(false)
   const [frpcNote, setFrpcNote] = useState('正在检查 frpc…')
   const [installing, setInstalling] = useState(false)
-  const [note, setNote] = useState('')
   /* 首次填密钥：只在没有密钥时出现，存进去之后这个框就不再出来。 */
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -58,7 +69,6 @@ export function SakuraPanel() {
    * 打开这一页就自己去拉：让用户先点一次「拉取」是多余的一步——密钥已经交代过
    * 了，剩下的就是等结果。按钮留着当刷新用。
    */
-  /* frpc 与密钥都自己找：不给用户留空要填。 */
   useEffect(() => {
     /* 节点名要现拉，拉不到不影响列表——卡片上退回显示 id。 */
     void window.aurora?.party?.sakuraNodes(localStorage.getItem(KEYS.token) ?? '').then((result) => {
@@ -68,31 +78,35 @@ export function SakuraPanel() {
       setNodeNames(map)
     })
     void window.aurora?.party?.sakuraFrpc().then((found) => {
-      if (!found?.path) {
-        setFrpcNote('没找到 frpc')
+      if (!found) {
+        setFrpcNote('桌面版才能装 frpc')
         return
       }
-      setFrpc(found.ok ? found.path : '')
-      setFrpcNote(found.ok ? 'frpc 可用' : found.message)
-      if (found.ok) localStorage.setItem(KEYS.frpc, found.path)
+      if (found.ok && found.path) {
+        setFrpc(found.path)
+        setFrpcReady(true)
+        setFrpcNote('frpc 可用')
+        localStorage.setItem(KEYS.frpc, found.path)
+        return
+      }
+      /* 找到却跑不起来，或者根本没找到：本机那份不可信，留给「装 frpc」这条路。 */
+      setFrpc('')
+      setFrpcReady(false)
+      localStorage.removeItem(KEYS.frpc)
+      setFrpcNote(found.path ? found.message : '没找到 frpc')
     })
-    if (token.trim()) void load()
+    const saved = localStorage.getItem(KEYS.token) ?? ''
+    if (saved.trim()) void load(saved)
     // 只在进页面时拉一次，之后靠刷新
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const persist = (): void => {
-    localStorage.setItem(KEYS.frpc, frpc)
-    localStorage.setItem(KEYS.token, token)
-  }
-
   /**
    * 保存访问密钥。
    *
-   * 原本想做「登录完自动带回来」，但樱花走 Nyatwork OpenID，登录发生在另一个
-   * 域名，跳回面板后还得点「复制访问密钥」再读剪贴板——这条链一直没跑通。
-   * 降级成「填一次」：粘贴一次、存本机、之后永不再问。访问密钥本来就是给人
-   * 复制粘贴用的，一次性成本换掉整个不确定性。
+   * 樱花走 Nyatwork OpenID，登录发生在另一个域名，跳回面板后还得点「复制访问
+   * 密钥」再读剪贴板——那条链一直没跑通。降级成「填一次」：粘贴一次、存本机、
+   * 之后永不再问。访问密钥本来就是给人复制粘贴用的，一次性成本换掉整个不确定性。
    */
   const saveToken = (): void => {
     const value = draft.trim()
@@ -104,11 +118,9 @@ export function SakuraPanel() {
     localStorage.setItem(KEYS.token, value)
     setEditing(false)
     setDraft('')
-    setNote('已保存，正在拉隧道列表')
-    void load()
+    /* 用刚保存的这一份去拉：state 要等下一次渲染才变，闭包里的 token 还是旧的。 */
+    void load(value)
   }
-
-
 
   const installFrpc = async (): Promise<void> => {
     setInstalling(true)
@@ -121,9 +133,11 @@ export function SakuraPanel() {
       }
       if (result.ok) {
         setFrpc(result.path)
+        setFrpcReady(true)
         localStorage.setItem(KEYS.frpc, result.path)
         setFrpcNote('frpc 已装好')
       } else {
+        setFrpcReady(false)
         setFrpcNote(result.message)
       }
     } finally {
@@ -131,9 +145,11 @@ export function SakuraPanel() {
     }
   }
 
-  const openCreate = async (): Promise<void> => {
-    setCreating(true)
-    if (nodes.length || !token.trim()) return
+  const reloadNodes = async (): Promise<void> => {
+    if (!token.trim()) {
+      setNote('先填访问密钥，节点列表要它才拉得到')
+      return
+    }
     setNote('正在拉节点…')
     const result = await window.aurora?.party?.sakuraNodes(token)
     if (!result || !result.ok) {
@@ -141,8 +157,14 @@ export function SakuraPanel() {
       return
     }
     setNodes(result.nodes)
-    setNewNode(result.nodes[0]?.id ?? 0)
+    if (!newNode && result.nodes[0]) setNewNode(result.nodes[0].id)
     setNote('')
+  }
+
+  const openCreate = async (): Promise<void> => {
+    setCreating(true)
+    if (nodes.length) return
+    await reloadNodes()
   }
 
   /* 樱花对隧道名的要求是硬的：3~20 位，只能字母数字下划线。前端先拦一道，
@@ -155,8 +177,12 @@ export function SakuraPanel() {
       return
     }
     const port = Number(newPort) || Number(roomPort) || 0
-    if (port < 1 || port > 65535) {
+    if (!port) {
       setNote('先开一个房间，或者在这里填上本地端口')
+      return
+    }
+    if (port > 65535) {
+      setNote('端口要在 1~65535 之间')
       return
     }
     const result = await window.aurora?.party?.sakuraCreate({
@@ -176,8 +202,8 @@ export function SakuraPanel() {
 
   const saveEdit = async (id: number): Promise<void> => {
     const port = Number(editPort)
-    if (!port) {
-      setNote('端口要填数字')
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      setNote('端口要是 1~65535 之间的数字')
       return
     }
     const result = await window.aurora?.party?.sakuraEdit({ token, id, localPort: port })
@@ -190,29 +216,56 @@ export function SakuraPanel() {
     await load()
   }
 
-  const load = async (): Promise<void> => {
-    persist()
+  /**
+   * 拉隧道列表。`withToken` 是刚保存、还没进 state 的那份密钥。
+   *
+   * 失败时不清空已有列表：网抖一下不该让卡片「消失」，那会让人以为隧道没了。
+   */
+  const load = async (withToken?: string): Promise<void> => {
+    const value = (withToken ?? token).trim()
+    localStorage.setItem(KEYS.token, value)
+    if (!value) {
+      setTunnels([])
+      setNote('还没有访问密钥')
+      return
+    }
+    setLoading(true)
     setNote('正在拉取…')
     try {
-      const result = await window.aurora?.party?.sakuraTunnels(token)
+      const result = await window.aurora?.party?.sakuraTunnels(value)
       if (!result) {
         setNote('桌面版才有隧道列表')
         return
       }
-      setTunnels(result.tunnels as Tunnel[])
-      setNote(result.ok ? (result.tunnels.length ? '' : '这个账号还没有隧道') : result.message)
+      if (result.ok) {
+        setTunnels(result.tunnels as Tunnel[])
+        setNote('')
+      } else {
+        setNote(result.message)
+      }
     } catch (error) {
       /* 不许永远停在「正在拉取」：拉不到也要给一句人话。 */
       setNote('拉取失败：' + (error instanceof Error ? error.message : String(error)))
+    } finally {
+      setLoading(false)
     }
   }
 
   const toggle = async (item: Tunnel): Promise<void> => {
-    if (tunnel.running) {
+    const active = tunnel.running && tunnelId === String(item.id)
+    if (active) {
       await useParty.getState().stopTunnel()
       return
     }
-    persist()
+    if (!frpcReady) {
+      setNote('先装一份 frpc：没有它隧道起不来')
+      return
+    }
+    /*
+     * 另一条在跑：先停它再起这一条。只停不换的话，用户点了第二条看到的是
+     * 「灯灭了但也没通」——他不知道那是另一条被停了。
+     */
+    if (tunnel.running) await useParty.getState().stopTunnel()
     if (item.localPort) {
       /*
        * 改端口会重开房间，房间里的人会被踢下线。房间有人时不替用户做这个决定：
@@ -231,19 +284,48 @@ export function SakuraPanel() {
     await useParty.getState().startTunnel({ frpcPath: frpc, token, tunnelId: String(item.id) })
   }
 
+  const copyAddress = async (): Promise<void> => {
+    const value = tunnel.address
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setNote('地址已复制：' + value)
+    } catch {
+      setNote(value)
+    }
+  }
+
+  /*
+   * 节点有七十多个，下拉里一个个找太费劲。输入框只做一件事：按名字过滤。
+   * 已经选中的那个节点要留在列表里，否则过滤一输入，选择就跳回第一项。
+   */
+  const visibleNodes = ((): typeof nodes => {
+    const query = nodeQuery.trim()
+    const list = query ? nodes.filter((node) => node.name.includes(query) || String(node.id) === query) : nodes
+    if (newNode && !list.some((node) => node.id === newNode)) {
+      const picked = nodes.find((node) => node.id === newNode)
+      if (picked) return [picked, ...list]
+    }
+    return list
+  })()
+
   return (
     <div className="sakura-panel">
       {/*
-        顺序照官方启动器：先有账号与隧道，才谈得上填路径、选隧道。说明放在最
-        上面一颗按钮旁边，读者第一眼就知道这一步要去哪。
+        顺序照官方启动器：先有账号与隧道，才谈得上选隧道。两件事各一颗灯，
+        缺哪一件就在旁边给出口——不让人对着一句「没找到 frpc」发愣。
       */}
       <div className="sakura-first">
         <span className="sakura-first__state">
-          {token ? '密钥已配置' : '还没有访问密钥'}
-          {' · '}
+          <i className={'party__lamp' + (token ? ' is-on' : '')} />
+          密钥{token ? '已配置' : '还没填'}
+        </span>
+        <span className={'sakura-first__state' + (frpcReady ? '' : ' is-warn')}>
+          <i className={'party__lamp' + (frpcReady ? ' is-on' : '')} />
           {frpcNote}
         </span>
-        {!frpc ? (
+        <span className="sakura-first__grow" />
+        {!frpcReady ? (
           <button className="rh-btn rh-btn--main" type="button" disabled={installing} onClick={() => void installFrpc()}>
             {installing ? '下载中…' : '装 frpc'}
           </button>
@@ -286,14 +368,15 @@ export function SakuraPanel() {
         </div>
       ) : null}
 
-
       <div className="sakura-head">
         <h3 className="party__section">隧道</h3>
+        {tunnels.length ? <span className="sakura-head__count">{tunnels.length}</span> : null}
+        <span className="sakura-first__grow" />
         <button className="rh-btn" type="button" onClick={() => void openCreate()}>
           新建
         </button>
-        <button className="rh-btn" type="button" onClick={() => void load()}>
-          刷新
+        <button className="rh-btn" type="button" disabled={loading} onClick={() => void load()}>
+          {loading ? '刷新中…' : '刷新'}
         </button>
       </div>
 
@@ -313,22 +396,6 @@ export function SakuraPanel() {
             />
           </label>
           <label className="party__field">
-            <span>节点</span>
-            <select
-              className="input"
-              value={newNode}
-              onChange={(event) => setNewNode(Number(event.target.value))}
-            >
-              {nodes.length === 0 ? <option value={0}>正在拉…</option> : null}
-              {nodes.map((node) => (
-                <option key={node.id} value={node.id}>
-                  {node.name}
-                  {node.vip > 0 ? '（VIP）' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="party__field">
             <span>本地端口</span>
             <input
               className="input"
@@ -338,17 +405,44 @@ export function SakuraPanel() {
               onChange={(event) => setNewPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
             />
           </label>
-          <button className="rh-btn rh-btn--main" type="button" disabled={!nameOk || !newNode} onClick={() => void createTunnel()}>
-            创建隧道
-          </button>
-          {nodes.length === 0 ? (
-            <button className="rh-btn" type="button" onClick={() => void openCreate()}>
-              重拉节点
+          <div className="party__field sakura-create__wide">
+            <span>节点</span>
+            <div className="sakura-nodes">
+              <input
+                className="input"
+                value={nodeQuery}
+                placeholder="按名字找节点"
+                onChange={(event) => setNodeQuery(event.target.value)}
+              />
+              <select
+                className="input"
+                value={newNode}
+                onChange={(event) => setNewNode(Number(event.target.value))}
+              >
+                {visibleNodes.length === 0 ? <option value={0}>没有匹配的节点</option> : null}
+                {visibleNodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {node.name}
+                    {node.vip > 0 ? '（VIP）' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="sakura-create__hint">节点是樱花那边的线路，选离自己近的；VIP 节点要会员</span>
+          </div>
+          <div className="sakura-create__actions">
+            <button className="rh-btn rh-btn--main" type="button" disabled={!nameOk || !newNode} onClick={() => void createTunnel()}>
+              创建隧道
             </button>
-          ) : null}
-          <button className="rh-btn" type="button" onClick={() => setCreating(false)}>
-            取消
-          </button>
+            {nodes.length === 0 ? (
+              <button className="rh-btn" type="button" onClick={() => void reloadNodes()}>
+                重拉节点
+              </button>
+            ) : null}
+            <button className="rh-btn" type="button" onClick={() => setCreating(false)}>
+              取消
+            </button>
+          </div>
         </div>
       ) : null}
       {note ? <p className="party__hint">{note}</p> : null}
@@ -359,7 +453,7 @@ export function SakuraPanel() {
             <li key={item.id} className={'sakura-card' + (item.online ? ' is-on' : '')}>
               {/* 隧道名当标题：官方启动器那张卡最上面就是它，id 退成角标。 */}
               <span className="sakura-card__name">
-                <i className={'party-lamp' + (item.online ? ' is-on' : '')} />
+                <i className={'party__lamp' + (item.online ? ' is-on' : '')} />
                 {item.name || '未命名隧道'}
               </span>
               <span className="sakura-card__id">#{item.id}</span>
@@ -367,6 +461,7 @@ export function SakuraPanel() {
               <span className="sakura-card__node">
                 {nodeNames[Number(item.node)] ?? (item.node ? '节点 ' + item.node : '—')}
               </span>
+              {item.note ? <span className="sakura-card__note">{item.note}</span> : null}
               <span className="sakura-card__map">
                 {item.type.toUpperCase()} {item.remotePort} → 127.0.0.1:{item.localPort}
               </span>
@@ -417,7 +512,26 @@ export function SakuraPanel() {
         </ul>
       ) : null}
 
-      {tunnel.address ? <p className="party__hint">隧道已通：{tunnel.address}</p> : null}
+      {/* 拉到空列表：给下一步，而不是一行「还没有隧道」让人回房间页自己猜。 */}
+      {!tunnels.length && !loading && token && !note ? (
+        <div className="sakura-empty">
+          <strong>这个账号还没有隧道</strong>
+          <span>建一条 TCP 隧道，本地端口填房间端口；建好点卡片上的开关就能穿出去。</span>
+          <button className="rh-btn rh-btn--main" type="button" onClick={() => void openCreate()}>
+            建一条
+          </button>
+        </div>
+      ) : null}
+
+      {tunnel.address ? (
+        <p className="party__hint sakura-live">
+          <i className="party__lamp is-on" />
+          <span>隧道已通：{tunnel.address}</span>
+          <button className="rh-btn" type="button" onClick={() => void copyAddress()}>
+            复制地址
+          </button>
+        </p>
+      ) : null}
       {!tunnel.address && tunnel.line ? <p className="party__hint">{tunnel.line}</p> : null}
       {tunnel.error ? <p className="party__hint">{tunnel.error}</p> : null}
     </div>

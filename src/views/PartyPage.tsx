@@ -178,17 +178,17 @@ export function PartyPage() {
         */}
         <ul className="party-room__lines">
           <li>
-            <i className={'party-lamp' + (state.address ? ' is-on' : '')} />
+            <i className={'party__lamp' + (state.address ? ' is-on' : '')} />
             <b>局域网</b>
             <span>{state.address || '正在起'}</span>
           </li>
           <li>
-            <i className={'party-lamp' + (state.publicAddress ? ' is-on' : '')} />
+            <i className={'party__lamp' + (state.publicAddress ? ' is-on' : '')} />
             <b>公网</b>
             <span>{state.publicAddress || '仅限同一个网络'}</span>
           </li>
           <li>
-            <i className="party-lamp" />
+            <i className="party__lamp" />
             <b>端口</b>
             <span>{state.address.includes(':') ? state.address.slice(state.address.lastIndexOf(':') + 1) : '—'}</span>
           </li>
