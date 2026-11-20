@@ -41,11 +41,33 @@ export const DRIFT_LIMIT = 3
  */
 export const HOLD_MS = 8000
 
+/**
+ * 房主那条上报最多往后推算这么久。
+ *
+ * 房主每 4 秒报一次位置，正常情况下这里只补几秒。等它大到几分钟，已经不是
+ * 「消息在路上」，而是心跳断了、或者两台机器的钟对不上——照着差值往下算，
+ * 得到的是一个比歌还长的位置，界面上就成了一条「差 1812 秒」。
+ */
+export const MAX_EXTRAPOLATION_SECONDS = 300
+
 /** 房主那一刻的位置，按到现在的流逝补到当前。 */
 export function expectedPosition(moment: PartyMoment, at: number): number {
   const waited = (at - moment.at) / 1000
   if (!Number.isFinite(waited) || waited <= 0) return moment.position
+  if (waited > MAX_EXTRAPOLATION_SECONDS) return moment.position
   return moment.position + (moment.playing ? waited : 0)
+}
+
+/**
+ * 这条上报还能不能当作「房主此刻在这儿」。
+ *
+ * 时间戳落在未来太远（两台机器钟差）或过去太久（心跳断了），都说明不是正常
+ * 的传输延迟。这时位置只能照抄，不能拿来算「差多少」，更不能拿它去 seek。
+ */
+export function momentStale(moment: PartyMoment, at: number): boolean {
+  const waited = (at - moment.at) / 1000
+  if (!Number.isFinite(waited)) return true
+  return waited > MAX_EXTRAPOLATION_SECONDS || waited < -30
 }
 
 /**
@@ -60,6 +82,11 @@ export function seekTarget(
   holding = false
 ): number | null {
   if (holding) return null
+  /*
+   * 上报过期时不要拉：那个位置可能是几分钟前的，拉过去只会让人跳到歌外面，
+   * 或者更糟——把一首正在放着的歌拽回它十秒前的样子。
+   */
+  if (momentStale(moment, at)) return null
   const target = expectedPosition(moment, at)
   if (!Number.isFinite(target)) return null
   return Math.abs(local.position - target) > DRIFT_LIMIT ? target : null

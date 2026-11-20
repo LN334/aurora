@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { inviteLink, inviteText, normalizeCode, parseInvite } from '../features/party/invite'
+import { Lock } from '../ui/icons'
 import { useParty } from '../features/party/store'
 import { usePresence } from '../ui/presence'
 
@@ -414,7 +415,10 @@ export function PartyPage() {
               {state.locked ? (
                 <>
                   <span>·</span>
-                  <span className="party-room__lock">已上锁</span>
+                  <span className="party-room__lock">
+                    <Lock size={12} />
+                    已上锁
+                  </span>
                 </>
               ) : null}
             </p>
@@ -517,6 +521,15 @@ export function PartyPage() {
             <span className="party-room__invite-note">
               同一个网络里，朋友只填房间码就能找到你；跨网络（公网隧道）才需要上面那个地址。
             </span>
+            {/*
+              上锁之后这两行地址就不等于「能进」了：链接里没有密码，有人点开还是会被拦。
+              在邀请旁边说一句，免得房主以为发出去就完事。
+            */}
+            {state.locked ? (
+              <span className="party-room__invite-note is-locked">
+                这间房上了锁：密码单独发，别和链接写在一起。
+              </span>
+            ) : null}
           </div>
         ) : null}
 

@@ -5,6 +5,7 @@ import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlineArtist } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { User } from '../ui/icons'
+import { EmptyState } from '../ui/EmptyState'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { FILTER_EVENT } from '../ui/filter-event'
 import { sourceLabelById } from '../features/online/registry'
@@ -41,17 +42,20 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
   if (artists.length === 0) {
     const anySigned = anySourceSigned('followedArtists', signed)
     return (
-      <div className="pg-empty">
-        <h2>{anySigned ? '没读到关注的艺人' : '还没有登录'}</h2>
-        <p>
-          {anySigned
+      <EmptyState
+        icon={<User size={24} />}
+        title={anySigned ? '没读到关注的艺人' : '还没有登录'}
+        hint={
+          anySigned
             ? '如果在平台上关注过艺人，可能是登录过期了，重新登录一次就会回来。'
-            : '关注的艺人存在平台账号里，登录之后这里才有东西可看。'}
-        </p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
-          {anySigned ? '去重新登录' : '去登录'}
-        </button>
-      </div>
+            : '关注的艺人存在平台账号里，登录之后这里才有东西可看。'
+        }
+        action={
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+            {anySigned ? '去重新登录' : '去登录'}
+          </button>
+        }
+      />
     )
   }
 

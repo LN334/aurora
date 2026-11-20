@@ -9,7 +9,8 @@ import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
 import { formatSpan } from '../ui/format'
-import { Play } from '../ui/icons'
+import { Heart, Play } from '../ui/icons'
+import { EmptyState } from '../ui/EmptyState'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { FILTER_EVENT } from '../ui/filter-event'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
@@ -140,13 +141,16 @@ export function LikedPage({
 
   if (tracks.length === 0) {
     return (
-      <div className="pg-empty">
-        <h2>还没有喜欢的歌</h2>
-        <p>点心收藏</p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
-          去推荐页
-        </button>
-      </div>
+      <EmptyState
+        icon={<Heart size={24} />}
+        title="还没有喜欢的歌"
+        hint="在任意一首歌上点一下心形，它就收进这里；平台账号里喜欢过的也会一起列出来。"
+        action={
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'home' })}>
+            去推荐页
+          </button>
+        }
+      />
     )
   }
 

@@ -4,6 +4,7 @@ import {
   DRIFT_LIMIT,
   HOLD_MS,
   expectedPosition,
+  momentStale,
   playStateFor,
   sawSeek,
   seekTarget,
@@ -84,4 +85,38 @@ test('following the host to another track is not a local drag', () => {
 test('the hold window outlasts one host heartbeat', () => {
   /* 房主每 4 秒报一次位置；窗口比它短的话，刚拖完就被下一条消息打回去。 */
   assert.ok(HOLD_MS > 4000)
+})
+
+/*
+ * 一条过期上报。
+ *
+ * 房主暂停后不再心跳，或者干脆断了；客人手上那条「现在听什么」会一直留着。
+ * 从前顶上那条带子拿它算 `位置 + (现在 - 上报时刻)`，于是半小时后显示
+ * 「差 1812 秒」，还带一颗按下去会 seek 到歌外面的「对齐」键。
+ */
+test('a paused host keeps its position however old the report is', () => {
+  assert.equal(expectedPosition(moment(90, false, 30 * 60 * 1000), at0), 90)
+})
+
+test('an ancient report is not extrapolated into a position past the end of the song', () => {
+  assert.equal(expectedPosition(moment(90, true, 30 * 60 * 1000), at0), 90)
+})
+
+test('an ancient report is marked stale, so nothing is pulled towards it', () => {
+  const old = moment(90, true, 30 * 60 * 1000)
+  assert.equal(momentStale(old, at0), true)
+  assert.equal(seekTarget(old, local(12, true), at0), null)
+})
+
+test('a fresh report is fine, and a clock that is a few seconds ahead does not mark it stale', () => {
+  assert.equal(momentStale(moment(90, true, 2000), at0), false)
+  /* 房主的钟快 5 秒：时间戳落在未来，但这只是钟差，不是断线。 */
+  assert.equal(momentStale({ ...moment(90, true), at: at0 + 5000 }, at0), false)
+})
+
+test('a clock off by half an hour is treated as untrustworthy, in either direction', () => {
+  /* 房主的钟慢半小时 → 客人算出的等待时间是正的半小时。 */
+  assert.equal(momentStale(moment(90, true, 30 * 60 * 1000), at0), true)
+  /* 房主的钟快半小时 → 负的半小时。 */
+  assert.equal(momentStale({ ...moment(90, true), at: at0 + 30 * 60 * 1000 }, at0), true)
 })

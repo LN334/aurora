@@ -1085,10 +1085,19 @@ input::placeholder {
   max-width: 280px;
   padding: var(--s1);
   border-radius: var(--r-panel);
-  background: var(--ink-800);
+  /*
+   * 与右侧抽屉同一块实色面。
+   *
+   * 原来是 --ink-800：浅色主题下那是纯白，于是菜单比抽屉亮一档，两个浮层
+   * 放在一起像两套界面。改成抽屉用的 --ink-850，顶缘也照它补一道提亮；
+   * 实色不需要 backdrop-filter，省一层 GPU。
+   */
+  background-color: var(--ink-850);
+  background-image: linear-gradient(180deg, rgb(var(--tint-rgb) / 0.03), transparent 26%);
   border: 1px solid rgb(var(--tint-rgb) / 0.09);
-  box-shadow: 0 14px 40px rgb(var(--shade-rgb) / 0.55);
-  backdrop-filter: var(--glass-refract, var(--refract, )) blur(10px) saturate(1.2);
+  box-shadow:
+    0 14px 40px rgb(var(--shade-rgb) / 0.5),
+    inset 0 0 0 1px rgb(var(--shade-rgb) / 0.12);
   /* 从左上角那一点弹出来，给人的印象才是「从这一行长出来的」，而不是凭空出现。 */
   transform-origin: top left;
   animation: menuIn var(--dur-2) var(--ease-out) both;
@@ -2302,12 +2311,20 @@ html.is-resizing {
  */
 :root[data-theme='light'] .rh-daily,
 :root[data-theme='light'] .rh-now,
-:root[data-theme='light'] .rh-sc,
-:root[data-theme='light'] .panel {
+:root[data-theme='light'] .rh-sc {
   background-color: rgb(var(--plane-rgb) / 0.5);
   box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.05), 0 6px 18px -10px rgb(var(--shade-rgb) / 0.12),
     inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
 }
+
+/*
+ * 抽屉不在这条规则里。
+ *
+ * 它原先跟上面三张页面卡片一起被写成 50% 透明——卡片透出壁纸是好看的，
+ * 抽屉透出的是底下整页（播放条、收藏卡片、按钮），一半字压在另一层字上。
+ * panels.css 里给 .panel 的注释早就写明「抽屉是实心面板，不做透视」，
+ * 这条浅色覆盖是后来加的，和它相反。抽屉要实底，颜色交给 --ink-850。
+ */
 
 
 /* 行悬停：白卡上压一层淡灰，反馈强度与深色那边对齐。 */
@@ -2414,8 +2431,7 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
  */
 :root .shell.has-wallpaper .rh-daily,
 :root .shell.has-wallpaper .rh-now,
-:root .shell.has-wallpaper .rh-sc,
-:root .shell.has-wallpaper .panel {
+:root .shell.has-wallpaper .rh-sc {
   background-color: rgb(255 255 255 / 0.4);
   box-shadow:
     inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1),
@@ -2426,9 +2442,20 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
 
 :root[data-theme='dark'] .shell.has-wallpaper .rh-daily,
 :root[data-theme='dark'] .shell.has-wallpaper .rh-now,
-:root[data-theme='dark'] .shell.has-wallpaper .rh-sc,
-:root[data-theme='dark'] .shell.has-wallpaper .panel {
+:root[data-theme='dark'] .shell.has-wallpaper .rh-sc {
   background-color: rgb(255 255 255 / 0.05);
+}
+
+/*
+ * 抽屉不跟着卡片变透明。
+ *
+ * 这两条壁纸规则原本把 .panel 也包了进去：卡片半透明是把壁纸透出来，抽屉
+ * 半透明是把底下整页（播放条、收藏卡、按钮）透出来，两层字叠在一起，读不清。
+ * panels.css 里 .panel 的注释写着「抽屉是实心面板，不做透视」，这里补回来。
+ */
+:root .shell.has-wallpaper .panel {
+  background-color: var(--ink-850);
+  backdrop-filter: none;
 }
 
 /* 设置页不另铺一块底：整窗口已经是玻璃，再垫一层就又是「白纸框」。 */

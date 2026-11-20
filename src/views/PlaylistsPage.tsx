@@ -7,6 +7,7 @@ import type { ProviderId } from '../features/online/types'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { openOnlinePlaylist } from '../features/refs/navigate'
 import { ChevronRight, Note, Plus } from '../ui/icons'
+import { EmptyState } from '../ui/EmptyState'
 import { NameModal } from './NameModal'
 
 /**
@@ -109,13 +110,16 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
 
   if (groups.length === 0) {
     return (
-      <div className="pg-empty">
-        <h2>还没有歌单</h2>
-        <p>歌单都在平台账号里。去「我」登录一个平台，那边的歌单就会出现在这里。</p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
-          去登录
-        </button>
-      </div>
+      <EmptyState
+        icon={<Note size={24} />}
+        title="还没有歌单"
+        hint="歌单都在平台账号里。去「我」登录一个平台，那边的歌单就会出现在这里。"
+        action={
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+            去登录
+          </button>
+        }
+      />
     )
   }
 

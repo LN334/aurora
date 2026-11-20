@@ -162,7 +162,11 @@ export function Bar({
       ref={rootRef}
       className={['bar', vertical ? 'is-vertical' : '', className ?? ''].filter(Boolean).join(' ')}
       role="slider"
-      title={valueText}
+      /*
+       * 不挂 title：那是系统画的灰白小框，和这套界面没有一处相同，用户也明说过
+       * 不要原生样式的浮层。数值由 aria-valuetext 给读屏，音量那片浮层自己
+       * 有数字显示。
+       */
       aria-valuetext={valueText}
       tabIndex={disabled ? -1 : 0}
       aria-label={ariaLabel}

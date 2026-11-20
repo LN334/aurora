@@ -20,6 +20,21 @@ export function openPlatformLogin(providerId: string): void {
   else if (providerId === 'bilibili') useBiliLoginOpen.getState().setOpen(true)
 }
 
+/**
+ * 换页时把五个平台的登录层一起收起。
+ *
+ * 它们是全屏 modal，不属于任何一页；切页之后还浮着，既挡住新页面，也让人
+ * 以为「点了没反应」——实测从「我」点开登录、切到设置、再点「检查更新」，
+ * 点到的是那颗还挂着的登录框。
+ */
+export function closePlatformLogins(): void {
+  setNeteaseLoginOpen(false)
+  useQqLoginOpen.getState().setOpen(false)
+  useKugouLoginOpen.getState().setOpen(false)
+  useQishuiLoginOpen.getState().setOpen(false)
+  useBiliLoginOpen.getState().setOpen(false)
+}
+
 /** 只渲染当前被请求打开的那个对话框；两个平台各管各的标志。 */
 export function PlatformLoginDialogs() {
   const neteaseOpen = useNeteaseLoginOpen()

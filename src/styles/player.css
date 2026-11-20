@@ -187,7 +187,12 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
-  background: var(--accent);
+  /*
+   * 用 accent-ink 而不是 accent：浅色主题下轨道是浅灰（--ink-600 = d9dfe8），
+   * 而 accent 本身是灰蓝，两者明度只差一档——已播的那一段在浅色主题里几乎
+   * 看不出来。accent-ink 在浅色下压深 34%，深色主题下保持不变。
+   */
+  background: var(--accent-ink);
   transition: background var(--tint-ms) var(--ease-out);
 }
 .bar__knob {
@@ -197,6 +202,14 @@
   height: 11px;
   border-radius: 999px;
   background: var(--text-hi);
+  /*
+   * 反色描边。
+   *
+   * 手柄读的是 --text-hi：浅色主题下是近黑，而进度/音量的填充也是深色——
+   * 黑球压在深色条上，只看得见一点点边。加一圈与页面底色同色的描边，
+   * 浅色主题就是「黑心白圈」、深色主题自动翻成「白心黑圈」，两头都清楚。
+   */
+  box-shadow: 0 0 0 2px var(--ink-850);
   translate: -50% -50%;
   opacity: 0;
   transition: opacity 120ms var(--ease-out);

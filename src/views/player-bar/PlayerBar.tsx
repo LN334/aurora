@@ -137,6 +137,8 @@ export function PlayerBar({
         >
           <User size={17} />
         </ControlButton>
+        {/* 视图类（歌词/队列/一起听）与调音类（均衡器/舞台）之间收一道缝。 */}
+        <span className="pb-sep" aria-hidden="true" />
         <ControlButton
           label="均衡器"
           tip="均衡器"

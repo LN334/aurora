@@ -361,7 +361,46 @@
 .settings__slider input[type='range'] {
   flex: 1;
   min-width: 0;
-  accent-color: var(--accent);
+  height: 18px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* 轨道：一条 4px 的线，厚度与播放条上那两条滑条一致。 */
+.settings__slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.18);
+}
+
+/*
+ * 拇指：原生那个在浅色主题下和轨道几乎同色，整条看起来就是一根灰线——
+ * 用户不知道它可拖。换成实心圆 + 主色描边，和播放条上的滑块同一套观感。
+ */
+.settings__slider input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--text-hi);
+  box-shadow: 0 1px 4px rgb(var(--shade-rgb) / 0.35);
+  cursor: grab;
+}
+
+.settings__slider input[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+/* 键盘走到这里时给一圈光环：和输入框聚焦同一个手势。 */
+.settings__slider input[type='range']:focus-visible {
+  outline: none;
+}
+
+.settings__slider input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.28);
 }
 
 .settings__number {

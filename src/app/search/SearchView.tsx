@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { player } from '../../features/player/actions'
 import { usePlayer } from '../../features/player/store'
+import { EmptyState } from '../../ui/EmptyState'
+import { Search } from '../../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../../ui/TrackList'
 import type { Track } from '../../types'
 import { searchResultsFor, searchSources, useSearch } from '../search/store'
@@ -46,20 +48,20 @@ export function SearchView({ onMenu }: { onMenu(request: TrackMenuRequest): void
       {searching ? (
         <p className="pg-note">正在搜索{active?.label}…</p>
       ) : showEmpty ? (
-        <div className="srch__empty">
-          <h2>{query.trim() ? `没有找到「${query.trim()}」` : '先输入要搜的内容'}</h2>
-          {active?.remote ? <p className="pg-note">在线要按回车</p> : null}
-        </div>
+        <EmptyState
+          icon={<Search size={24} />}
+          title={query.trim() ? `没有找到「${query.trim()}」` : '先输入要搜的内容'}
+          hint={active?.remote ? '在线要按回车' : undefined}
+        />
       ) : !submitted && query.trim() ? (
-        <div className="srch__empty">
-          <h2>按回车搜索「{query.trim()}」</h2>
-        </div>
+        <EmptyState icon={<Search size={24} />} title={`按回车搜索「${query.trim()}」`} />
       ) : !submitted ? (
         /* 什么都没输过就先说「没有匹配」，等于一进门就说这页是空的。 */
-        <div className="srch__empty">
-          <h2>先输入要搜的内容</h2>
-          <p className="pg-note">{active?.remote ? '歌名、歌手、专辑都行，按回车开始' : '歌名、歌手、专辑都行'}</p>
-        </div>
+        <EmptyState
+          icon={<Search size={24} />}
+          title="先输入要搜的内容"
+          hint={active?.remote ? '歌名、歌手、专辑都行，按回车开始' : '歌名、歌手、专辑都行'}
+        />
       ) : (
         <>
           {/*

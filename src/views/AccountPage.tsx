@@ -249,6 +249,13 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
   const name = provider.shortName ?? provider.displayName
   const tags = capabilityTags(provider)
 
+  /*
+   * 未连接时三行文字各说各的，不再重复同一个词。
+   *
+   * 以前角标、大标题、小字都在说「未登录 / 还没有登录 / 未登录」，一张卡上
+   * 三遍同义话；现在角标只表态（未连接），大标题给去向，小字说连接之后能拿到
+   * 什么——三行各回答一个问题。
+   */
   const meta = account
     ? [account.vip ? '会员' : null, account.level ? 'Lv.' + account.level : null]
         .filter(Boolean)
@@ -256,7 +263,7 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
     : blocked
       ? (detail ?? '暂时连不上')
       : ready
-        ? '还没有登录'
+        ? '连接后可同步歌单、收藏与推荐'
         : '正在确认登录状态…'
 
   return (
@@ -265,11 +272,12 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
         <span className={'acct2-dot acct2-dot--' + provider.id} aria-hidden="true" />
         <span className="acct2-pcard__name">{name}</span>
         <span className={'acct2-pill' + (account ? ' is-on' : '')}>
-          {account ? '已登录' : ready ? '未登录' : '连接中'}
+          {account ? '已连接' : ready ? '未连接' : '连接中'}
         </span>
       </div>
 
-      <div className="acct2-who">{account ? account.nickname : '未登录'}</div>
+      {/* 未连接时不占这一行：五张卡各说一遍「点下面那颗登录」，比重复三遍「未登录」还吵。 */}
+      {account ? <div className="acct2-who">{account.nickname}</div> : null}
       <p className="acct2-pmeta">{meta}</p>
 
       {tags.length > 0 ? (

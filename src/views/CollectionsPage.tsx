@@ -6,6 +6,7 @@ import { openOnlineAlbum } from '../features/refs/navigate'
 import { Artwork } from '../ui/Artwork'
 import { ArtistById } from '../ui/NameRef'
 import { Note } from '../ui/icons'
+import { EmptyState } from '../ui/EmptyState'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { FILTER_EVENT } from '../ui/filter-event'
 import { sourceLabelById } from '../features/online/registry'
@@ -41,17 +42,20 @@ export function CollectionsPage({ onNavigate }: { onNavigate(route: ShellRoute):
   if (albums.length === 0) {
     const anySigned = anySourceSigned('collectedAlbums', signed)
     return (
-      <div className="pg-empty">
-        <h2>{anySigned ? '没读到收藏的专辑' : '还没有登录'}</h2>
-        <p>
-          {anySigned
+      <EmptyState
+        icon={<Note size={24} />}
+        title={anySigned ? '没读到收藏的专辑' : '还没有登录'}
+        hint={
+          anySigned
             ? '如果在平台上收藏过专辑，可能是登录过期了，重新登录一次就会回来。'
-            : '收藏的专辑存在平台账号里，登录之后这里才有东西可看。'}
-        </p>
-        <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
-          {anySigned ? '去重新登录' : '去登录'}
-        </button>
-      </div>
+            : '收藏的专辑存在平台账号里，登录之后这里才有东西可看。'
+        }
+        action={
+          <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
+            {anySigned ? '去重新登录' : '去登录'}
+          </button>
+        }
+      />
     )
   }
 

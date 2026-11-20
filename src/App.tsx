@@ -18,7 +18,8 @@ import { bindUpdateEvents } from './features/updates/store'
 import { bindDownloadEvents, downloadRequestOf, useDownloads } from './features/downloads/store'
 import { DownloadsDock } from './ui/DownloadsDock'
 import { useOnboarded, setOnboarded } from './features/settings/onboarding'
-import { PlatformLoginDialogs } from './views/settings/panes/PlatformSignIn'
+import { PlatformLoginDialogs, closePlatformLogins } from './views/settings/panes/PlatformSignIn'
+import { useLikeMenu } from './features/favorites/like-menu'
 import { ConfirmModal } from './views/ConfirmModal'
 import { usePresence } from './ui/presence'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
@@ -454,6 +455,18 @@ export function App() {  if (!isNative) {
      * 看上去像「页面从中间开始」，页头直接看不见。
      */
     document.querySelector('.main__body')?.scrollTo({ top: 0 })
+    /*
+     * 换页收起跨页浮层。
+     *
+     * 歌曲菜单、喜欢菜单、五个平台的登录层都挂在页面之上，不属于任何一页：
+     * 切页之后它们还浮着，既挡住新内容，也让人以为新页面点了没反应——实测
+     * 登录框能一路盖到设置页的「检查更新」上面。
+     */
+    setTrackMenu(null)
+    useLikeMenu.getState().close()
+    closePlatformLogins()
+    /* 舞台是盖在整页上的浮层：换页了还留着，人就被困在一张壁纸里。 */
+    if (shell.view !== 'stage') setStageOpen(false)
   }, [shell])
 
   /*

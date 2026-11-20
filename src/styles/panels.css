@@ -81,17 +81,19 @@
 
 .panel {
   /*
-   * 高度跟着内容走，只有超过可用高度才滚动。
+   * 从标题栏下方往下长。
    *
-   * 原来是 top + bottom 两头钉死，面板永远铺满整个右侧：队列只有五首时，
-   * 下面白花花一大片，看着像没加载完。现在底边仍贴着播放条，上边由内容决定，
-   * 再用 max-height 拦住——内容多的时候和以前一样滚。
+   * 上一版是「底边钉在播放条上、高度跟着内容」：那时想解决的是「队列只有几首
+   * 也铺满整屏」的问题，代价是内容一少，整块抽屉就缩在屏幕下半截——队列只有
+   * 三首歌时，播放列表看起来是「掉到下面去了」，而不是右侧一列。
+   *
+   * 抽屉的读法是从上往下的，起点就该在顶上；高度仍跟着内容，超过可用高度才滚。
    */
   position: fixed;
-  top: auto;
+  top: calc(var(--titlebar-h) + 10px);
   right: 0;
-  bottom: var(--player-h);
-  max-height: calc(100vh - var(--titlebar-h) - var(--player-h));
+  bottom: auto;
+  max-height: calc(100vh - var(--titlebar-h) - var(--player-h) - 30px);
   height: fit-content;
   z-index: 30;
   width: min(400px, 92vw);
@@ -1581,13 +1583,9 @@ body.is-party-window {
   color: var(--accent);
 }
 
-.party-room__lock::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 8px currentColor;
+/* 邀请块里那句「密码单独发」：比上面两行说明重一点，因为它是一个要求。 */
+.party-room__invite-note.is-locked {
+  color: var(--text-hi);
 }
 
 /* 多网卡：房主点一条，邀请链接就用这一条。 */
