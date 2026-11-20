@@ -1248,7 +1248,12 @@ body.is-party-window {
 .party-window {
   height: 100vh;
   display: flex;
+  /* 深色是默认；浅色那套写在下面，两个窗口（聊天 / 樱花）共用这一条。 */
   background-image: linear-gradient(165deg, #141a23 0%, #0d1015 62%);
+}
+
+:root[data-theme='light'] .party-window {
+  background-image: linear-gradient(165deg, #fdfefe 0%, #e9eef5 62%);
 }
 
 .party-window .party-dialog {
