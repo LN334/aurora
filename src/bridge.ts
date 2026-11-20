@@ -513,7 +513,6 @@ const webFallback: AuroraApi = {
     sakuraCreate: async () => ({ ok: false, message: '预览里不能建隧道', id: 0 }),
     sakuraEdit: async () => ({ ok: false, message: '预览里不能改隧道' }),
     openChat: async () => false,
-    openSakura: async () => false,
     openWindow: async () => false,
     sakuraLogin: async () => ({ ok: false, token: '', message: '预览里没有登录接口' }),
     sakuraFrpc: async () => ({ path: '', ok: false, message: '预览里没有 frpc' }),

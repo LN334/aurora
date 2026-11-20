@@ -639,7 +639,6 @@ const api = {
     sakuraEdit: (input: { token: string; id: number; note?: string; localPort?: number }) =>
       ipcRenderer.invoke('sakura:edit', input),
     openChat: () => ipcRenderer.invoke('party:chatWindow'),
-    openSakura: () => ipcRenderer.invoke('party:sakura'),
     openWindow: () => ipcRenderer.invoke('party:window'),
     sakuraLogin: () => ipcRenderer.invoke('sakura:login'),
     sakuraFrpc: () => ipcRenderer.invoke('sakura:frpc'),

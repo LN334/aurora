@@ -234,21 +234,6 @@ export function PartyPanel({ open, onClose }: { open: boolean; onClose(): void }
             </label>
           ) : null}
 
-          {/*
-            樱花隧道。只对房主显示：客人不需要自己开隧道。
-            用的是官方独立分发的 frpc（面板「软件下载」里那个），启动参数是
-            官方的 -f 访问密钥:隧道ID。
-          */}
-          {state.role === 'host' ? (
-            <button
-              className="rh-btn"
-              type="button"
-              onClick={() => void window.aurora?.party?.openSakura()}
-            >
-              樱花隧道…
-            </button>
-          ) : null}
-
             </section>
             <section className="party__col">
           <dl className="party__facts">

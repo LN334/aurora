@@ -4,7 +4,6 @@ import { sakuraCreateTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from
 import { sakuraLogin } from '../sakura/login'
 import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/frpc'
 import { chatWindowOpen } from '../chat-window'
-import { sakuraWindowOpen } from '../sakura-window'
 import { partyWindowOpen } from '../party-window'
 import { clearTunnelLog, onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
@@ -179,10 +178,6 @@ export function registerPartyIpc(): void {
     return true
   })
 
-  ipcMain.handle('party:sakura', () => {
-    sakuraWindowOpen()
-    return true
-  })
 
   ipcMain.handle('party:chatWindow', () => {
     chatWindowOpen()

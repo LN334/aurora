@@ -107,8 +107,6 @@ export interface PartyApi {
   sakuraInstallFrpc(): Promise<{ ok: boolean; message: string; path: string }>
   /** 登录樱花：开一扇内嵌登录窗，登录后自动带回访问密钥。 */
   sakuraLogin(): Promise<{ ok: boolean; token: string; message: string }>
-  /** 打开樱花隧道页（单例窗口）。 */
-  openSakura(): Promise<boolean>
   /** 节点列表：建隧道要选一个。 */
   sakuraNodes(token: string): Promise<{
     ok: boolean
