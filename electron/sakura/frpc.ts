@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { app, net, session } from 'electron'
+import { explainNetwork } from './api'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -108,7 +109,7 @@ export async function sakuraInstallFrpc(): Promise<{ ok: boolean; message: strin
     const check = await sakuraCheckFrpc(target)
     return { ok: check.ok, message: check.ok ? '' : check.message, path: check.ok ? target : '' }
   } catch (error) {
-    return { ok: false, message: '下载失败：' + (error instanceof Error ? error.message : String(error)), path: '' }
+    return { ok: false, message: '下载失败：' + explainNetwork(error), path: '' }
   }
 }
 

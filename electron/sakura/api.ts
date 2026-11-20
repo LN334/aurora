@@ -73,6 +73,26 @@ function mapTunnel(value: unknown): SakuraTunnel | null {
  * 响应就用谁；全都不通才报连不上。
  */
 /**
+ * 把底层网络错误翻成人话。
+ *
+ * 用户看到 `ENOTFOUND` 或 `net::ERR_NAME_NOT_RESOLVED` 没有任何帮助；这台机器上
+ * 最常见的就是 DNS 与代理两件事，所以按这两类给出具体下一步。
+ */
+export function explainNetwork(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  const lower = raw.toLowerCase()
+  if (lower.includes('enotfound') || lower.includes('err_name_not_resolved') || lower.includes('name resolution')) {
+    return '域名解析不了（DNS 不通）：检查网络，或者让代理软件开着'
+  }
+  if (lower.includes('econnrefused')) return '代理端口没开：代理软件可能没启动'
+  if (lower.includes('err_proxy_connection_failed')) return '连不上代理：端口换了或代理退出了'
+  if (lower.includes('timeout') || lower.includes('超时') || lower.includes('timed out')) {
+    return '连接超时：网络或代理没有通'
+  }
+  return raw
+}
+
+/**
  * 用 Electron 的 net.request 发一次请求。
  *
  * session.fetch 在这台机器上会挂住（curl 走同一个代理是 200，Electron 里却十几秒
@@ -206,7 +226,7 @@ export async function sakuraTunnels(token: string): Promise<SakuraTunnelsResult>
   } catch (error) {
     return {
       ok: false,
-      message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)),
+      message: '连不上樱花接口：' + explainNetwork(error),
       tunnels: [],
       raw: ''
     }
@@ -247,7 +267,7 @@ export async function sakuraNodes(token: string): Promise<{ ok: boolean; message
   } catch (error) {
     return {
       ok: false,
-      message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)),
+      message: '连不上樱花接口：' + explainNetwork(error),
       nodes: []
     }
   }
@@ -300,7 +320,7 @@ export async function sakuraCreateTunnel(token: string, input: SakuraCreateInput
     if (body && typeof body.id === 'number') return { ok: true, message: '', id: body.id }
     return { ok: false, message: body?.msg ?? '接口没有返回隧道 id（HTTP ' + response.status + '）', id: 0 }
   } catch (error) {
-    return { ok: false, message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)), id: 0 }
+    return { ok: false, message: '连不上樱花接口：' + explainNetwork(error), id: 0 }
   }
 }
 
@@ -337,6 +357,6 @@ export async function sakuraEditTunnel(token: string, input: SakuraEditInput): P
     if (body && (body.code === undefined || body.code === 0)) return { ok: true, message: '' }
     return { ok: false, message: body?.msg ?? '改不动（HTTP ' + response.status + '）' }
   } catch (error) {
-    return { ok: false, message: '连不上樱花接口：' + (error instanceof Error ? error.message : String(error)) }
+    return { ok: false, message: '连不上樱花接口：' + explainNetwork(error) }
   }
 }
