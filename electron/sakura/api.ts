@@ -158,17 +158,62 @@ function portOpen(port: number): Promise<boolean> {
  * 顺序：直连 → 只对「确实有东西在听」的本地端口试代理。每个请求自己带死线，
  * 到点就判失败，绝不让界面停在「正在拉取」上。
  */
+/**
+ * 只走本机网卡、不跟系统代理的一条路。
+ *
+ * `session.defaultSession` 会跟随 Windows 的「系统代理」设置：代理软件开着时它
+ * 走代理，关掉之后那条设置**常常还留着**（ProxyServer 仍指着 127.0.0.1:7890，
+ * 可端口已经没人听了）。这时候 defaultSession 的每个请求都会以
+ * ERR_PROXY_CONNECTION_FAILED 失败——我们却把它当成「直连也不通」，于是明明
+ * 网是好的，界面照样报「连不上樱花接口」。
+ *
+ * 所以第一跳必须是显式 direct 的独立会话，这一跳只代表「这台机器自己的网络」。
+ */
+let directRoute: Electron.Session | null = null
+
+async function directSession(): Promise<Electron.Session> {
+  if (!directRoute) {
+    directRoute = session.fromPartition('sakura-direct')
+    await directRoute.setProxy({ mode: 'direct' })
+  }
+  return directRoute
+}
+
+/**
+ * 找一个能通的路去问樱花接口。
+ *
+ * 顺序：真直连 → 系统代理（开着才试）→ 本地代理端口。
+ *
+ * 每次先把 DNS 缓存清掉：换网络（校园网 → 热点）之后 Chromium 手里还攥着旧
+ * 解析结果，它不知道 Wi-Fi 换了一张网卡——不清就会连着几十秒连不上，看起来
+ * 像「时好时坏」。
+ */
 async function requestWithRoute(
   url: string,
   headers: Record<string, string>,
   method = 'GET',
   body?: string
 ): Promise<{ status: number; text: string }> {
+  const direct = await directSession()
+  await direct.clearHostResolverCache().catch(() => {})
+  await session.defaultSession.clearHostResolverCache().catch(() => {})
+
   try {
-    return await requestText(url, headers, session.defaultSession, 6000, method, body)
+    return await requestText(url, headers, direct, 6000, method, body)
   } catch {
-    /* 直连不通，往下试代理 */
+    /* 真直连不通，再往下试 */
   }
+
+  const resolved = await session.defaultSession.resolveProxy(url).catch(() => 'DIRECT')
+  const systemProxy = /PROXY\s+([^\s;]+)/i.exec(resolved)?.[1] ?? ''
+  if (systemProxy) {
+    try {
+      return await requestText(url, headers, session.defaultSession, 7000, method, body)
+    } catch {
+      /* 系统代理也没通 */
+    }
+  }
+
   const order = [7890, 7891, ...LOCAL_PROXY_PORTS.filter((port) => port !== 7890 && port !== 7891)]
   for (const port of order) {
     if (!(await portOpen(port))) continue
@@ -180,7 +225,17 @@ async function requestWithRoute(
       /* 这个端口没有代理，或者它也不通 */
     }
   }
-  write('sakura: 直连与本地代理都不通')
+
+  write('sakura: 直连与本地代理都不通 systemProxy=' + (systemProxy || '无'))
+  /*
+   * 系统代理指向一个没人听的端口时，人最容易误判成「网断了」。这一句直接点出来。
+   */
+  if (systemProxy) {
+    const port = Number(systemProxy.split(':').pop())
+    if (port && !(await portOpen(port))) {
+      throw new Error('系统代理 ' + systemProxy + ' 连不上：代理软件可能已经退出，关掉系统代理再试')
+    }
+  }
   throw new Error('直连与本地代理都不通')
 }
 
