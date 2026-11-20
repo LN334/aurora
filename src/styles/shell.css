@@ -3589,3 +3589,180 @@
   order: 10;
   margin-left: auto;
 }
+
+/*
+ * 播放页右上角那一排入口。
+ *
+ * 底栏在这页是收起来的（只留歌词与封面），队列/调音台/一起听/桌面歌词就跟着
+ * 消失了——播放时反而做不了事。这里补回来，图标与底栏同一套，悬停气泡复用
+ * .icon-btn[data-tip]。
+ */
+
+
+
+
+/*
+ * 播放页页头那一组入口。
+ *
+ * 队列、调音台、一起听、桌面歌词、舞台本来就是同一层的东西，收进一条玻璃条：
+ * 材质和底栏、和桌面歌词的控制条一致，形状不再是两颗带字的白胶囊。悬停气泡
+ * 复用 .icon-btn[data-tip]，与底栏同一处实现。
+ */
+
+
+
+
+/*
+ * 「接下来」从一行字变成三首的迷你列表。
+ *
+ * 播放页下方原本空着一大块，只写一句歌名；队列里明明还有三首。现在把它们连
+ * 封面一起排出来，这一块不再是被浪费的高度。
+ */
+.np__next {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.np__next-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.np__next-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.np__next-cover {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.np__next-list .np__next-t {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np__next-list .np__next-a {
+  flex: none;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+}
+
+/* 播放页右下角那一排：队列 / 调音台 / 一起听 / 桌面歌词 / 舞台。 */
+
+
+/* 底部那一行：「接下来」在左，工具在右，同一行。 */
+.np__foot-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.np__foot-top .np__next {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * 播放页控制行：三段等分，播放键严格居中。
+ *
+ * 原来左右各咬死 78px，右端又挂了一串工具图标，整行重心明显偏右。改成
+ * grid 三等分、两侧 1fr 对称、间距统一 6px——左（喜欢/循环/队列/调音台），
+ * 右（音量/一起听/桌面歌词/舞台），各四个，播放键落在封面中线上。
+ */
+.np__acts {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  /*
+   * 组与组之间 16px，组内 8px。
+   *
+   * 全用 8px 时「喜欢/循环/队列/调音台 | 播放控制 | 音量/一起听/桌面歌词/舞台」
+   * 三组连成一条，看不出中间那三颗是一组专门的播放控制。拉开一倍，分组才读得出来。
+   */
+  column-gap: 16px;
+}
+
+.np__acts-side {
+  display: flex;
+  align-items: center;
+  /*
+   * 8px 是「同一组、但各自独立」的距离。
+   *
+   * 6px 时四颗图标挤成一串，和中间那组播放键之间反而空出一截；8px 与播放键
+   * 自己的 6px 外距叠起来，三段的呼吸才均匀。
+   */
+  gap: 8px;
+  width: auto;
+}
+
+.np__acts-side--start {
+  justify-self: end;
+  justify-content: flex-end;
+}
+
+.np__acts-side--end {
+  justify-self: start;
+  justify-content: flex-start;
+}
+
+/* 队列位置：第几首 / 共几首。这一页看不到队列，至少得知道自己在哪。 */
+.np__posy {
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 倍速 chip。
+ *
+ * 放在歌名下面那行、队列位置的右边：它不是"听什么"而是"怎么听"，和音量、
+ * 循环是一类；但控件行已经左右各四个，再塞进去就又要偏。做成一行小字，
+ * 原速时和副标题同样灰，改了速度才亮起来。
+ */
+.np__rate {
+  margin-left: 2px;
+  padding: 1px 7px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: 7px;
+  /* 原来只是一层几乎看不见的底，和旁边那串灰字糊在一起：看不出它是能点的。 */
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+
+.np__rate:hover {
+  background: rgb(var(--tint-rgb) / 0.12);
+  color: var(--text-hi);
+}
+
+.np__rate.is-on {
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent);
+}
+
+/* 倍速与前面那串只读文字分开：它有边框、能点，和「艺人/专辑」不是一类。 */
+.np__sub .np__rate {
+  margin-left: 6px;
+}

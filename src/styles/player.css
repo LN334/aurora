@@ -648,3 +648,34 @@
   border-radius: 999px;
   background: var(--accent);
 }
+
+/*
+ * 底栏的倍速。
+ *
+ * 和播放页那颗同一套：原速时是一枚很淡的小字，改了速度才亮。底栏本来就挤，
+ * 所以只给一个 1× 的宽度，不做下拉。
+ */
+.pb-rate {
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
+  border-radius: 7px;
+  background: rgb(var(--tint-rgb) / 0.06);
+  color: var(--text-mid);
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+
+.pb-rate:hover {
+  background: rgb(var(--tint-rgb) / 0.12);
+  color: var(--text-hi);
+}
+
+.pb-rate.is-on {
+  border-color: transparent;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent);
+}

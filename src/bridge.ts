@@ -303,6 +303,7 @@ const webFallback: AuroraApi = {
     getStatus: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
     setLocked: async () => true,
     setHitArea: async () => true,
+    setToolbarArea: async () => true,
     onHover: () => () => undefined,
     close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
     command: async () => true,

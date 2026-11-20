@@ -19,6 +19,7 @@ import { showFlash } from '../ui/flash'
 import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
 import { useOnlineStore } from '../features/online/store'
+import { bridge } from '../bridge'
 import { Artwork } from '../ui/Artwork'
 import { formatTime } from '../ui/format'
 import { AlbumName, ArtistName } from '../ui/NameRef'
@@ -35,6 +36,11 @@ import {
   Repeat,
   RepeatOne,
   Shuffle,
+  DesktopLyrics,
+  Expand,
+  Queue,
+  Sliders,
+  User,
   Volume,
   VolumeMute
 } from '../ui/icons'
@@ -57,6 +63,9 @@ interface NowPlayingProps {
   onSeek(seconds: number): void
   onSeekRatio(ratio: number): void
   onOpenStage(): void
+  /* 播放页没有底栏，队列与调音台由这一页自己给入口。 */
+  onOpenQueue(): void
+  onOpenEq(): void
 }
 
 /**
@@ -326,7 +335,9 @@ export function NowPlayingPage({
   onBack,
   onSeek,
   onSeekRatio,
-  onOpenStage
+  onOpenStage,
+  onOpenQueue,
+  onOpenEq
 }: NowPlayingProps) {
   const likedIds = useLikedIds()
   /*
@@ -364,6 +375,10 @@ export function NowPlayingPage({
 
   // 只订阅「第几行」而不是 position：进度每秒跳六十次，这个值一首歌只变几十次。
   const active = usePlayer((state) => (lyrics.lines.length > 0 ? activeLineAt(lyrics.lines, state.position) : -1))
+  /* 队列里的位置：这一页看不到队列，至少得知道「第几首 / 共几首」。 */
+  const queueSize = usePlayer((state) => state.queue.length)
+  const queueAt = usePlayer((state) => state.index)
+  const rate = usePlayer((state) => state.playbackRate)
 
   if (!track) {
     return (
@@ -461,6 +476,27 @@ export function NowPlayingPage({
                   </span>
                 </>
               ) : null}
+              {queueSize > 1 && queueAt >= 0 ? (
+                <>
+                  <span className="np__dot">·</span>
+                  <span className="np__posy">
+                    {queueAt + 1} / {queueSize}
+                  </span>
+                </>
+              ) : null}
+              <button
+                type="button"
+                className={`np__rate${rate === 1 ? '' : ' is-on'}`}
+                onClick={() => {
+                  const rates = [0.75, 1, 1.25, 1.5, 2]
+                  const at = rates.indexOf(rate)
+                  usePlayer.getState().setPlaybackRate(rates[(at + 1) % rates.length] ?? 1)
+                }}
+                data-tip="播放速度"
+                aria-label={`播放速度 ${rate} 倍`}
+              >
+                {rate}×
+              </button>
             </div>
           </div>
 
@@ -539,6 +575,12 @@ export function NowPlayingPage({
                 )}
               </button>
             )}
+            <button type="button" className="icon-btn" data-tip="播放队列" aria-label="播放队列" onClick={onOpenQueue}>
+              <Queue size={17} />
+            </button>
+            <button type="button" className="icon-btn" data-tip="调音台" aria-label="调音台" onClick={onOpenEq}>
+              <Sliders size={17} />
+            </button>
             </div>
             <div className="np__acts-transport">
               <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
@@ -604,6 +646,29 @@ export function NowPlayingPage({
                 />
               </div>
             </div>
+            <button
+              type="button"
+              className="icon-btn"
+              data-tip="一起听"
+              aria-label="一起听"
+              onClick={() => {
+                window.location.hash = '#party'
+              }}
+            >
+              <User size={17} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              data-tip="桌面歌词"
+              aria-label="桌面歌词"
+              onClick={() => void bridge.overlay.toggle()}
+            >
+              <DesktopLyrics size={17} />
+            </button>
+            <button type="button" className="icon-btn" data-tip="舞台" aria-label="舞台" onClick={onOpenStage}>
+              <Expand size={17} />
+            </button>
             </div>
           </div>
         </div>

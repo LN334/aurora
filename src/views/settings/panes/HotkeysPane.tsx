@@ -26,7 +26,7 @@ const GROUPS: KeyGroup[] = [
     title: '任何页面',
     lines: [
       { keys: ['Ctrl', 'K'], what: '把光标放到顶部的搜索框；输完回车就进结果页' },
-      { keys: ['Esc'], what: '先关掉最上层的面板（播放页、均衡器、队列），都关了再返回上一页' },
+      { keys: ['Esc'], what: '先关掉最上层的面板（播放页、调音台、队列），都关了再返回上一页' },
       { keys: ['Space'], what: '播放 / 暂停' },
       { keys: ['Ctrl', '→'], what: '下一首' },
       { keys: ['Ctrl', '←'], what: '上一首' },
@@ -52,7 +52,7 @@ const GROUPS: KeyGroup[] = [
     title: '面板',
     lines: [
       { keys: ['L'], what: '打开 / 收起播放页（沉浸歌词）' },
-      { keys: ['E'], what: '打开 / 收起均衡器' }
+      { keys: ['E'], what: '打开 / 收起调音台' }
     ]
   }
 ]

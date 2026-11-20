@@ -18,7 +18,7 @@ interface ControlButtonProps {
   tip?: string
   /** 原生 title：要带快捷键时用它，气泡仍旧是 tip 那个短词。 */
   hint?: string
-  onClick(): void
+  onClick(event: React.MouseEvent<HTMLButtonElement>): void
   /** 滚轮：静音键那种「人在键上就想滚一下」的场景。 */
   onWheel?(event: WheelEvent<HTMLButtonElement>): void
   disabled?: boolean
@@ -58,8 +58,14 @@ export function ControlButton({
       onClick={onClick}
       onWheel={onWheel}
       disabled={disabled}
-      title={hint ?? tip ?? label}
-      data-tip={tip}
+      /*
+       * 不用原生 title。
+       *
+       * 它渲染成一个灰色大方块，压在底下的歌单卡片上，和整套界面不是一个东西；
+       * 音量那条还会跟着数值每滚一格刷新一次。悬停提示交给下面那枚 data-tip
+       * 气泡（CSS 画的），读屏仍有 aria-label。
+       */
+      data-tip={tip ?? hint}
       aria-label={label}
       aria-pressed={pressed}
     >

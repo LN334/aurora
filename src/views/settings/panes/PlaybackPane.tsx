@@ -16,7 +16,7 @@ import { Row, Rows, Toggle } from '../parts'
 /**
  * 02 播放与音质。
  *
- * 分区的顺序就是一个人真正会先问到的顺序：怎么切歌（交叉淡化）、要不要染色（均衡器）、
+ * 分区的顺序就是一个人真正会先问到的顺序：怎么切歌（交叉淡化）、要不要染色（调音台）、
  * 在线听什么档（各平台自己的音质档）、歌词从哪来（在线歌词）。在线音质仍然由平台注册表
  * 生成，不在这里分支——每个平台自己声明档位。
  */
@@ -50,10 +50,10 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         </div>
       </div>
 
-      <Row label="均衡器" hint="10 段推子、实时频谱与峰值电平均在播放界面按 E 打开的抽屉里。">
+      <Row label="调音台" hint="10 段推子、实时电平与预设，按 E 从播放界面打开。">
         <Toggle
           checked={eqEnabled}
-          label="均衡器"
+          label="均衡"
           onChange={(next) => setEqEnabled(next)}
         />
       </Row>

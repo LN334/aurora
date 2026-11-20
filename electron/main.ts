@@ -569,20 +569,39 @@ function createWindow(): void {
               await new Promise((resolve) => setTimeout(resolve, 1200))
             }
             if (clickArg) {
+              /*
+               * 支持 `--click='a|b|c'` 连点：一次 capture 只能截一张图，而很多
+               * 状态要先播放（底栏才出现）再点开抽屉。用 | 分隔，因为 CSS 选择器
+               * 自己会用逗号。
+               */
               const selector = clickArg.slice('--click='.length)
               // 点不到时最想知道的是「选择器错在哪」：命中几个、命中的是谁、点完它有没有变。
               // 静默失败一次就要重跑一轮截图，所以这里把回执写进日志。
-              const receipt = await mainWindow?.webContents.executeJavaScript(
-                `(() => {
-                  const found = document.querySelectorAll(${JSON.stringify(selector)})
-                  const el = found[0]
-                  if (!el) return { hits: 0, cls: null, clicked: false, after: null }
-                  el.click()
-                  return { hits: found.length, cls: String(el.className), clicked: true }
-                })()`
-              )
-              write(`click ${selector} -> ${JSON.stringify(receipt)}`)
-              await new Promise((resolve) => setTimeout(resolve, settleMs))
+              for (const step of selector.split('|').map((part) => part.trim()).filter(Boolean)) {
+                /*
+                 * 以 # 开头的一步表示「切到这一页」，不是点选择器。
+                 *
+                 * 播放页要先有歌才画得出来：一次 capture 里只能先点一首歌、再切
+                 * 到播放页，两件事都得在 settle 之间完成。
+                 */
+                if (step.startsWith('#')) {
+                  await mainWindow?.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(step)}`)
+                  write(`hash ${step} -> ${step}`)
+                  await new Promise((resolve) => setTimeout(resolve, settleMs))
+                  continue
+                }
+                const receipt = await mainWindow?.webContents.executeJavaScript(
+                  `(() => {
+                    const found = document.querySelectorAll(${JSON.stringify(step)})
+                    const el = found[0]
+                    if (!el) return { hits: 0, cls: null, clicked: false }
+                    el.click()
+                    return { hits: found.length, cls: String(el.className), clicked: true }
+                  })()`
+                )
+                write(`click ${step} -> ${JSON.stringify(receipt)}`)
+                await new Promise((resolve) => setTimeout(resolve, settleMs))
+              }
             }
             if (scrollArg) {
               const y = Number(scrollArg.slice('--scroll='.length)) || 0

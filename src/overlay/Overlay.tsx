@@ -53,6 +53,7 @@ export function Overlay() {
   const [size, setSize] = useState(DEFAULT_SIZE)
   const [hovering, setHovering] = useState(false)
   const stack = useRef<HTMLDivElement | null>(null)
+  const toolbar = useRef<HTMLDivElement | null>(null)
   const fill = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => bridge.overlay.onState(setState), [])
@@ -119,6 +120,31 @@ export function Overlay() {
     observer.observe(element)
     return () => observer.disconnect()
   }, [size, state.text, state.next, state.title, state.artist, state.playing])
+
+  /*
+   * 工具条自己的矩形也要报给主进程。
+   *
+   * 锁定之后只有这一块会接管鼠标：歌词文字要穿透（否则桌面上的点击被吃掉，
+   * 看起来就是「锁了没锁住」），但控制栏得点得到。它用 visibility 隐藏、不改变
+   * 布局，所以矩形一直有效。
+   */
+  useEffect(() => {
+    const element = toolbar.current
+    if (!element) return
+    const report = () => {
+      const rect = element.getBoundingClientRect()
+      void bridge.overlay.setToolbarArea({
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height
+      })
+    }
+    report()
+    const observer = new ResizeObserver(report)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [locked])
 
   /*
    * Walk the fill forward locally.
@@ -210,7 +236,7 @@ export function Overlay() {
       >
         <div className="lyric-words">{words}</div>
 
-        <div className="lyric-toolbar">
+        <div className="lyric-toolbar" ref={toolbar}>
           <span className="lyric-toolbar__transport">
             <button
               className="lyric-tool"

@@ -50,6 +50,17 @@ body.overlay-body {
   -webkit-app-region: drag;
 }
 
+/*
+ * 锁住了就不许拖。
+ *
+ * 锁定态下鼠标悬到歌词上时窗口会短暂接管（为了工具栏可点），而整条一直在
+ * drag 区里——于是「锁定」之后照样拖得动，看起来就是锁定没生效。锁定只意味着
+ * 位置定了：要动先解锁。
+ */
+.lyric-stack.is-locked {
+  -webkit-app-region: no-drag;
+}
+
 .lyric-words {
   position: relative;
   display: flex;
@@ -173,17 +184,24 @@ body.overlay-body {
  * trying to reach its buttons.
  */
 .lyric-toolbar {
+  /*
+   * 照播放条的样子做：一条玻璃矩形，不是药丸。
+   *
+   * 之前是一整条深色胶囊压在壁纸上，像另一个窗口贴在歌词下面。播放条那套是
+   * 「薄薄一层 plane + 细描边 + 内高光 + 背景模糊」，圆角是小矩形——桌面歌词的
+   * 控制栏既然是同一套控件，就该长成一个样子。
+   */
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 12px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
-  border-radius: 999px;
-  background: rgb(var(--plane-rgb) / 0.82);
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 14px;
+  background: rgb(var(--plane-rgb) / 0.66);
   box-shadow:
-    0 10px 30px rgb(var(--shade-rgb) / 0.38),
-    inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
-  backdrop-filter: blur(14px) saturate(1.25);
+    0 8px 24px rgb(var(--shade-rgb) / 0.32),
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
+  backdrop-filter: blur(18px) saturate(1.2);
   opacity: 0;
   visibility: hidden;
   transition:
@@ -200,7 +218,7 @@ body.overlay-body {
 .lyric-toolbar__transport {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .lyric-toolbar__tools {
@@ -208,7 +226,7 @@ body.overlay-body {
   align-items: center;
   gap: 2px;
   padding-left: 10px;
-  border-left: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-left: 1px solid rgb(var(--tint-rgb) / 0.12);
 }
 
 .lyric-tool {
@@ -217,9 +235,10 @@ body.overlay-body {
   height: 30px;
   place-items: center;
   border: 0;
-  border-radius: 50%;
+  border-radius: 9px;
+  /* 底由整条玻璃条给，按钮自己只在悬停时亮一下（和播放条同一套手感）。 */
   background: transparent;
-  color: rgb(255 255 255 / 0.82);
+  color: rgb(255 255 255 / 0.86);
   cursor: pointer;
   transition:
     background 120ms ease,
@@ -228,7 +247,7 @@ body.overlay-body {
 }
 
 .lyric-tool:hover {
-  background: rgb(var(--tint-rgb) / 0.12);
+  background: rgb(var(--tint-rgb) / 0.14);
   color: #fff;
 }
 

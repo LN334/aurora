@@ -362,6 +362,13 @@ export interface OverlayStatus {
    */
   setHitArea(rect: { x: number; y: number; width: number; height: number }): Promise<boolean>
   /**
+   * 工具栏那一块的矩形。
+   *
+   * 锁定态下只有这里会接管鼠标：歌词本身必须穿透，否则桌面上的点击被窗口吃掉，
+   * 用户看到的就是「锁了没锁住」。
+   */
+  setToolbarArea(rect: { x: number; y: number; width: number; height: number }): Promise<boolean>
+  /**
    * True while the pointer is over the lyrics.
    *
    * The main process polls the cursor - a locked window ignores the mouse, so

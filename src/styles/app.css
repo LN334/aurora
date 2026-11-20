@@ -272,24 +272,41 @@ input::placeholder {
   cursor: default;
 }
 
-/* Five icons in a row and no words anywhere: hovering has to say what each
-   one is, without covering the controls underneath. */
-.icon-btn[data-tip]:hover::after,
-.pb-btn[data-tip]:hover::after {
+/*
+ * 一排只有图标、没有字：悬停得说出它是谁，而且不能盖住下面的控件。
+ *
+ * 这是全应用唯一的气泡实现（icon-btn 与底栏按钮共用）。以前只有 :hover 时的一跳，
+ * 气泡是「啪」地出现；现在淡入并上浮 4px，和其余浮层一个节奏。
+ */
+.icon-btn[data-tip]::after,
+.pb-btn[data-tip]::after {
   content: attr(data-tip);
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 7px);
   left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 8px;
-  border-radius: 6px;
+  translate: -50% 4px;
+  padding: 4px 9px;
+  border-radius: 7px;
   background: rgb(var(--scrim-rgb) / 0.94);
+  box-shadow: 0 8px 20px rgb(var(--shade-rgb) / 0.35);
   color: var(--text-hi);
   font-size: var(--fs-micro);
   letter-spacing: 0.02em;
   white-space: nowrap;
+  opacity: 0;
   pointer-events: none;
+  transition:
+    opacity 120ms var(--ease-out),
+    translate 120ms var(--ease-out);
   z-index: 60;
+}
+
+.icon-btn[data-tip]:hover::after,
+.pb-btn[data-tip]:hover::after,
+.icon-btn[data-tip]:focus-visible::after,
+.pb-btn[data-tip]:focus-visible::after {
+  opacity: 1;
+  translate: -50% 0;
 }
 
 /* The queue opens as a panel, so the count is the only hint that the icon is
@@ -763,50 +780,8 @@ input::placeholder {
 /* 页头右上那两颗（队列 / 舞台）单独一套：胶囊、玻璃、图标比文字淡一档。
    通用 .btn 是 32px 的实底砖，并排两块钱在壁纸上像两块补丁；页头工具不该抢视线，
    但也不能糊到看不出能点——所以留一圈很淡的描边和内高光，悬停时一起抬亮。 */
-.np-act {
-  height: 30px;
-  padding: 0 13px 0 11px;
-  gap: 7px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  background: rgb(var(--tint-rgb) / 0.055);
-  color: color-mix(in oklab, var(--text-hi) 88%, transparent);
-  font-size: 12.5px;
-  letter-spacing: 0.01em;
-  backdrop-filter: blur(10px) saturate(1.2);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
-  transition:
-    background var(--dur-1) var(--ease-out),
-    border-color var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out),
-    transform var(--dur-1) var(--ease-out);
-}
-.np-act svg {
-  color: var(--text-mid);
-  transition: color var(--dur-1) var(--ease-out);
-}
-.np-act:hover {
-  background: rgb(var(--tint-rgb) / 0.1);
-  border-color: rgb(var(--tint-rgb) / 0.16);
-  color: var(--text-hi);
-}
-.np-act:hover svg {
-  color: var(--text-hi);
-}
-.np-act:active {
-  transform: scale(0.97);
-}
-.np-act:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+
 /* 舞台是这页的主出口：悬停时用当前封面的主色点一下，但不做成实心主按钮。 */
-.np-act--stage:hover {
-  border-color: rgb(var(--accent-rgb) / 0.45);
-  box-shadow:
-    inset 0 1px 0 rgb(var(--tint-rgb) / 0.08),
-    0 0 0 3px rgb(var(--accent-rgb) / 0.08);
-}
 
 /* --- player bar ---------------------------------------------------------- */
 /*

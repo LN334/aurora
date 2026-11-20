@@ -247,7 +247,21 @@ class AudioEngine {
     this.installMediaSession()
     this.unsubscribeVolume ??= usePlayer.subscribe((state, prev) => {
       if (volumeIntentChanged(prev, state)) this.applyVolume()
+      if (prev.playbackRate !== state.playbackRate) this.applyPlaybackRate()
     })
+  }
+
+  /**
+   * 倍速。
+   *
+   * 直接写元素属性——Web Audio 的播放速率要走 source.playbackRate，可这里的
+   * 元素与解码器是绑在一起的，改元素属性才会真的加速（包括音高处理由浏览器定）。
+   */
+  private applyPlaybackRate(): void {
+    const el = this.el
+    if (!el) return
+    const rate = usePlayer.getState().playbackRate
+    if (Number.isFinite(rate) && rate > 0) el.playbackRate = rate
   }
 
   // --- graph control -------------------------------------------------------
@@ -375,6 +389,7 @@ class AudioEngine {
     this.applyReplayGain(track)
     this.applyEq()
     this.applyVolume()
+    this.applyPlaybackRate()
     this.updateMediaSession(track)
     this.playingTrack = track
     this.lastProgressAt = 0
@@ -426,6 +441,7 @@ class AudioEngine {
     this.ramp(1, this.pendingFadeInMs || FADE_IN_MS)
     this.pendingFadeInMs = 0
     usePlayer.getState().setPlaying(true)
+    this.syncMediaSessionState()
     this.startTicker()
   }
 
@@ -439,6 +455,7 @@ class AudioEngine {
       if (token !== this.fadeToken) return
       el.pause()
       usePlayer.getState().setPlaying(false)
+      this.syncMediaSessionState()
       this.stopTicker()
       useHistory.getState().flush()
     }, FADE_OUT_MS)
@@ -641,6 +658,33 @@ class AudioEngine {
     actions.forEach(bind)
   }
 
+  /**
+   * 媒体卡上的状态与进度。
+   *
+   * `playbackState` 一直没设过：Windows 的 SMTC 卡片靠它判断"这个应用现在有
+   * 活动媒体"，只给 metadata 时有些系统版本干脆不显示卡片，或者一直停在暂停。
+   * 进度同理——不给 positionState，卡片上那根时间轴是空的。
+   */
+  private syncMediaSessionState(): void {
+    if (!('mediaSession' in navigator)) return
+    try {
+      navigator.mediaSession.playbackState = usePlayer.getState().playing ? 'playing' : 'paused'
+    } catch {
+      /* 老 Chromium 上这个属性可能只读，忽略即可。 */
+    }
+    const el = this.el
+    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: el.duration,
+        position: Math.min(el.currentTime, el.duration),
+        playbackRate: el.playbackRate || 1
+      })
+    } catch {
+      /* 位置状态是可选的，失败不该影响播放。 */
+    }
+  }
+
   private updateMediaSession(track: Track | null): void {
     if (!('mediaSession' in navigator)) return
     const token = ++this.artworkToken
@@ -652,6 +696,7 @@ class AudioEngine {
     // Text first, cover second: the card is correct the moment the track
     // changes, and the thumbnail fills in as soon as the image has been read.
     navigator.mediaSession.metadata = new MediaMetadata({ ...text, artwork: [] })
+    this.syncMediaSessionState()
 
     const src = sourceFor(track).artUrl(track)
     if (!src) return

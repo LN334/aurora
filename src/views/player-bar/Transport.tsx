@@ -78,7 +78,7 @@ export function Transport({
           className="pb-play"
           onClick={onToggle}
           disabled={disabled}
-          title={playing ? '暂停' : '播放'}
+          data-tip={playing ? '暂停' : '播放'}
           aria-label={playing ? '暂停' : '播放'}
         >
           {loading && !playing ? (

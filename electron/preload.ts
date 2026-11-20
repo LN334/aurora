@@ -337,6 +337,8 @@ const api = {
      * the plate's own box to decide whether the pointer is "on the lyrics" or
      * just over empty transparent space.
      */
+    setToolbarArea: (rect: { x: number; y: number; width: number; height: number }) =>
+      ipcRenderer.invoke('overlay:setToolbarArea', rect) as Promise<boolean>,
     setHitArea: (rect: { x: number; y: number; width: number; height: number }) =>
       ipcRenderer.invoke('overlay:hit-area', rect) as Promise<boolean>,
     /** True while the pointer is over the lyrics; drives the control strip. */

@@ -1,6 +1,14 @@
+import { useMemo } from 'react'
 import type { Track } from '../../types'
 import type { PlayMode } from '../../features/player/mode'
+import { usePlayer } from '../../features/player/store'
 import { useRoam } from '../../features/player/roam-session'
+import { trackKey } from '../../features/online/unify'
+import { toggleLiked, useLikedIds } from '../../features/favorites/likes'
+import { likeTargets } from '../../features/favorites/like-targets'
+import { useLikeMenu } from '../../features/favorites/like-menu'
+import { showFlash } from '../../ui/flash'
+import { Heart } from '../../ui/icons'
 import { DesktopLyrics, Expand, Queue, Sliders, User } from '../../ui/icons'
 import { ControlButton } from './ControlButton'
 import { Progress } from './Progress'
@@ -45,7 +53,7 @@ interface PlayerBarProps {
  * - 左（TrackInfo）只读：封面、标题、艺人。点封面进沉浸模式。
  * - 中（Transport + Progress）只管播放：上一首 / 播放 / 下一首是主键，
  *   左侧一颗键管「顺序 / 列表 / 单曲 / 随机」；下面一行是时间、进度、总时长。
- * - 右（视图键 + Volume）只管「看得见的东西」：桌面歌词、队列、均衡器、舞台，
+ * - 右（视图键 + Volume）只管「看得见的东西」：桌面歌词、队列、调音台、舞台，
  *   再加一条分隔线之后的音量。视图键与音量不是一个层级，靠这条线分开。
  *
  * 响应式也照这三块走，见 styles/player.css：先收音量滑条（静音键与键盘仍在），
@@ -79,6 +87,34 @@ export function PlayerBar({
 }: PlayerBarProps) {
   // 漫游里播放模式没有可改的东西，底栏跟播放页一起把它收起来。
   const roaming = useRoam((state) => state.tracks.length > 0)
+  /*
+   * 底栏也能收藏。
+   *
+   * 播放页那颗心离手太远：听到一半想收藏，得先点进播放页再退回来。这里与
+   * 播放页走同一套规则——一个落点直接写，挂着两家版本时弹菜单问落到哪儿。
+   */
+  /* 倍速是全局功能，底栏也得有——它不该只藏在播放页里。 */
+  const rate = usePlayer((state) => state.playbackRate)
+  const likedIds = useLikedIds()
+  const targets = useMemo(() => (track ? likeTargets(track) : []), [track])
+  const liked = track ? likedIds.has(trackKey(track)) : false
+  const handleLike = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    if (!track) return
+    if (targets.length > 1) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
+      return
+    }
+    const target = targets[0]
+    const name = target?.label ?? '这一家'
+    void toggleLiked(target?.track ?? track).then((result) => {
+      if (!result.ok) {
+        if (result.message) showFlash(result.message)
+        return
+      }
+      showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+    })
+  }
 
   return (
     <footer className="player">
@@ -137,12 +173,12 @@ export function PlayerBar({
         >
           <User size={17} />
         </ControlButton>
-        {/* 视图类（歌词/队列/一起听）与调音类（均衡器/舞台）之间收一道缝。 */}
+        {/* 视图类（歌词/队列/一起听）与调音类（调音台/舞台）之间收一道缝。 */}
         <span className="pb-sep" aria-hidden="true" />
         <ControlButton
-          label="均衡器"
-          tip="均衡器"
-          hint="均衡器 (E)"
+          label="调音台"
+          tip="调音台"
+          hint="调音台 (E)"
           active={eqOpen}
           pressed={eqOpen}
           onClick={onToggleEq}
@@ -157,6 +193,29 @@ export function PlayerBar({
           onClick={onOpenStage}
         >
           <Expand size={17} />
+        </ControlButton>
+        <button
+          type="button"
+          className={`pb-rate${rate === 1 ? '' : ' is-on'}`}
+          data-tip="播放速度"
+          aria-label={`播放速度 ${rate} 倍`}
+          onClick={() => {
+            const rates = [0.75, 1, 1.25, 1.5, 2]
+            const at = rates.indexOf(rate)
+            usePlayer.getState().setPlaybackRate(rates[(at + 1) % rates.length] ?? 1)
+          }}
+        >
+          {rate}×
+        </button>
+        <ControlButton
+          label={liked ? '取消喜欢' : '喜欢'}
+          tip={liked ? '已喜欢' : '喜欢'}
+          active={liked}
+          pressed={liked}
+          disabled={!track}
+          onClick={handleLike}
+        >
+          <Heart size={17} />
         </ControlButton>
 
         <QualityMenu />

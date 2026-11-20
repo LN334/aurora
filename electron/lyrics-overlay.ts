@@ -109,6 +109,16 @@ let hovering = false
  * desktop, so the page reports the plate's own box and only that counts.
  */
 let hitArea: { x: number; y: number; width: number; height: number } | null = null
+/*
+ * 工具栏那一块的矩形。
+ *
+ * 锁定之后只有这里会接管鼠标：歌词本身要穿透（否则桌面上的点击被吃掉，用户
+ * 以为「锁了也没用」），但控制栏总得点得到。原来接管判定用的是整块 stack，
+ * 于是鼠标一放到歌词上，窗口就整个接管了。
+ */
+let toolbarArea: { x: number; y: number; width: number; height: number } | null = null
+/** 指针是否正落在工具栏上；applyLock 用它决定这次要不要接管。 */
+let pointerInToolbar = false
 
 let hoverTimer: NodeJS.Timeout | undefined
 /** Held while the window is closed so it renders instantly when reopened. */
@@ -205,7 +215,12 @@ function hoverTakesOver(): boolean {
 
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
-  overlay.setIgnoreMouseEvents(locked && !(hovering && hoverTakesOver()), { forward: true })
+  /*
+   * 锁定态：只有指针压在工具栏上时才接管鼠标，其余位置一律穿透。
+   * 未锁定时整窗可交互（要能拖动）。
+   */
+  const takeOver = !locked || (pointerInToolbar && hoverTakesOver())
+  overlay.setIgnoreMouseEvents(!takeOver, { forward: true })
 }
 
 /** Tell the strip what the pointer is doing so it can reveal its controls. */
@@ -237,17 +252,25 @@ function startHoverPolling(): void {
     }
     const point = screen.getCursorScreenPoint()
     const bounds = overlay.getBounds()
-    const area = hitArea ?? { x: 0, y: 0, width: bounds.width, height: bounds.height }
     // A few px of slack on each edge: the plate is rounded and thin, and
     // aiming at a target that only answers when you are exactly on it feels
     // broken.
     const pad = 10
-    const inside =
-      point.x >= bounds.x + area.x - pad &&
-      point.x <= bounds.x + area.x + area.width + pad &&
-      point.y >= bounds.y + area.y - pad &&
-      point.y <= bounds.y + area.y + area.height + pad
-    setHovering(inside)
+    const within = (area: { x: number; y: number; width: number; height: number } | null): boolean => {
+      if (!area) return false
+      return (
+        point.x >= bounds.x + area.x - pad &&
+        point.x <= bounds.x + area.x + area.width + pad &&
+        point.y >= bounds.y + area.y - pad &&
+        point.y <= bounds.y + area.y + area.height + pad
+      )
+    }
+    const inWords = within(hitArea)
+    const inTools = within(toolbarArea)
+    pointerInToolbar = inTools
+    setHovering(inWords || inTools)
+    // 锁定态下指针进出工具栏要立刻换穿透状态，否则点第一下会落空。
+    if (locked) applyLock()
   }, 70)
 }
 
@@ -430,6 +453,8 @@ function close(): void {
   overlay = null
   hovering = false
   hitArea = null
+  toolbarArea = null
+  pointerInToolbar = false
   notifyStatus()
 }
 
@@ -473,6 +498,20 @@ export function setHovering(next: boolean): boolean {
   applyLock()
   notifyHover()
   return hovering
+}
+
+/** 工具栏那一块的矩形，锁定后只有它会接管鼠标。 */
+export function setToolbarArea(rect: unknown): boolean {
+  if (!rect || typeof rect !== 'object') return false
+  const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
+  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
+  toolbarArea = {
+    x: num(candidate.x),
+    y: num(candidate.y),
+    width: Math.max(1, num(candidate.width)),
+    height: Math.max(1, num(candidate.height))
+  }
+  return true
 }
 
 /** The strip's own box, so hovering only counts on the words themselves. */

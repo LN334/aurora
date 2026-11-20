@@ -41,7 +41,7 @@ import { UpdateDialog } from './ui/UpdateDialog'
 import { WhatsNew } from './views/WhatsNew'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
-import { ChevronLeft, Close, Expand, Plus, Queue, Refresh, Search } from './ui/icons'
+import { ChevronLeft, Close, Plus, Refresh, Search } from './ui/icons'
 import { bridge, isNative } from './bridge'
 import { demoLibrary } from './features/library/demo'
 import { useLyrics, usePalette } from './features/library/hooks'
@@ -497,11 +497,11 @@ export function App() {  if (!isNative) {
   /*
    * 点面板外面就收起，不必非得去够右上角那个 ✕。
    *
-   * 队列和均衡器都是「拉开看一眼就走」的抽屉，桌面播放器的习惯是一点空白
+   * 队列和调音台都是「拉开看一眼就走」的抽屉，桌面播放器的习惯是一点空白
    * 处就收回。以前只认那个关闭键，鼠标已经跑到列表上了还要折返一趟。
    *
    * 两处例外：面板自己（不然拖滚动条也会关），以及播放条——那一排图标里
-   * 的队列/均衡器按钮自己会 toggle，在捕获阶段抢先关掉会让按钮看起来失灵。
+   * 的队列/调音台按钮自己会 toggle，在捕获阶段抢先关掉会让按钮看起来失灵。
    */
   useEffect(() => {
     if (!eqOpen && !queueOpen) return
@@ -974,6 +974,8 @@ export function App() {  if (!isNative) {
           onSeek={(seconds) => player.seekTo(seconds)}
           onSeekRatio={(ratio) => player.seekRatio(ratio)}
           onOpenStage={() => setStageOpen(true)}
+          onOpenQueue={() => setQueueOpen(true)}
+          onOpenEq={() => setEqOpen(true)}
         />
       )
     }
@@ -1207,18 +1209,7 @@ export function App() {  if (!isNative) {
             </div>
 
             <div className="main__tools">
-              {shell.view === 'nowplaying' ? (
-                <button className="btn np-act" onClick={() => setQueueOpen((open) => !open)} title="播放队列">
-                  <Queue size={15} />
-                  队列
-                </button>
-              ) : null}
-              {shell.view === 'nowplaying' ? (
-                <button className="btn np-act np-act--stage" onClick={() => setStageOpen(true)} title="舞台 (L)">
-                  <Expand size={15} />
-                  舞台
-                </button>
-              ) : null}
+              
               {/*
                 The library's own actions only belong to the library.
                 "Rescan" and "add folder" are about files on this disk, so they

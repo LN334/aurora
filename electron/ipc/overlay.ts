@@ -3,6 +3,7 @@ import type { MediaCommand } from '../tray'
 import {
   pushOverlayState,
   setHitArea as setOverlayHitArea,
+  setToolbarArea as setOverlayToolbarArea,
   setLocked as setOverlayLocked,
   setLyricSize,
   setOverlaySuppressed,
@@ -37,6 +38,8 @@ export function registerOverlayIpc(sendCommand: (command: MediaCommand) => void)
   ipcMain.handle('overlay:status', () => overlayStatus())
 
   ipcMain.handle('overlay:setLocked', (_event, locked: unknown) => setOverlayLocked(Boolean(locked)))
+  /* 锁定态下只让工具栏那一块接鼠标，其余穿透。 */
+  ipcMain.handle('overlay:setToolbarArea', (_event, rect: unknown) => setOverlayToolbarArea(rect))
 
   // The strip reports where its words are; the main process polls the cursor
   // against that box so a locked window takes the mouse only over the lyrics.

@@ -9,7 +9,7 @@
 export interface SavedPreset {
   id: string
   name: string
-  /** 存的时候均衡器是开着的吗；应用时一起带过去，否则存了也听不出差别。 */
+  /** 存的时候均衡是开着的吗；应用时一起带过去，否则存了也听不出差别。 */
   eqEnabled: boolean
   /** 十个增益，顺序同 EQ_BANDS。 */
   gains: number[]

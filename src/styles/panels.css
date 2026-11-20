@@ -122,7 +122,7 @@
   animation: panelIn var(--dur-3) var(--ease-out) both;
   /*
    * 内容比可视高度高时，抽屉自己滚，而不是让底下的按钮掉到播放条后面。
-   * 以前没有这一行：均衡器的三颗底按钮正好被播放条盖住，看得见一半、点不到。
+   * 以前没有这一行：调音台的三颗底按钮正好被播放条盖住，看得见一半、点不到。
    */
   overflow-x: hidden;
   overflow-y: auto;
@@ -615,10 +615,52 @@
 }
 .panel__foot {
   margin-top: auto;
+  /*
+   * 三颗按钮排一行，说明单独占一整行。
+   *
+   * 竖排时它们各占一行、右边空着一大片，抽屉看起来下半截没做完；而这三件事
+   * 是并列的（重置 / 复制 / 粘贴），横排才读得出它们同级。
+   */
+  /*
+   * 三颗按钮等宽铺满一行。
+   *
+   * 上面那条基础规则是竖排的（抽屉通用），这里必须显式改回横排；再者它们是
+   * 并列的三件事，宽度一致才不会读成「第一个更重要」。说明单独占一整行。
+   */
+  /*
+   * 两行：重置独占一行，分享那两个并排。
+   *
+   * 三列等宽时「重置为平直」被压成两行——抽屉只有 400px，三颗按钮平分的宽度
+   * 放不下四个字加一颗图标。而且重置和「复制/粘贴」本来就不是一组：一个是把
+   * 曲线归零，另外两个是把它带出/带进来。
+   */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4) var(--s4);
+  border-top: var(--line-soft);
+}
+
+.panel__foot .rh-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* 第一颗（重置）与说明都占满整行。 */
+.panel__foot > .rh-btn:first-child,
+.panel__foot .pg-note {
+  grid-column: 1 / -1;
+}
+
+.panel__foot .pg-note {
+  flex-basis: 100%;
+  margin: 0;
 }
 .band__rail {
   width: 3px;
-  background: rgb(var(--tint-rgb) / 0.12);
+  /* 0.12 在亮壁纸上几乎看不见：均衡关着时整块像没加载。 */
+  background: rgb(var(--tint-rgb) / 0.18);
 }
 .band__fill {
   width: 3px;
@@ -660,7 +702,7 @@
 }
 
 .band__track[aria-disabled='true'] .band__knob {
-  opacity: 0.38;
+  opacity: 0.5;
   box-shadow: none;
 }
 
@@ -678,7 +720,7 @@
 }
 
 
-/* --- 均衡器抽屉里的实时电平（AudioDebug.tsx） --------------------------- */
+/* --- 调音台抽屉里的实时电平（AudioDebug.tsx） --------------------------- */
 
 /*
  * 挂在推子下面：调的时候能立刻看见提了低频是不是开始削波。
@@ -744,7 +786,7 @@
 
 /* --- 一起听面板 ---------------------------------------------------------- */
 /*
- * 与均衡器同一套 .panel 外壳；这里只补它自己那几块：加入表单、房间事实表。
+ * 与调音台同一套 .panel 外壳；这里只补它自己那几块：加入表单、房间事实表。
  * 用 panels.css 现成的间距与文字层级变量，不另起一套。
  */
 .panel__body {
@@ -2578,4 +2620,15 @@ body.is-party-window {
   align-self: flex-start;
   margin-top: var(--s3);
   pointer-events: none;
+}
+
+/*
+ * 调音台抽屉撑满。
+ *
+ * 它的内容高度是固定的（推子 318 + 电平 86 + 页头页脚），fit-content 会让抽屉
+ * 停在播放条上方一百多像素处，底部那句说明紧贴着边——看着像没收尾。队列那种
+ * 列表按内容走是对的，调音台不是列表，给它撑到底更像一整块面板。
+ */
+.panel:has(.panel__bands) {
+  min-height: calc(100vh - var(--titlebar-h) - var(--player-h) - 30px);
 }

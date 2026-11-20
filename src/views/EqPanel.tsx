@@ -208,19 +208,19 @@ export function EqPanel({
   }
 
   return (
-    <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="均衡器">
+    <aside className={`panel${closing ? ' is-closing' : ''}`} aria-label="调音台">
       <header className="panel__head">
-        <h2 className="panel__title">均衡器</h2>
+        <h2 className="panel__title">调音台</h2>
         <button
           className={`switch${enabled ? ' is-on' : ''}`}
           role="switch"
           aria-checked={enabled}
           onClick={() => onToggle(!enabled)}
-          title={enabled ? '关闭均衡器' : '开启均衡器'}
+          data-tip={enabled ? '关闭均衡' : '开启均衡'}
         >
           <span className="switch__dot" />
         </button>
-        <button className="icon-btn" onClick={onClose} title="关闭" aria-label="关闭均衡器">
+        <button className="icon-btn" onClick={onClose} data-tip="关闭" aria-label="关闭调音台">
           <Close size={16} />
         </button>
       </header>
@@ -238,7 +238,7 @@ export function EqPanel({
             </button>
           )
         })}
-        <button className="chip" onClick={saveCurrent} title="把当前曲线存成本机的一条预设">
+        <button className="chip" onClick={saveCurrent} data-tip="把当前曲线存成本机的一条预设">
           ＋ 存为预设
         </button>
       </div>
@@ -256,7 +256,7 @@ export function EqPanel({
               </button>
               <button
                 className="chip__x"
-                title="删掉这条预设"
+                data-tip="删掉这条预设"
                 aria-label={'删掉 ' + preset.name}
                 onClick={() => onRemovePreset(preset.id)}
               >
@@ -286,13 +286,13 @@ export function EqPanel({
           <Wave size={15} />
           重置为平直
         </button>
-        <button className="rh-btn" onClick={() => void copyShareCode()} title="把当前曲线复制成一串码">
+        <button className="rh-btn" onClick={() => void copyShareCode()} data-tip="把当前曲线复制成一串码">
           复制分享码
         </button>
-        <button className="rh-btn" onClick={() => void pasteShareCode()} title="从剪贴板还原一条曲线">
+        <button className="rh-btn" onClick={() => void pasteShareCode()} data-tip="从剪贴板还原一条曲线">
           粘贴还原
         </button>
-        <p className="pg-note">{note || (enabled ? '拖动 · 双击归零' : '均衡器关着 · 打开右上角开关才生效')}</p>
+        <p className="pg-note">{note || (enabled ? '拖动 · 双击归零' : '均衡关着 · 打开右上角开关才生效')}</p>
       </footer>
     </aside>
   )

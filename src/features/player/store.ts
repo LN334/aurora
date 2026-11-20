@@ -21,6 +21,31 @@ export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] a
 /** Storage key, also the slot name inside the active profile's storage. */
 const PREFS_KEY = 'aurora.player.prefs'
 
+/*
+ * 偏好读完之前不落盘。
+ *
+ * 启动时 store 用的是默认值（音量 0.85）。切换档案的 effect 会先做一批
+ * set（停播、清队列、清进度），而 persist 每遇到一次 set 就把当前状态写盘——
+ * 于是盘上那份「用户上次调好的音量」在被读出来之前，就已经被默认值盖掉了。
+ * 读到的 0.85 不是没存，是刚被自己踩掉的。
+ */
+let prefsReady = false
+let blockedWrites = 0
+
+const guardedStorage = {
+  getItem: (name: string): string | null => createProfileScopedStorage().getItem(name),
+  setItem: (name: string, value: string): void => {
+    if (!prefsReady) {
+      blockedWrites += 1
+      return
+    }
+    createProfileScopedStorage().setItem(name, value)
+  },
+  removeItem: (name: string): void => {
+    createProfileScopedStorage().removeItem(name)
+  }
+}
+
 /**
  * The playback preferences of a fresh profile.
  *
@@ -32,6 +57,8 @@ const PREFS_KEY = 'aurora.player.prefs'
 function defaultPrefs() {
   return {
     volume: 0.85,
+    /* 倍速：0.5 起步、2 倍封顶。多数播客与有声书都在这条线上。 */
+    playbackRate: 1,
     muted: false,
     shuffle: false,
     repeat: 'off' as RepeatMode,
@@ -59,6 +86,8 @@ function defaultPrefs() {
   /** True while the engine is buffering a track. */
   loading: boolean
   volume: number
+  /** 播放速度倍数；1 是原速。 */
+  playbackRate: number
   muted: boolean
   shuffle: boolean
   repeat: RepeatMode
@@ -83,6 +112,7 @@ function defaultPrefs() {
   setPlaying(playing: boolean): void
   setLoading(loading: boolean): void
   setVolume(volume: number): void
+  setPlaybackRate(rate: number): void
   setMuted(muted: boolean): void
   setShuffle(shuffle: boolean): void
   setRepeat(repeat: RepeatMode): void
@@ -214,6 +244,7 @@ export const usePlayer = create<PlayerState>()(
       setPlaying: (playing) => set({ playing }),
       setLoading: (loading) => set({ loading }),
       setVolume: (volume) => set({ volume: Math.min(1, Math.max(0, volume)), muted: false }),
+      setPlaybackRate: (rate) => set({ playbackRate: Math.min(2, Math.max(0.5, rate)) }),
 
       setMuted(muted) {
         if (muted) {
@@ -251,13 +282,14 @@ export const usePlayer = create<PlayerState>()(
       skipHydration: true,
       // Keyed by the active profile: volume and EQ belong to the person, not to
       // the machine.
-      storage: createJSONStorage(createProfileScopedStorage),
+      storage: createJSONStorage(() => guardedStorage),
       //
       // 用户偏好总是留着；队列只在「启动时恢复上次队列」开着时一起存。
       // 不存 position：恢复后停在 0:00，比从半截接上稳。
       //
       partialize: (state) => ({
         volume: state.volume,
+        playbackRate: state.playbackRate,
         muted: state.muted,
         shuffle: state.shuffle,
         repeat: state.repeat,
@@ -298,9 +330,14 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
    */
   if (!profileId) return
   setActiveStorageProfile(profileId)
+  /* 切档案期间一律不落盘：读完再开。 */
+  prefsReady = false
 
   const stored = createProfileScopedStorage().getItem(PREFS_KEY)
+
   if (stored === null) {
+    /* 新档案：默认值就是它的第一份偏好，这一笔要写下去。 */
+    prefsReady = true
     usePlayer.setState({ ...defaultPrefs(), queue: [], index: -1, order: [] })
     return
   }
@@ -310,6 +347,11 @@ export async function loadProfilePlayerPrefs(profileId: string | null): Promise<
     await usePlayer.persist.rehydrate()
   } finally {
     restoringPrefs = false
+    /*
+     * 读完就开闸——放在 finally 里，读失败也要开：否则这一轮运行里任何改动
+     * 都不会落盘，用户的音量会静默丢到下次启动。
+     */
+    prefsReady = true
   }
 
   /*
