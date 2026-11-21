@@ -127,3 +127,6 @@ release-*/
 /MIGRATION_COST_ANALYSIS.md
 /MIGRATION_ROADMAP.md
 /TAURI_VS_ELECTRON_DETAILED.md
+
+# 本机工具：下载的 ffmpeg 静态构建（~300 MB），不进仓库。
+.tools/

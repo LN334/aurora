@@ -44,7 +44,10 @@ const MIME: Record<string, string> = {
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf'
+  '.ttf': 'font/ttf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.gif': 'image/gif'
 }
 
 export function registerAppScheme(): void {
@@ -117,6 +120,38 @@ export function handleAppProtocol(): void {
     }
 
     const type = MIME[path.extname(target).toLowerCase()] ?? 'application/octet-stream'
+    /*
+     * <video> 要 Range。
+     *
+     * 装了视频之后开屏才会用 `aurora-app://` 取 mp4，而媒体元素总是先发一个
+     * `bytes=0-` 探路、再按需分段。协议以前一律 200 整包，元素虽然也能读到
+     * 文件，却要等整段读完才能起播——开屏只有三秒，这一段等待全变成黑屏。
+     * 这里按标准回 206 + content-range，起播就不必等整个文件。
+     */
+    const range = request.headers.get('range')
+    if (range && size > 0) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim())
+      const rawStart = match?.[1] ?? ''
+      const rawEnd = match?.[2] ?? ''
+      if (match) {
+        const start = rawStart ? Number(rawStart) : 0
+        const end = rawEnd ? Math.min(Number(rawEnd), size - 1) : size - 1
+        if (Number.isFinite(start) && Number.isFinite(end) && start <= end && start < size) {
+          const headers: Record<string, string> = {
+            'content-type': type,
+            'content-length': String(end - start + 1),
+            'content-range': `bytes ${start}-${end}/${size}`,
+            'accept-ranges': 'bytes',
+            'cache-control': 'public, max-age=31536000, immutable'
+          }
+          write(`  -> 206 ${type} ${start}-${end}/${size}`)
+          return new Response(
+            Readable.toWeb(fs.createReadStream(target, { start, end })) as WebReadableStream,
+            { status: 206, headers }
+          )
+        }
+      }
+    }
     let stream: fs.ReadStream
     try {
       stream = fs.createReadStream(target)
@@ -133,7 +168,10 @@ export function handleAppProtocol(): void {
       'cache-control': path.extname(target) === '.html' ? 'no-store' : 'public, max-age=31536000, immutable'
     }
     // Only claim a length when it is known, rather than sending 0 and truncating.
-    if (size > 0) headers['content-length'] = String(size)
+    if (size > 0) {
+      headers['content-length'] = String(size)
+      headers['accept-ranges'] = 'bytes'
+    }
 
     return new Response(Readable.toWeb(stream) as WebReadableStream, { status: 200, headers })
   })

@@ -144,6 +144,7 @@ requestAnimationFrame(() => {
      */
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        startSplashVideo()
         const warm = prewarmPages()
         const gate = Promise.race([
           warm.catch(() => undefined),
@@ -157,4 +158,23 @@ requestAnimationFrame(() => {
     })
     window.setTimeout(dismiss, MAX_MS)
   }
+}
+
+/**
+ * 开屏那段实拍视频：等首帧之后再取。
+ *
+ * 海报写在 HTML 的 `poster` 上（33 KB 的 JPEG），所以开屏一出现就有画面；这段
+ * 只负责把 436 KB 的片子接进来。放在首帧之后，是因为启动那几百毫秒正在挂
+ * React、解析壁纸，这时候再起一份视频解码只是抢同一块 CPU。
+ *
+ * 顺带解释了为什么这里不能用内联 `<script>`：CSP 是 `script-src 'self'`，
+ * index.html 里的内联脚本会被直接拦掉，视频永远不会加载。
+ */
+function startSplashVideo(): void {
+  const video = document.querySelector<HTMLVideoElement>('.splash__video')
+  if (!video) return
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  video.src = new URL('aurora-splash.mp4', document.baseURI).href
+  const played = video.play()
+  if (played && typeof played.catch === 'function') played.catch(() => undefined)
 }
