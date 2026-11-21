@@ -3,7 +3,7 @@ import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { after, before, test } from 'node:test'
 import { REMOTE_SCHEME, handleRemoteRequest, isPrivateAddress } from '../electron/protocols/remote-protocol.ts'
-import { remoteImageUrl, remoteStreamUrl } from '../src/features/player/urls.ts'
+import { relayStreamUrl, remoteImageUrl, remoteStreamUrl } from '../src/features/player/urls.ts'
 
 /*
  * The proxy is the one place where the renderer can name an address and the
@@ -53,6 +53,23 @@ test('the proxy refuses a loopback destination with 403 and never opens the sock
   assert.equal(reached, before, 'the private address was actually fetched')
   // The refusal deliberately does not describe the network it was asked about.
   assert.equal((await response.text()).includes('127.0.0.1'), false)
+})
+
+/*
+ * 一起听的房间转发是唯一允许走内网的通道。
+ *
+ * 房主在局域网里开房时，转发地址就是 ；
+ * 这条通道不放行的话，客人拿到的地址既过不了页面 CSP、也过不了这里的地址
+ * 检查，表现就是「歌名对、进度不动、没有声音」。
+ */
+test('the relay channel reaches a private address; the plain channel still refuses it', async () => {
+  const before = reached
+  const response = await handleRemoteRequest(new Request(relayStreamUrl(loopback)))
+  assert.equal(response.status, 200)
+  assert.equal(reached, before + 1, 'the relay hop never reached the room host')
+  await response.body?.cancel()
+  // 同一条地址走普通通道，仍然是被拒的。
+  assert.equal((await handleRemoteRequest(new Request(remoteStreamUrl(loopback)))).status, 403)
 })
 
 test('the refusal carries CORS headers, so the renderer sees a rejection rather than silence', async () => {

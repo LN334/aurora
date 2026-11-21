@@ -200,12 +200,32 @@ interface ResolvedTarget {
   target: string
   /** 0 表示不缩、直接给原图——播放器封面和舞台要的是这张。 */
   px: number
+  /**
+   * 一起听的房间转发。
+   *
+   * 房主在局域网里开房时，转发地址是 `http://192.168.x.x:port/stream/<令牌>`。
+   * 这种地址有两条路都走不通：页面 CSP 的 media-src 不认外域 http，而走本
+   * 代理又会被 isAllowedHost 当成本地网络拒掉——客人那边看到的就是「歌名对、
+   * 进度不动、没有声音」。所以单独开一条只给房间用的通道，放行私网。
+   */
+  relay: boolean
 }
 
-/** `aurora-remote://stream/<percent-encoded http(s) URL>` -> the upstream URL. */
+/**
+ * `aurora-remote://stream/<percent-encoded http(s) URL>` -> the upstream URL.
+ *
+ * `stream/relay/<percent-encoded URL>` 是房间转发专用：同样的代理，但允许
+ * 指向局域网地址（见 ResolvedTarget.relay）。
+ */
 function targetOf(url: URL): ResolvedTarget | null {
   let encoded = url.pathname.replace(/^\/+/, '')
   let px = 0
+  let relay = false
+  const relayed = /^relay\/([\s\S]+)$/.exec(encoded)
+  if (relayed) {
+    relay = true
+    encoded = relayed[1]
+  }
   /*
    * 形如 `image/n96/<percent-encoded URL>`：列表缩略图走这条。尺寸放在路径
    * 最前面而不是查询串里，是因为上游地址本身已经编码成一段，再叠参数容易和
@@ -222,7 +242,7 @@ function targetOf(url: URL): ResolvedTarget | null {
     // Anything but plain web traffic is a different protocol smuggled through
     // a URL parser - `file:`, `data:`, `ftp:` - and has no business here.
     if (target.protocol !== 'http:' && target.protocol !== 'https:') return null
-    return { target: target.toString(), px }
+    return { target: target.toString(), px, relay }
   } catch {
     return null
   }
@@ -251,7 +271,11 @@ const MAX_REDIRECTS = 4
  * 有的图床按 UA 与来源站防盗链：汽水的封面挂在 douyinpic 上，光带 range 过去
  * 一律 403，页面里就是一张空卡。这里统一补一个浏览器 UA，抖音系再带上来源站。
  */
-export async function fetchUpstream(target: string, range: string | null): Promise<Response> {
+export async function fetchUpstream(
+  target: string,
+  range: string | null,
+  allowPrivate = false
+): Promise<Response> {
   let current = target
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
@@ -277,7 +301,7 @@ export async function fetchUpstream(target: string, range: string | null): Promi
     if (next.protocol !== 'http:' && next.protocol !== 'https:') {
       return new Response('bad redirect', { status: 400, headers: CORS_HEADERS })
     }
-    if (!(await isAllowedHost(next.hostname))) {
+    if (!allowPrivate && !(await isAllowedHost(next.hostname))) {
       return new Response('forbidden', { status: 403, headers: CORS_HEADERS })
     }
     current = next.toString()
@@ -286,8 +310,13 @@ export async function fetchUpstream(target: string, range: string | null): Promi
   return new Response('too many redirects', { status: 502, headers: CORS_HEADERS })
 }
 
-async function proxy(target: string, request: Request, image: boolean): Promise<Response> {
-  const upstream = await fetchUpstream(target, request.headers.get('range'))
+async function proxy(
+  target: string,
+  request: Request,
+  image: boolean,
+  allowPrivate = false
+): Promise<Response> {
+  const upstream = await fetchUpstream(target, request.headers.get('range'), allowPrivate)
 
   const headers = new Headers(CORS_HEADERS)
   for (const name of PASSTHROUGH) {
@@ -673,7 +702,12 @@ export async function handleRemoteRequest(
   } catch {
     return new Response('bad target', { status: 400, headers: CORS_HEADERS })
   }
-  if (!(await isAllowedHost(hostname))) {
+  /*
+   * relay 通道就是为局域网准备的，所以不走「必须是公网」这条判断；其余
+   * 入口（封面、平台直链）照旧拒私网。协议本身已在 targetOf 里限定为
+   * http/https，加上这里只放 GET/HEAD，这条口子只够取音频。
+   */
+  if (!resolved.relay && !(await isAllowedHost(hostname))) {
     // Deliberately vague: the answer says "no" without describing the network
     // the caller just tried to reach.
     return new Response('forbidden', { status: 403, headers: CORS_HEADERS })
@@ -681,7 +715,7 @@ export async function handleRemoteRequest(
 
   try {
     if (image) return await proxyImage(resolved.target, request, options.cacheDir ?? null, resolved.px)
-    return await proxy(resolved.target, request, false)
+    return await proxy(resolved.target, request, false, resolved.relay)
   } catch (error) {
     // The upstream URL can carry a signed token, so only the host is logged.
     console.error('[aurora] remote stream failed', hostname, error)

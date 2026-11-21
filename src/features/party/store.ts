@@ -214,7 +214,7 @@ function qualityNameOf(track: { source?: string }): string {
  * 不在就留下一条说明，界面照实显示——而不是假装切换成功。
  */
 function follow(now: PartyNow): void {
-  let { queue, order } = usePlayer.getState()
+  let { queue } = usePlayer.getState()
   let index = queue.findIndex((track) => track.id === now.trackId)
   if (index < 0) {
     /*
@@ -234,15 +234,20 @@ function follow(now: PartyNow): void {
       return
     }
     usePlayer.getState().enqueue([rebuilt], 'next')
-    ;({ queue, order } = usePlayer.getState())
+    ;({ queue } = usePlayer.getState())
     index = queue.findIndex((track) => track.id === now.trackId)
     if (index < 0) return
   }
-  const orderPosition = order.indexOf(index)
-  if (orderPosition < 0) return
-  /* 房主换的新歌：位置从头对齐，把「刚拖过」的抑制窗口收掉。 */
+  /*
+   * 直接跳到队列索引。
+   *
+   * 这里原来算的是「它在播放顺序里的第几个」（order.indexOf），再把这个位置
+   * 当索引传给 jumpTo——而 jumpTo 收的是队列下标。不开随机播放时两套数字恰好
+   * 一样，一开随机就跳到别的歌上；order 里查不到时还会直接 return，客人就
+   * 停在一首永远不响的歌上。
+   */
   holdUntil = 0
-  player.jumpTo(orderPosition)
+  player.jumpTo(index)
   /* 房主是暂停着换的歌，别让这一跳自己放起来。 */
   if (!now.playing) player.pause()
 }
@@ -254,13 +259,35 @@ function follow(now: PartyNow): void {
  * 消息触发一次，再靠定时器补漏——切歌那一帧元素可能还没装好，那一次 seek 会
  * 落空，靠 2 秒后的那一次接上。
  */
+/** 客人被拉回房主那首的节流：同一首一秒内只跳一次。 */
+let followAt = 0
+let followId = ''
+
+function followThrottled(now: PartyNow): void {
+  const at = Date.now()
+  if (now.trackId === followId && at - followAt < 1000) return
+  followId = now.trackId
+  followAt = at
+  follow(now)
+}
+
 function alignWith(now: PartyNow): void {
   const playback = usePlayer.getState()
   /*
    * 房主那首得先在这台机器的队列里。不在时 follow 已经留过话，这里再对着它调
    * play() 只会在一个空元素上反复失败——那是每两秒一条日志，不是同步。
    */
-  if (playback.queue[playback.index]?.id !== now.trackId) return
+  if (playback.queue[playback.index]?.id !== now.trackId) {
+    /*
+     * 本地已经不在房主那首上了：客人自己切走了，或者上一次跳转没落成。
+     *
+     * 原来这里直接 return——于是「切走一次」就等于「从此刻起再也不同步」，
+     * 界面停在客人自己选的那首上，房主换歌也拉不回来。follow 对已在队列里
+     * 的曲目只做一次 jumpTo，重复调用不会把队列撑大；再用一秒节流挡住连点。
+     */
+    followThrottled(now)
+    return
+  }
   const at = Date.now()
   const local = { position: playback.position, playing: playback.playing }
   const target = seekTarget(now, local, at, at < holdUntil)

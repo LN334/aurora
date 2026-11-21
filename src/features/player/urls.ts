@@ -55,6 +55,17 @@ export function remoteStreamUrl(upstream: string): string {
  * 列表行封面只显示 40px，而源图常见 600px——一张解码就是一兆多的位图，
  * 几百行叠起来是几十兆常驻内存，而屏幕上根本看不出差别。
  */
+/**
+ * 一起听的房间转发音频。
+ *
+ * 与 remoteStreamUrl 只差一个 relay 前缀：房主在局域网里开房时，转发地址是
+ * `http://192.168.x.x:port/stream/<令牌>`，而普通代理通道刻意不放行私网地址。
+ * 这条通道就是为它开的——页面仍从自己的 origin 取流，CSP 不用为房间放宽。
+ */
+export function relayStreamUrl(upstream: string): string {
+  return `${REMOTE_SCHEME}://stream/relay/${encodeURIComponent(upstream)}`
+}
+
 export function remoteImageUrl(upstream: string, px?: number): string {
   /*
    * 已经带 `param=` 的地址是网易云图床按尺寸给过的小图（见 sizedImage），

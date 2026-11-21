@@ -1,7 +1,7 @@
 import { sourceFor } from '../library/source'
 import { sourceOrder } from '../settings/source-order'
 import { resolveSharedUrl, sharedStreamFor } from '../party/shared-stream'
-import { remoteStreamUrl } from './urls'
+import { relayStreamUrl } from './urls'
 import { loadOnlineStream } from './online-fetch'
 import type { Track } from '../../types'
 
@@ -58,7 +58,7 @@ export async function pickPlayable(track: Track): Promise<PickedSource | null> {
      */
     const target = resolveSharedUrl(shared)
     if (target) {
-      const url = target.startsWith('aurora-') ? target : remoteStreamUrl(target)
+      const url = target.startsWith('aurora-') ? target : relayStreamUrl(target)
       return { track, url }
     }
   }
