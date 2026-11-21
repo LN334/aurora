@@ -268,7 +268,15 @@ function startHoverPolling(): void {
     const inWords = within(hitArea)
     const inTools = within(toolbarArea)
     pointerInToolbar = inTools
-    setHovering(inWords || inTools)
+    /*
+     * 锁定态只认工具栏：鼠标停在歌词上不算「要操作」。
+     *
+     * 原来歌词区也算悬停，而歌词几乎占满整条窗口——鼠标随便往那儿一放，
+     * 控制条就一直挂着不消失，看起来像「锁定了还赖着不走」。锁上之后用户要的
+     * 是一行干净的歌词；想调的时候把鼠标挪到控制条那一带，它自己会浮出来。
+     * 未锁定时仍然整块都算（要能拖动、点歌词跳转）。
+     */
+    setHovering(locked ? inTools : inWords || inTools)
     // 锁定态下指针进出工具栏要立刻换穿透状态，否则点第一下会落空。
     if (locked) applyLock()
   }, 70)
