@@ -57,6 +57,8 @@ const api = {
     copy: (text: string) => ipcRenderer.invoke('app:copy', text) as Promise<boolean>,
     /** 读系统剪贴板；页面里的 navigator.clipboard 在这个协议下用不了。 */
     readClipboard: () => ipcRenderer.invoke('app:readClipboard') as Promise<string>,
+    gpuStatus: () =>
+      ipcRenderer.invoke('app:gpuStatus') as Promise<{ features: Record<string, string>; summary: string }>,
     /** 重启应用：导入备份之后要把新数据重新加载一遍。 */
     relaunch: () => ipcRenderer.invoke('app:relaunch') as Promise<void>,
     /** 把诊断日志导成文件；取消保存时是空串。 */

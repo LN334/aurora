@@ -88,6 +88,8 @@ export interface WindowVisibilityState {
   copy(text: string): Promise<boolean>
   /** 读系统剪贴板；页面里的 navigator.clipboard 在这个协议下不可用。 */
   readClipboard(): Promise<string>
+  /** 显卡加速各管线状态；设置页据此提示「现在在软渲染」。 */
+  gpuStatus(): Promise<{ features: Record<string, string>; summary: string }>
   /** 重启应用（导入备份之后要让新的数据重新加载一次）。 */
   relaunch(): Promise<void>
   getVisibility(): Promise<WindowVisibilityState>

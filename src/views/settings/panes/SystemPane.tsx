@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import type { useSettingsPage } from '../../../features/settings/store'
+import { bridge } from '../../../bridge'
 import { useSessionRestore, writeSessionRestore } from '../../../features/settings/session-restore'
 import { Row, Rows, Toggle } from '../parts'
 
@@ -12,6 +14,18 @@ import { Row, Rows, Toggle } from '../parts'
 export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const { closeToTray, launchAtLogin, preventSleepWhilePlaying, trayClick } = page.settings
   const restoreQueue = useSessionRestore()
+
+  /*
+   * 显卡加速有没有真的在跑。
+   *
+   * 驱动更新、虚拟机、系统省电策略都可能把合成切回 CPU；那时壁纸不重绘、模糊
+   * 发糊，界面只是一律变慢，用户完全没有线索。判定在主进程做（那边能读
+   * `getGPUFeatureStatus()`），这里只显示结论，没问题就整行不出现。
+   */
+  const [gpuNote, setGpuNote] = useState('')
+  useEffect(() => {
+    void bridge.app.gpuStatus().then((status) => setGpuNote(status.summary))
+  }, [])
 
   return (
     <Rows>
@@ -94,6 +108,12 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
           </button>
         </div>
       </Row>
+
+      {gpuNote ? (
+        <Row label="显卡加速" hint={gpuNote + "。更新显卡驱动，或在系统里关掉省电/节能模式之后重启应用"}>
+          <span className="settings__number">没在生效</span>
+        </Row>
+      ) : null}
     </Rows>
   )
 }

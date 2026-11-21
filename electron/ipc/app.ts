@@ -1,5 +1,6 @@
 import { app, clipboard, ipcMain, shell } from 'electron'
 import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
+import { gpuSummary } from '../pure/gpu-status'
 import { mainWindowVisibility } from '../pure/scan-progress'
 import { takeCrashReport } from '../crash-guard'
 import { exportDiagnostics } from '../diagnostics'
@@ -65,6 +66,19 @@ export function registerAppIpc(deps: WindowSource): void {
    * 分享码」正是唯一要读的地方，这里补上同一条路。
    */
   ipcMain.handle('app:readClipboard', () => clipboard.readText())
+
+  /*
+   * 显卡加速状态。
+   *
+   * 驱动更新、系统策略、虚拟机都可能让 GPU 管线掉回软件渲染——那时壁纸不重绘、
+   * 模糊发糊，界面只是一律变慢，用户无从判断。这里把 Electron 自己的判定读出来，
+   * 由设置页决定要不要说一句。
+   */
+  ipcMain.handle('app:gpuStatus', () => {
+    const features = app.getGPUFeatureStatus()
+    /* 判定在主进程做一次，界面只显示结论——两边各写一遍规则迟早会不一致。 */
+    return { features, summary: gpuSummary(features) }
+  })
   ipcMain.handle('app:copy', (_event, text: unknown) => {
     if (typeof text !== 'string' || !text) return false
     clipboard.writeText(text.slice(0, 8192))

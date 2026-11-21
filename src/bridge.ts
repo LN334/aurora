@@ -126,6 +126,7 @@ const webFallback: AuroraApi = {
       return true
     },
     /* 预览里是正常网页，navigator.clipboard 能读；桌面版由主进程读。 */
+    gpuStatus: async () => ({ features: {}, summary: '' }),
     readClipboard: async () => {
       try {
         return await navigator.clipboard.readText()
