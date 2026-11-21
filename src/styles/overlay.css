@@ -185,23 +185,20 @@ body.overlay-body {
  */
 .lyric-toolbar {
   /*
-   * 照播放条的样子做：一条玻璃矩形，不是药丸。
+   * 只留按键，不要底板。
    *
-   * 之前是一整条深色胶囊压在壁纸上，像另一个窗口贴在歌词下面。播放条那套是
-   * 「薄薄一层 plane + 细描边 + 内高光 + 背景模糊」，圆角是小矩形——桌面歌词的
-   * 控制栏既然是同一套控件，就该长成一个样子。
+   * 原来是一条玻璃矩形：深色底 + 细描边 + 背景模糊，压在歌词下面像另一个窗口
+   * 贴在桌面上。桌面歌词本来就该是「字浮在壁纸上」，中间再横一块板子会把
+   * 画面切成两截。所以这里只保留布局，底色交给每颗按键自己的悬停态。
    */
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 14px;
-  background: rgb(var(--plane-rgb) / 0.66);
-  box-shadow:
-    0 8px 24px rgb(var(--shade-rgb) / 0.32),
-    inset 0 1px 0 rgb(var(--tint-rgb) / 0.08);
-  backdrop-filter: blur(18px) saturate(1.2);
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
   opacity: 0;
   visibility: hidden;
   transition:
@@ -236,9 +233,14 @@ body.overlay-body {
   place-items: center;
   border: 0;
   border-radius: 9px;
-  /* 底由整条玻璃条给，按钮自己只在悬停时亮一下（和播放条同一套手感）。 */
+  /*
+   * 底板拿掉之后，图标直接压在壁纸上。白色图标遇到浅色壁纸就糊成一片，
+   * 所以给它自己一层投影——不是加回底板，是让每一颗键在任何壁纸上都读得清。
+   * 悬停/按下时的浅色底仍然保留，作为「手指在哪」的反馈。
+   */
   background: transparent;
-  color: rgb(255 255 255 / 0.86);
+  color: rgb(255 255 255 / 0.94);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 1px rgb(0 0 0 / 0.4));
   cursor: pointer;
   transition:
     background 120ms ease,
