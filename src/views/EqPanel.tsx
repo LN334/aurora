@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { bridge } from '../bridge'
 import { AudioDebug } from '../features/player/AudioDebug'
 import { EQ_BANDS } from '../features/player/store'
 import { decodePreset, encodePreset } from '../features/presets/codec'
@@ -194,7 +195,17 @@ export function EqPanel({
 
   const pasteShareCode = async () => {
     try {
-      const preset = decodePreset(await navigator.clipboard.readText())
+      /*
+       * 走主进程读。页面里的 navigator.clipboard 在 aurora-app:// 下不是安全上下文，
+       * 调用会直接抛错——之前这里被 catch 住、只 flash 一句「读不到剪贴板」，看起来
+       * 像系统剪贴板坏了，其实是这条读取路径根本不通。
+       */
+      const text = await bridge.app.readClipboard()
+      if (!text.trim()) {
+        flash('剪贴板里没有文字')
+        return
+      }
+      const preset = decodePreset(text)
       if (!preset) {
         flash('这串不是有效的声音预设')
         return

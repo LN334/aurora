@@ -125,6 +125,14 @@ const webFallback: AuroraApi = {
       window.open(url, '_blank', 'noreferrer')
       return true
     },
+    /* 预览里是正常网页，navigator.clipboard 能读；桌面版由主进程读。 */
+    readClipboard: async () => {
+      try {
+        return await navigator.clipboard.readText()
+      } catch {
+        return ''
+      }
+    },
     // 预览里是正常网页，navigator.clipboard 可用；失败就当没复制。
     copy: async (text) => {
       try {

@@ -86,6 +86,8 @@ export interface WindowVisibilityState {
   openExternal(url: string): Promise<boolean>
   /** 写系统剪贴板。页面里的 navigator.clipboard 在这个协议下不可用。 */
   copy(text: string): Promise<boolean>
+  /** 读系统剪贴板；页面里的 navigator.clipboard 在这个协议下不可用。 */
+  readClipboard(): Promise<string>
   /** 重启应用（导入备份之后要让新的数据重新加载一次）。 */
   relaunch(): Promise<void>
   getVisibility(): Promise<WindowVisibilityState>

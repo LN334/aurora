@@ -57,6 +57,14 @@ export function registerAppIpc(deps: WindowSource): void {
    * 会直接失败——界面只能退回到「把地址显示出来让你自己抄」。主进程没有这个
    * 限制，所以复制一律走这里。
    */
+  /*
+   * 读剪贴板。
+   *
+   * 页面里 `navigator.clipboard` 在 aurora-app:// 下不是安全上下文，读和写都
+   * 不work（写那边早就有 app:copy 绕过去了，读一直没人用）。调音台的「粘贴
+   * 分享码」正是唯一要读的地方，这里补上同一条路。
+   */
+  ipcMain.handle('app:readClipboard', () => clipboard.readText())
   ipcMain.handle('app:copy', (_event, text: unknown) => {
     if (typeof text !== 'string' || !text) return false
     clipboard.writeText(text.slice(0, 8192))
