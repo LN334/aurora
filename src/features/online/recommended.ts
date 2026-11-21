@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { bridge } from '../../bridge'
 import { useDiscover } from '../discover/store'
+import { roamPlatforms } from '../player/roam-sources'
 import { usePushPlatforms } from './push-platforms'
 import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
@@ -37,6 +39,84 @@ const QISHUI_WORDS = ['歌单', '民谣', '夜晚']
  */
 const READY_TAIL_MS = 120
 
+/**
+ * QQ 与汽水的推荐位取数。
+ *
+ * 这两家原来只在组件 effect 里问一次：切回首页那一下才开始发请求，两个平台
+ * 各一次往返。抽成模块函数并挂 5 分钟缓存，开屏阶段就能先把它们拉回来，
+ * 页面挂载时直接命中——和旁边那排推荐专辑同一个做法。
+ */
+const RECOMMEND_TTL_MS = 5 * 60 * 1000
+let qqCache: { at: number; rows: PlaylistCard[] } | null = null
+let qishuiCache: { at: number; rows: PlaylistCard[] } | null = null
+
+/** QQ 的推荐位：标签歌单接口，不需要账号。 */
+async function loadQqPlaylists(): Promise<PlaylistCard[]> {
+  if (qqCache && Date.now() - qqCache.at < RECOMMEND_TTL_MS) return qqCache.rows
+  const api = window.aurora?.qq
+  if (!api?.recommendPlaylists) return []
+  const rows = await api.recommendPlaylists(12).catch(() => [])
+  const cards = rows.map((row) => ({
+    key: 'qq:' + row.id,
+    providerId: 'qq' as const,
+    providerLabel: 'QQ 音乐',
+    id: row.id,
+    name: row.name,
+    coverUrl: row.coverUrl,
+    trackCount: row.trackCount,
+    creator: row.creator,
+    ownership: 'unknown' as const
+  }))
+  qqCache = { at: Date.now(), rows: cards }
+  return cards
+}
+
+/** 汽水的推荐位：公开歌单搜索，三个词各取几张再按 id 去重。 */
+async function loadQishuiPlaylists(): Promise<PlaylistCard[]> {
+  if (qishuiCache && Date.now() - qishuiCache.at < RECOMMEND_TTL_MS) return qishuiCache.rows
+  const api = window.aurora?.qishui
+  if (!api?.searchPlaylists) return []
+  const batches = await Promise.all(
+    QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
+  )
+  const seen = new Set<number>()
+  const cards = batches
+    .flat()
+    .filter((row) => {
+      if (seen.has(row.id)) return false
+      seen.add(row.id)
+      return true
+    })
+    .map((row) => ({
+      key: 'qishui:' + row.id,
+      providerId: 'qishui' as const,
+      providerLabel: '汽水音乐',
+      id: row.id,
+      name: row.name,
+      coverUrl: row.coverUrl,
+      trackCount: row.trackCount,
+      creator: row.creator,
+      ownership: 'unknown' as const
+    }))
+  qishuiCache = { at: Date.now(), rows: cards }
+  return cards
+}
+
+/**
+ * 开屏期间预热这一排里的 QQ 与汽水。
+ *
+ * 网易云的块在 discover store 里、酷狗的跟着 init 走，都已经在预热范围内；
+ * 缺的就是这两家。勾选与登录判断与页面一致：只问勾着且登录着的平台。
+ */
+export async function prewarmRecommendedPlaylists(): Promise<void> {
+  const signed = await bridge.platforms.signedIn().catch(() => ({} as Record<string, boolean>))
+  const chosen = roamPlatforms().filter((id) => signed[id])
+  await Promise.allSettled([
+    chosen.includes('qq') ? loadQqPlaylists() : Promise.resolve(),
+    chosen.includes('qishui') ? loadQishuiPlaylists() : Promise.resolve()
+  ])
+}
+
 /** 这一排要的东西，连同「可以画了没有」。 */
 interface RecommendedPlaylists {
   rows: PlaylistCard[]
@@ -47,8 +127,8 @@ interface RecommendedPlaylists {
 export function useRecommendedPlaylists(): RecommendedPlaylists {
   const block = useDiscover((state) => state.blocks.playlists)
   const kugou = useOnlineStore('kugou')()
-  const [qishui, setQishui] = useState<PlaylistCard[]>([])
-  const [qq, setQq] = useState<PlaylistCard[]>([])
+  const [qishui, setQishui] = useState<PlaylistCard[]>(() => qishuiCache?.rows ?? [])
+  const [qq, setQq] = useState<PlaylistCard[]>(() => qqCache?.rows ?? [])
   /*
    * 每一家落定就记一笔。
    *
@@ -138,31 +218,9 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
           setQishui([])
           return
         }
-        const api = window.aurora?.qishui
-        if (!api?.searchPlaylists) return
-        const batches = await Promise.all(
-          QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
-        )
-        const seen = new Set<number>()
-        const rows = batches.flat().filter((row) => {
-          if (seen.has(row.id)) return false
-          seen.add(row.id)
-          return true
-        })
+        const rows = await loadQishuiPlaylists()
         if (!alive || rows.length === 0) return
-        setQishui(
-          rows.map((row) => ({
-            key: 'qishui:' + row.id,
-            providerId: 'qishui' as const,
-            providerLabel: '汽水音乐',
-            id: row.id,
-            name: row.name,
-            coverUrl: row.coverUrl,
-            trackCount: row.trackCount,
-            creator: row.creator,
-            ownership: 'unknown' as const
-          }))
-        )
+        setQishui(rows)
       } finally {
         if (alive) markDone('qishui')
       }
@@ -181,23 +239,9 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
           setQq([])
           return
         }
-        const api = window.aurora?.qq
-        if (!api?.recommendPlaylists) return
-        const rows = await api.recommendPlaylists(12).catch(() => [])
+        const rows = await loadQqPlaylists()
         if (!alive || rows.length === 0) return
-        setQq(
-          rows.map((row) => ({
-            key: 'qq:' + row.id,
-            providerId: 'qq' as const,
-            providerLabel: 'QQ 音乐',
-            id: row.id,
-            name: row.name,
-            coverUrl: row.coverUrl,
-            trackCount: row.trackCount,
-            creator: row.creator,
-            ownership: 'unknown' as const
-          }))
-        )
+        setQq(rows)
       } finally {
         if (alive) markDone('qq')
       }

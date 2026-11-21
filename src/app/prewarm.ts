@@ -3,6 +3,7 @@ import { useDiscover } from '../features/discover/store'
 import { loadPlatformDaily } from '../features/online/daily'
 import { prewarmPlatformLiked } from '../features/online/platform-liked'
 import { prewarmRecommendedAlbums } from '../features/online/recommended-albums'
+import { prewarmRecommendedPlaylists } from '../features/online/recommended'
 import { useOnlineStore } from '../features/online/store'
 import { roamPlatforms } from '../features/player/roam-sources'
 
@@ -15,14 +16,14 @@ import { roamPlatforms } from '../features/player/roam-sources'
  *
  * 覆盖的五块，都是切过去最常见的目标：
  * - 首页的推荐歌单与最近新歌（discover store 自己带 TTL 与单飞）；
+ * - 首页推荐歌单里 QQ 与汽水那两家（模块缓存，与页面同一判断）；
  * - 首页与每日推荐共用的那一批（按勾选的平台取，落进 daily 的模块缓存）；
  * - 「我喜欢的」的四家收藏（落进 platform-liked 的模块缓存）；
  * - 首页「推荐专辑」那一排（三家平台各一次往返，结果进模块缓存）；
  * - 「歌单」页：对已登录的平台各跑一次 init——init 里就会拉这个账号的歌单，
  *   store 有在飞去重，与页面挂载时的 init 撞上也只跑一次。
  *
- * 还没覆盖的：首页「推荐歌单」里 QQ/酷狗/汽水那三家（数据仍在组件 state），
- * 以及各平台的详情页——那些要打开才取，预热等于把整个曲库爬一遍。
+ * 还没覆盖的：各平台的详情页——那要打开才取，预热等于把整个曲库爬一遍。
  *
  * 失败一律吞掉：预热不该把开屏卡到上限，页面自己的空态与重试仍在。
  */
@@ -40,6 +41,7 @@ export function prewarmPages(): Promise<unknown> {
   if (chosen.length > 0) jobs.push(loadPlatformDaily(chosen))
   jobs.push(prewarmPlatformLiked())
   jobs.push(prewarmRecommendedAlbums())
+  jobs.push(prewarmRecommendedPlaylists())
   jobs.push(prewarmAccounts())
   return Promise.allSettled(jobs.map((job) => job.catch(() => undefined)))
 }
