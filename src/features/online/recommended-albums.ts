@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { bridge } from '../../bridge'
+import { roamPlatforms } from '../player/roam-sources'
 import { usePushPlatforms } from './push-platforms'
+import type { ProviderId } from './types'
 
 /**
  * 首页「推荐专辑」。
@@ -140,6 +143,50 @@ function takeWindow<T>(rows: T[], start: number, size: number): T[] {
   return out
 }
 
+/**
+ * 取一排推荐专辑。
+ *
+ * 原来这段只活在组件的 effect 里：切到首页那一下才开始问三家平台，而这三家
+ * 各自要一次往返。抽成模块函数并挂一层 5 分钟缓存，是为了让开屏阶段能先把
+ * 它拉回来——页面挂载时命中缓存，那一排不再先出骨架格。
+ *
+ * 缓存键把「问哪几家 + 要多少 + 第几批」都算进去：换一批（tick 变化）与改
+ * 推荐来源都不该拿到上一份结果。
+ */
+const ALBUM_TTL_MS = 5 * 60 * 1000
+const albumCache = new Map<string, { at: number; rows: AlbumCard[] }>()
+
+async function fetchRecommendedAlbums(list: ProviderId[], limit: number, tick: number): Promise<AlbumCard[]> {
+  const key = [...list].sort().join(',') + '|' + limit + '|' + tick
+  const hit = albumCache.get(key)
+  if (hit && Date.now() - hit.at < ALBUM_TTL_MS) return hit.rows
+  const want = limit * 3
+  const offset = (tick % 3) * want
+  const groups = await Promise.all([
+    list.includes('netease') ? neteaseAlbums(want, offset).catch(() => []) : Promise.resolve([]),
+    list.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
+    list.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
+  ])
+  const pool = mergeAlbumCards(interleave(groups, want * 3))
+  const rows = takeWindow(pool, tick * limit, limit)
+  albumCache.set(key, { at: Date.now(), rows })
+  return rows
+}
+
+/**
+ * 开屏期间预热这排。
+ *
+ * 只问勾着的、并且登录着的平台——与页面里 usePushPlatforms 同一条判断；登录
+ * 状态从这里问主进程（只读会话文件，零加载），不为了一排卡片把四家后端拉起来。
+ */
+export async function prewarmRecommendedAlbums(limit = 8): Promise<void> {
+  const signed = await bridge.platforms.signedIn().catch(() => ({} as Record<string, boolean>))
+  const list = roamPlatforms().filter((id) => signed[id])
+  const asked = list.filter((id) => id === 'netease' || id === 'qq' || id === 'kugou')
+  if (asked.length === 0) return
+  await fetchRecommendedAlbums(asked, limit, 0).catch(() => undefined)
+}
+
 /** 这一排要的东西，连同「可以画了没有」。 */
 interface RecommendedAlbums {
   rows: AlbumCard[]
@@ -174,29 +221,14 @@ export function useRecommendedAlbums(limit = 8, tick = 0): RecommendedAlbums {
     let alive = true
     // 勾选变了要重新等，先把上一轮的放行收回。
     setReady(false)
-    void (async () => {
-      try {
-        /*
-         * 一次取三屏。合并会把同一张专辑的两三条并成一条，所以每家按三倍要。
-         *
-         * 换一批：网易云那边真往后翻页（它有 offset），QQ 与酷狗的新歌榜没有
-         * 翻页参数，只能重问一遍——所以池子在这里轮转，让每次停下的一屏都不是
-         * 上一屏。三批走完绕回开头，同时重新问一次，榜单换了的自然就冒出来。
-         */
-        const want = limit * 3
-        const offset = (tick % 3) * want
-        // 并发取，各家失败只算自己没内容：一家的接口抖一下不该让整排空掉。
-        const groups = await Promise.all([
-          list.includes('netease') ? neteaseAlbums(want, offset).catch(() => []) : Promise.resolve([]),
-          list.includes('qq') ? qqAlbums(want).catch(() => []) : Promise.resolve([]),
-          list.includes('kugou') ? kugouAlbums(want).catch(() => []) : Promise.resolve([])
-        ])
-        const pool = mergeAlbumCards(interleave(groups, want * 3))
-        if (alive) setRows(takeWindow(pool, tick * limit, limit))
-      } finally {
+    void fetchRecommendedAlbums(list, limit, tick)
+      .then((next) => {
+        if (alive) setRows(next)
+      })
+      .catch(() => undefined)
+      .finally(() => {
         if (alive) setReady(true)
-      }
-    })()
+      })
     return () => {
       alive = false
     }
