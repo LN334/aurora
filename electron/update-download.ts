@@ -72,6 +72,14 @@ interface DownloadOptions {
   idleTimeoutMs?: number
   /** 有可用代理时走它；测速也会带上，否则测出来的不是真实速度。 */
   proxy?: ProxyEndpoint | null
+  /**
+   * 测速要试的路由，`null` 表示直连。
+   *
+   * 代理客户端在听、却转发不出去的时候，只按 `proxy` 试会把每条线路都判死，
+   * 界面停在 0% 不动——校园网里最常见的就是这一幕。把直连一起放进候选，
+   * 让实测数据决定走哪条，而不是让一次失败的上游把整次下载拖死。
+   */
+  proxyCandidates?: Array<ProxyEndpoint | null>
 }
 
 const REDIRECT_LIMIT = 5
@@ -99,6 +107,19 @@ interface Route {
   seeks: boolean
   /** 连续失败次数，到阈值就退场。 */
   fails: number
+  /** 这条线路实测时走的代理；`null` 是直连。 */
+  proxy: ProxyEndpoint | null
+}
+
+/** 一条线路配上一条路由，才是测速真正要比的东西。 */
+interface Attempt {
+  source: DownloadSource
+  proxy: ProxyEndpoint | null
+}
+
+/** 日志里怎么称呼一条路由：代理端口写出来，直连就写直连。 */
+function routeName(proxy: ProxyEndpoint | null): string {
+  return proxy ? '代理 ' + proxy.host + ':' + proxy.port : '直连'
 }
 
 /** 文件的一段，从头流到尾，记录已经写到哪。 */
@@ -259,14 +280,15 @@ function totalOf(response: http.IncomingMessage): number {
 async function probe(
   source: DownloadSource,
   options: DownloadOptions,
-  deadline: number
+  deadline: number,
+  proxy: ProxyEndpoint | null
 ): Promise<Route | null> {
   const started = Date.now()
   try {
     const response = await openRequest(
       source.prefix + options.url,
       { range: 'bytes=0-' + (PROBE_BYTES - 1) },
-      { proxy: options.proxy, connectTimeoutMs: Math.min(PROBE_TIMEOUT_MS, options.connectTimeoutMs ?? PROBE_TIMEOUT_MS) }
+      { proxy, connectTimeoutMs: Math.min(PROBE_TIMEOUT_MS, options.connectTimeoutMs ?? PROBE_TIMEOUT_MS) }
     )
     const status = response.statusCode ?? 0
     if (status !== 200 && status !== 206) {
@@ -294,7 +316,7 @@ async function probe(
     })
     const seconds = (Date.now() - started) / 1000
     if (got < 16 * 1024) return null
-    return { source, bps: got / seconds, seeks, fails: 0 }
+    return { source, bps: got / seconds, seeks, fails: 0, proxy }
   } catch {
     return null
   }
@@ -303,17 +325,32 @@ async function probe(
 /** 并发测速，按吞吐从快到慢排；全挂时退回给定的顺序。 */
 async function rankRoutes(options: DownloadOptions): Promise<Route[]> {
   const deadline = PROBE_TIMEOUT_MS
-  const routes = await Promise.all(options.sources.map((source) => probe(source, options, deadline)))
+  const proxies = options.proxyCandidates?.length
+    ? options.proxyCandidates
+    : [options.proxy ?? null]
+  const attempts: Attempt[] = []
+  for (const source of options.sources) {
+    for (const proxy of proxies) attempts.push({ source, proxy })
+  }
+  const routes = await Promise.all(
+    attempts.map((attempt) => probe(attempt.source, options, deadline, attempt.proxy))
+  )
   const alive = routes.filter((route): route is Route => route !== null)
   const note = (text: string): void => options.onNote?.(text)
   if (alive.length === 0) {
     note('测速全部失败，按给定顺序直接下')
-    return options.sources.map((source) => ({ source, bps: 0, seeks: true, fails: 0 }))
+    return attempts.map((attempt) => ({ ...attempt, bps: 0, seeks: true, fails: 0 }))
   }
   alive.sort((a, b) => b.bps - a.bps)
   note(
     '线路实测：' +
-      alive.map((route) => route.source.name + ' ' + (route.bps / 1048576).toFixed(2) + ' MB/s').join('、')
+      alive
+        .map(
+          (route) =>
+            route.source.name + '（' + routeName(route.proxy) + '） ' +
+            (route.bps / 1048576).toFixed(2) + ' MB/s'
+        )
+        .join('、')
   )
   // 一条都不认 Range 的话分段的假设就不成立了，交给整包路径。
   if (!alive.some((route) => route.seeks)) return alive
@@ -409,7 +446,7 @@ async function streamSegment(
   const response = await openRequest(
     route.source.prefix + options.url,
     { range: 'bytes=' + from + '-' + segment.end },
-    { proxy: options.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
+    { proxy: route.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
   )
   const status = response.statusCode ?? 0
   if (status !== 200 && status !== 206) {
@@ -516,7 +553,7 @@ async function downloadWhole(
   const response = await openRequest(
     route.source.prefix + options.url,
     known > 0 ? { range: 'bytes=' + known + '-' } : {},
-    { proxy: options.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
+    { proxy: route.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
   )
   const status = response.statusCode ?? 0
   const resuming = status === 206 && known > 0
@@ -742,7 +779,7 @@ async function sizeOf(routes: Route[], options: DownloadOptions): Promise<number
       const response = await openRequest(
         route.source.prefix + options.url,
         { range: 'bytes=0-0' },
-        { proxy: options.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
+        { proxy: route.proxy, connectTimeoutMs: options.connectTimeoutMs ?? 15000 }
       )
       response.resume()
       const total = totalOf(response)
@@ -765,54 +802,60 @@ export async function fetchReleaseText(request: {
   url: string
   sources: DownloadSource[]
   proxy?: ProxyEndpoint | null
+  /** 要试的路由，`null` 是直连；省略时只看 `proxy`。 */
+  proxies?: Array<ProxyEndpoint | null>
   timeoutMs?: number
   maxBytes?: number
 }): Promise<string> {
   const limit = request.maxBytes ?? 64 * 1024
   const timeout = request.timeoutMs ?? 8000
+  const proxies = request.proxies?.length ? request.proxies : [request.proxy ?? null]
 
-  // 并发问每一条线路，谁先给出非空内容就用谁。
+  // 并发问每一条线路 × 每一条路由，谁先给出非空内容就用谁。
   // 串行试的代价在这里特别明显：第一条是直连，校园网里它要等满超时才轮到镜像，
   // 而这份清单只有几百字节，本该是点下去就有的事。
-  const attempts = request.sources.map(async (source) => {
-    const response = await openRequest(
-      source.prefix + request.url,
-      {},
-      { proxy: request.proxy, connectTimeoutMs: timeout }
-    )
-    const status = response.statusCode ?? 0
-    if (status !== 200) {
-      response.resume()
-      throw new Error(source.name + ' HTTP ' + status)
-    }
-    const text = await new Promise<string>((resolve, reject) => {
-      const parts: Buffer[] = []
-      let size = 0
-      const timer = setTimeout(() => {
-        response.destroy()
-        reject(new Error(source.name + ' 读取超时'))
-      }, timeout)
-      response.on('data', (chunk: Buffer) => {
-        parts.push(chunk)
-        size += chunk.length
-        if (size > limit) {
-          clearTimeout(timer)
+  const attempts = proxies.flatMap((proxy) =>
+    request.sources.map(async (source) => {
+      const label = source.name + '（' + routeName(proxy) + '）'
+      const response = await openRequest(
+        source.prefix + request.url,
+        {},
+        { proxy, connectTimeoutMs: timeout }
+      )
+      const status = response.statusCode ?? 0
+      if (status !== 200) {
+        response.resume()
+        throw new Error(label + ' HTTP ' + status)
+      }
+      const text = await new Promise<string>((resolve, reject) => {
+        const parts: Buffer[] = []
+        let size = 0
+        const timer = setTimeout(() => {
           response.destroy()
-          reject(new Error(source.name + ' 清单过大'))
-        }
+          reject(new Error(label + ' 读取超时'))
+        }, timeout)
+        response.on('data', (chunk: Buffer) => {
+          parts.push(chunk)
+          size += chunk.length
+          if (size > limit) {
+            clearTimeout(timer)
+            response.destroy()
+            reject(new Error(label + ' 清单过大'))
+          }
+        })
+        response.on('end', () => {
+          clearTimeout(timer)
+          resolve(Buffer.concat(parts).toString('utf8'))
+        })
+        response.on('error', (error) => {
+          clearTimeout(timer)
+          reject(error)
+        })
       })
-      response.on('end', () => {
-        clearTimeout(timer)
-        resolve(Buffer.concat(parts).toString('utf8'))
-      })
-      response.on('error', (error) => {
-        clearTimeout(timer)
-        reject(error)
-      })
+      if (text.trim().length === 0) throw new Error(label + ' 空内容')
+      return text
     })
-    if (text.trim().length === 0) throw new Error(source.name + ' 空内容')
-    return text
-  })
+  )
 
   try {
     return await Promise.any(attempts)

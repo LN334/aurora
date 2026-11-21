@@ -447,7 +447,14 @@ const DOWNLOAD_SOURCES: DownloadSource[] = [
     })
 
     const base = releaseBase(pending.info)
-    const manifest = await resolveManifest(base, route.endpoint)
+    /*
+     * 代理只是一条候选，直连一起交给下载器。
+     *
+     * 代理客户端在听、上游却断了的时候，只给代理会让每一条线路都判死，
+     * 进度停在 0% 不动；把直连也放进候选，实测谁通就走谁。
+     */
+    const routes: Array<ProxyEndpoint | null> = route.endpoint ? [route.endpoint, null] : [null]
+    const manifest = await resolveManifest(base, routes)
     const name = fileNameOf(manifest.url)
     if (!name) throw new Error('发布信息里的文件名不可用')
 
@@ -459,6 +466,7 @@ const DOWNLOAD_SOURCES: DownloadSource[] = [
       dir: path.join(app.getPath('temp'), 'aurora-update'),
       sources: DOWNLOAD_SOURCES,
       proxy: route.endpoint,
+      proxyCandidates: routes,
       onNote: (note) => write('updates: ' + note),
       onProgress: (progress) => {
         broadcast({
@@ -519,9 +527,16 @@ function releaseBase(info: UpdateInfo): string {
  * ——校园网里那个域名整段不通，于是下载还没开始就死在「没有可用的安装包」。
  * 只有镜像全都拿不到时才回到 electron-updater 那条路。
  */
-async function resolveManifest(base: string, proxy: ProxyEndpoint | null): Promise<LatestFile> {
+async function resolveManifest(
+  base: string,
+  routes: Array<ProxyEndpoint | null>
+): Promise<LatestFile> {
   try {
-    const text = await fetchReleaseText({ url: base + '/latest.yml', sources: DOWNLOAD_SOURCES, proxy })
+    const text = await fetchReleaseText({
+      url: base + '/latest.yml',
+      sources: DOWNLOAD_SOURCES,
+      proxies: routes
+    })
     const parsed = parseLatestYml(text)
     if (parsed && parsed.sha512) {
       write('updates: 清单取自镜像线路')

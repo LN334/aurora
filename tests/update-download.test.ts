@@ -201,3 +201,24 @@ test('校验不通过就删掉文件并报错，不把坏包交出去', async ()
   assert.equal(existsSync(path.join(dir, 'fixture.bin.part')), false)
   rmSync(dir, { recursive: true, force: true })
 })
+
+test('代理转发不出去时，候选里的直连照样把包下完', async () => {
+  const dir = makeDir()
+  /*
+   * 代理客户端在听、上游断了：端口连得上但隧道走不通。
+   * 只给代理时每条线路都判死，界面停在 0%；给了直连候选就该自己绕过去。
+   */
+  const deadProxy = { host: '127.0.0.1', port: 1 }
+  const file = await downloadReleaseFile({
+    url: 'fixture.bin',
+    fileName: 'fixture.bin',
+    sha512: SHA,
+    dir,
+    sources: [{ name: 'good', prefix: fixture.origin + '/good/' }],
+    proxy: deadProxy,
+    proxyCandidates: [deadProxy, null]
+  })
+  assert.equal(readFileSync(file).equals(PAYLOAD), true)
+  assert.equal(existsSync(file + '.part'), false)
+  rmSync(dir, { recursive: true, force: true })
+})

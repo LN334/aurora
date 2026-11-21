@@ -76,7 +76,13 @@ export function UpdatePanel() {
             </>
           ) : result.state === 'downloading' ? (
             <>
-              <p>正在下载 {Math.round(result.percent)}%</p>
+              <p>
+                正在下载 {Math.round(result.percent)}%
+                {/* 同一个理由：带上已下字节数，才看得出是在动还是停住了。 */}
+                {result.total > 0
+                  ? `（${(result.transferred / 1048576).toFixed(1)} / ${(result.total / 1048576).toFixed(1)} MB）`
+                  : ''}
+              </p>
               <div className="update__actions">
                 <button className="btn" onClick={() => void open()}>
                   卡住了？改用浏览器下载

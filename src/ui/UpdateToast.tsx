@@ -89,7 +89,13 @@ export function UpdateToast() {
           <div className="uptoast__bar" aria-hidden="true">
             <i style={{ width: `${Math.min(100, Math.max(0, result.percent))}%` }} />
           </div>
-          <p className="uptoast__meta tnum">{Math.round(result.percent)}%</p>
+          <p className="uptoast__meta tnum">
+            {Math.round(result.percent)}%
+            {/* 只有百分比时，慢线路和卡死的连接看起来一模一样；把字节数带上就分得开。 */}
+            {result.total > 0
+              ? ` · ${(result.transferred / 1048576).toFixed(1)} / ${(result.total / 1048576).toFixed(1)} MB`
+              : ''}
+          </p>
         </>
       ) : null}
 
