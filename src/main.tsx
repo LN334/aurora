@@ -24,7 +24,7 @@ import './features/player/netease'
 import './features/online/register'
 import { bridge } from './bridge'
 import { warmChosenPlatforms } from './features/online/push-platforms'
-import { prewarmPages } from './app/prewarm'
+import { prewarmAfterSplash, prewarmPages } from './app/prewarm'
 import { useLikes } from './features/favorites/likes'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { loadProfilePresets } from './features/presets/store'
@@ -151,6 +151,8 @@ requestAnimationFrame(() => {
           new Promise((resolve) => window.setTimeout(resolve, WARM_MS))
         ])
         void gate.then(() => {
+          /* 揭幕之后才去拉要问四家平台的那几块，别压在开屏那三秒上。 */
+          prewarmAfterSplash()
           const wait = Math.max(0, MIN_MS - (performance.now() - shownAt))
           window.setTimeout(dismiss, wait)
         })
