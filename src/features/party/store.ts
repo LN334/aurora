@@ -120,6 +120,20 @@ let applyingRemote = false
 /** 最近一次上报时刻：刚推出去的东西马上又会广播回来，先等它落地。 */
 let pushedAt = 0
 
+/**
+ * 客人刚进房时的静默期。
+ *
+ * 进房那一刻，本地播放器往往正放着它自己选的一首歌；join 会触发一串状态变化
+ * （队列重建、索引跳转），订阅把那当成「用户在操作」，于是客人把自己的歌推
+ * 成房间的 now。房间状态被覆盖后，房主和别的客人都跟着跳到这首歌上——这就是
+ * 「多个人在抢播放权」。而且客人推的那份不带播放地址，共享流被清空，谁都放
+ * 不出声。
+ *
+ * 所以进房后先安静几秒：这期间不主动上报，只跟随；成功跟随过一次就立刻解除。
+ */
+let guestSilentUntil = 0
+const GUEST_SILENCE_MS = 4000
+
 /** 自己刚上报过的那一小段时间里，不把回来的消息当成「别人换的」。 */
 const ECHO_MS = 700
 
@@ -366,6 +380,11 @@ function followThrottled(now: PartyNow): void {
   follow(now)
 }
 
+/** 跟随落定：静默期到此结束，之后用户真操作了才上报。 */
+function noteFollowed(): void {
+  guestSilentUntil = 0
+}
+
 /**
  * 把房间的「现在」套到本地播放器上。
  *
@@ -376,6 +395,8 @@ function applyRemote(now: PartyNow): void {
   applyingRemote = true
   try {
     const playback = usePlayer.getState()
+    /* 已经收到房主的「现在」，说明房间是活的，静默期可以收了。 */
+    noteFollowed()
     if (playback.queue[playback.index]?.id !== now.trackId) followThrottled(now)
     else alignWith(now)
   } finally {
@@ -433,10 +454,30 @@ function watchPlayback(): void {
   watching = true
 
   usePlayer.subscribe((state) => {
-    /* 这是跟随别人造成的改动，不能当成一次新的本地操作再广播出去。 */
-    if (applyingRemote) return
+    /*
+     * 跟随造成的改动不广播，但**基线要跟着更新**。
+     *
+     * 原来这里直接 return，lastTrackId 就停在跟随前的值上；等 applyingRemote
+     * 落下去，下一次普通的 position 更新一进来，就会被判成「换歌了」再推一次。
+     * 那一推让对面也跟一次、再推回来——两个人就这么来回抢。
+     */
+    if (applyingRemote) {
+      const followed = state.queue[state.index] ?? null
+      lastTrackId = followed ? followed.id : ''
+      lastPlaying = state.playing
+      lastTick = {
+        trackId: followed ? followed.id : '',
+        position: state.position,
+        playing: state.playing,
+        at: Date.now()
+      }
+      return
+    }
     const role = useParty.getState().state.role
     if (role !== 'host' && role !== 'guest') return
+
+    /* 刚进房的那几秒：只跟、不推，原因见 guestSilentUntil 的注释。 */
+    if (role === 'guest' && Date.now() < guestSilentUntil) return
 
     /* 队列本身变了（加歌、删歌、换一批）才推，位置更新不推。 */
     if (state.queue !== lastQueueRef) {
@@ -455,7 +496,14 @@ function watchPlayback(): void {
     }
     if (state.playing !== lastPlaying) {
       lastPlaying = state.playing
-      pushMoment()
+      /*
+       * 起停只由房主说了算。
+       *
+       * 两边都能广播起停时，一个缓冲、一次自动暂停就会被对面当成「他按了
+       * 暂停」再广播回来，房间里的播放键开始自己跳。客人这一下只留在本地，
+       * 下一次对齐会按房主的状态把它纠正过来。
+       */
+      if (role === 'host') pushMoment()
       return
     }
 
@@ -478,7 +526,13 @@ function watchPlayback(): void {
     if (Date.now() - selfSeekAt < SELF_SEEK_GRACE_MS) return
     if (sawSeek(before, sample)) {
       holdUntil = Date.now() + HOLD_MS
-      pushMoment()
+      /*
+       * 拖进度同理：只有房主上报。
+       *
+       * 客人的 seek 有一部分不是人拖的——换流、缓冲后重定位都会让位置跳一
+       * 大截，以前这些也被当成「他在拖」，于是两边不停互相 seek。
+       */
+      if (role === 'host') pushMoment()
     }
   })
 
@@ -619,6 +673,10 @@ export const useParty = create<PartyStore>((set, get) => ({
        * 自己刚推出去的那份会原样广播回来：那一下推过没几百毫秒，位置本来就在
        * 预期之内，交给下面这条阈值判断即可，不必特殊挡。
        */
+      /* 第一份房主状态到了：先把静默期打开，等这一轮跟随落定再关。 */
+      if (state.role === 'guest' && state.connecting === false && guestSilentUntil === 0) {
+        guestSilentUntil = Date.now() + GUEST_SILENCE_MS
+      }
       if (state.role === 'guest' && state.queue.length > 0) {
         /* 队列先对齐：镜像会改本地队列，得挡住它被当成一次新的本地操作。 */
         applyingRemote = true
