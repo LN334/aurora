@@ -1,4 +1,4 @@
-import { protocol } from 'electron'
+import { nativeImage, protocol } from 'electron'
 import { Readable } from 'node:stream'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import fs from 'node:fs'
@@ -137,17 +137,52 @@ async function serveAudio(target: string, request: Request): Promise<Response> {
   })
 }
 
-async function serveArt(target: string): Promise<Response> {
+/**
+ * 本机封面的缩略图。
+ *
+ * 内嵌封面常见 1000×1000 或更大，而列表行只显示 40px、卡片两三百像素。
+ * 原图直出意味着每张图解码后占 4 MB 位图——收藏页几百行就是几百兆常驻，
+ * 而屏幕上根本看不出区别。
+ *
+ * 这里用 Electron 自带的 nativeImage 在主进程缩一次再发；结果按「路径@边长」
+ * 缓存，同一张图被多个尺寸要过的场景也不会重复解码。缓存上限 400 条，满了
+ * 整批清掉——这只是给一次滚动用的短期缓存，不必做 LRU。
+ */
+const thumbCache = new Map<string, Buffer>()
+
+function thumbOf(key: string, data: Buffer, px: number): Buffer | null {
+  const hit = thumbCache.get(key)
+  if (hit) return hit
+  try {
+    const image = nativeImage.createFromBuffer(data)
+    if (image.isEmpty()) return null
+    const size = image.getSize()
+    // 原图本来就比要的还小：直接用，不放大。
+    if (Math.max(size.width, size.height) <= px) {
+      thumbCache.set(key, data)
+      return data
+    }
+    const out = image.resize({ width: px, quality: 'good' }).toJPEG(84)
+    if (thumbCache.size > 400) thumbCache.clear()
+    thumbCache.set(key, out)
+    return out
+  } catch {
+    return null
+  }
+}
+
+async function serveArt(target: string, px?: number): Promise<Response> {
   if (!isInsideRoots(target)) return new Response('forbidden', { status: 403 })
 
   // Embedded picture first, then a folder image beside the file.
   const embedded = await readEmbeddedArt(target)
   if (embedded) {
-    return new Response(new Uint8Array(embedded.data), {
+    const small = px ? thumbOf(target + '@' + px, embedded.data, px) : null
+    return new Response(new Uint8Array(small ?? embedded.data), {
       status: 200,
       headers: {
         'access-control-allow-origin': '*',
-        'content-type': embedded.mime,
+        'content-type': small ? 'image/jpeg' : embedded.mime,
         'cache-control': 'no-store'
       }
     })
@@ -157,11 +192,12 @@ async function serveArt(target: string): Promise<Response> {
   if (folderImage) {
     try {
       const data = await fs.promises.readFile(folderImage)
-      return new Response(new Uint8Array(data), {
+      const small = px ? thumbOf(folderImage + '@' + px, data, px) : null
+      return new Response(new Uint8Array(small ?? data), {
         status: 200,
         headers: {
           'access-control-allow-origin': '*',
-          'content-type': mimeFor(folderImage),
+          'content-type': small ? 'image/jpeg' : mimeFor(folderImage),
           'cache-control': 'no-store'
         }
       })
@@ -182,11 +218,18 @@ export function handleMediaProtocol(): void {
       return new Response('bad url', { status: 400 })
     }
 
-    const target = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
+    const decoded = decodeURIComponent(url.pathname.replace(/^\/+/, ''))
+    /*
+     * 本地封面的地址可以是 `/<边长>/<路径>`：第一段是纯数字就当作缩略尺寸。
+     * 真实文件路径以盘符开头（`C:\\…`），不会长成这样，所以不会误判。
+     */
+    const sized = /^(\d{2,4})\/([\s\S]+)$/.exec(decoded)
+    const px = sized ? Number(sized[1]) : undefined
+    const target = sized ? sized[2] : decoded
     if (!target) return new Response('bad request', { status: 400 })
 
     try {
-      if (url.host === 'art') return await serveArt(target)
+      if (url.host === 'art') return await serveArt(target, px)
       if (url.host === 'file') return await serveAudio(target, request)
     } catch (error) {
       console.error('[aurora] media protocol failed', target, error)

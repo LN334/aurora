@@ -17,9 +17,16 @@ export function mediaUrl(filePath: string): string {
   return `${MEDIA_SCHEME}://file/${encodeURIComponent(filePath)}`
 }
 
-/** Cover art for a track, resolved main-side (embedded tag, then folder image). */
-export function artUrl(filePath: string): string {
-  return `${MEDIA_SCHEME}://art/${encodeURIComponent(filePath)}`
+/**
+ * Cover art for a track, resolved main-side (embedded tag, then folder image).
+ *
+ * `px` 是可选的缩略边长：给出时主进程用 nativeImage 把它缩到这个尺寸再发。
+ * 列表行只显示 40px，而内嵌封面常见 1000×1000——一张解码就是 4 MB 位图，
+ * 几百行叠起来是几百兆常驻内存。不给就还是原图（播放页、舞台要的就是大的）。
+ */
+export function artUrl(filePath: string, px?: number): string {
+  const size = px && px > 0 ? `${Math.round(px)}/` : ''
+  return `${MEDIA_SCHEME}://art/${size}${encodeURIComponent(filePath)}`
 }
 
 /**

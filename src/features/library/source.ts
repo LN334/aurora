@@ -29,7 +29,7 @@ export interface TrackSource {
   /** Playable URL for this track, or null when the source cannot serve it. */
   streamUrl(track: Track): string | null
   /** Artwork URL, or null. Must stay same-origin or CORS-clean for Web Audio. */
-  artUrl(track: Track): string | null
+  artUrl(track: Track, px?: number): string | null
   /** Raw LRC text, or null. */
   lyrics(track: Track): Promise<string | null>
 }
@@ -50,9 +50,9 @@ export interface TrackSource {
 
   streamUrl: (track) => (isNative ? mediaUrl(track.path) : null),
 
-  artUrl: (track) => {
+  artUrl: (track, px) => {
     if (!track.hasArt) return null
-    return isNative ? artUrl(track.path) : demoCoverFor(track)
+    return isNative ? artUrl(track.path, px) : demoCoverFor(track)
   },
 
   lyrics: async (track) => {
@@ -309,5 +309,6 @@ export function artThumbFor(track: Track | null, px = 96): string | null {
   if (!track) return null
   const source = sourceFor(track)
   if (source.online && track.coverUrl) return remoteImageUrl(track.coverUrl, px)
-  return source.artUrl(track)
+  /* 本机也传 px：主进程会用 nativeImage 缩，内嵌封面不再是原图直出。 */
+  return source.artUrl(track, px)
 }
