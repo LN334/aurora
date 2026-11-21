@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { registerStream, setRelay } from './room'
+import { registerStream, setRelay, setQueue } from './room'
 import { discover } from './discover'
 import { cloudflareState, onCloudflareState, startCloudflared, stopCloudflared } from './cloudflared'
 import { sakuraCreateTunnel, sakuraDeleteTunnel, sakuraEditTunnel, sakuraNodes, sakuraTunnels } from '../sakura/api'
@@ -134,6 +134,11 @@ export function registerPartyIpc(): void {
     return partyState()
   })
 
+  ipcMain.handle('party:queue', (_event, args: unknown) => {
+    const queue = (args as { queue?: unknown } | null)?.queue
+    if (Array.isArray(queue)) setQueue(queue as never)
+    return partyState()
+  })
   ipcMain.handle('party:now', (_event, args: unknown) => {
     const raw = asRecord(args)
     const now = raw.now as PartyNow | undefined

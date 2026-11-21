@@ -27,6 +27,23 @@ export interface PartyMember {
   host: boolean
 }
 
+/**
+ * 队列里的一首歌。
+ *
+ * 与 `PartyNow.track` 同一份形状：房间同步的是「听什么」，各端自己解析流。
+ * 本机文件也占一位（不给播放地址），这样两边的队列长度与顺序才对得上。
+ */
+export interface PartyQueueItem {
+  id: string
+  source: string
+  title: string
+  artist: string
+  album: string
+  duration: number
+  coverUrl: string | null
+  hasArt: boolean
+}
+
 /** 房间里「现在在听什么」。trackId 用 `${source}:${onlineId}` 这类跨端稳定的写法。 */
 export interface PartyNow {
   trackId: string
@@ -96,6 +113,14 @@ export interface PartyState {
   name: string
   members: PartyMember[]
   now: PartyNow | null
+  /**
+   * 房间的播放队列，由房主定。
+   *
+   * 以前只同步「现在这一首」，两边的队列各是各的：房主点下一首是一个序列，
+   * 客人点下一首落到另一首上，切歌越多分叉越大。现在整条队列跟着房间走，
+   * 「下一首 / 上一首」在两边指的是同一首。
+   */
+  queue: PartyQueueItem[]
   /**
    * 公网地址（`host:端口`），房主填。
    *
@@ -192,6 +217,7 @@ function idle(): PartyState {
     name: '',
     members: [],
     now: null,
+    queue: [],
     publicAddress: '',
     relay: true,
     locked: false,
@@ -770,6 +796,34 @@ export function kickMember(id: string): PartyState {
 export function setRelay(value: boolean): void {
   if (current.role !== 'host' || current.relay === value) return
   publish({ relay: value })
+  broadcast(current)
+}
+
+/**
+ * 两串队列是不是同一份。
+ *
+ * 只比 id 序列：标题、封面这些是曲目自己的属性，id 一样就不会变；逐字段比
+ * 反而会因为某次接口补了封面就整条重推一遍。
+ */
+function sameQueue(a: PartyQueueItem[], b: PartyQueueItem[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].id !== b[i].id) return false
+  }
+  return true
+}
+
+/**
+ * 房主把房间的播放队列定下来。
+ *
+ * 只在房主这边有效：客人是镜像方，它调这个不会改到别人的房间（与改名、
+ * 上锁那些房主专属命令一致）。队列没变就不发——房间状态是整包广播的，
+ * 一次多余的推送等于给每个成员多发一份队列。
+ */
+export function setQueue(queue: PartyQueueItem[]): void {
+  if (current.role !== 'host') return
+  if (sameQueue(current.queue, queue)) return
+  publish({ queue })
   broadcast(current)
 }
 

@@ -633,6 +633,7 @@ const api = {
       ipcRenderer.invoke('party:join', { address, code, name, pass }),
     leave: () => ipcRenderer.invoke('party:leave'),
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
+    setQueue: (queue: unknown) => ipcRenderer.invoke('party:queue', { queue }),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     rename: (name: string) => ipcRenderer.invoke('party:rename', { name }),

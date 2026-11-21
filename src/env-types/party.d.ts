@@ -32,6 +32,18 @@ export interface PartyMessage {
   host: boolean
 }
 
+/** 房间队列里的一首歌；本机文件也占一位，只是取不到流。 */
+export interface PartyQueueItem {
+  id: string
+  source: string
+  title: string
+  artist: string
+  album: string
+  duration: number
+  coverUrl: string | null
+  hasArt: boolean
+}
+
 /** 房间里「现在在听什么」。 */
 export interface PartyNow {
   trackId: string
@@ -76,6 +88,8 @@ export interface PartyState {
   /** 房主起的房间名；空串表示还没起，界面用默认那句。 */
   name: string
   members: PartyMember[]
+  /** 房间的播放队列，由房主定；客人镜像。 */
+  queue: PartyQueueItem[]
   now: PartyNow | null
   /** 房主填的公网地址（`host:端口`）；空串是没有。 */
   publicAddress: string
@@ -107,6 +121,8 @@ export interface PartyApi {
   join(address: string, code: string, name: string, pass?: string): Promise<PartyState>
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>
+  /** 房主把房间队列定下来；客人调用不会改到别人的房间。 */
+  setQueue(queue: PartyQueueItem[]): Promise<PartyState>
   chat(text: string): Promise<PartyState>
   /** 房主填公网地址；客人调用无效果。 */
   setPublic(address: string): Promise<PartyState>

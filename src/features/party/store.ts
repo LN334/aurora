@@ -9,6 +9,8 @@ import { rememberSharedOrigin, rememberSharedStream } from './shared-stream'
 import { partyTrackInfoOf, trackFromParty } from './shared-track'
 import { normalizeCode, parseInvite } from './invite'
 import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
+import type { Track } from '../../types'
+import type { PartyQueueItem } from '../../env-types/party'
 import type { PlaybackTick } from './pure'
 
 /**
@@ -27,6 +29,7 @@ const IDLE: PartyState = {
   name: '',
   members: [],
   now: null,
+  queue: [],
   publicAddress: '',
   relay: true,
   locked: false,
@@ -59,6 +62,8 @@ interface PartyStore {
   join(address: string, code: string, name: string, pass?: string): Promise<void>
   leave(): Promise<void>
   push(now: PartyNow): Promise<void>
+  /** 房主把房间队列定下来；客人调用不会改到别人的房间。 */
+  setQueue(queue: PartyQueueItem[]): Promise<void>
   say(text: string): Promise<void>
   setPublic(address: string): Promise<void>
   /** 房主给房间改名；客人调用无效果。 */
@@ -100,6 +105,8 @@ let cloudflarePublished = ''
 let selfSeekAt = 0
 /** 上一次播放采样，用来认出「这次位置跳了一截」。 */
 let lastTick: PlaybackTick | null = null
+/** 上一次见到的队列引用；用来把「队列变了」和「位置变了」分开。 */
+let lastQueueRef: Track[] | null = null
 
 /**
  * 正在把别人的房间状态套用到本地播放器。
@@ -297,6 +304,56 @@ function follow(now: PartyNow): void {
  * 消息触发一次，再靠定时器补漏——切歌那一帧元素可能还没装好，那一次 seek 会
  * 落空，靠 2 秒后的那一次接上。
  */
+/** 队列的一行描述。本机文件也占一位——两边顺序要对得上。 */
+function queueItemOf(track: Track): PartyQueueItem {
+  return {
+    id: track.id,
+    source: track.source ?? 'local',
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    duration: track.duration,
+    coverUrl: track.coverUrl ?? null,
+    hasArt: Boolean(track.hasArt)
+  }
+}
+
+/** 两串队列是不是同一份（只比 id 序列）。 */
+function sameQueueIds(a: { id: string }[], b: { id: string }[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) if (a[i].id !== b[i].id) return false
+  return true
+}
+
+/**
+ * 房主把当前队列推给房间。
+ *
+ * 只在队列本身变了才发：房间状态是整包广播，播放时位置每帧都在动，不筛一下
+ * 就等于每帧给每个成员发一份队列。
+ */
+function pushQueue(): void {
+  const party = useParty.getState()
+  if (party.state.role !== 'host') return
+  const items = usePlayer.getState().queue.map(queueItemOf)
+  if (sameQueueIds(items, party.state.queue)) return
+  void party.setQueue(items)
+}
+
+/**
+ * 客人把房间队列镜像到本地。
+ *
+ * 不打断当前播放：先按曲目 id 找到「我正放到的那首」在新队列里的位置，找不到
+ * 才回到开头。镜像之后两边的「下一首」指的是同一首，队列序号也就一致了。
+ */
+function mirrorQueue(items: PartyQueueItem[]): void {
+  const player = usePlayer.getState()
+  if (sameQueueIds(items, player.queue)) return
+  const currentId = player.queue[player.index]?.id ?? null
+  const tracks = items.map((item) => trackFromParty(item))
+  const at = currentId ? tracks.findIndex((track) => track.id === currentId) : 0
+  player.setQueue(tracks, at >= 0 ? at : 0)
+}
+
 /** 客人被拉回房主那首的节流：同一首一秒内只跳一次。 */
 let followAt = 0
 let followId = ''
@@ -380,6 +437,12 @@ function watchPlayback(): void {
     if (applyingRemote) return
     const role = useParty.getState().state.role
     if (role !== 'host' && role !== 'guest') return
+
+    /* 队列本身变了（加歌、删歌、换一批）才推，位置更新不推。 */
+    if (state.queue !== lastQueueRef) {
+      lastQueueRef = state.queue
+      if (role === 'host') pushQueue()
+    }
 
     const track = state.queue[state.index] ?? null
     if (!track) return
@@ -556,6 +619,17 @@ export const useParty = create<PartyStore>((set, get) => ({
        * 自己刚推出去的那份会原样广播回来：那一下推过没几百毫秒，位置本来就在
        * 预期之内，交给下面这条阈值判断即可，不必特殊挡。
        */
+      if (state.role === 'guest' && state.queue.length > 0) {
+        /* 队列先对齐：镜像会改本地队列，得挡住它被当成一次新的本地操作。 */
+        applyingRemote = true
+        try {
+          mirrorQueue(state.queue)
+        } finally {
+          window.setTimeout(() => {
+            applyingRemote = false
+          }, 0)
+        }
+      }
       if (!state.now) return
       if (previous.now?.trackId !== state.now.trackId || Date.now() - pushedAt >= ECHO_MS) {
         applyRemote(state.now)
@@ -715,6 +789,11 @@ export const useParty = create<PartyStore>((set, get) => ({
       // 同 push：浏览器里没有后端，说清楚，而不是让输入框看起来发过
       set({ state: { ...get().state, error: '浏览器预览模式没有一起听后端' } })
     }
+  },
+
+  async setQueue(queue) {
+    const state = await window.aurora?.party?.setQueue(queue)
+    if (state) set({ state })
   },
 
   async push(now) {
