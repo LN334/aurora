@@ -1,6 +1,7 @@
 import { app, clipboard, ipcMain, shell } from 'electron'
 import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
 import { mainWindowVisibility } from '../pure/scan-progress'
+import { exportDiagnostics } from '../diagnostics'
 import type { WindowSource } from './host'
 
 /** Application facts, and whether the player window is on screen. */
@@ -61,6 +62,13 @@ export function registerAppIpc(deps: WindowSource): void {
     return true
   })
 
+  /*
+   * 导出诊断日志：用户在设置里点一下，选个位置存成一个 txt。
+   *
+   * 日志会脱敏（token / cookie / 房间令牌都替换掉）——这份文件是给外人看的，
+   * 不能默认用户会自己检查一遍。取消保存返回空串。
+   */
+  ipcMain.handle('app:exportLogs', () => exportDiagnostics(deps.window()))
   ipcMain.handle('app:icon:get', () => iconPreview())
   ipcMain.handle('app:icon:choose', () => chooseIcon())
   ipcMain.handle('app:icon:reset', () => resetIcon())

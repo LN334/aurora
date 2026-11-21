@@ -86,6 +86,9 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
 function About() {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof bridge.info>> | null>(null)
+  /* 导出日志的两态：正在写、以及写到哪儿了（取消时是空串）。 */
+  const [exporting, setExporting] = useState(false)
+  const [savedTo, setSavedTo] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -102,6 +105,21 @@ function About() {
 
   const open = (url: string) => {
     void bridge.app.openExternal(url)
+  }
+
+  /*
+   * 导出诊断日志。
+   *
+   * 主进程会先把 token / cookie / 房间令牌替换掉，所以这份文件可以直接发给
+   * 别人；用户取消保存时返回空串，那也算一次正常结束，不提示错误。
+   */
+  const exportLogs = async (): Promise<void> => {
+    setExporting(true)
+    try {
+      setSavedTo(await bridge.app.exportLogs())
+    } finally {
+      setExporting(false)
+    }
   }
 
   /*
@@ -149,6 +167,22 @@ function About() {
         <Row label="项目主页" hint="源码与全部发行版。">
           <button className="btn btn--small" onClick={() => open(REPO_URL)}>
             github.com/LN334/aurora ↗
+          </button>
+        </Row>
+        <Row
+          label="导出日志"
+          hint={
+            savedTo
+              ? `已保存到 ${savedTo}`
+              : '存成一个 txt：包含这一次和上一次运行的日志（出问题那次通常在上一份），token 与 cookie 会先被替换掉。'
+          }
+        >
+          <button
+            className="btn btn--small"
+            disabled={exporting}
+            onClick={() => void exportLogs()}
+          >
+            {exporting ? '正在导出…' : '导出'}
           </button>
         </Row>
         <Row label="反馈问题" hint="提 issue，自动带上版本与环境。">

@@ -98,6 +98,8 @@ export interface WindowVisibilityState {
   chooseIcon(): Promise<{ ok: boolean; canceled?: boolean; reason?: string }>
   /** 退回自带图标。 */
   resetIcon(): Promise<boolean>
+  /** 把诊断日志导成文件（已脱敏）；用户取消保存时是空串。 */
+  exportLogs(): Promise<string>
 }
 
 export interface UpdateInfo {
