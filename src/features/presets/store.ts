@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { createProfileScopedStorage } from '../accounts/profile-storage.ts'
+import { createProfileScopedStorage, setActiveStorageProfile } from '../accounts/profile-storage.ts'
 import { nextName, withPreset, withoutPreset } from './saved'
 import type { SavedPreset } from './saved'
 
@@ -56,3 +56,16 @@ export const usePresets = create<PresetStore>()(
     }
   )
 )
+
+/**
+ * 切到某个档案时把「我的预设」从它那一格读回来。
+ *
+ * persist 只在模块加载时读一次盘，而那一刻档案还没设好（模块 import 早于
+ * main.tsx 里的 setActiveStorageProfile）——于是读的是 default 那一格，用户的
+ * 预设看起来「更新之后没了」。启动与切档案都要走一遍这里。
+ */
+export async function loadProfilePresets(profileId: string | null): Promise<void> {
+  if (!profileId) return
+  setActiveStorageProfile(profileId)
+  await usePresets.persist.rehydrate()
+}

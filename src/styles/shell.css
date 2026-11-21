@@ -3910,25 +3910,256 @@
 }
 
 
-/*
- * 播放页头部居中（全局）。
- *
- * 上面那条 max-width 写在窄窗口的媒体查询里，宽屏不生效——封面就贴在左侧、
- * 右边空一大片。这里补一条全局的：内容限 940px 并居中。
- */
-.np__left {
-  max-width: 940px;
-  width: 100%;
-  margin-inline: auto;
-}
 
-/*
- * 播放页改成单列：上面的头部占满一行居中，歌词接在下面。
- *
- * .np__grid 原来是「38% 封面列 + 1fr 歌词列」的两栏；播放页现在没有左栏了，
- * 两栏反而把头部挤在左边。单列之后 .np__left 的 940px 限宽才真的居得起来。
- */
+/* =============================================================================
+   播放页：左栏唱片、右栏歌词、控制条贴页底（2026-11-21 重做）
+   -----------------------------------------------------------------------------
+   这一页的旧规则有四五层互相覆盖（.np__grid 有 38% 与单列两套、.np__left 有
+   flex 与 grid 两套、.np__cover 有三档宽度），普通权重的新规则加不上去。这里
+   用 !important 一次性压平，只保留这一套版式。
+   ========================================================================== */
+
 .shell.is-nowplaying .np__grid {
-  grid-template-columns: minmax(0, 1fr);
+  display: grid !important;
+  grid-template-columns: minmax(320px, 400px) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  grid-template-areas: 'left right' !important;
+  align-items: center !important;
+  gap: 56px !important;
+  padding: 16px 0 8px !important;
 }
 
+.shell.is-nowplaying .np__left {
+  grid-area: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 18px !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  text-align: center !important;
+}
+
+.shell.is-nowplaying .np__cover {
+  grid-area: auto !important;
+  grid-row: auto !important;
+  grid-column: auto !important;
+  width: min(100%, 380px) !important;
+  height: auto !important;
+  aspect-ratio: 1 !important;
+  flex: none !important;
+}
+
+.shell.is-nowplaying .np__meta {
+  grid-area: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  align-self: auto !important;
+  justify-self: auto !important;
+}
+
+.shell.is-nowplaying .np__right {
+  grid-area: right !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  padding-left: 40px !important;
+}
+
+.shell.is-nowplaying .np__right .np__lyr-window,
+.shell.is-nowplaying .np__right .np__lyrics {
+  max-width: none !important;
+  height: 100% !important;
+}
+
+/* 控制条：栅格外面那一条，贴在页面底部横跨整行 */
+.shell.is-nowplaying > .main .np__acts {
+  grid-area: auto !important;
+  align-self: auto !important;
+  justify-self: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px 0 10px !important;
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07) !important;
+}
+
+@media (max-width: 1180px) {
+  .shell.is-nowplaying .np__grid {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) !important;
+    gap: 28px !important;
+  }
+}
+
+/* =============================================================================
+   播放页控制条：所有键等距排开（2026-11-21）
+   -----------------------------------------------------------------------------
+   原来是「左一组 + 中间三个 + 右一组」的三段布局，两侧各带 flex:1 把中间顶到
+   正中——结果左边四颗、右边六颗，两边的空隙宽窄不一，看着像两块拼的。
+   这里取消三段拉伸，全部按同一个 gap 等距排列。
+   ========================================================================== */
+
+.shell.is-nowplaying > .main .np__acts {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+}
+
+.shell.is-nowplaying .np__acts-side,
+.shell.is-nowplaying .np__acts-side--start,
+.shell.is-nowplaying .np__acts-side--end,
+.shell.is-nowplaying .np__acts-transport {
+  flex: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+}
+
+
+
+
+/* =============================================================================
+   播放页控制条（定规）
+   -----------------------------------------------------------------------------
+   上一首 / 播放 / 下一首这三颗钉在窗口正中，不随两侧放了几颗键而偏移；喜欢、模式、
+   队列、调音台在左，音质、倍速、音量、桌面歌词、舞台、全屏在右。
+   ========================================================================== */
+
+.shell.is-nowplaying > .main .np__acts {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.shell.is-nowplaying .np__acts-transport {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  flex: none !important;
+  margin: 0 !important;
+}
+
+.shell.is-nowplaying .np__acts-side {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+}
+
+.shell.is-nowplaying .np__acts-side--start {
+  margin-right: auto !important;
+}
+
+.shell.is-nowplaying .np__acts-side--end {
+  margin-left: auto !important;
+  gap: 10px !important;
+}
+
+/* 评论页：页头 + 评论列表整宽，和详情页里那段评论同一个组件。 */
+.cmtpage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 4px 40px 0;
+  overflow-y: auto;
+}
+
+.cmtpage__head {
+  flex: none;
+  padding: 8px 0 16px;
+}
+
+.cmtpage__title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.25;
+  color: var(--text-hi);
+}
+
+.cmtpage__sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--text-soft);
+}
+
+.cmtpage__empty {
+  margin: 40px 0;
+  color: var(--text-soft);
+}
+
+/* =============================================================================
+   「接下来」那条（页面底部、进度条上方）
+   -----------------------------------------------------------------------------
+   原来两处规则打架：一处按基线排、一处 flex-start + 14px，结果三样东西（接下来 /
+   歌名 / 艺人）各自贴顶，字与字之间空得不像一句话。
+   收成一条：同一基线、固定小间距，歌名可省略，艺人灰一档。
+   ========================================================================== */
+
+.shell.is-nowplaying .np__next {
+  display: flex !important;
+  align-items: baseline !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  min-height: 22px;
+  padding: 2px 2px 10px !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
+.shell.is-nowplaying .np__next-k {
+  flex: none !important;
+  font-size: 11px !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-low) !important;
+  text-transform: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(var(--tint-rgb) / 0.07);
+}
+
+.shell.is-nowplaying .np__next-t {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--text-hi) !important;
+  font-weight: 500;
+}
+
+.shell.is-nowplaying .np__next-a {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--text-soft) !important;
+}
+
+/* 「接下来」已挪到进度条下方：上边距收一点，别再往下撑。 */
+.shell.is-nowplaying .np__next {
+  padding: 6px 2px 0 !important;
+}
+
+/* 控制条再往下贴一点：原来上下都留着 12/10 的内边距，整条离页脚太远。 */
+.shell.is-nowplaying > .main .np__acts {
+  padding: 4px 0 0 !important;
+}

@@ -15,6 +15,8 @@ import type { Route } from './routing'
  */
 
 export type ShellView =
+  /** 评论页：只认正在播的那一首，从播放页控制条进去。 */
+  | 'comments'
   /* —— 左栏显示的 —— */
   | 'home'
   | 'daily'
@@ -59,6 +61,7 @@ export interface ShellRoute {
  * 出现两次的由来。详情页的标题是对象名，所以这里只给通用名。
  */
 export const SHELL_TITLES: Record<ShellView, string> = {
+  comments: '评论',
   home: '推荐',
   daily: '每日推荐',
   liked: '我喜欢的音乐',

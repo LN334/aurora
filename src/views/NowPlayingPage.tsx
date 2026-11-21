@@ -42,8 +42,7 @@ import {
   Sliders,
   User,
   Volume,
-  VolumeMute
-} from '../ui/icons'
+  VolumeMute, Comment as CommentIcon } from '../ui/icons'
 
 /*
  * 行高必须和 CSS 里 .np__line 的高度一致：歌词靠 translateY 精确居中，
@@ -66,6 +65,8 @@ interface NowPlayingProps {
   /* 播放页没有底栏，队列与调音台由这一页自己给入口。 */
   onOpenQueue(): void
   onOpenEq(): void
+  /** 评论：跳到独立的评论页，只认正在播的这一首。 */
+  onOpenComments(): void
 }
 
 /**
@@ -337,6 +338,7 @@ export function NowPlayingPage({
   onSeekRatio,
   onOpenStage,
   onOpenQueue,
+  onOpenComments,
   onOpenEq
 }: NowPlayingProps) {
   const likedIds = useLikedIds()
@@ -465,6 +467,147 @@ export function NowPlayingPage({
                   <AlbumName track={track} />
                 </span>
               ) : null}
+            </div>
+          </div>
+
+        </div>
+
+        <div className="np__right">
+          {lyrics.lines.length > 0 ? (
+            <LyricRoll lines={lyrics.lines} active={active} onSeek={onSeek} />
+          ) : (
+            <div className="np__nolyrics">
+              <Note size={22} />
+              这首歌还没有歌词
+              {/*
+               * 没有词多半是这一家（酷狗、汽水）没有歌词接口，而不是这首歌真的没词：
+               * 同一首在网易云或 QQ 上常常是有的。给出路而不是只报一句空话——在线库
+               * 默认关着，用户不点开关就永远不知道还有这条路。
+               */}
+              {onlineEnabled ? null : (
+                <>
+                  <button
+                    type="button"
+                    className="btn np__nolyrics-act"
+                    onClick={onEnableOnline}
+                  >
+                    从公共歌词库找一次
+                  </button>
+                  <p className="np__nolyrics-hint">会把歌名和艺术家发送到 lrclib.net</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="np__acts">
+        <div className="np__acts-side np__acts-side--start">
+          <button
+          type="button"
+          className={`np__like${liked ? ' is-on' : ''}${likePop ? ' is-pop' : ''}`}
+          onClick={(event) => {
+            setLikePop(true)
+            /*
+             * 兜底复位：animationend 不一定来（动画被跳过时），
+             * 挂着的 is-pop 会让下一次点击不再有动画。
+             */
+            window.setTimeout(() => setLikePop(false), 520)
+            /*
+             * 与列表行同一个规矩：一个落点就直接写，写完说清写进了哪家；
+             * 一首歌挂着两家版本时先问落到哪儿。这里以前直接
+             * `toggleLiked(track)`——只写主版本、没有任何提示，用户不知道
+             * 网易云和 QQ 到底哪家收了。
+             */
+            if (targets.length > 1) {
+              const rect = event.currentTarget.getBoundingClientRect()
+              useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
+              return
+            }
+            const target = targets[0]
+            const name = target?.label ?? '这一家'
+            void toggleLiked(target?.track ?? track).then((result) => {
+              if (!result.ok) {
+                if (result.message) showFlash(result.message)
+                return
+              }
+              showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+            })
+          }}
+          onAnimationEnd={(event) => {
+            if (event.animationName === 'heartPop' || event.animationName === 'likeRing') setLikePop(false)
+          }}
+          /*
+           * 右键 = 换一家收藏。左键永远走「直接落点 / 先问落点」，右键给那些
+           * 明确想收藏到别处的人一条捷径，不必先点开再取消。
+           */
+          onContextMenu={(event) => {
+            event.preventDefault()
+            const rect = event.currentTarget.getBoundingClientRect()
+            useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
+          }}
+          aria-pressed={liked}
+          title={
+            liked
+              ? '取消喜欢'
+              : targets.length > 1
+                ? '喜欢到哪儿…'
+                : `喜欢到${targets[0]?.label ?? '这一家'}`
+          }
+        >
+          <Heart size={18} />
+        </button>
+        {/*
+         * 漫游里播放模式没有可改的东西：整趟本来就从池子里随机挑、走到头
+         * 还会自己续，再挂一个模式键只是把同一件事说第二遍。普通队列里
+         * 它照旧，那里才有「顺序重排」与「到底停不停」可谈。
+         */}
+        <button type="button" className="icon-btn" data-tip="调音台" aria-label="调音台" onClick={onOpenEq}>
+          <Sliders size={17} />
+        </button>
+        {roam ? null : (
+          <button
+            type="button"
+            className={'np__mode' + (mode === 'order' ? '' : ' is-on')}
+            onClick={() => player.cycleMode()}
+            title={MODE_TEXT[mode].hint}
+            aria-label={MODE_TEXT[mode].label}
+          >
+            {mode === 'shuffle' ? (
+              <Shuffle size={17} />
+            ) : mode === 'one' ? (
+              <RepeatOne size={17} />
+            ) : mode === 'loop' ? (
+              <Repeat size={17} />
+            ) : (
+              <Order size={17} />
+            )}
+          </button>
+        )}
+        <button type="button" className="icon-btn" data-tip="播放队列" aria-label="播放队列" onClick={onOpenQueue}>
+          <Queue size={17} />
+        </button>
+        </div>
+        <div className="np__acts-transport">
+          <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
+          <Prev size={20} />
+        </button>
+        <button
+          type="button"
+          className="np__play"
+          onClick={() => player.toggle()}
+          title={playing ? '暂停' : '播放'}
+        >
+          {playing ? <Pause size={24} /> : <Play size={24} />}
+        </button>
+        <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
+          <Next size={20} />
+        </button>
+        </div>
+        <div className="np__acts-side np__acts-side--end">
+          <button type="button" className="icon-btn" data-tip="评论" aria-label="评论" onClick={onOpenComments}>
+            <CommentIcon size={17} />
+          </button>
               {delivered ? (
                 <>
                   <span className="np__dot">·</span>
@@ -497,219 +640,83 @@ export function NowPlayingPage({
               >
                 {rate}×
               </button>
-            </div>
-          </div>
-
-          <div className="np__acts">
-            <div className="np__acts-side np__acts-side--start">
-              <button
-              type="button"
-              className={`np__like${liked ? ' is-on' : ''}${likePop ? ' is-pop' : ''}`}
-              onClick={(event) => {
-                setLikePop(true)
-                /*
-                 * 兜底复位：animationend 不一定来（动画被跳过时），
-                 * 挂着的 is-pop 会让下一次点击不再有动画。
-                 */
-                window.setTimeout(() => setLikePop(false), 520)
-                /*
-                 * 与列表行同一个规矩：一个落点就直接写，写完说清写进了哪家；
-                 * 一首歌挂着两家版本时先问落到哪儿。这里以前直接
-                 * `toggleLiked(track)`——只写主版本、没有任何提示，用户不知道
-                 * 网易云和 QQ 到底哪家收了。
-                 */
-                if (targets.length > 1) {
-                  const rect = event.currentTarget.getBoundingClientRect()
-                  useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
-                  return
-                }
-                const target = targets[0]
-                const name = target?.label ?? '这一家'
-                void toggleLiked(target?.track ?? track).then((result) => {
-                  if (!result.ok) {
-                    if (result.message) showFlash(result.message)
-                    return
-                  }
-                  showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
-                })
-              }}
-              onAnimationEnd={(event) => {
-                if (event.animationName === 'heartPop' || event.animationName === 'likeRing') setLikePop(false)
-              }}
-              /*
-               * 右键 = 换一家收藏。左键永远走「直接落点 / 先问落点」，右键给那些
-               * 明确想收藏到别处的人一条捷径，不必先点开再取消。
-               */
-              onContextMenu={(event) => {
-                event.preventDefault()
-                const rect = event.currentTarget.getBoundingClientRect()
-                useLikeMenu.getState().show({ track, x: rect.left, y: rect.bottom + 6 })
-              }}
-              aria-pressed={liked}
-              title={
-                liked
-                  ? '取消喜欢'
-                  : targets.length > 1
-                    ? '喜欢到哪儿…'
-                    : `喜欢到${targets[0]?.label ?? '这一家'}`
-              }
-            >
-              <Heart size={18} />
-            </button>
-            {/*
-             * 漫游里播放模式没有可改的东西：整趟本来就从池子里随机挑、走到头
-             * 还会自己续，再挂一个模式键只是把同一件事说第二遍。普通队列里
-             * 它照旧，那里才有「顺序重排」与「到底停不停」可谈。
-             */}
-            {roam ? null : (
-              <button
-                type="button"
-                className={'np__mode' + (mode === 'order' ? '' : ' is-on')}
-                onClick={() => player.cycleMode()}
-                title={MODE_TEXT[mode].hint}
-                aria-label={MODE_TEXT[mode].label}
-              >
-                {mode === 'shuffle' ? (
-                  <Shuffle size={17} />
-                ) : mode === 'one' ? (
-                  <RepeatOne size={17} />
-                ) : mode === 'loop' ? (
-                  <Repeat size={17} />
-                ) : (
-                  <Order size={17} />
-                )}
-              </button>
-            )}
-            <button type="button" className="icon-btn" data-tip="播放队列" aria-label="播放队列" onClick={onOpenQueue}>
-              <Queue size={17} />
-            </button>
-            <button type="button" className="icon-btn" data-tip="调音台" aria-label="调音台" onClick={onOpenEq}>
-              <Sliders size={17} />
-            </button>
-            </div>
-            <div className="np__acts-transport">
-              <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
-              <Prev size={20} />
-            </button>
-            <button
-              type="button"
-              className="np__play"
-              onClick={() => player.toggle()}
-              title={playing ? '暂停' : '播放'}
-            >
-              {playing ? <Pause size={24} /> : <Play size={24} />}
-            </button>
-            <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
-              <Next size={20} />
-            </button>
-            </div>
-            <div className="np__acts-side np__acts-side--end">
-            {/*
-             * 音量：一颗静音键，滑条藏在它上面，鼠标移上来才浮出来。
+        {/*
+         * 音量：一颗静音键，滑条藏在它上面，鼠标移上来才浮出来。
+         *
+         * 底栏那条滑条能细调，可这一页把底栏收走了——页面上只剩一颗静音键，
+         * 想调小声只能退回首页。常驻一条又会把这一行挤满，所以做成悬停浮层：
+         * 竖向条按 clientY 反算，抬头看数值，低头看条。滚轮、方向键、拖动都在。
+         */}
+        <div className="np__vol">
+          <button
+            type="button"
+            className="np__mute"
+            onClick={() => player.toggleMute()}
+            title={muted ? '取消静音' : '静音'}
+            aria-label={muted ? '取消静音' : '静音'}
+            /*
+             * 滚轮挂在按键上，不只挂在滑条上。
              *
-             * 底栏那条滑条能细调，可这一页把底栏收走了——页面上只剩一颗静音键，
-             * 想调小声只能退回首页。常驻一条又会把这一行挤满，所以做成悬停浮层：
-             * 竖向条按 clientY 反算，抬头看数值，低头看条。滚轮、方向键、拖动都在。
-             */}
-            <div className="np__vol">
-              <button
-                type="button"
-                className="np__mute"
-                onClick={() => player.toggleMute()}
-                title={muted ? '取消静音' : '静音'}
-                aria-label={muted ? '取消静音' : '静音'}
-                /*
-                 * 滚轮挂在按键上，不只挂在滑条上。
-                 *
-                 * 滑条平时是浮层，鼠标得先探到它上面才滚得动；而人是先看到
-                 * 静音键、顺手就滚的。两处走同一个换算，音量不会因为入口
-                 * 不同而一格大一格小。
-                 */
-                onWheel={(event) => {
-                  if (muted) player.toggleMute()
-                  player.setVolume(wheelVolume(muted ? 0 : volume, event.deltaY > 0 ? -1 : 1))
-                }}
-              >
-                {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
-              </button>
-              <div className="np__vol-pop">
-                <span className="np__vol-val">{muted ? '静音' : Math.round(volume * 100)}</span>
-                <Bar
-                  className="np__vol-bar"
-                  value={muted ? 0 : volume}
-                  onChange={(next) => {
-                    // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
-                    if (muted) player.toggleMute()
-                    player.setVolume(next)
-                  }}
-                  ariaLabel="音量"
-                  valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
-                  onWheelDelta={(direction) => {
-                    if (muted) player.toggleMute()
-                    player.setVolume(wheelVolume(muted ? 0 : volume, direction))
-                  }}
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              className="icon-btn np-opt"
-              data-tip="一起听"
-              aria-label="一起听"
-              onClick={() => {
-                window.location.hash = '#party'
+             * 滑条平时是浮层，鼠标得先探到它上面才滚得动；而人是先看到
+             * 静音键、顺手就滚的。两处走同一个换算，音量不会因为入口
+             * 不同而一格大一格小。
+             */
+            onWheel={(event) => {
+              if (muted) player.toggleMute()
+              player.setVolume(wheelVolume(muted ? 0 : volume, event.deltaY > 0 ? -1 : 1))
+            }}
+          >
+            {muted || volume === 0 ? <VolumeMute size={17} /> : <Volume size={17} />}
+          </button>
+          <div className="np__vol-pop">
+            <span className="np__vol-val">{muted ? '静音' : Math.round(volume * 100)}</span>
+            <Bar
+              className="np__vol-bar"
+              value={muted ? 0 : volume}
+              onChange={(next) => {
+                // 静音状态下拖滑条，是想把声音调回来，不是想把静音调得更静。
+                if (muted) player.toggleMute()
+                player.setVolume(next)
               }}
-            >
-              <User size={17} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn np-opt"
-              data-tip="桌面歌词"
-              aria-label="桌面歌词"
-              onClick={() => void bridge.overlay.toggle()}
-            >
-              <DesktopLyrics size={17} />
-            </button>
-            <button type="button" className="icon-btn np-opt" data-tip="舞台" aria-label="舞台" onClick={onOpenStage}>
-              <Expand size={17} />
-            </button>
-            </div>
+              ariaLabel="音量"
+              valueText={muted ? '已静音' : `音量 ${Math.round(volume * 100)}%`}
+              onWheelDelta={(direction) => {
+                if (muted) player.toggleMute()
+                player.setVolume(wheelVolume(muted ? 0 : volume, direction))
+              }}
+            />
           </div>
         </div>
-
-        <div className="np__right">
-          {lyrics.lines.length > 0 ? (
-            <LyricRoll lines={lyrics.lines} active={active} onSeek={onSeek} />
-          ) : (
-            <div className="np__nolyrics">
-              <Note size={22} />
-              这首歌还没有歌词
-              {/*
-               * 没有词多半是这一家（酷狗、汽水）没有歌词接口，而不是这首歌真的没词：
-               * 同一首在网易云或 QQ 上常常是有的。给出路而不是只报一句空话——在线库
-               * 默认关着，用户不点开关就永远不知道还有这条路。
-               */}
-              {onlineEnabled ? null : (
-                <>
-                  <button
-                    type="button"
-                    className="btn np__nolyrics-act"
-                    onClick={onEnableOnline}
-                  >
-                    从公共歌词库找一次
-                  </button>
-                  <p className="np__nolyrics-hint">会把歌名和艺术家发送到 lrclib.net</p>
-                </>
-              )}
-            </div>
-          )}
+        <button
+          type="button"
+          className="icon-btn np-opt"
+          data-tip="一起听"
+          aria-label="一起听"
+          onClick={() => {
+            window.location.hash = '#party'
+          }}
+        >
+          <User size={17} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn np-opt"
+          data-tip="桌面歌词"
+          aria-label="桌面歌词"
+          onClick={() => void bridge.overlay.toggle()}
+        >
+          <DesktopLyrics size={17} />
+        </button>
+        <button type="button" className="icon-btn np-opt" data-tip="舞台" aria-label="舞台" onClick={onOpenStage}>
+          <Expand size={17} />
+        </button>
         </div>
       </div>
 
       {roam ? <RoamRail /> : null}
 
       <footer className="np__foot">
+        <NpProgress duration={duration} onSeekRatio={onSeekRatio} />
         {roam ? null : (
         <div className="np__next">
           {upcoming ? (
@@ -725,7 +732,6 @@ export function NowPlayingPage({
           )}
         </div>
         )}
-        <NpProgress duration={duration} onSeekRatio={onSeekRatio} />
       </footer>
     </div>
   )

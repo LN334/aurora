@@ -19,6 +19,8 @@ export type ViewId =
   | 'accounts'
   | 'sources'
   | 'settings'
+  /** 评论：当前正在播的那首歌在各平台上的评论。独立一页，不塞进播放页。 */
+  | 'comments'
   /** 一起听：房间的门面。房间本身活在主进程里，离开这一页不等于退房。 */
   | 'party'
   | 'sakura'

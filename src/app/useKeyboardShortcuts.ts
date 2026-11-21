@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { bridge } from '../bridge'
 import { player } from '../features/player/actions'
 import { KEY_STEP } from '../features/player/volume'
+import { HOTKEYS, comboFor, comboOf } from '../features/hotkeys/binding'
 
 /**
  * Transport and shell shortcuts, ignored while a field has focus.
@@ -53,18 +54,8 @@ export function useKeyboardShortcuts(options: {
         target?.isContentEditable === true
       if (typing) return
 
-      const mod = event.ctrlKey || event.metaKey
-
-      if (mod && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        document.getElementById('global-search')?.focus()
-        return
-      }
       /*
-       * Escape unwinds one layer per press, topmost first: the most recently opened
-       * panel, then the page itself. Without the last step, opening an album from a
-       * search result was a one-way trip - the only way back was the small chevron in
-       * the header, which is exactly the thing nobody looks for after pressing Esc.
+       * Esc 不进键位表：它要「一层一层往回退」，不是一个动作对一个键。
        */
       if (event.key === 'Escape') {
         if (stageOpen) setStageOpen(() => false)
@@ -76,53 +67,33 @@ export function useKeyboardShortcuts(options: {
         }
         return
       }
+
       /*
-       * 全屏由主进程切：渲染层没有 BrowserWindow，也不该有。和窗口自己的
-       * F11 同一个动作，所以快捷键与设置页那个按钮不会各说各的。
+       * 其余按键全按 user 表查：设置页改了什么，这里就立刻是什么。
+       * 表里没有的组合直接放过——不让本应用吃掉浏览器/系统的默认行为。
        */
-      if (event.key === 'F11') {
-        event.preventDefault()
-        void bridge.window.toggleFullscreen()
-        return
+      const combo = comboOf(event)
+      const hit = HOTKEYS.find((item) => item.scope === 'app' && comboFor(item.id) === combo)
+      if (!hit) return
+
+      const run: Record<string, () => void> = {
+        search: () => document.getElementById('global-search')?.focus(),
+        play: () => player.toggle(),
+        next: () => player.next(),
+        prev: () => player.prev(),
+        seekForward: () => player.nudge(5),
+        seekBack: () => player.nudge(-5),
+        volumeUp: () => player.setVolume(volume + KEY_STEP),
+        volumeDown: () => player.setVolume(volume - KEY_STEP),
+        stage: () => setStageOpen((open) => !open),
+        eq: () => setEqOpen((open) => !open),
+        roam: () => roam(),
+        fullscreen: () => void bridge.window.toggleFullscreen()
       }
-      if (event.key.toLowerCase() === 'l') {
-        event.preventDefault()
-        setStageOpen((open) => !open)
-        return
-      }
-      if (event.key.toLowerCase() === 'e') {
-        event.preventDefault()
-        setEqOpen((open) => !open)
-        return
-      }
-      /*
-       * R 是漫游。带修饰键的不接：Ctrl+R 是重载页面，用户真按它的时候要的是
-       * 重载，不是换一批歌。
-       */
-      if (!mod && event.key.toLowerCase() === 'r') {
-        event.preventDefault()
-        roam()
-        return
-      }
-      if (event.code === 'Space') {
-        event.preventDefault()
-        player.toggle()
-        return
-      }
-      if (event.key === 'ArrowRight' && mod) {
-        event.preventDefault()
-        player.next()
-        return
-      }
-      if (event.key === 'ArrowLeft' && mod) {
-        event.preventDefault()
-        player.prev()
-        return
-      }
-      if (event.key === 'ArrowRight') player.nudge(5)
-      else if (event.key === 'ArrowLeft') player.nudge(-5)
-      else if (event.key === 'ArrowUp') player.setVolume(volume + KEY_STEP)
-      else if (event.key === 'ArrowDown') player.setVolume(volume - KEY_STEP)
+      const action = run[hit.id]
+      if (!action) return
+      event.preventDefault()
+      action()
     }
 
     window.addEventListener('keydown', onKey)

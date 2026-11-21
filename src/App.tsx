@@ -5,7 +5,7 @@ import { CollectionsPage } from './views/CollectionsPage'
 import { FollowedArtistsPage } from './views/FollowedArtistsPage'
 import { AlbumDetailPage } from './views/AlbumDetailPage'
 import { ArtistPage } from './views/ArtistPage'
-import { usePresets } from './features/presets/store'
+import { loadProfilePresets, usePresets } from './features/presets/store'
 import { EqPanel } from './views/EqPanel'
 import { DailyPage } from './views/DailyPage'
 import { LikedPage } from './views/LikedPage'
@@ -101,6 +101,7 @@ import { HomePage } from './views/HomePage'
 import { Sources } from './views/Sources'
 import { RecentPage } from './views/RecentPage'
 import { TrackView } from './views/TrackView'
+import { CommentsPage } from './views/CommentsPage'
 import { NowPlayingPage } from './views/NowPlayingPage'
 import { Refraction } from './features/glass/Refraction'
 
@@ -765,6 +766,8 @@ export function App() {  if (!isNative) {
      * the same volume slider.
      */
     void loadProfilePlayerPrefs(activeAccountId)
+    /* 「我的预设」同理：每个档案一份，切过来要把它那一格读回来。 */
+    void loadProfilePresets(activeAccountId)
     /*
      * The online account is part of the profile too, so every platform is
      * rebound on the same switch. `rebind` only points the session at the new
@@ -890,7 +893,8 @@ export function App() {  if (!isNative) {
     'playlist',
     'onlineplaylist'
   ])
-  const headTitle = SHELL_TITLES[shell.view]
+  /* 播放页不另打页头标题：页内已有封面与歌名，再顶一行「正在播放」是重复。 */
+  const headTitle = shell.view === 'nowplaying' ? '' : SHELL_TITLES[shell.view]
   /*
    * Only scan state belongs here now. The header used to also report "N tracks"
    * while the shell's field was filtering the library in place; filtering moved to
@@ -975,6 +979,7 @@ export function App() {  if (!isNative) {
           onSeekRatio={(ratio) => player.seekRatio(ratio)}
           onOpenStage={() => setStageOpen(true)}
           onOpenQueue={() => setQueueOpen(true)}
+          onOpenComments={() => goShell({ view: 'comments' })}
           onOpenEq={() => setEqOpen(true)}
         />
       )
@@ -1014,6 +1019,8 @@ export function App() {  if (!isNative) {
     if (view === 'party') return <PartyPage />
     if (view === 'sakura') return <SakuraPage />
     if (view === 'settings') return <SettingsPage />
+    /* 评论：播放页那颗按钮点进来的独立页，只认正在播的那一首。 */
+    if (view === 'comments') return <CommentsPage />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={openTrackMenu} />

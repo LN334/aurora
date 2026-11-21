@@ -26,6 +26,7 @@ import { bridge } from './bridge'
 import { warmChosenPlatforms } from './features/online/push-platforms'
 import { useLikes } from './features/favorites/likes'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
+import { loadProfilePresets } from './features/presets/store'
 import { useAccounts } from './features/accounts/store'
 import { useParty } from './features/party/store'
 import { applyReduceMotion, readReduceMotion } from './features/settings/motion'
@@ -53,6 +54,8 @@ applyTheme(readTheme())
 applyBackdrop(readBackdrop())
 useAccounts.getState().ensureDefault()
 setActiveStorageProfile(useAccounts.getState().activeId)
+/* 预设的 persist 在模块加载时已经读过一次盘（那时档案还没设），这里按真档案重读。 */
+void loadProfilePresets(useAccounts.getState().activeId)
 /*
  * 一起听的状态常驻订阅。
  *
@@ -120,8 +123,8 @@ requestAnimationFrame(() => {
   const splash = document.getElementById('splash')
   if (splash) {
     const shownAt = performance.now()
-    const MIN_MS = 1600
-    const MAX_MS = 5200
+    const MIN_MS = 3200
+    const MAX_MS = 7000
     let gone = false
     const dismiss = () => {
       if (gone) return

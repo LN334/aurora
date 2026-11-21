@@ -125,9 +125,42 @@ export function likeProviders(): OnlineMusicProvider[] {
   )
 }
 
+/**
+ * 收藏时刻要跨重启。
+ *
+ * 只存在内存里的话：点完红心当下排最前，关掉再打开又是平台返回的原始顺序——
+ * 「我刚喜欢的为什么不在最上面」就是这么来的。这里单独存一份到 localStorage，
+ * 只存 stamps（几十字节一条），不掺整份歌曲列表。
+ */
+const STAMP_KEY = 'aurora.likes.stamps'
+
+function loadStamps(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(STAMP_KEY)
+    if (!raw) return {}
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: Record<string, number> = {}
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'number' && Number.isFinite(value)) out[key] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function saveStamps(stamps: Record<string, number>): void {
+  try {
+    localStorage.setItem(STAMP_KEY, JSON.stringify(stamps))
+  } catch {
+    /* 存不进去不影响这一次的点按，下一次启动退回平台顺序。 */
+  }
+}
+
 export const useLikes = create<LikesState>()((set, get) => ({
   sources: {},
-  stamps: {},
+  stamps: loadStamps(),
 
   async refresh(source, force = false) {
     // 本地的真相在 useFavorites 里，这里没有可拉的。
@@ -172,6 +205,7 @@ export const useLikes = create<LikesState>()((set, get) => ({
         sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } },
         stamps: withStamps(state.stamps, source, tracks)
       }))
+      saveStamps(get().stamps)
     } catch {
       set((state) => ({ sources: { ...state.sources, [source]: emptySlice('error', '拉取喜欢的歌失败，稍后再试') } }))
     }
@@ -187,6 +221,7 @@ export const useLikes = create<LikesState>()((set, get) => ({
       sources: { ...state.sources, [source]: { tracks, state: 'ready', error: null } },
       stamps: withStamps(state.stamps, source, tracks)
     }))
+    saveStamps(get().stamps)
   },
 
   async toggle(track) {
@@ -237,6 +272,7 @@ export const useLikes = create<LikesState>()((set, get) => ({
         stamps
       }
     })
+    saveStamps(get().stamps)
 
     let written = false
     try {
