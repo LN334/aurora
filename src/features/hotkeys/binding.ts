@@ -58,6 +58,30 @@ export const HOTKEYS: HotkeyDef[] = [
 export const HOTKEY_BY_ID = new Map(HOTKEYS.map((item) => [item.id, item]))
 
 /** 把 KeyboardEvent 折成一个组合串。Mod 兼容 Ctrl 与 ⌘。 */
+/**
+ * 这些 code 是「修饰键自己按下去」。
+ *
+ * 录制时必须跳过它们：按 Ctrl+K 时浏览器先发一条 ControlLeft 的 keydown，
+ * 那时组合串已经能算出来了（Mod+ControlLeft），于是格子当场被改成「Ctrl」，
+ * 主键根本没机会进来——这就是「只能录到 Ctrl 这些键」。
+ */
+const MODIFIER_CODES = new Set([
+  'ControlLeft',
+  'ControlRight',
+  'AltLeft',
+  'AltRight',
+  'ShiftLeft',
+  'ShiftRight',
+  'MetaLeft',
+  'MetaRight',
+  'CapsLock',
+  'ContextMenu'
+])
+
+export function isModifierCode(code: string): boolean {
+  return MODIFIER_CODES.has(code)
+}
+
 export function comboOf(event: {
   code: string
   ctrlKey: boolean

@@ -6,6 +6,7 @@ import {
   comboFor,
   comboOf,
   conflictFor,
+  isModifierCode,
   prettyCombo,
   useHotkeys
 } from '../../../features/hotkeys/binding'
@@ -21,9 +22,19 @@ import {
  * - 同一个 scope 里已经有人占了这个组合就当场标红，不静默覆盖别人。
  */
 
-/** 单独按这些键也可以绑：功能键与方向键不会和打字冲突。 */
-function isBareOk(code: string): boolean {
-  return /^F\d{1,2}$/.test(code) || code.startsWith('Arrow') || code === 'Space' || code === 'Escape'
+/**
+ * 单独按这个键能不能绑。
+ *
+ * 应用内热键（scope=app）只在窗口聚焦时监听，单字母也可以绑——真要误触，
+ * 用户自己会发现并改掉；全局热键（scope=global）走系统注册，单字母会在任何
+ * 程序里劫持打字，所以那边必须至少带一个修饰键。
+ */
+function bareAllowed(scope: string, code: string): boolean {
+  if (/^F\d{1,2}$/.test(code) || code.startsWith('Arrow') || code === 'Space' || code === 'Escape') {
+    return true
+  }
+  if (scope !== 'app') return false
+  return /^(Key[A-Z]|Digit\d|Numpad\d|Backquote|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Comma|Period|Slash|Backslash)$/.test(code)
 }
 
 function KeyChip({
@@ -77,12 +88,20 @@ export function HotkeysPane() {
         setWarn(null)
         return
       }
-      const combo = comboOf(event)
       const def = HOTKEY_BY_ID.get(recording)
       if (!def) return
+      /*
+       * 只按了修饰键：先别动。按 Ctrl+K 时 ControlLeft 会先来一条，这时组合
+       * 串是「Mod+ControlLeft」，绑上去就成了一个只有 Ctrl 的键。等主键到。
+       */
+      if (isModifierCode(event.code)) {
+        setWarn('再按一个主键（字母、数字、F 键或方向键）。')
+        return
+      }
+      const combo = comboOf(event)
       const hasMod = event.ctrlKey || event.metaKey || event.altKey
-      if (!hasMod && !isBareOk(event.code)) {
-        setWarn('单键只支持 F1–F24、方向键、空格与 Esc；其余请加 Ctrl 或 Alt。')
+      if (!hasMod && !bareAllowed(def.scope, event.code)) {
+        setWarn('单键在应用内可以用字母数字；全局热键请带上 Ctrl 或 Alt。')
         return
       }
       const clash = conflictFor(def.scope, combo, def.id)
