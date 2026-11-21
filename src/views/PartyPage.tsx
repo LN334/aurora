@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { inviteLink, inviteText, landingLink, normalizeCode, parseInvite } from '../features/party/invite'
+import { inviteText, landingLink, normalizeCode, parseInvite } from '../features/party/invite'
 import { Lock } from '../ui/icons'
 import { useParty } from '../features/party/store'
 import { usePresence } from '../ui/presence'
@@ -213,12 +213,35 @@ export function PartyPage() {
   const inviteOf = linkPlace ? landingLink(linkPlace, state.code) : ''
   const invitePlain = linkPlace ? inviteText(linkPlace, state.code) : ''
 
-  const copyLink = (): void => {
+  const copyLink = async (): Promise<void> => {
     if (!linkPlace) {
       setNote('房间还在起，稍等一下')
       return
     }
-    void copy(inviteLink(linkPlace, state.code), '直链已复制：装了 Aurora 的电脑点开就进房')
+    /*
+     * 复制前问一次隧道的真实状态。
+     *
+     * Cloudflare 快速隧道的域名是随机的、进程一停就失效；如果那个进程是被系统
+     * 或网络杀掉（不是我们主动 stop），停止事件可能到不了这一层，房间页还留着
+     * 旧域名。发出去对方点开就是连不上，而房主这边看起来一切正常——「链接发出去
+     * 了但进不来」多半就是这一幕。所以复制这一刻拿一次权威状态：地址是隧道给的、
+     * 隧道现在却没在跑，就不把这条链接交出去。
+     */
+    const pending = window.aurora?.party?.cloudflare?.state?.()
+    const live = pending ? await pending.catch(() => null) : null
+    const quick = /(^|\.)trycloudflare\.com$/i.test(state.publicAddress.replace(/^wss:\/\//i, ''))
+    if (quick && live && !live.running) {
+      setNote('这条 Cloudflare 隧道已经断了，先在上面重启隧道；现在发出去对方连不上')
+      return
+    }
+    /*
+     * 复制界面上那一行，不是它背后的直链。
+     *
+     * 这一格里写的是 https 落地页，点开的人先看到「加入这间房」，再由页面去唤起
+     * Aurora；`aurora://` 直链在聊天软件里根本不显示成网址，发出去是一段灰字。
+     * 以前这行展示落地页、复制的却是直链，房主核对不了自己发出去的是哪条。
+     */
+    void copy(inviteOf, '邀请链接已复制：发到哪里都能点开')
   }
 
   const copyCode = (): void => {
@@ -532,7 +555,7 @@ export function PartyPage() {
               <b>邀请链接</b>
               <code
                 className="party-room__invite-text"
-                title="点一下复制：装了 Aurora 的机器上，点开就能进房"
+                title="点一下复制：这条 https 链接哪儿都能点开"
                 onClick={copyLink}
               >
                 {inviteOf || '房间还在起，稍等一下'}
