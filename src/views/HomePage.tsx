@@ -110,8 +110,13 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
    * 再包一层就变成 aurora-remote://image/aurora-remote%3A%2F%2F…，
    * 代理解一层拿到的仍是自定义协议，直接拒绝——渲染出来就是碎图。
    * 所以先剥掉那层壳，取回原始地址再按尺寸重包。
+   *
+   * artworkFor 现在默认带尺寸（`n1000/` 那段），一次包装里会有两层尺寸。
+   * 这里把尺寸段也剥掉——尺寸由下面的 px 决定：留着 n1000 会拼出
+   * `n200/n1000/http://…` 这种根本不存在的地址，封面就全体变回色块。
    */
-  const upstream = art.startsWith(REMOTE_IMAGE) ? decodeURIComponent(art.slice(REMOTE_IMAGE.length)) : art
+  const inner = art.startsWith(REMOTE_IMAGE) ? art.slice(REMOTE_IMAGE.length) : art
+  const upstream = decodeURIComponent(inner.replace(/^n\d{2,4}\//, ''))
   /*
    * 本机曲目的封面本身就是 aurora-media://（扫描时从文件里抠出来的封面）。
    * 主进程那个代理只转 http(s)，把自定义协议递进去只能换回 400，图也出不来，
@@ -119,6 +124,20 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
    */
   if (!/^https?:/i.test(upstream)) return upstream
   return remoteImageUrl(sizedImage(upstream, px), px)
+}
+
+/**
+ * 这一叠里第一首**有封面**的。
+ *
+ * 快捷卡（我喜欢的 / 最近播放）原来直接拿 `[0]`：那一首若是本机文件、又没嵌
+ * 封面，取到的就是 null，卡片只好退回一个灰图标——而同一叠里明明有几百首带
+ * 封面的在线歌。整个列表都没有封面时才退回第一首，让图标兜底。
+ */
+function artTrackOf(tracks: Track[]): Track | null {
+  for (const track of tracks) {
+    if (thumbOf(track) !== null) return track
+  }
+  return tracks[0] ?? null
 }
 
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
@@ -645,7 +664,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
       <div className="rh-quick">
         <Shortcut
           icon={<Heart size={16} />}
-          art={thumbOf(likedAll[0])}
+          art={thumbOf(artTrackOf(likedAll))}
           label="我喜欢的音乐"
           /*
            * 一首都没读到、而这一趟确实有平台没应答时，写「0 首」是在说假话：
@@ -657,7 +676,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         />
         <Shortcut
           icon={<Play size={16} />}
-          art={thumbOf(recentTracks[0])}
+          art={thumbOf(artTrackOf(recentTracks))}
           label="最近播放"
           count={countsReady ? recent.length + ' 首' : '—'}
           onClick={() => onNavigate({ view: 'recent' })}
