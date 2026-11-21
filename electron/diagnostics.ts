@@ -1,6 +1,9 @@
 import { app, dialog, screen, type BrowserWindow } from 'electron'
 import os from 'node:os'
+import { partyState } from './party/room'
 import { scrub } from './pure/log-scrub'
+import { loadSettings } from './settings'
+import { signedInPlatforms } from './warmup'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -92,6 +95,79 @@ async function header(): Promise<string> {
   return lines.join('\n')
 }
 
+/** 目录占用；只看两层、最多数千个文件，够说明问题又不会卡住导出。 */
+function directorySize(dir: string): { bytes: number; files: number } {
+  let bytes = 0
+  let files = 0
+  const walk = (current: string, depth: number): void => {
+    if (depth > 2 || files > 20000) return
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name)
+      try {
+        if (entry.isDirectory()) walk(full, depth + 1)
+        else {
+          bytes += fs.statSync(full).size
+          files += 1
+        }
+      } catch {
+        /* 单个文件读不到不影响总数 */
+      }
+    }
+  }
+  walk(dir, 0)
+  return { bytes, files }
+}
+
+/**
+ * 环境快照：排障时最常问的「他那边是什么配置」。
+ *
+ * 设置整份带上（JSON，已脱敏）——只报一句「版本 0.9.19」没法判断问题是不是
+ * 某个开关引起的；带上四家登录状态，才能分清「他根本没登录」和「登录了但接口
+ * 出错」；房间状态与缓存大小用来回答「一起听是房主还是客人」「缓存有没有爆」。
+ */
+function environmentSnapshot(): string[] {
+  const lines: string[] = []
+  try {
+    const settings = JSON.stringify(loadSettings(), null, 2)
+    lines.push('## 设置（已脱敏）', '', '```json', scrub(settings), '```', '')
+  } catch {
+    lines.push('## 设置', '', '（读不到设置文件）', '')
+  }
+  try {
+    const signed = signedInPlatforms()
+    const online = Object.entries(signed).filter(([, value]) => value).map(([id]) => id)
+    lines.push('## 平台', '', `登录着的：${online.length > 0 ? online.join('、') : '（一个都没有）'}`, '')
+  } catch {
+    /* 平台状态读不到不致命 */
+  }
+  try {
+    const party = partyState()
+    const role = party.role === 'idle' ? '没在房间' : party.role === 'host' ? '房主' : '客人'
+    lines.push(
+      '## 一起听',
+      '',
+      `角色：${role}　成员：${party.members.length}　替房间转发音频：${party.relay ? '开' : '关'}　公网地址：${party.publicAddress ? '有' : '无'}　队列：${party.queue.length} 首`,
+      ''
+    )
+  } catch {
+    /* 房间模块没起来 */
+  }
+  try {
+    const dir = path.join(app.getPath('userData'), 'media-cache')
+    const size = directorySize(dir)
+    lines.push('## 缓存', '', `媒体缓存：${(size.bytes / 1048576).toFixed(1)} MB / ${size.files} 个文件`, '')
+  } catch {
+    /* ignore */
+  }
+  return lines
+}
+
 /**
  * 导出。返回写好的路径；用户取消时返回空串。
  */
@@ -128,6 +204,7 @@ export async function exportDiagnostics(window: BrowserWindow | null): Promise<s
   const current = readLogTail(path.join(dir, 'startup.log'))
   const previous = readLogTail(path.join(dir, 'startup.log.1'))
   const blocks: string[] = [await header()]
+  blocks.push(environmentSnapshot().join('\n'))
   /*
    * 上一次运行的日志排在前：用户是遇到问题、重启、然后才来导的，出问题那一段
    * 在上一份里。两份都脱敏——上一份同样是原始运行记录。

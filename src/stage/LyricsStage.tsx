@@ -676,7 +676,7 @@ export function LyricsStage({
             {/* 没有歌词时至少让人认出是哪首歌：封面 + 歌名。 */}
             {track ? (
               <div className="stage__cover">
-                <Artwork src={artworkFor(track)} alt="" fallback={<Note size={30} />} />
+                <Artwork src={artworkFor(track, 1200)} alt="" fallback={<Note size={30} />} />
               </div>
             ) : null}
             {track ? <p className="stage__nolyrics-title">{track.title}</p> : null}

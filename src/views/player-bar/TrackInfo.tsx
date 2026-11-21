@@ -23,7 +23,7 @@ export function TrackInfo({ track, onOpenNow }: { track: Track | null; onOpenNow
         aria-label="打开沉浸模式"
       >
         <Artwork
-          src={artworkFor(track)}
+          src={artworkFor(track, 112)}
           fallback={
             <span className="pb-art__empty">
               <Note size={20} />

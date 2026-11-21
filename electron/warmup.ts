@@ -48,6 +48,13 @@ const warm: Record<string, () => Promise<unknown>> = {
  * 没登录的那几家直接跳过：预热会把它们的后端整个拉进内存，而游客状态下这点收益
  * 抵不上代价。等首页取数或用户点进在线页时，由渲染层的 init 按需拉起。
  */
+/** 四家谁登录着。导出日志里用；渲染层的 `platforms:signedIn` 也走这张表。 */
+export function signedInPlatforms(): Record<string, boolean> {
+  const result: Record<string, boolean> = {}
+  for (const [id, check] of Object.entries(signedIn)) result[id] = check()
+  return result
+}
+
 export function registerWarmUpIpc(): void {
   /*
    * 渲染层在取数前问一次「谁登录过」：没登录、而它的日推又需要账号的平台，

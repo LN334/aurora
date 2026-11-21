@@ -290,9 +290,21 @@ export function sourceFor(track: Track | null): TrackSource {
  * Null is a meaningful answer rather than an error: callers render a neutral
  * placeholder instead of a broken image.
  */
-export function artworkFor(track: Track | null): string | null {
+/**
+ * 封面。默认按 1000px 取——不再给原图。
+ *
+ * 原图常常大得离谱：实测一屏 91 张封面解码后 74 百万像素（约 300 MB 位图），
+ * 最大一张 4800×4800 是 23 百万像素，而界面里没有任何一块画到这个尺寸。
+ * 现在默认 1000（盖得住详情页与大卡），舞台显式要 1200；真要更大的地方
+ * 自己传 px 就行。
+ */
+const ARTWORK_PX = 1000
+
+export function artworkFor(track: Track | null, px = ARTWORK_PX): string | null {
   if (!track) return null
-  return sourceFor(track).artUrl(track)
+  const source = sourceFor(track)
+  if (source.online && track.coverUrl) return remoteImageUrl(track.coverUrl, px)
+  return source.artUrl(track, px)
 }
 
 /**

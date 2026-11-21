@@ -397,7 +397,8 @@ export function NowPlayingPage({
     )
   }
 
-  const art = artworkFor(track)
+  /* 这块画到四百多像素；2x 屏按 800 取，原图 3000 是白占内存。 */
+  const art = artworkFor(track, 800)
   /*
    * 以前这里直接写 source 的 id（netease/qq/…），页面上就是四个英文词。来源标签
    * 跟列表、搜索页统一成中文名，颜色也统一用那颗小色点。

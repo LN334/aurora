@@ -66,7 +66,7 @@ export function TrackView({
     )
   }
 
-  const art = artworkFor(track)
+  const art = artworkFor(track, 800)
   const origin = track.source && track.source !== 'local' ? track.source : '本机'
   /*
    * 艺人 / 专辑在页头是能点的。判断「能不能点」交给 refOfTrack：只有当这一行带着
