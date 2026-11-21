@@ -51,7 +51,6 @@ export function Overlay() {
   const [state, setState] = useState<OverlayState>(IDLE)
   const [locked, setLocked] = useState(true)
   const [size, setSize] = useState(DEFAULT_SIZE)
-  const [hovering, setHovering] = useState(false)
   const stack = useRef<HTMLDivElement | null>(null)
   const toolbar = useRef<HTMLDivElement | null>(null)
   const fill = useRef<HTMLSpanElement | null>(null)
@@ -92,7 +91,6 @@ export function Overlay() {
    * events at all - it cannot tell whether the cursor is on the words. The main
    * process polls the cursor against the box this window reports below.
    */
-  useEffect(() => bridge.overlay.onHover(setHovering), [])
 
   /*
    * Report the stack's box whenever it changes size.
@@ -191,7 +189,14 @@ export function Overlay() {
     setLocked(applied)
   }
 
-  const active = hovering || !locked
+  /*
+   * 控制条在解锁时一直显示，锁定后一直隐藏。
+   *
+   * 以前锁定态靠「鼠标浮在这一条上」临时显出来，而那套 hover 判定在真机上
+   * 会把整块歌词都算进去——锁上之后控制条就挂着不走。锁定现在是一次干脆
+   * 的状态切换：要操作就解锁。
+   */
+  const active = !locked
 
   /*
    * 译文与原文分开两行，和舞台、播放页用同一个判据。

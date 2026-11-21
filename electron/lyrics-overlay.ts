@@ -118,7 +118,6 @@ let hitArea: { x: number; y: number; width: number; height: number } | null = nu
  */
 let toolbarArea: { x: number; y: number; width: number; height: number } | null = null
 /** 指针是否正落在工具栏上；applyLock 用它决定这次要不要接管。 */
-let pointerInToolbar = false
 
 let hoverTimer: NodeJS.Timeout | undefined
 /** Held while the window is closed so it renders instantly when reopened. */
@@ -216,11 +215,15 @@ function hoverTakesOver(): boolean {
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
   /*
-   * 锁定态：只有指针压在工具栏上时才接管鼠标，其余位置一律穿透。
-   * 未锁定时整窗可交互（要能拖动）。
+   * 锁定就是彻底穿透：整窗不吃鼠标，控制条也不显示。
+   *
+   * 原来锁定态还留了一个例外——指针压在控制条上就临时接管，好让用户不
+   * 解锁也能点播放。实测那个判定在真机上并不可靠：鼠标停在歌词上、甚至离
+   * 控制条很远，窗口仍然吃掉点击，用户看到的就是「锁了没锁住，鼠标穿不
+   * 过去」。一个会失效的便利不如没有：锁定 = 干净，想操作先解锁（那颗锁
+   * 按钮本身在解锁态才需要点到，逻辑上自洽）。
    */
-  const takeOver = !locked || (pointerInToolbar && hoverTakesOver())
-  overlay.setIgnoreMouseEvents(!takeOver, { forward: true })
+  overlay.setIgnoreMouseEvents(locked, { forward: true })
 }
 
 /** Tell the strip what the pointer is doing so it can reveal its controls. */
@@ -246,7 +249,8 @@ function startHoverPolling(): void {
     if (!overlay || overlay.isDestroyed() || !locked) return
     // 关掉「锁住时也能悬停」就别再接管：把状态压回未悬停，窗口保持完全穿透。
     // 定时器留着不关，用户把开关打开时下一次 tick 就能恢复，不用重开窗口。
-    if (!hoverTakesOver()) {
+    /* 锁定态不看悬停：控制条只随锁定开关走，这里保持 false。 */
+    if (locked || !hoverTakesOver()) {
       setHovering(false)
       return
     }
@@ -267,7 +271,6 @@ function startHoverPolling(): void {
     }
     const inWords = within(hitArea)
     const inTools = within(toolbarArea)
-    pointerInToolbar = inTools
     /*
      * 锁定态只认工具栏：鼠标停在歌词上不算「要操作」。
      *
@@ -462,7 +465,6 @@ function close(): void {
   hovering = false
   hitArea = null
   toolbarArea = null
-  pointerInToolbar = false
   notifyStatus()
 }
 
@@ -500,7 +502,7 @@ export function isLocked(): boolean {
  * Only meaningful while locked - an unlocked window always takes the mouse.
  * Returns the state actually applied.
  */
-export function setHovering(next: boolean): boolean {
+function setHovering(next: boolean): boolean {
   if (hovering === next) return hovering
   hovering = next
   applyLock()
