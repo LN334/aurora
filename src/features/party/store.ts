@@ -101,6 +101,21 @@ let selfSeekAt = 0
 /** 上一次播放采样，用来认出「这次位置跳了一截」。 */
 let lastTick: PlaybackTick | null = null
 
+/**
+ * 正在把别人的房间状态套用到本地播放器。
+ *
+ * 套用会改动播放器状态，而播放器的订阅正在监听「本地操作」——不挡住的话，
+ * 每一次跟随都会立刻被当成一次新操作再广播出去，两个客户端就会你来我往地
+ * 互推同一条状态。同步要的是「最后一个人说的是准的」，不是互相回声。
+ */
+let applyingRemote = false
+
+/** 最近一次上报时刻：刚推出去的东西马上又会广播回来，先等它落地。 */
+let pushedAt = 0
+
+/** 自己刚上报过的那一小段时间里，不把回来的消息当成「别人换的」。 */
+const ECHO_MS = 700
+
 /** 换房间就忘掉上一个房间的采样，免得旧位置被当成这一次的拖动。 */
 function resetWatch(): void {
   lastTrackId = ''
@@ -112,8 +127,31 @@ function resetWatch(): void {
 /** 把「现在听什么、听到哪」报给房间。 */
 function pushMoment(): void {
   const playback = usePlayer.getState()
+  pushedAt = Date.now()
   const track = playback.queue[playback.index] ?? null
   if (!track) return
+  /*
+   * 客人也上报，但只报「听什么」，不报地址。
+   *
+   * 房间里谁都能切歌：客人在自己那边点了下一首，房主和别的人都该跟着换。
+   * 但客人手上那个地址是本机的私有协议地址（aurora-remote://stream/relay/…），
+   * 推出去别人既解析不了也取不到；转发的令牌也只有房主的房间里才认。所以
+   * 客人这一路只带曲目与位置，流由各人自己解析。
+   */
+  if (useParty.getState().state.role === 'guest') {
+    const info = partyTrackInfoOf(track)
+    void useParty.getState().push({
+      trackId: track.id,
+      title: track.title,
+      artist: track.artist,
+      at: Date.now(),
+      position: playback.position,
+      playing: playback.playing,
+      ...(info ? { track: info } : {})
+    })
+    return
+  }
+
   /*
    * 把房主手上这份流一起带过去。
    *
@@ -271,6 +309,29 @@ function followThrottled(now: PartyNow): void {
   follow(now)
 }
 
+/**
+ * 把房间的「现在」套到本地播放器上。
+ *
+ * 所有角色共用这一条入口：房主也在被别人的操作带着走（客人切了歌，房主
+ * 同样要跟）。套用期间挂上 applyingRemote，挡住「跟随又被当成新操作」。
+ */
+function applyRemote(now: PartyNow): void {
+  applyingRemote = true
+  try {
+    const playback = usePlayer.getState()
+    if (playback.queue[playback.index]?.id !== now.trackId) followThrottled(now)
+    else alignWith(now)
+  } finally {
+    /*
+     * 播放器状态是同步写入的，但引擎换流、React 重渲染发生在这之后；让这一轮
+     * 彻底结束再解除，免得那些延迟回调被当成用户操作。
+     */
+    window.setTimeout(() => {
+      applyingRemote = false
+    }, 0)
+  }
+}
+
 function alignWith(now: PartyNow): void {
   const playback = usePlayer.getState()
   /*
@@ -315,28 +376,34 @@ function watchPlayback(): void {
   watching = true
 
   usePlayer.subscribe((state) => {
+    /* 这是跟随别人造成的改动，不能当成一次新的本地操作再广播出去。 */
+    if (applyingRemote) return
     const role = useParty.getState().state.role
+    if (role !== 'host' && role !== 'guest') return
 
-    if (role === 'host') {
-      const track = state.queue[state.index] ?? null
-      if (!track) return
-      if (track.id !== lastTrackId) {
-        lastTrackId = track.id
-        lastPlaying = state.playing
-        pushMoment()
-        return
-      }
-      if (state.playing !== lastPlaying) {
-        lastPlaying = state.playing
-        pushMoment()
-      }
+    const track = state.queue[state.index] ?? null
+    if (!track) return
+    if (track.id !== lastTrackId) {
+      lastTrackId = track.id
+      lastPlaying = state.playing
+      lastTick = { trackId: track.id, position: state.position, playing: state.playing, at: Date.now() }
+      pushMoment()
+      return
+    }
+    if (state.playing !== lastPlaying) {
+      lastPlaying = state.playing
+      pushMoment()
       return
     }
 
-    if (role !== 'guest') return
-
+    /*
+     * 位置突然跳出一大截，只能是有人拖了进度条。
+     *
+     * 这一下也要上报——房间里谁拖都算数，不只是房主。先记一个抑制窗口，
+     * 免得自己刚拖到的位置被还没落地的旧消息立刻推回去。
+     */
     const sample: PlaybackTick = {
-      trackId: state.queue[state.index]?.id ?? '',
+      trackId: track.id,
       position: state.position,
       playing: state.playing,
       at: Date.now()
@@ -344,21 +411,32 @@ function watchPlayback(): void {
     const before = lastTick
     lastTick = sample
     if (!before) return
-    /* 我们自己的 seek 也会让位置跳一下，别把它当成用户在拖。 */
+    /* 我们自己应用远程位置时也会跳一下，别把它当成用户在拖。 */
     if (Date.now() - selfSeekAt < SELF_SEEK_GRACE_MS) return
-    if (sawSeek(before, sample)) holdUntil = Date.now() + HOLD_MS
+    if (sawSeek(before, sample)) {
+      holdUntil = Date.now() + HOLD_MS
+      pushMoment()
+    }
   })
 
   window.setInterval(() => {
     const { role } = useParty.getState().state
-    /* 暂停时位置不动，再报也是同一条；起停那一下已经由订阅报过了。 */
+    /*
+     * 节拍只由房主发。
+     *
+     * 两个人都每 4 秒报一次的话，两份位置会互相覆盖，谁后到谁赢——房间里
+     * 就成了两个人抢话筒。房主是那个稳定节拍，客人只在真动手时插一句。
+     */
     if (role !== 'host' || !usePlayer.getState().playing) return
     pushMoment()
   }, HEARTBEAT_MS)
 
   window.setInterval(() => {
     const { role, now } = useParty.getState().state
-    if (role === 'guest' && now) alignWith(now)
+    if ((role !== 'host' && role !== 'guest') || !now) return
+    /* 自己刚推出去的那份还在路上，别自己跟自己的回声。 */
+    if (Date.now() - pushedAt < ECHO_MS) return
+    applyRemote(now)
   }, ALIGN_MS)
 }
 
@@ -468,19 +546,20 @@ export const useParty = create<PartyStore>((set, get) => ({
       )
       const previous = useParty.getState().state
       set({ state })
-      if (state.role !== 'guest' || !state.now) return
       /*
-       * 房主换了歌，客人跟着换。
+       * 房间里有了新状态，跟着它走——不再区分「房主换的歌」还是「客人换的」。
        *
-       * 只在 trackId 真的变了才动：同一条 now 会被广播多次（有人进出房间时
-       * 也会带一份完整状态），每次都跳一遍会让客人刚拖到的位置被打回去。
+       * 一起听是双向的：谁点了下一首，其余人都该跟过去。原来这里只对客人
+       * 生效，房主那份永远只往外推、从不往回收，于是客人切了歌也只有他自己
+       * 听见。
+       *
+       * 自己刚推出去的那份会原样广播回来：那一下推过没几百毫秒，位置本来就在
+       * 预期之内，交给下面这条阈值判断即可，不必特殊挡。
        */
-      if (state.now.trackId !== previous.now?.trackId) {
-        follow(state.now)
-        return
+      if (!state.now) return
+      if (previous.now?.trackId !== state.now.trackId || Date.now() - pushedAt >= ECHO_MS) {
+        applyRemote(state.now)
       }
-      /* 同一首歌里的位置与起停，按消息校一次；剩下的交给定时器。 */
-      alignWith(state.now)
     })
     /*
      * 有人点了邀请链接。主进程把原文递过来，解析在这一侧做——两边共用一份
