@@ -175,8 +175,16 @@ requestAnimationFrame(() => {
 function startSplashVideo(): void {
   const video = document.querySelector<HTMLVideoElement>('.splash__video')
   if (!video) return
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  video.src = new URL('aurora-splash.mp4', document.baseURI).href
+  /*
+   * 视频的地址与 autoplay 都写在 HTML 标签上，浏览器解析到它就开始取、开始解，
+   * 不必等这一段 JS——这一段只做两件事：尊重「减少动态效果」，以及兜一次 play()。
+   *
+   * 之前是首帧之后才给 src，于是开屏先挂着一张静帧等好几百毫秒才动起来。
+   */
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    video.pause()
+    return
+  }
   const played = video.play()
   if (played && typeof played.catch === 'function') played.catch(() => undefined)
 }
