@@ -8,8 +8,7 @@ import { mergeVersions } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { player } from '../features/player/actions'
 import { usePlayer } from '../features/player/store'
-import { formatSpan } from '../ui/format'
-import { Heart, Play } from '../ui/icons'
+import { Heart } from '../ui/icons'
 import { EmptyState } from '../ui/EmptyState'
 import { ShelfSearch, shelfMatches } from '../ui/ShelfSearch'
 import { FILTER_EVENT } from '../ui/filter-event'
@@ -24,9 +23,8 @@ import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
  * 所以卡片下面一行给分布（多少首来自哪），不然一屏歌名读不出它们其实不是一回事。
  * 列表本身交给 TrackList——收藏页和歌单页共用同一份行组件，收藏键才只有一处。
  *
- * 顶部那张词卡的底是随机一首收藏的封面，上面压着它自己的三行词。收藏页最容易
- * 变成一张没有表情的表格，封面和词让它在打开的第一秒就说出「这是你的歌」。
- * 整张卡是一个按钮：点哪里都从头播这一份收藏（与右下角那颗胶囊同一件事）。
+ * 页头只留标题与筛选键，不再压一张统计卡：584 首、33 小时这类数字放在标题下面
+ * 像一句摘要，实际既不帮人找歌也不帮人播放，点它才会播——那不如让列表自己说话。
  */
 export function LikedPage({
   onNavigate,
@@ -70,12 +68,10 @@ export function LikedPage({
       order
     )
   }, [platformLiked, stamps, order])
-  const seconds = useMemo(() => tracks.reduce((sum, track) => sum + (track.duration || 0), 0), [tracks])
 
   /*
-   * 收藏到六百多首以后，找一首只能靠滚。搜索只筛列表，不动上面那张词卡：
-   * 卡是「你收藏的这些歌」的表情，筛到只剩三首时换一张脸反而像换了页面。
-   * 播放全部与随机也跟着筛后的列表走 —— 搜到了却播不到，是这个框最没用的状态。
+   * 收藏到六百多首以后，找一首只能靠滚。搜索只筛列表，不动页头那颗筛选键。
+   * 搜索结果与「随机」都跟着筛后的列表走 —— 搜到了却播不到，是这个框最没用的状态。
    */
   const [query, setQuery] = useState('')
   const shown = useMemo(() => {
@@ -156,32 +152,6 @@ export function LikedPage({
 
   return (
     <div className="col">
-      {/*
-        这张卡只做一件事：告诉你收藏了多少、加起来多长，点一下全放。
-        以前它还会从收藏里随机抽一首、摘三行词当卡面——那几行词和「我喜欢的
-        音乐」这个集合没有任何关系，看不懂也就不奇怪。词留在正在播放页。
-      */}
-      <button
-        className="lk-hero is-quiet"
-        type="button"
-        onClick={() => player.playQueue(tracks, 0)}
-        title={`播放全部 ${tracks.length} 首`}
-      >
-        <span className="lk-hero__foot">
-          {/*
-            * 卡里不再写一遍「我喜欢的音乐」——页头已经写着，同一页说两次只是
-            * 噪音。这里只留规模：多少首、多长。
-            */}
-          <span className="lk-hero__stat">
-            {tracks.length} 首 · {formatSpan(seconds)}
-          </span>
-          <span className="lk-hero__play">
-            <Play size={13} />
-            播放全部
-          </span>
-        </span>
-      </button>
-
       {/*
         * 筛选框自己占一行：收起时什么都不画（页头那颗「筛选」代管），
         * 展开时才是真的输入框。以前这里是「空行 + 一颗漂在中间的刷新」——

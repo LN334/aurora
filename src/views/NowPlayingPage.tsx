@@ -588,22 +588,6 @@ export function NowPlayingPage({
           <Queue size={17} />
         </button>
         </div>
-        <div className="np__acts-transport">
-          <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
-          <Prev size={20} />
-        </button>
-        <button
-          type="button"
-          className="np__play"
-          onClick={() => player.toggle()}
-          title={playing ? '暂停' : '播放'}
-        >
-          {playing ? <Pause size={24} /> : <Play size={24} />}
-        </button>
-        <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
-          <Next size={20} />
-        </button>
-        </div>
         <div className="np__acts-side np__acts-side--end">
           <button type="button" className="icon-btn" data-tip="评论" aria-label="评论" onClick={onOpenComments}>
             <CommentIcon size={17} />
@@ -717,21 +701,51 @@ export function NowPlayingPage({
 
       <footer className="np__foot">
         <NpProgress duration={duration} onSeekRatio={onSeekRatio} />
-        {roam ? null : (
-        <div className="np__next">
-          {upcoming ? (
-            <>
-              <span className="np__next-k">接下来</span>
-              <span className="np__next-t" title={upcoming.title}>
-                {upcoming.title}
-              </span>
-              <span className="np__next-a"><ArtistName track={upcoming} /></span>
-            </>
-          ) : (
-            <span className="np__next-k">队列里没有下一首了</span>
+        {/*
+         * 上一首 / 播放 / 下一首放在播放条（进度条）下面，横向上仍钉在窗口
+         * 几何中心。以前它们在那排工具键的中间，压在进度条上沿，既挤又容易
+         * 点错；挪到下面之后这一排只放工具，三颗单独占一行。
+         */}
+        {/*
+         * 上一首 / 播放 / 下一首和「接下来」放在同一条线上：三颗钉在窗口几何
+         * 中心（绝对定位，左右各挂多少键都不偏移），「接下来」贴这一行的右端。
+         * 以前它们各占一行，进度条下面要吃掉三条横带。
+         */}
+        <div className="np__bottom">
+          <div className="np__acts-transport">
+            <button type="button" className="np__step" onClick={() => player.prev()} title="上一首">
+              <Prev size={20} />
+            </button>
+            <button
+              type="button"
+              className="np__play"
+              onClick={() => player.toggle()}
+              title={playing ? '暂停' : '播放'}
+            >
+              {playing ? <Pause size={24} /> : <Play size={24} />}
+            </button>
+            <button type="button" className="np__step" onClick={() => player.next()} title="下一首">
+              <Next size={20} />
+            </button>
+          </div>
+          {roam ? null : (
+            <div className="np__next">
+              {upcoming ? (
+                <>
+                  <span className="np__next-k">接下来</span>
+                  <span className="np__next-t" title={upcoming.title}>
+                    {upcoming.title}
+                  </span>
+                  <span className="np__next-a">
+                    <ArtistName track={upcoming} />
+                  </span>
+                </>
+              ) : (
+                <span className="np__next-k">队列里没有下一首了</span>
+              )}
+            </div>
           )}
         </div>
-        )}
       </footer>
     </div>
   )

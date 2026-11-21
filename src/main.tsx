@@ -24,6 +24,7 @@ import './features/player/netease'
 import './features/online/register'
 import { bridge } from './bridge'
 import { warmChosenPlatforms } from './features/online/push-platforms'
+import { prewarmPages } from './app/prewarm'
 import { useLikes } from './features/favorites/likes'
 import { setActiveStorageProfile } from './features/accounts/profile-storage'
 import { loadProfilePresets } from './features/presets/store'
@@ -125,6 +126,8 @@ requestAnimationFrame(() => {
     const shownAt = performance.now()
     const MIN_MS = 3200
     const MAX_MS = 7000
+    /* 预热最多等这么久；拉不动就按原节奏揭幕。 */
+    const WARM_MS = 4500
     let gone = false
     const dismiss = () => {
       if (gone) return
@@ -133,15 +136,23 @@ requestAnimationFrame(() => {
       window.setTimeout(() => splash.remove(), 620)
     }
     /*
-     * 最快也要停 1.6 秒。
+     * 揭幕前等一等：开屏这几十毫秒不白花，用来把首页与每日推荐的数据拉起来。
      *
-     * 只在首帧之后摘是不够的：这台机器预热过后首帧只要几十毫秒，开屏会一闪就
-     * 没了。给一个下限，让动画至少走完一轮；上限 5.2 秒兜底壁纸解析卡住的情况。
+     * 只在首帧之后摘是不够的：预热过的机器首帧只要几十毫秒，开屏一闪就没了；
+     * 而且那时数据还没回来，切到首页照样是骨架格。现在改成首帧之后再等预热
+     * 落地（最多 4.5 秒），然后按最短停留补足；上限 7 秒兜底壁纸解析卡住。
      */
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const wait = Math.max(0, MIN_MS - (performance.now() - shownAt))
-        window.setTimeout(dismiss, wait)
+        const warm = prewarmPages()
+        const gate = Promise.race([
+          warm.catch(() => undefined),
+          new Promise((resolve) => window.setTimeout(resolve, WARM_MS))
+        ])
+        void gate.then(() => {
+          const wait = Math.max(0, MIN_MS - (performance.now() - shownAt))
+          window.setTimeout(dismiss, wait)
+        })
       })
     })
     window.setTimeout(dismiss, MAX_MS)

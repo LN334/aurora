@@ -1,4 +1,5 @@
 import { CommentSection } from './CommentSection'
+import { canComment } from '../features/comments/api'
 import { usePlayer } from '../features/player/store'
 import { formatTime } from '../ui/format'
 
@@ -8,7 +9,9 @@ import { formatTime } from '../ui/format'
  * 评论本来是详情页正文下面的一段。现在给它一个独立页：播放时想看看这首歌大家
  * 怎么说，不必先绕到详情页。只认「正在播的那一首」——这一页没有别的入口。
  *
- * 本机文件通常没有评论可读（CommentSection 自己返回空态），不在这里另判一次。
+ * 读不到评论的歌必须自己说一句：CommentSection 对这类轨道返回 null（本机文件
+ * 没有评论可读），如果这一页也直接跟着空，用户看到的就只剩一个标题，分不清是
+ * 「没有评论」「还在取」还是「这个页面坏了」。
  */
 export function CommentsPage() {
   const track = usePlayer((state) => state.current())
@@ -34,7 +37,15 @@ export function CommentsPage() {
           </p>
         </div>
       </header>
-      <CommentSection track={track} />
+      {canComment(track) ? (
+        <CommentSection track={track} />
+      ) : (
+        <p className="cmtpage__empty">
+          {track.source === 'local' || !track.onlineId
+            ? '本机文件没有可读的评论；同一首歌的在线版本才有。'
+            : '这一家还没有接通评论。'}
+        </p>
+      )}
     </div>
   )
 }
