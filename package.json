@@ -52,7 +52,15 @@
       "dist-electron/**/*",
       "assets/**/*",
       "package.json",
-      "!**/*.map"
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/*.cts",
+      "!**/*.mts",
+      "!**/*.md",
+      "!**/*.MD",
+      "!**/coverage/**",
+      "!**/node_modules/@neteasecloudmusicapienhanced/api/public/**",
+      "!**/node_modules/@neteasecloudmusicapienhanced/api/data/deviceid.txt"
     ],
     "asar": true,
     "asarUnpack": [
