@@ -774,6 +774,19 @@ export function setRelay(value: boolean): void {
 }
 
 export function pushNow(now: PartyNow): void {
+  /*
+   * 客人先上报给房主，不当场改自己的状态。
+   *
+   * 房间状态只有一份，在房主那台机器上；这边改完立刻生效的话，房主的旧状态
+   * 下一个心跳就会把它顶回去，界面上就是「点了下一首、一秒后又跳回来」。
+   * 所以客人这一步只是把「我想听这首」发过去，真正落定与广播由房主做。
+   */
+  if (current.role === 'guest') {
+    if (guestSocket?.readyState === WebSocket.OPEN) {
+      guestSocket.send(JSON.stringify({ t: 'now', now }))
+    }
+    return
+  }
   if (current.role !== 'host') return
   publish({ now })
   broadcast(current)
