@@ -101,24 +101,6 @@ let locked = true
  */
 let hovering = false
 
-/**
- * Where the words are, in window-local CSS px.
- *
- * The window is much wider than the line it draws. Handing the whole rectangle
- * to the mouse would make an invisible 980x150 area swallow clicks aimed at the
- * desktop, so the page reports the plate's own box and only that counts.
- */
-let hitArea: { x: number; y: number; width: number; height: number } | null = null
-/*
- * 工具栏那一块的矩形。
- *
- * 锁定之后只有这里会接管鼠标：歌词本身要穿透（否则桌面上的点击被吃掉，用户
- * 以为「锁了也没用」），但控制栏总得点得到。原来接管判定用的是整块 stack，
- * 于是鼠标一放到歌词上，窗口就整个接管了。
- */
-let toolbarArea: { x: number; y: number; width: number; height: number } | null = null
-/** 指针是否正落在工具栏上；applyLock 用它决定这次要不要接管。 */
-
 let hoverTimer: NodeJS.Timeout | undefined
 /** Held while the window is closed so it renders instantly when reopened. */
 let latest: OverlayState | null = null
@@ -212,18 +194,26 @@ function hoverTakesOver(): boolean {
   return loadSettings().overlayHoverControls !== false
 }
 
+/**
+ * 锁定态下「唤醒带」的高度。
+ *
+ * 锁定后整窗穿透，但要留一条能把控制条叫出来的路——否则那颗锁按钮永远
+ * 点不到，等于把自己锁在外面。这条带由主进程按窗口矩形自己算，不依赖页面
+ * 上报的坐标：上一次判定不可靠，正是因为用的是渲染层传上来的矩形，窗口挪动
+ * 或缩放之后它会过期。
+ */
+const WAKE_ZONE_HEIGHT = 64
+
+let pointerInWakeZone = false
+
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
   /*
-   * 锁定就是彻底穿透：整窗不吃鼠标，控制条也不显示。
-   *
-   * 原来锁定态还留了一个例外——指针压在控制条上就临时接管，好让用户不
-   * 解锁也能点播放。实测那个判定在真机上并不可靠：鼠标停在歌词上、甚至离
-   * 控制条很远，窗口仍然吃掉点击，用户看到的就是「锁了没锁住，鼠标穿不
-   * 过去」。一个会失效的便利不如没有：锁定 = 干净，想操作先解锁（那颗锁
-   * 按钮本身在解锁态才需要点到，逻辑上自洽）。
+   * 未锁定：整窗可交互（要能拖动）。
+   * 锁定：整窗穿透，只有指针进入底部那条唤醒带时临时接管。
    */
-  overlay.setIgnoreMouseEvents(locked, { forward: true })
+  const wake = locked && hoverTakesOver() && pointerInWakeZone
+  overlay.setIgnoreMouseEvents(!(!locked || wake), { forward: true })
 }
 
 /** Tell the strip what the pointer is doing so it can reveal its controls. */
@@ -256,32 +246,18 @@ function startHoverPolling(): void {
     }
     const point = screen.getCursorScreenPoint()
     const bounds = overlay.getBounds()
-    // A few px of slack on each edge: the plate is rounded and thin, and
-    // aiming at a target that only answers when you are exactly on it feels
-    // broken.
-    const pad = 10
-    const within = (area: { x: number; y: number; width: number; height: number } | null): boolean => {
-      if (!area) return false
-      return (
-        point.x >= bounds.x + area.x - pad &&
-        point.x <= bounds.x + area.x + area.width + pad &&
-        point.y >= bounds.y + area.y - pad &&
-        point.y <= bounds.y + area.y + area.height + pad
-      )
-    }
-    const inWords = within(hitArea)
-    const inTools = within(toolbarArea)
     /*
-     * 锁定态只认工具栏：鼠标停在歌词上不算「要操作」。
-     *
-     * 原来歌词区也算悬停，而歌词几乎占满整条窗口——鼠标随便往那儿一放，
-     * 控制条就一直挂着不消失，看起来像「锁定了还赖着不走」。锁上之后用户要的
-     * 是一行干净的歌词；想调的时候把鼠标挪到控制条那一带，它自己会浮出来。
-     * 未锁定时仍然整块都算（要能拖动、点歌词跳转）。
+     * 唤醒带贴着窗口底边：控制条就长在那附近，鼠标过去自然是想操作它。
+     * 这里只用主进程自己拿得到的两个值（光标、窗口矩形），页面坐标一概不用。
      */
-    setHovering(locked ? inTools : inWords || inTools)
-    // 锁定态下指针进出工具栏要立刻换穿透状态，否则点第一下会落空。
-    if (locked) applyLock()
+    pointerInWakeZone =
+      point.x >= bounds.x &&
+      point.x <= bounds.x + bounds.width &&
+      point.y >= bounds.y + bounds.height - WAKE_ZONE_HEIGHT &&
+      point.y <= bounds.y + bounds.height
+    setHovering(pointerInWakeZone)
+    applyLock()
+    return
   }, 70)
 }
 
@@ -463,8 +439,6 @@ function close(): void {
   overlay.destroy()
   overlay = null
   hovering = false
-  hitArea = null
-  toolbarArea = null
   notifyStatus()
 }
 
@@ -514,29 +488,12 @@ function setHovering(next: boolean): boolean {
 export function setToolbarArea(rect: unknown): boolean {
   if (!rect || typeof rect !== 'object') return false
   const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
-  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
-  toolbarArea = {
-    x: num(candidate.x),
-    y: num(candidate.y),
-    width: Math.max(1, num(candidate.width)),
-    height: Math.max(1, num(candidate.height))
-  }
-  return true
+  return Boolean(candidate)
 }
 
-/** The strip's own box, so hovering only counts on the words themselves. */
+/** 渲染层上报的歌词矩形。唤醒带改为按窗口几何自算之后，这里不再使用它。 */
 export function setHitArea(rect: unknown): boolean {
-  if (!rect || typeof rect !== 'object') return false
-  const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
-  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
-  const area = {
-    x: num(candidate.x),
-    y: num(candidate.y),
-    width: Math.max(1, num(candidate.width)),
-    height: Math.max(1, num(candidate.height))
-  }
-  hitArea = area
-  return true
+  return Boolean(rect && typeof rect === 'object')
 }
 
 /** Forward the current lyric state. Safe to call whether or not the window is open. */

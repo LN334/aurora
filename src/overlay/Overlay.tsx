@@ -190,13 +190,12 @@ export function Overlay() {
   }
 
   /*
-   * 控制条在解锁时一直显示，锁定后一直隐藏。
-   *
-   * 以前锁定态靠「鼠标浮在这一条上」临时显出来，而那套 hover 判定在真机上
-   * 会把整块歌词都算进去——锁上之后控制条就挂着不走。锁定现在是一次干脆
-   * 的状态切换：要操作就解锁。
+   * 解锁：一直显示控制条；锁定：默认收起，鼠标进到窗口底部那条唤醒带时再
+   * 浮出来——那颗锁按钮在锁定态就藏在这条带里，不显示它就没法解锁。
    */
-  const active = !locked
+  const [hovering, setHovering] = useState(false)
+  useEffect(() => bridge.overlay.onHover(setHovering), [])
+  const active = !locked || hovering
 
   /*
    * 译文与原文分开两行，和舞台、播放页用同一个判据。
