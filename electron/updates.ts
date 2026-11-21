@@ -8,7 +8,13 @@ import { applyUpdaterProxy } from './proxy'
 import { write } from './startup-log'
 import { isNewer } from './pure/version'
 import { repositoryTarget } from './pure/release-target'
-import { downloadReleaseFile, type DownloadSource } from './update-download'
+import {
+  downloadReleaseFile,
+  fetchReleaseText,
+  type DownloadSource,
+  type ProxyEndpoint
+} from './update-download'
+import { parseLatestYml, type LatestFile } from './pure/latest-yml'
 
 // `UpdateInterval` is declared alongside the settings that store it; re-exported
 // so callers of this module do not need to know where it lives.
@@ -393,14 +399,25 @@ let readyVersion: string | null = null
 let readyPath: string | null = null
 
 /**
- * 下载线路。直连 GitHub 在国内经常被 RST；后面两条是公共的 GitHub 反代。
- * 它们只代理文件，不代理 API，所以检查更新仍然走 GitHub。校验值来自
- * GitHub 那边的 latest.yml，镜像就算换了包也过不了 sha512。
+ * 下载线路：直连 + 一串公共反代。
+ *
+ * 名单只决定「参与测速的候选」，不决定顺序——每次下载前并发测一批，按实测
+ * 吞吐排。国内网络里它们的可用性和速度变化很大，2026-11 在校园网实测：直连
+ * 拿不到数据（000），gh-proxy.com 是唯一通的一条，其余几条连 DNS 都解析不出来。
+ * 死了的线路留在表里不碍事，测速会把它排到最后，不会先让它占着队列等超时。
+ *
+ * 反代只代理文件，不代理 API，所以检查更新仍走 GitHub。校验值来自 latest.yml，
+ * 镜像换了包也过不了 sha512。
  */
 const DOWNLOAD_SOURCES: DownloadSource[] = [
   { name: 'GitHub', prefix: '' },
   { name: 'gh-proxy.com', prefix: 'https://gh-proxy.com/' },
-  { name: 'ghfast.top', prefix: 'https://ghfast.top/' }
+  { name: 'ghfast.top', prefix: 'https://ghfast.top/' },
+  { name: 'ghproxy.net', prefix: 'https://ghproxy.net/' },
+  { name: 'gitmirror', prefix: 'https://hub.gitmirror.com/' },
+  { name: 'ghp.ci', prefix: 'https://ghp.ci/' },
+  { name: 'gh.llkk.cc', prefix: 'https://gh.llkk.cc/' },
+  { name: 'moeyy', prefix: 'https://github.moeyy.xyz/' }
 ]
 
  async function downloadInBackground(
@@ -413,16 +430,11 @@ const DOWNLOAD_SOURCES: DownloadSource[] = [
   const pending = result
   installing = true
   try {
-    const updater = await loadUpdater()
-    if (!updater) return
     /*
-     * 检查仍然交给 electron-updater：latest.yml 只有几百字节，GitHub 的 API 与
-     * raw 域名通常是通的。真正下不动的是 136 MB 的安装包，那一段交给下面的
-     * downloadReleaseFile——它会直连失败后换加速源，并且从断点继续。
+     * 路由先定下来：有代理就走隧道，没有就直连。测速会带着这个设置跑，
+     * 否则量出来的不是用户实际会走的那条路。
      */
-    await applyUpdaterProxy()
-    updater.autoDownload = false
-    updater.autoInstallOnAppQuit = false
+    const route = await applyUpdaterProxy()
 
     // Tells the settings page to switch to its progress form before the first chunk.
     broadcast({
@@ -434,30 +446,20 @@ const DOWNLOAD_SOURCES: DownloadSource[] = [
       total: 0
     })
 
-    const check = await updater.checkForUpdates()
-    const file = check?.updateInfo?.files?.[0]
-    if (!file || !file.sha512) throw new Error('发布信息里没有可用的安装包')
-    const target = publishTarget()
-    if (!target) throw new Error('不知道这个构建来自哪个仓库')
-    const tag = tagOf(pending.info.url) ?? 'v' + pending.info.version
-    const name = fileNameOf(file.url)
+    const base = releaseBase(pending.info)
+    const manifest = await resolveManifest(base, route.endpoint)
+    const name = fileNameOf(manifest.url)
     if (!name) throw new Error('发布信息里的文件名不可用')
-    const url =
-      'https://github.com/' +
-      target.owner +
-      '/' +
-      target.repo +
-      '/releases/download/' +
-      encodeURIComponent(tag) +
-      '/' +
-      encodeURIComponent(name)
 
     const localPath = await downloadReleaseFile({
-      url,
+      url: base + '/' + encodeURIComponent(name),
       fileName: name,
-      sha512: file.sha512,
+      sha512: manifest.sha512,
+      expectedSize: manifest.size || pending.info.size,
       dir: path.join(app.getPath('temp'), 'aurora-update'),
       sources: DOWNLOAD_SOURCES,
+      proxy: route.endpoint,
+      onNote: (note) => write('updates: ' + note),
       onProgress: (progress) => {
         broadcast({
           state: 'downloading',
@@ -492,6 +494,50 @@ const DOWNLOAD_SOURCES: DownloadSource[] = [
   } finally {
     installing = false
   }
+}
+
+/** 某一版附件的公共前缀，形如 .../releases/download/v1.0.0。 */
+function releaseBase(info: UpdateInfo): string {
+  const target = publishTarget()
+  if (!target) throw new Error('不知道这个构建来自哪个仓库')
+  const tag = tagOf(info.url) ?? 'v' + info.version
+  return (
+    'https://github.com/' +
+    target.owner +
+    '/' +
+    target.repo +
+    '/releases/download/' +
+    encodeURIComponent(tag)
+  )
+}
+
+/**
+ * 这一版的清单：安装包文件名、sha512、大小。
+ *
+ * 优先走镜像取 latest.yml。它只有几百字节，通一条线路就够；而 electron-updater
+ * 取同一份文件的地址在 github.com 上，会 302 到 release-assets.githubusercontent.com
+ * ——校园网里那个域名整段不通，于是下载还没开始就死在「没有可用的安装包」。
+ * 只有镜像全都拿不到时才回到 electron-updater 那条路。
+ */
+async function resolveManifest(base: string, proxy: ProxyEndpoint | null): Promise<LatestFile> {
+  try {
+    const text = await fetchReleaseText({ url: base + '/latest.yml', sources: DOWNLOAD_SOURCES, proxy })
+    const parsed = parseLatestYml(text)
+    if (parsed && parsed.sha512) {
+      write('updates: 清单取自镜像线路')
+      return parsed
+    }
+    write('updates: 清单里没有 sha512')
+  } catch (error) {
+    write('updates: 镜像取清单失败 ' + (error instanceof Error ? error.message : String(error)))
+  }
+
+  const updater = await loadUpdater()
+  if (!updater) throw new Error('取不到更新清单，也加载不了更新组件')
+  const check = await updater.checkForUpdates()
+  const file = check?.updateInfo?.files?.[0]
+  if (!file || !file.sha512) throw new Error('发布信息里没有可用的安装包')
+  return { url: file.url, sha512: file.sha512, size: 0 }
 }
 
 /** 从发布页地址里取 tag；取不到就用版本号拼。 */

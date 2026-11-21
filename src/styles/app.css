@@ -475,7 +475,11 @@ input::placeholder {
   min-height: 0;
   /* 品牌搬去顶栏之后顶上不能空得没道理，也不能让第一行贴着窗框：16px 刚好 */
   padding: 16px 12px 12px;
-  border-right: var(--line-soft);
+  /*
+   * 左栏这条分割线用 --line-soft（0.07）几乎看不见——宽窗口下内容离栏更远，
+   * 线又被壁纸冲淡，两边像连成一整片。单独提到 0.13，只影响这一条。
+   */
+  border-right: 1px solid rgb(var(--tint-rgb) / 0.13);
   overflow: hidden;
 }
 
@@ -622,6 +626,14 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /*
+   * 给贴在视口底边的播放条让位。
+   *
+   * 播放条是 position: fixed，虽然 .shell 的第三行仍占着那份高度，但 .main 是
+   * overflow: hidden 的独立滚动容器——它自己那一列会一直排到第三行上沿，最后
+   * 一行卡片就被压在播放条底下。这里补一段内边距，滚到底时内容停在播放条之上。
+   */
+  padding-bottom: 8px;
 }
 
 .main__header {
@@ -693,7 +705,11 @@ input::placeholder {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--s3) var(--s5) var(--s5);
+  /*
+   * 左右从 --s5 放到 --s6：内容贴着左栏边界时，第一列文字几乎压在分割线上，
+   * 宽窗口下尤其明显。上下不动。
+   */
+  padding: var(--s3) var(--s6) var(--s5);
 }
 
 /* A hairline under the header while a scan runs: enough to show liveness
@@ -2219,13 +2235,14 @@ html.is-resizing {
  * 交给 :hover，省得在 JS 里记谁进谁出。::after 是最后一个子层，盖在文字之上——
  * 这正是玻璃反光的样子，所以透明度压到 0.1，只提亮不发白。
  * ------------------------------------------------------------------------- */
-.player,
 .rh-sc,
 .rh-daily,
 .tracks__tool {
   /* ::after 要贴着元素自身定位；这几个原本都是 static，会跑到最近的定位祖先上 */
   position: relative;
 }
+
+/* .player 是 fixed（贴视口底边），不参与这条按回 relative 的规则。 */
 
 .player,
 .panel,
@@ -2474,29 +2491,40 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
  * 天生是两张面，交界处怎么调都会有一条线——那不是描边的错，是两层底拼在一起。
  * 现在只有一块底，播放条是它上面浮着的一片。
  */
-:root .shell.has-wallpaper {
-  grid-template-rows: var(--titlebar-h) 1fr 0;
-}
-:root .shell.has-wallpaper > .main {
-  /* 给浮起来的播放条让出位置，否则最后一排卡片会压在它底下。 */
-  padding-bottom: calc(var(--player-h) + 18px);
-}
+/*
+ * 有壁纸时不再单独排一次行高。
+ *
+ * 从前这里写的是 '1fr 0'——播放条是 absolute，不占行；现在它是 fixed，第三行
+ * 就是它的占位，与 .shell 的基础规则完全一致，这条可以整段去掉。
+ */
+/*
+ * 不再额外给播放条让位。
+ *
+ * 播放条改成 fixed 之后，.shell 的第三行（var(--player-h)）本来就是它的占位；
+ * 这里再加一层 padding-bottom，等于把同一段高度扣两次，列表底部会空出一大块。
+ */
 :root .shell.has-wallpaper > .player {
-  position: absolute;
-  /* 浮在主区上方，不能压住左栏：左边界跟着栏宽走。 */
-  left: calc(var(--rail-w) + 14px);
-  right: 14px;
-  bottom: 12px;
-  z-index: 3;
+  /*
+   * 整窗贴边（2026-11-21 重做）。
+   *
+   * 旧版是「浮在主区上方的一片」：left 跟着栏宽走、右侧留 14、底部留 12，
+   * 所以它永远只占内容区那一块，怎么调 .player 都跨不过左栏——这条选择器
+   * 特异性 (0,3,0)，比单独的 .player 高两级，它才是真正生效的那条。
+   * 现在改成占满整个窗口底边，左栏底部已经空出来，不会再压到任何东西。
+   */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
   height: var(--player-h);
   margin: 0;
-  border-radius: 16px;
+  border-radius: 0;
   background-color: rgb(var(--plane-rgb) / var(--wp-glass));
   background-image: none;
   backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
   -webkit-backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
-  /* 一条线都不要：分界交给投影和圆角。 */
-  box-shadow: 0 14px 36px -16px rgb(var(--shade-rgb) / 0.5);
+  /* 贴边之后没有「浮起来」可言，投影一并去掉。 */
+  box-shadow: none;
 }
 
 :root .shell.has-wallpaper.is-collapsed > .player {
@@ -2520,4 +2548,65 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
  */
 :root .shell.is-idle > .main {
   padding-bottom: 0;
+}
+
+/*
+ * 顶栏右端那三颗（设置 / 当前档案 / 收起侧栏）。
+ *
+ * 右侧 148px 是给 Windows 标题按钮留的，三颗必须落在它左边；所以这里是
+ * margin-right 而不是贴边，也不吃 -webkit-app-region（否则点不动）。
+ */
+.titlebar__acts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar__act {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
+}
+
+.titlebar__act:hover {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+
+.titlebar__act.is-active {
+  color: var(--accent);
+}
+
+/* 头像那一颗：圆形的，和左栏原来那颗一致。 */
+.titlebar__act--me {
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.titlebar__act--me img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* 有新版本时在设置那颗右上角点一颗点。 */
+.titlebar__act-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
 }

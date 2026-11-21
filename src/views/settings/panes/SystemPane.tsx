@@ -41,7 +41,7 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="启动时恢复上次队列"
-        hint="下次打开还是上次那一列，停在 0:00 等你按播放。不记播放进度。"
+        hint="记住队列，进度从 0:00 开始。"
       >
         <Toggle
           checked={restoreQueue}
@@ -52,7 +52,7 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="点一下托盘图标"
-        hint="选「只显示」时，点它不会把窗口收起来——想点开看一眼却点没了，这一档防的就是这个。"
+        hint="选「只显示」时，点它不会收窗口。"
       >
         <div className="seg">
           <button

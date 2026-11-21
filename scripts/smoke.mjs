@@ -63,7 +63,7 @@ const JOURNEY = [
   { view: 'playlists', kind: 'rail', label: '歌单', title: '歌单' },
   { view: 'albums', kind: 'rail', label: '专辑', title: '专辑' },
   { view: 'artists', kind: 'rail', label: '艺人', title: '艺人' },
-  { view: 'settings', kind: 'rail', label: '设置', title: '设置' }
+  { view: 'settings', kind: 'topbar', label: '设置', title: '设置' }
 ]
 
 function fail(message) {
@@ -165,7 +165,14 @@ async function dismissFirstRun(cdp) {
 
 /** Where each kind of step keeps its clickable rows. */
 const STEP_SELECTORS = {
-  rail: '.rail-item'
+  rail: '.rail-item',
+  /*
+   * 顶栏右端那几颗（设置 / 我 / 收起侧栏）。
+   *
+   * 「设置」2026-11-21 从左栏底部搬到了顶栏，选择器跟着加一条——不跟着改的话
+   * 这一步会一直报「no rail labelled 设置」，而页面本身是好的。
+   */
+  topbar: '.titlebar__act'
 }
 
 /** Click the control this step names, and say whether it existed. */
@@ -175,7 +182,11 @@ async function clickStep(cdp, step) {
     '  const rows = Array.from(document.querySelectorAll(' + JSON.stringify(STEP_SELECTORS[step.kind]) + '))',
     // A row can carry a count next to its label (the rail prints one for songs, the
     // section tabs print one each), so match the label prefix, not the whole text.
-    "  const row = rows.find((node) => (node.querySelector('.nav-item__label')?.textContent || node.textContent || '').trim().startsWith(" + JSON.stringify(step.label) + '))',
+    /*
+     * 顶栏那几颗是图标按钮：里面没有文字，名字只在 aria-label 上。先看 aria-label，
+     * 再退回文字内容——左栏的条目两者都有，顶栏的只有前者。
+     */
+    "  const row = rows.find((node) => ((node.getAttribute('aria-label') || node.querySelector('.nav-item__label')?.textContent || node.textContent) || '').trim().startsWith(" + JSON.stringify(step.label) + '))',
     '  if (!row) return false',
     '  row.click()',
     '  return true',

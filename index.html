@@ -24,11 +24,145 @@
     />
     <title>Aurora</title>
     <!--
-      没有开屏页。窗口背景由主进程铺成当前主题的底色，首帧一到就是首页。
-      冷启动会先看到一小段纯色，长度取决于打包产物的加载时间。
+      开屏动画。
+
+      冷启动要 2 秒出头，其中大部分是壁纸场景的 parsePkg（主线程长任务）。
+      这段时间原来只是一块纯色，看着像卡住。这里放一个纯 CSS 的开屏：它不依赖
+      打包产物、不用等 React，HTML 一解析就动；应用首帧画好之后由 main.tsx 摘掉
+      （最多兜底 4 秒）。动画只是让人有东西看，预热仍在后台照常进行。
     -->
+    <style>
+      /*
+       * 极光开屏。
+       *
+       * 照真实极光照片的样子做：暗底、右侧一条明亮的绿色光幕、左上一片紫红光晕。
+       * 光幕用「斜向的窄椭圆 + 竖向条纹遮罩」叠出来——极光的边缘是带状的，不是
+       * 一团圆的均质发光。纯 CSS，HTML 一解析就动。
+       */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        overflow: hidden;
+        background: radial-gradient(120% 100% at 50% 0%, #14102a 0%, #08070f 55%, #05060a 100%);
+        transition: opacity 460ms ease;
+      }
+      #splash.is-gone {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .splash__glow {
+        position: absolute;
+        inset: -20%;
+        filter: blur(58px);
+        opacity: 0.85;
+        will-change: transform, opacity;
+      }
+      /*
+       * 右侧绿色光幕。
+       *
+       * 极光是「帘子里的丝在流」，不是整块在滑：所以位移不靠 transform，而是靠
+       * 背景条纹横向滚动（background-position 动画）+ 轻微的倾斜呼吸。条纹本身
+       * 是竖向的细条，滚动起来就像光帘被风推着走。
+       */
+      .splash__glow--green {
+        background-image:
+          repeating-linear-gradient(
+            92deg,
+            rgb(80 255 170 / 0) 0 10px,
+            rgb(110 255 190 / 0.55) 10px 17px,
+            rgb(80 255 170 / 0) 17px 34px
+          ),
+          radial-gradient(56% 26% at 62% 38%, rgb(96 255 176 / 0.95), transparent 72%),
+          radial-gradient(44% 18% at 70% 30%, rgb(150 255 205 / 0.55), transparent 76%);
+        background-size: 220px 100%, 100% 100%, 100% 100%;
+        transform: rotate(-16deg);
+        mask-image: radial-gradient(70% 62% at 62% 38%, #000 28%, transparent 76%);
+        -webkit-mask-image: radial-gradient(70% 62% at 62% 38%, #000 28%, transparent 76%);
+        animation: auroraDrift 9s linear infinite, auroraBreathe 7s ease-in-out infinite alternate;
+      }
+
+      /*
+       * 左上紫红光晕：同样不走位移，靠条纹滚动 + 大范围缩放呼吸。
+       */
+      .splash__glow--violet {
+        background-image:
+          repeating-linear-gradient(
+            78deg,
+            rgb(210 120 255 / 0) 0 14px,
+            rgb(226 150 255 / 0.42) 14px 23px,
+            rgb(210 120 255 / 0) 23px 46px
+          ),
+          radial-gradient(52% 30% at 30% 30%, rgb(206 110 255 / 0.7), transparent 74%),
+          radial-gradient(38% 20% at 38% 22%, rgb(255 160 225 / 0.4), transparent 78%);
+        background-size: 260px 100%, 100% 100%, 100% 100%;
+        transform: rotate(13deg);
+        mask-image: radial-gradient(62% 60% at 30% 30%, #000 24%, transparent 80%);
+        -webkit-mask-image: radial-gradient(62% 60% at 30% 30%, #000 24%, transparent 80%);
+        animation: auroraDriftSlow 13s linear infinite, auroraBreatheViolet 11s ease-in-out infinite alternate;
+      }
+
+      .splash__veil {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(130% 100% at 50% 42%, transparent 34%, rgb(4 5 9 / 0.92) 100%);
+      }
+      .splash__word {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 14px;
+        text-align: center;
+      }
+      .splash__cn {
+        font: 300 40px/1 'Segoe UI Light', 'Microsoft YaHei UI Light', 'Microsoft YaHei', system-ui, sans-serif;
+        letter-spacing: 0.5em;
+        text-indent: 0.5em;
+        color: #f2f6ff;
+        text-shadow: 0 0 26px rgb(140 255 205 / 0.5), 0 0 60px rgb(150 120 255 / 0.35);
+      }
+      .splash__en {
+        font: 400 10px/1 system-ui, 'Segoe UI', sans-serif;
+        letter-spacing: 0.66em;
+        text-indent: 0.66em;
+        text-transform: uppercase;
+        color: rgb(186 206 235 / 0.46);
+      }
+      /*
+       * 流动而不是滑动：条纹本身在滚，形状在呼吸。
+       */
+      @keyframes auroraDrift {
+        0% { background-position: 0 0, 0 0, 0 0; }
+        100% { background-position: 220px 0, 0 0, 0 0; }
+      }
+      @keyframes auroraDriftSlow {
+        0% { background-position: 0 0, 0 0, 0 0; }
+        100% { background-position: -260px 0, 0 0, 0 0; }
+      }
+      @keyframes auroraBreathe {
+        0% { transform: rotate(-16deg) scale(1, 0.94); opacity: 0.72; }
+        45% { transform: rotate(-14.2deg) scale(1.04, 1.06); opacity: 0.98; }
+        100% { transform: rotate(-16.8deg) scale(1.01, 0.98); opacity: 0.8; }
+      }
+      @keyframes auroraBreatheViolet {
+        0% { transform: rotate(13deg) scale(1.02, 1); opacity: 0.55; }
+        100% { transform: rotate(15deg) scale(0.97, 1.07); opacity: 0.85; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash__glow { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <span class="splash__glow splash__glow--violet"></span>
+      <span class="splash__glow splash__glow--green"></span>
+      <span class="splash__veil"></span>
+      <span class="splash__word">
+        <span class="splash__cn">Aurora</span>
+        <span class="splash__en">极光</span>
+      </span>    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -147,7 +147,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
     <Rows>
       <Row
         label="主题"
-        hint="跟随系统会随 Windows 的明暗设置切换；手动选了就一直用那一套。"
+        hint="跟随系统，或手动固定一套。"
       >
         <div className="seg">
           {THEMES.map((item) => (
@@ -162,7 +162,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      <Row label="背景" hint="标准亚克力是一块厚玻璃，把壁纸糊成一片色；轻薄亚克力玻璃更薄、图看得清。">
+      <Row label="背景" hint="标准：厚玻璃，壁纸糊成一片色。轻薄：更透。">
         <div className="seg">
           <button
             className={backdrop.mode === 'frosted' ? 'is-active' : ''}
@@ -578,7 +578,7 @@ function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="锁住时也能悬停"
-        hint="开着：鼠标移到那行字上会浮出控制条，代价是那一下点击归歌词窗口。关掉：彻底穿透，要动它先解锁。"
+        hint="开着：悬停出控制条，那一下点击归歌词。关掉：完全穿透。"
       >
         <Toggle
           checked={page.settings.overlayHoverControls}

@@ -1,12 +1,7 @@
-import { useAccounts } from '../features/accounts/store'
-import { useOnlineBindings } from '../features/accounts/bindings'
 import { useLikedIds } from '../features/favorites/likes'
 import { useRecentEntries } from '../features/player/history-store'
 import { useRoam } from '../features/player/roam-session'
-import { useUpdate } from '../features/updates/store'
-import { remoteImageUrl, sizedImage } from '../features/player/urls'
-import { Artwork } from '../ui/Artwork'
-import { Album, Compass, Folder, Heart, List, Refresh, Settings, Shuffle, Sidebar, User } from '../ui/icons'
+import { Album, Compass, Folder, Heart, List, Refresh, Shuffle, User } from '../ui/icons'
 import type { ShellRoute, ShellView } from './shell'
 
 /**
@@ -29,11 +24,6 @@ import type { ShellRoute, ShellView } from './shell'
 interface RailProps {
   route: ShellRoute
   onNavigate: (route: ShellRoute) => void
-  collapsed: boolean
-  onToggleCollapsed: () => void
-  /** 当前档案名，显示在底部；档案是设置里的第一个分区，不是导航项。 */
-  profileLabel: string | null
-  onOpenProfile: () => void
   /** 四家账号里歌单的合计：左栏那个数字说的是「平台上有多少张」，不是本机建过几张。 */
   playlistCount: number
   albumCount: number
@@ -66,15 +56,10 @@ const SHELF: RailItem[] = [
   { view: 'local', label: '本机', icon: Folder }
 ]
 
-const FOOT: RailItem[] = [{ view: 'settings', label: '设置', icon: Settings }]
 
 export function Rail({
   route,
   onNavigate,
-  collapsed,
-  onToggleCollapsed,
-  profileLabel,
-  onOpenProfile,
   playlistCount,
   albumCount,
   artistCount,
@@ -87,20 +72,6 @@ export function Rail({
   const roamPending = useRoam((state) => state.busy)
   const live = roaming ?? roamLive
   const pending = roamBusy ?? roamPending
-  // 查到了新版本、还没去看，就在「设置」上留一颗点；别为它单开一条横幅。
-  const updateReady = useUpdate((state) => state.result?.state === 'available' && !state.noted)
-  /*
-   * 侧栏底部这一行的头像跟「我」页的档案卡必须是同一张：先看档案自己设的头像，
-   * 没设过就用该档案绑定的在线账号头像（网易云那种彩色头像是账号最有辨识度的
-   * 部分），都没有才回落到档案名首字。
-   */
-  const accounts = useAccounts((state) => state.accounts)
-  const activeId = useAccounts((state) => state.activeId)
-  const bindings = useOnlineBindings(accounts)
-  const active = accounts.find((account) => account.id === activeId) ?? null
-  const boundAvatar = activeId ? (bindings[activeId]?.avatarUrl ?? null) : null
-  const avatar = active?.avatar ?? (boundAvatar ? remoteImageUrl(sizedImage(boundAvatar, 96), 96) : null)
-  const fallbackAvatar = <User size={16} />
 
   // 喜欢只发生在平台账号里，本机文件没有喜欢可算。
   const likedCount = useLikedIds().size
@@ -140,9 +111,7 @@ export function Rail({
     const on = lit === view
     const title = dot
       ? label + ' · 有新版本'
-      : collapsed
-        ? label
-        : undefined
+      : undefined
     return (
       <button
         key={view}
@@ -188,34 +157,6 @@ export function Rail({
         {SHELF.map((entry) => item(entry.view, entry.label, entry.icon, countFor(entry.view)))}
       </div>
 
-      <div className="rail__foot">
-        {FOOT.map((entry) =>
-          item(entry.view, entry.label, entry.icon, null, entry.view === 'settings' && updateReady)
-        )}
-
-        {/* 「我」用当前档案的头像当图标：这一行本来就是这个意思。 */}
-        <button
-          className={`rail-item${lit === 'me' ? ' is-active' : ''}`}
-          onClick={onOpenProfile}
-          aria-current={lit === 'me' ? 'page' : undefined}
-          title={profileLabel ? `当前档案：${profileLabel}` : '我'}
-        >
-          <span className="rail-item__avatar">
-            {avatar ? <Artwork src={avatar} fallback={fallbackAvatar} /> : fallbackAvatar}
-          </span>
-          <span className="rail-item__label">{profileLabel ?? '我'}</span>
-        </button>
-
-        <button
-          className="rail-item rail-item--quiet"
-          onClick={onToggleCollapsed}
-          title={collapsed ? '展开侧栏' : '收起侧栏'}
-          aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
-        >
-          <Sidebar size={16} />
-          <span className="rail-item__label">收起侧栏</span>
-        </button>
-      </div>
     </nav>
   )
 }

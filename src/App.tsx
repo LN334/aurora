@@ -1142,15 +1142,18 @@ export function App() {  if (!isNative) {
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
           onHome={() => goShell({ view: 'home' })}
+          collapsed={collapsed}
+          profileLabel={activeAccount?.label ?? null}
+          settingsActive={shell.view === 'settings'}
+          profileActive={shell.view === 'me'}
+          onOpenSettings={() => goShell({ view: 'settings' })}
+          onOpenProfile={() => goShell({ view: 'me' })}
+          onToggleCollapsed={toggleCollapsed}
         />
 
         <Rail
           route={shell}
           onNavigate={goShell}
-          collapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-          profileLabel={activeAccount?.label ?? null}
-          onOpenProfile={() => goShell({ view: 'me' })}
           playlistCount={accountPlaylists.cards.length}
           albumCount={collectedAlbums.length}
           artistCount={followedArtists.length}

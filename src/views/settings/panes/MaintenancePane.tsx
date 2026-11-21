@@ -107,7 +107,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         </Rows>
       </Sub>
 
-      <Sub title="垃圾文件" hint="界面缓存、日志与崩溃转储。听过的歌留在「下载」那边的在线缓存里，这里不动它。">
+      <Sub title="垃圾文件" hint="界面缓存、日志与崩溃转储；在线缓存不在这里。">
         {junk ? (
           <Rows>
             {junk.parts.map((part) => (
@@ -197,7 +197,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
 
       <Sub
         title="备份"
-        hint="把设置、曲库、歌单与收听记录打进一个文件。登录状态不进备份 —— 换了机器重新登录就行。"
+        hint="设置、曲库、歌单与收听记录打成一个文件；登录状态不含。"
       >
         <Rows>
           <Row label="导出备份" hint="选个位置存下来，文件名带时间。">
@@ -207,7 +207,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           </Row>
           <Row
             label="导入备份"
-            hint="会覆盖当前数据；导入前旧文件自动留在 backup-before-restore 里。"
+            hint="会覆盖当前数据，旧文件先备份。"
           >
             <button className="btn" disabled={backupBusy} onClick={() => void runRestore()}>
               {backupBusy ? '请稍候' : '导入'}

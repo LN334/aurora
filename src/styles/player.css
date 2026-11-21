@@ -13,6 +13,19 @@
    * 播放条那一行由 .shell::after 铺上与内容区同一块底，缝里透出来的是同一层
    * 半透明玻璃。用户的原话是「上下背景要一致」，不是「贴边」。
    */
+  /*
+   * 全宽贴边（2026-11-21 用户定）。
+   *
+   * 原来是浮在壁纸上的圆角条，左右各留 16px。窄窗口里那 32px 正是最后一颗图标
+   * 放不下的地方；改成整条铺满，宽度全给控件。上缘保留一条细边把玻璃与内容区分开。
+   */
+  /*
+   * 整条贴边（2026-11-21）。
+   *
+   * 从前是浮在壁纸上的圆角条，左右各留 16px；「设置 / 我 / 收起侧栏」还长在左栏
+   * 底部时，全宽会盖住那三行，所以只能悬浮。那三行已经搬到顶栏，左栏底部空了，
+   * 整条铺满才有意义——宽度全给控件，窄窗口也少挤一点。
+   */
   margin: 4px 16px 12px;
   border-radius: 16px;
   /*
@@ -351,17 +364,24 @@
 }
 
 .pb-btn__badge {
+  /*
+   * 计数气泡挂在按钮右上角的外侧。
+   *
+   * 原来 top:-1/right:0 是压在图标上的：队列上百首时「99+」有一颗图标的宽度，
+   * 把队列图标整个盖住——看起来像按钮没了、只剩一个数字。挪到角外并缩一号，
+   * 数字与图标都读得出来。
+   */
   position: absolute;
-  top: -1px;
-  right: 0;
-  min-width: 14px;
-  height: 14px;
+  top: -5px;
+  right: -7px;
+  min-width: 13px;
+  height: 13px;
   padding: 0 3px;
   border-radius: 999px;
   background: var(--accent);
   color: var(--ink-1000);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: 8px;
+  line-height: 13px;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -477,25 +497,13 @@
 /* --- 宽度：先收滑条，再换排 ----------------------------------------------- */
 
 /* 1301–1240 之间窗口还是「三块一排」最舒服，只把音量条收短一点。 */
-@media (max-width: 1280px) {
-  .pb-volume {
-    width: 78px;
-  }
-}
+
 
 /*
  * 再窄下去，音量滑条先让位：静音键留下，键盘的 ↑↓ 也还在，调音量并没有丢，
  * 只是不再常驻一条 96px 的长条去挤进度条。
  */
-@media (max-width: 1080px) {
-  .pb-volume,
-  .pb-sep {
-    display: none;
-  }
-  .player__main {
-    column-gap: var(--s3);
-  }
-}
+
 
 /*
  * 900 以下进度条换到第二行、横贯整条：中列被两侧挤到 300px 以下时，时间加
@@ -510,40 +518,11 @@
  * 进度条本来就在最底下一行，所以这里不需要再「把它挪下去」——新版式一开始
  * 就是这么排的，这一段只处理中间那一栏放不放得下。
  */
-@media (max-width: 900px) {
-  .player__main {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      'info side'
-      'core core';
-    row-gap: 4px;
-    column-gap: var(--s3);
-  }
-  .pb-core {
-    justify-content: center;
-  }
-  .pb-rail {
-    gap: 8px;
-  }
-}
+
 
 /* 再窄：封面先让位，标题还有半行可以省略。模式键不动——播放模式没有快捷键，
    藏起来就真的改不了了。 */
-@media (max-width: 720px) {
-  .pb-art {
-    display: none;
-  }
-  .pb-time {
-    width: 34px;
-  }
-  .pb-transport {
-    gap: 4px;
-  }
-  .pb-play {
-    margin: 0 2px;
-  }
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .pb-btn,
@@ -704,4 +683,196 @@
 /* 点亮时用实心 + 主色，比只换颜色更容易看出来。 */
 .pb-btn.is-on svg {
   fill: currentColor;
+}
+
+/* =============================================================================
+   播放条：重做版（2026-11-21）
+   -----------------------------------------------------------------------------
+   旧版是「浮在壁纸上的圆角条」，左右留 16px，宽度永远只在内容区里——因为
+   .player 在 .shell 的 grid 第三行，而那一行被左栏那一列切开了，grid-column
+   怎么调都跨不过去。这里整条重排：
+
+   1. 定位：fixed 贴视口底边，左右 0，整窗宽度。.shell 的第三行留着占位，
+      内容区该让的高度一分不少。
+   2. 三块：信息（封面 + 标题）、控制、工具。grid 的 1fr / auto / auto：
+      控制块永远在整条的几何中心，左侧信息吃掉剩余宽度。
+   3. 窄窗口只缩尺寸、不折叠、不换行：按钮 30→24、图标 17→15、间隙 8→3、
+      播放键 44→40。十四颗控件在 900 宽仍是一行。
+   ========================================================================== */
+
+.player {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 18px 10px;
+  border-radius: 0;
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.12);
+}
+
+.player__main {
+  /*
+   * 控制块绝对居中，两侧各自贴边。
+   *
+   * 试过 grid 的「1fr auto auto」：信息那格吃掉剩余宽度，播放键于是落在「信息
+   * 之后的空间」中心，整窗看过去偏右一大截。绝对定位把它的位置只绑在整条的中线
+   * 上，与两侧挂了多少图标无关。
+   */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pb-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* --- 左：在放什么 --------------------------------------------------------- */
+
+.pb-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pb-art {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pb-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pb-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-artist {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- 中：怎么放 ----------------------------------------------------------- */
+
+.pb-transport {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pb-play {
+  width: 44px;
+  height: 44px;
+  margin: 0 6px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+/* --- 右：界面怎么显示 ------------------------------------------------------ */
+
+.pb-side {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pb-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: rgb(var(--tint-rgb) / 0.14);
+}
+
+/* --- 进度条：整条底部一条细线 ------------------------------------------------ */
+
+.pb-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pb-time {
+  width: 38px;
+  flex: 0 0 auto;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pb-volume {
+  width: 92px;
+}
+
+/* --- 窄窗口：整体缩一档，不折叠 ---------------------------------------------- */
+
+@media (max-width: 1120px) {
+  .player {
+    padding: 6px 14px 8px;
+  }
+
+  .player__main {
+    gap: 10px;
+  }
+
+  .pb-btn {
+    width: 24px;
+    height: 24px;
+  }
+
+  .pb-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .pb-side {
+    gap: 2px;
+  }
+
+  .pb-play {
+    width: 40px;
+    height: 40px;
+    margin: 0 3px;
+  }
+
+  .pb-play svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .pb-volume {
+    width: 64px;
+  }
+
+  .pb-art {
+    width: 40px;
+    height: 40px;
+  }
 }

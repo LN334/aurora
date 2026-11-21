@@ -44,7 +44,7 @@ export function RecommendPane() {
       {candidates.length === 0 ? (
         <p className="settings__hint">还没有能推荐曲目的平台。去「我」登录一个，这里就会出现。</p>
       ) : (
-        <Sub title="从哪几家要" hint="勾掉的平台不再发请求，缺的位置由还开着的平台补上。至少留一家：全关就没有推荐可看了。">
+        <Sub title="从哪几家要" hint="勾掉的平台不再请求，位置由其他平台补；至少留一家。">
           <Rows>
             <Row
               label="只用我登录了的平台"

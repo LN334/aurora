@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { ChevronLeft, ChevronRight, Close, Search } from '../ui/icons'
 import { BrandMark } from './BrandMark'
+import { TitleBarActs } from './TitleBarActs'
 
 /**
  * 窗口顶部那一条：去哪儿、找什么、顺手能做什么。
@@ -33,6 +34,14 @@ interface TitleBarProps {
   canForward: boolean
   /** 点品牌回「现在」。 */
   onHome: () => void
+  /* 右端三颗（设置 / 我 / 收起侧栏）从 Rail 底部搬来，见 TitleBarActs。 */
+  collapsed: boolean
+  profileLabel: string | null
+  settingsActive: boolean
+  profileActive: boolean
+  onOpenSettings: () => void
+  onOpenProfile: () => void
+  onToggleCollapsed: () => void
 }
 
 export function TitleBar({
@@ -47,7 +56,14 @@ export function TitleBar({
   onForward,
   canBack,
   canForward,
-  onHome
+  onHome,
+  collapsed,
+  profileLabel,
+  settingsActive,
+  profileActive,
+  onOpenSettings,
+  onOpenProfile,
+  onToggleCollapsed
 }: TitleBarProps) {
   const field = useRef<HTMLInputElement>(null)
   const typed = query.length > 0
@@ -134,6 +150,16 @@ export function TitleBar({
       </form>
 
       <div className="titlebar__spacer" />
+
+      <TitleBarActs
+        collapsed={collapsed}
+        profileLabel={profileLabel}
+        settingsActive={settingsActive}
+        profileActive={profileActive}
+        onOpenSettings={onOpenSettings}
+        onOpenProfile={onOpenProfile}
+        onToggleCollapsed={onToggleCollapsed}
+      />
     </header>
   )
 }

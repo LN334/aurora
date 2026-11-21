@@ -108,3 +108,39 @@ requestAnimationFrame(() => {
     void useLikes.getState().refreshAll()
   })
 })
+
+/*
+ * 摘掉开屏。
+ *
+ * index.html 里那块纯 CSS 开屏从 HTML 解析完就开始动，应用首帧之后淡出。
+ * 用 rAF 等到下一次绘制再摘，避免「刚画完还没提交就被盖住」；另外留一个 4 秒
+ * 兜底——壁纸解析卡住时不能把开屏永远留在那儿。
+ */
+{
+  const splash = document.getElementById('splash')
+  if (splash) {
+    const shownAt = performance.now()
+    const MIN_MS = 1600
+    const MAX_MS = 5200
+    let gone = false
+    const dismiss = () => {
+      if (gone) return
+      gone = true
+      splash.classList.add('is-gone')
+      window.setTimeout(() => splash.remove(), 620)
+    }
+    /*
+     * 最快也要停 1.6 秒。
+     *
+     * 只在首帧之后摘是不够的：这台机器预热过后首帧只要几十毫秒，开屏会一闪就
+     * 没了。给一个下限，让动画至少走完一轮；上限 5.2 秒兜底壁纸解析卡住的情况。
+     */
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const wait = Math.max(0, MIN_MS - (performance.now() - shownAt))
+        window.setTimeout(dismiss, wait)
+      })
+    })
+    window.setTimeout(dismiss, MAX_MS)
+  }
+}

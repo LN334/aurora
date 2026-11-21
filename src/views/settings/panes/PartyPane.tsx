@@ -37,14 +37,14 @@ export function PartyPane() {
     <Rows>
       <Row
         label="替房间转发音频"
-        hint="开着时，客人不用登录也能听到你这一档音质；关着时各听各的。进房间后也能随时改。"
+        hint="开着：客人按你的档位听；关着：各听各的。"
       >
         <Toggle checked={relay !== '0'} label="默认替房间转发音频" onChange={(next) => setRelay(next ? '1' : '0')} />
       </Row>
 
       <Row
         label="房间端口"
-        hint="固定之后，樱花隧道里那个「本地端口」只要配一次。留空则每次开房随机挑一个。"
+        hint="固定后隧道端口只需配一次；留空则每次随机。"
         title="被占用时会自动退回随机端口"
       >
         <input
@@ -58,7 +58,7 @@ export function PartyPane() {
 
       <Row
         label="樱花 frpc"
-        hint="程序会自己找；找不到就去樱花隧道页点「装 frpc」，一份就够。这里只是让你看得出它用的是哪一份。"
+        hint="找不到就去樱花隧道页装一份；这里显示用的是哪个。"
         title={frpc || undefined}
       >
         <input className="settings__input settings__input--wide" value={frpc} readOnly placeholder="还没找到" />
