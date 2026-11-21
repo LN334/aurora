@@ -126,8 +126,8 @@ requestAnimationFrame(() => {
     const shownAt = performance.now()
     const MIN_MS = 3200
     const MAX_MS = 7000
-    /* 预热最多等这么久；拉不动就按原节奏揭幕。 */
-    const WARM_MS = 4500
+    /* 预热最多等这么久（歌单与我喜欢的要问四家平台，比首页慢）；拉不动就按原节奏揭幕。 */
+    const WARM_MS = 6000
     let gone = false
     const dismiss = () => {
       if (gone) return
@@ -140,7 +140,7 @@ requestAnimationFrame(() => {
      *
      * 只在首帧之后摘是不够的：预热过的机器首帧只要几十毫秒，开屏一闪就没了；
      * 而且那时数据还没回来，切到首页照样是骨架格。现在改成首帧之后再等预热
-     * 落地（最多 4.5 秒），然后按最短停留补足；上限 7 秒兜底壁纸解析卡住。
+     * 落地（最多 6 秒），然后按最短停留补足；上限 7 秒兜底壁纸解析卡住。
      */
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {

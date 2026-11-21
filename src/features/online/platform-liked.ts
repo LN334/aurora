@@ -165,6 +165,17 @@ interface PlatformLikedState {
  * 传了 `platforms` 就只问这几家。首页那张「我喜欢的音乐」卡传的是用户勾选的推流
  * 平台——否则启动时会为了一个数字把四家后端全拉起来。收藏页不传，仍是四家全量。
  */
+/**
+ * 开屏期间先把「我喜欢的」填上。
+ *
+ * 这一页原来是挂载时才第一次去问四家平台，读的是用户点过心的几千条；开屏结束
+ * 后切过去，看到的是「正在读取各平台的收藏…」。这里提前读进模块缓存，页面挂载
+ * 时直接命中——缓存键用默认的「全量」，与页面无参调用一致。
+ */
+export function prewarmPlatformLiked(): Promise<unknown> {
+  return loadPlatformLiked().catch(() => undefined)
+}
+
 export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const [state, setState] = useState<PlatformLikedState>(() => {
