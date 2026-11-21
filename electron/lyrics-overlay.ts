@@ -1,6 +1,7 @@
 import { BrowserWindow, screen, type Rectangle } from 'electron'
 import path from 'node:path'
 import { startFullscreenWatch, stopFullscreenWatch } from './fullscreen-watch'
+import { pointInBox, shouldShowControls, shouldTakeOver } from './pure/overlay-hit'
 import { APP_ORIGIN } from './protocols/app-protocol'
 import {
   LYRIC_SIZE_MAX,
@@ -194,26 +195,23 @@ function hoverTakesOver(): boolean {
   return loadSettings().overlayHoverControls !== false
 }
 
-/**
- * 锁定态下「唤醒带」的高度。
- *
- * 锁定后整窗穿透，但要留一条能把控制条叫出来的路——否则那颗锁按钮永远
- * 点不到，等于把自己锁在外面。这条带由主进程按窗口矩形自己算，不依赖页面
- * 上报的坐标：上一次判定不可靠，正是因为用的是渲染层传上来的矩形，窗口挪动
- * 或缩放之后它会过期。
- */
-const WAKE_ZONE_HEIGHT = 64
-
-let pointerInWakeZone = false
-
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
   /*
    * 未锁定：整窗可交互（要能拖动）。
    * 锁定：整窗穿透，只有指针进入底部那条唤醒带时临时接管。
    */
-  const wake = locked && hoverTakesOver() && pointerInWakeZone
-  overlay.setIgnoreMouseEvents(!(!locked || wake), { forward: true })
+  /*
+   * 未锁定：整窗可交互（要能拖动、点歌词跳转）。
+   * 锁定：整窗穿透——**包括歌词文字**；只有控制条那一块接管，好让用户点得到
+   * 播放与解锁。控制条浮出来这件事本身不改变穿透。
+   */
+  const takeOver = shouldTakeOver({
+    locked,
+    hoverControls: hoverTakesOver(),
+    pointerInToolbar
+  })
+  overlay.setIgnoreMouseEvents(!takeOver, { forward: true })
 }
 
 /** Tell the strip what the pointer is doing so it can reveal its controls. */
@@ -250,12 +248,12 @@ function startHoverPolling(): void {
      * 唤醒带贴着窗口底边：控制条就长在那附近，鼠标过去自然是想操作它。
      * 这里只用主进程自己拿得到的两个值（光标、窗口矩形），页面坐标一概不用。
      */
-    pointerInWakeZone =
-      point.x >= bounds.x &&
-      point.x <= bounds.x + bounds.width &&
-      point.y >= bounds.y + bounds.height - WAKE_ZONE_HEIGHT &&
-      point.y <= bounds.y + bounds.height
-    setHovering(pointerInWakeZone)
+    const origin = { x: bounds.x, y: bounds.y }
+    const inWords = pointInBox(point, origin, hitArea)
+    const inTools = pointInBox(point, origin, toolbarArea)
+    pointerInToolbar = inTools
+    /* 控制条显不显示看「悬在歌词或控制条上」；接管鼠标只看控制条和锁定状态。 */
+    setHovering(shouldShowControls({ locked, hovering: inWords || inTools }) && (inWords || inTools))
     applyLock()
     return
   }, 70)
@@ -488,12 +486,33 @@ function setHovering(next: boolean): boolean {
 export function setToolbarArea(rect: unknown): boolean {
   if (!rect || typeof rect !== 'object') return false
   const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
-  return Boolean(candidate)
+  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
+  toolbarArea = {
+    x: num(candidate.x),
+    y: num(candidate.y),
+    width: Math.max(1, num(candidate.width)),
+    height: Math.max(1, num(candidate.height))
+  }
+  return true
 }
 
-/** 渲染层上报的歌词矩形。唤醒带改为按窗口几何自算之后，这里不再使用它。 */
+/** 歌词文字那一块（窗口内坐标）。锁定时鼠标悬在字上也要穿透，所以它只影响控制条显不显示。 */
+let hitArea: { x: number; y: number; width: number; height: number } | null = null
+/** 控制条那一块：锁定时**只有这里**接管鼠标。 */
+let toolbarArea: { x: number; y: number; width: number; height: number } | null = null
+/** 这一次轮询里，指针是否落在控制条上。 */
+let pointerInToolbar = false
 export function setHitArea(rect: unknown): boolean {
-  return Boolean(rect && typeof rect === 'object')
+  if (!rect || typeof rect !== 'object') return false
+  const candidate = rect as Partial<{ x: number; y: number; width: number; height: number }>
+  const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
+  hitArea = {
+    x: num(candidate.x),
+    y: num(candidate.y),
+    width: Math.max(1, num(candidate.width)),
+    height: Math.max(1, num(candidate.height))
+  }
+  return true
 }
 
 /** Forward the current lyric state. Safe to call whether or not the window is open. */
