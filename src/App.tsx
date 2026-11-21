@@ -171,25 +171,6 @@ export function App() {  if (!isNative) {
   const route = useMemo(() => shellToRoute(shell), [shell])
   const view = route.view
 
-  // 侧栏收没收起是「人的习惯」，不是临时状态：下次开还按上次那样。
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem('aurora.rail.collapsed') === '1'
-    } catch {
-      return false
-    }
-  })
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed((value) => {
-      const next = !value
-      try {
-        localStorage.setItem('aurora.rail.collapsed', next ? '1' : '0')
-      } catch {
-        /* 存不下就算了，不值得为这个报错 */
-      }
-      return next
-    })
-  }, [])
   const [stageOpen, setStageOpen] = useState(false)
   /*
    * 舞台要留 320ms 的退场：它是 fixed 全屏且底色不透明，一帧摘掉就是硬切。
@@ -1116,7 +1097,7 @@ export function App() {  if (!isNative) {
         <Backdrop entry={wallpaperEntry} />
       </div>
       <div
-        className={`shell${collapsed ? ' is-collapsed' : ''}${track?.hasArt ? ' has-art' : ''}${
+        className={`shell${track?.hasArt ? ' has-art' : ''}${
           wallpaperEntry ? ' has-wallpaper' : ''
         }${shell.view === 'nowplaying' ? ' is-nowplaying' : ''}${track ? '' : ' is-idle'}${
           /*
@@ -1149,13 +1130,11 @@ export function App() {  if (!isNative) {
           canBack={cursor > 0}
           canForward={cursor < stack.length - 1}
           onHome={() => goShell({ view: 'home' })}
-          collapsed={collapsed}
           profileLabel={activeAccount?.label ?? null}
           settingsActive={shell.view === 'settings'}
           profileActive={shell.view === 'me'}
           onOpenSettings={() => goShell({ view: 'settings' })}
           onOpenProfile={() => goShell({ view: 'me' })}
-          onToggleCollapsed={toggleCollapsed}
         />
 
         <Rail

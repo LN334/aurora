@@ -32,9 +32,6 @@
   color: var(--text-low);
   white-space: nowrap;
 }
-.is-collapsed .rail__caption {
-  opacity: 0;
-}
 
 /* --- 一条工具行（最近播放的计数与动作） ---------------------------------- */
 
@@ -2390,7 +2387,13 @@
   padding: 0 34px 6px;
 }
 .np__foot {
-  padding-bottom: 18px;
+  /*
+   * 底栏整体往下贴一档。
+   *
+   * 原来自下而上留了 18px：三颗刚挪到这一行时，看着像整条底栏悬在半空，
+   * 下面还压着一条空底边。收到 6px，让进度条、三颗与「接下来」一起下沉。
+   */
+  padding-bottom: 6px;
 }
 
 /* 封面再大一点、歌词窗口再高一点：一屏该被这两样占满。 */
@@ -2416,6 +2419,17 @@
  */
 :root .shell.has-wallpaper.is-nowplaying > .main,
 .shell.is-nowplaying > .main {
+  padding-bottom: 0;
+}
+
+/*
+ * 正文区那一层也要收掉。
+ *
+ * `.main__body` 留 24px 底边是给浮起的播放条让位用的；播放页把那条底栏收走了
+ * （`.is-nowplaying > .player` 是 display:none），这 24px 就变成一条谁也用不上
+ * 的空带——底栏里的进度条和三颗因此比窗口底高出近 40px，看着是「悬着」。
+ */
+.shell.is-nowplaying > .main > .main__body {
   padding-bottom: 0;
 }
 
@@ -3695,9 +3709,21 @@
 
 /* 队列位置：第几首 / 共几首。这一页看不到队列，至少得知道自己在哪。 */
 .np__posy {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
   color: var(--text-low);
   font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
+  /* 它挪到了进度条行、时长右边：与时间之间留一格，别贴着。 */
+  margin-left: 10px;
+}
+
+/* 「队列」两个字比数字再小一档：它是标注，不是读数本身。 */
+.np__posy-k {
+  font-size: 0.9em;
+  color: var(--text-low);
+  opacity: 0.8;
 }
 
 /*
@@ -3942,8 +3968,16 @@
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  min-height: 46px !important;
+  /*
+   * 这一行的高度按播放键来定。
+   *
+   * 播放键 54px，原来是 46px 的容器——三颗绝对居中之后上下各溢出 4px，圆钮的
+   * 上沿直接顶到进度条的轨道上。留 66px（54 + 上下各 6），再加一道 6px 的外边距，
+   * 三颗与进度条之间就有十几像素的空。
+   */
+  min-height: 66px !important;
   padding: 2px 2px 6px !important;
+  margin-top: 6px !important;
 }
 
 .shell.is-nowplaying .np__bottom .np__acts-transport {

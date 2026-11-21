@@ -3,10 +3,10 @@ import { useOnlineBindings } from '../features/accounts/bindings'
 import { useUpdate } from '../features/updates/store'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
-import { Settings, Sidebar, User } from '../ui/icons'
+import { Settings, User } from '../ui/icons'
 
 /**
- * 顶栏右端那三颗：设置、当前档案、收起侧栏。
+ * 顶栏右端那两颗：设置、当前档案。
  *
  * 它们原来长在左栏底部（.rail__foot）。播放条改成贴边之后，那一块正好被压住；
  * 搬到顶栏右侧，左栏底部就空出来了，也不用再为「底栏多高」去算左栏的内边距。
@@ -16,23 +16,19 @@ import { Settings, Sidebar, User } from '../ui/icons'
  * 左栏不再关心账号。
  */
 interface TitleBarActsProps {
-  collapsed: boolean
   profileLabel: string | null
   settingsActive: boolean
   profileActive: boolean
   onOpenSettings: () => void
   onOpenProfile: () => void
-  onToggleCollapsed: () => void
 }
 
 export function TitleBarActs({
-  collapsed,
   profileLabel,
   settingsActive,
   profileActive,
   onOpenSettings,
   onOpenProfile,
-  onToggleCollapsed
 }: TitleBarActsProps) {
   const updateReady = useUpdate((state) => state.result?.state === 'available' && !state.noted)
   const accounts = useAccounts((state) => state.accounts)
@@ -68,15 +64,6 @@ export function TitleBarActs({
         {avatar ? <Artwork src={avatar} fallback={fallback} /> : fallback}
       </button>
 
-      <button
-        type="button"
-        className="titlebar__act"
-        onClick={onToggleCollapsed}
-        title={collapsed ? '展开侧栏' : '收起侧栏'}
-        aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
-      >
-        <Sidebar size={15} />
-      </button>
     </div>
   )
 }

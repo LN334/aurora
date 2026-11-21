@@ -213,13 +213,6 @@ export const Queue = (p: IconProps) => (
   </Svg>
 )
 
-export const Sidebar = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-    <path d="M9.5 4.5v15" />
-  </Svg>
-)
-
 export const Plus = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 5.5v13M5.5 12h13" />

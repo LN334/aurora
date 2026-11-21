@@ -146,10 +146,6 @@ input::placeholder {
   transition: grid-template-columns 200ms var(--ease-out);
 }
 
-.shell.is-collapsed {
-  grid-template-columns: var(--rail-w-collapsed) 1fr;
-}
-
 /* The artwork backdrop. Sits behind everything, blurred beyond recognition so
    it reads as ambience rather than as an image, and crossfades on track change. */
 .shell::before {
@@ -597,26 +593,6 @@ input::placeholder {
   border-top: var(--line-soft);
 }
 
-/* 收起侧栏：文字跟着栏宽被裁掉，不是突然消失。 */
-.is-collapsed .rail__brand span,
-.is-collapsed .rail__caption,
-.is-collapsed .rail-item__label,
-.is-collapsed .rail-item__count {
-  max-width: 0;
-  opacity: 0;
-}
-.is-collapsed .rail__brand {
-  justify-content: center;
-  padding: 0;
-}
-.is-collapsed .rail__caption {
-  padding: 10px 0 0;
-}
-.is-collapsed .rail-item {
-  gap: 0;
-  justify-content: center;
-  padding: 0;
-}
 /* --- main plane ---------------------------------------------------------- */
 
 .main {
@@ -2527,10 +2503,6 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
   box-shadow: none;
 }
 
-:root .shell.has-wallpaper.is-collapsed > .player {
-  /* 左栏收起后只剩一条窄边，播放条跟着一起让开。 */
-  left: calc(var(--rail-w-collapsed) + 14px);
-}
 
 /*
  * 没有在放的曲目时，播放条那一行整条收掉。

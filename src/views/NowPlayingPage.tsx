@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { usePlayer } from '../features/player/store'
 import { player } from '../features/player/actions'
 import { useRoam } from '../features/player/roam-session'
@@ -603,14 +603,6 @@ export function NowPlayingPage({
                   </span>
                 </>
               ) : null}
-              {queueSize > 1 && queueAt >= 0 ? (
-                <>
-                  <span className="np__dot">·</span>
-                  <span className="np__posy">
-                    {queueAt + 1} / {queueSize}
-                  </span>
-                </>
-              ) : null}
               <button
                 type="button"
                 className={`np__rate${rate === 1 ? '' : ' is-on'}`}
@@ -700,7 +692,18 @@ export function NowPlayingPage({
       {roam ? <RoamRail /> : null}
 
       <footer className="np__foot">
-        <NpProgress duration={duration} onSeekRatio={onSeekRatio} />
+        <NpProgress
+          duration={duration}
+          onSeekRatio={onSeekRatio}
+          posy={
+            queueSize > 1 && queueAt >= 0 ? (
+              <span className="np__posy">
+                <span className="np__posy-k">队列</span>
+                {queueAt + 1} / {queueSize}
+              </span>
+            ) : null
+          }
+        />
         {/*
          * 上一首 / 播放 / 下一首放在播放条（进度条）下面，横向上仍钉在窗口
          * 几何中心。以前它们在那排工具键的中间，压在进度条上沿，既挤又容易
@@ -751,8 +754,21 @@ export function NowPlayingPage({
   )
 }
 
-/** 进度条：订阅量化后的位置，所以它每秒只重渲染八次。 */
-function NpProgress({ duration, onSeekRatio }: { duration: number; onSeekRatio(ratio: number): void }) {
+/**
+ * 进度条：订阅量化后的位置，所以它每秒只重渲染八次。
+ *
+ * `posy` 是「队列里第几首」那一小截：它读的是位置，挂在进度这一行才对得上，
+ * 摆在工具栏里则没人知道那串数字数的是什么。
+ */
+function NpProgress({
+  duration,
+  onSeekRatio,
+  posy
+}: {
+  duration: number
+  onSeekRatio(ratio: number): void
+  posy?: ReactNode
+}) {
   const position = useProgressPosition()
   const ratio = duration > 0 ? Math.min(1, position / duration) : 0
 
@@ -779,6 +795,7 @@ function NpProgress({ duration, onSeekRatio }: { duration: number; onSeekRatio(r
         <div className="np__track-fill" style={{ width: `${ratio * 100}%` }} />
       </div>
       <span className="np__time">{formatTime(duration)}</span>
+      {posy ?? null}
     </div>
   )
 }
