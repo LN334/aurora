@@ -298,3 +298,17 @@
   font-size: var(--fs-meta);
   color: var(--text-low);
 }
+
+/*
+ * 崩溃摘要：堆栈是等宽的，行也长。限个高度让它自己滚，别把对话框顶到屏幕外。
+ * 与更新内容共用 .updlg__notes 的排版，这里只补等宽与上限。
+ */
+.crashdlg__brief {
+  max-height: 132px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-caption);
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.86;
+}

@@ -59,6 +59,8 @@ const api = {
     relaunch: () => ipcRenderer.invoke('app:relaunch') as Promise<void>,
     /** 把诊断日志导成文件；取消保存时是空串。 */
     exportLogs: () => ipcRenderer.invoke('app:exportLogs') as Promise<string>,
+    /** 上一次异常退出的记录；正常退出或已经提示过是 null。 */
+    crashReport: () => ipcRenderer.invoke('app:crashReport') as Promise<{ at: string; summary: string } | null>,
     getVisibility: () => ipcRenderer.invoke('app:visibility') as Promise<WindowVisibilityState>,
     onVisibility: (handler: (state: WindowVisibilityState) => void) => {
       const listener = (_event: IpcRendererEvent, state: WindowVisibilityState) => handler(state)

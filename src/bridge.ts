@@ -119,6 +119,7 @@ const webFallback: AuroraApi = {
   app: {
     /** 浏览器里没有主进程，导出会落到空实现上。 */
     exportLogs: async () => '',
+    crashReport: async () => null,
     // 浏览器预览没有主进程，开新标签页就是「系统浏览器」。
     openExternal: async (url) => {
       window.open(url, '_blank', 'noreferrer')

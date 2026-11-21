@@ -37,6 +37,7 @@ import { TitleBar } from './app/TitleBar'
 import type { TrackMenuRequest } from './ui/TrackList'
 import { useFlash } from './ui/flash'
 import { UpdateToast } from './ui/UpdateToast'
+import { CrashDialog } from './ui/CrashDialog'
 import { UpdateDialog } from './ui/UpdateDialog'
 import { WhatsNew } from './views/WhatsNew'
 import { TrackMenu } from './views/TrackMenu'
@@ -1296,6 +1297,7 @@ export function App() {  if (!isNative) {
 
           {/* 「发现新版本」：查到新版弹一次，交代改了什么，下载与否由人按。 */}
           <UpdateDialog />
+          <CrashDialog />
 
           {/* 升级后第一次启动把这一版的改动摆出来，看过一次就不再出现。 */}
           <WhatsNew />

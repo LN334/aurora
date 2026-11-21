@@ -22,6 +22,7 @@ import { registerPartyIpc } from './party/ipc'
  */
 import { inviteFromArgv } from './pure/invite-arg'
 import { registerWarmUpIpc } from './warmup'
+import { clearCrashMarker, installCrashGuard } from './crash-guard'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { applyStartupProfile } from './startup-profile'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
@@ -831,6 +832,11 @@ if (!app.requestSingleInstanceLock()) {
      * renderer made and what the main process answered.
      */
     openStartupLog(app.getPath('userData'), app.getVersion(), app.isPackaged)
+    /*
+     * 崩溃兜底：异常退出会留一份 crash.txt，下次启动由界面问一句要不要发日志。
+     * 放在日志初始化之后，这样崩溃那句话两头都有（文件 + startup.log）。
+     */
+    installCrashGuard(app.getPath('userData'), (line) => write(line))
     registerInviteScheme()
     write(`invite arg=${inviteFromArgv(process.argv) ?? '(none)'}`)
     write(`userData=${app.getPath('userData')}`)
@@ -972,6 +978,8 @@ if (!app.requestSingleInstanceLock()) {
     // Flush the startup log, so a crash during shutdown still leaves what happened.
     write('before-quit')
     closeStartupLog()
+    /* 走完了：把崩溃标记清掉，免得下次启动误报「上次异常退出」。 */
+    clearCrashMarker()
   })
 
   app.on('window-all-closed', () => {

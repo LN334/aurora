@@ -100,6 +100,8 @@ export interface WindowVisibilityState {
   resetIcon(): Promise<boolean>
   /** 把诊断日志导成文件（已脱敏）；用户取消保存时是空串。 */
   exportLogs(): Promise<string>
+  /** 上一次是不是异常退出；读完即清，只提示一次。 */
+  crashReport(): Promise<{ at: string; summary: string } | null>
 }
 
 export interface UpdateInfo {

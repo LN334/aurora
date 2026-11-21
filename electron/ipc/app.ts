@@ -1,6 +1,7 @@
 import { app, clipboard, ipcMain, shell } from 'electron'
 import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
 import { mainWindowVisibility } from '../pure/scan-progress'
+import { takeCrashReport } from '../crash-guard'
 import { exportDiagnostics } from '../diagnostics'
 import type { WindowSource } from './host'
 
@@ -69,6 +70,11 @@ export function registerAppIpc(deps: WindowSource): void {
    * 不能默认用户会自己检查一遍。取消保存返回空串。
    */
   ipcMain.handle('app:exportLogs', () => exportDiagnostics(deps.window()))
+  /*
+   * 上一次是不是异常退出。读完就清掉——提示只该出现一次，不然每次启动都像
+   * 提醒用户「你的软件有问题」。
+   */
+  ipcMain.handle('app:crashReport', () => takeCrashReport())
   ipcMain.handle('app:icon:get', () => iconPreview())
   ipcMain.handle('app:icon:choose', () => chooseIcon())
   ipcMain.handle('app:icon:reset', () => resetIcon())

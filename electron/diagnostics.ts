@@ -1,4 +1,5 @@
-import { app, dialog, type BrowserWindow } from 'electron'
+import { app, dialog, screen, type BrowserWindow } from 'electron'
+import os from 'node:os'
 import { scrub } from './pure/log-scrub'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -39,7 +40,41 @@ function readLogTail(file: string): string {
   }
 }
 
-function header(): string {
+/**
+ * 这台机器的基本情况。
+ *
+ * 判断「是不是只有他那儿出问题」时，CPU/内存/显卡/屏幕这几项最常用：软渲染、
+ * 显存不足、多屏不同缩放都会让界面表现完全不一样，而这些从日志里看不出来。
+ */
+async function systemInfo(): Promise<string[]> {
+  const lines: string[] = []
+  try {
+    const cpus = os.cpus()
+    if (cpus.length > 0 && cpus[0].model) lines.push(`CPU：${cpus[0].model.trim()} × ${cpus.length}`)
+    lines.push(`内存：${(os.totalmem() / 1024 ** 3).toFixed(1)} GB`)
+    lines.push(`系统：${os.release()}`)
+  } catch {
+    /* 读不到就不写 */
+  }
+  try {
+    const info = (await app.getGPUInfo('basic')) as {
+      gpuDevice?: Array<{ deviceString?: string }>
+    }
+    const names = (info.gpuDevice ?? []).map((device) => device.deviceString).filter(Boolean)
+    if (names.length > 0) lines.push(`显卡：${names.join(' / ')}`)
+  } catch {
+    /* 取不到显卡信息是常态（某些驱动不答），不是错误 */
+  }
+  try {
+    const display = screen.getPrimaryDisplay()
+    lines.push(`主屏：${display.size.width}×${display.size.height} @${display.scaleFactor}x`)
+  } catch {
+    /* 无窗口环境 */
+  }
+  return lines
+}
+
+async function header(): Promise<string> {
   const lines = [
     '# Aurora 诊断日志',
     '',
@@ -51,6 +86,7 @@ function header(): string {
     `平台：${process.platform} ${process.arch}`,
     `打包运行：${app.isPackaged ? '是' : '否'}`,
     `数据目录：${app.getPath('userData')}`,
+    ...(await systemInfo()),
     ''
   ]
   return lines.join('\n')
@@ -91,7 +127,7 @@ export async function exportDiagnostics(window: BrowserWindow | null): Promise<s
   const dir = app.getPath('userData')
   const current = readLogTail(path.join(dir, 'startup.log'))
   const previous = readLogTail(path.join(dir, 'startup.log.1'))
-  const blocks: string[] = [header()]
+  const blocks: string[] = [await header()]
   /*
    * 上一次运行的日志排在前：用户是遇到问题、重启、然后才来导的，出问题那一段
    * 在上一份里。两份都脱敏——上一份同样是原始运行记录。
