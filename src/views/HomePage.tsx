@@ -6,6 +6,7 @@ import { useTasteProfile } from '../features/library/taste-hooks'
 import { dailyLabel } from '../features/library/daily-day'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { coverFor } from '../features/library/cover'
+import { isLocalArtwork, upstreamOfArtwork } from '../features/library/artwork-url'
 import { artThumbFor, artworkFor } from '../features/library/source'
 import { useLibrary } from '../features/library/store'
 import { toTrack } from '../features/netease/track'
@@ -95,8 +96,6 @@ function tintOf(seed: string): CSSProperties {
  * 走主进程代理：页面 CSP 不允许外域图片，原始地址由 aurora-remote:// 转发。
  * 没封面时返回 null，卡片退回图标——不留一个空方块。
  */
-const REMOTE_IMAGE = 'aurora-remote://image/'
-
 /** 封面墙要的是能拼进 background 简写的那个值，不是 React 的样式对象。 */
 function tintCss(seed: string): string {
   return (tintOf(seed).background as string | undefined) ?? 'transparent'
@@ -106,23 +105,13 @@ function thumbOf(track: Track | null | undefined, px = 120): string | null {
   const art = artworkFor(track)
   if (!art) return null
   /*
-   * 在线曲目的 artworkFor 给的已经是包装过的 aurora-remote:// 地址。
-   * 再包一层就变成 aurora-remote://image/aurora-remote%3A%2F%2F…，
-   * 代理解一层拿到的仍是自定义协议，直接拒绝——渲染出来就是碎图。
-   * 所以先剥掉那层壳，取回原始地址再按尺寸重包。
-   *
-   * artworkFor 现在默认带尺寸（`n1000/` 那段），一次包装里会有两层尺寸。
-   * 这里把尺寸段也剥掉——尺寸由下面的 px 决定：留着 n1000 会拼出
-   * `n200/n1000/http://…` 这种根本不存在的地址，封面就全体变回色块。
+   * 剥包装、按自己的尺寸重包这件事交给 upstreamOfArtwork：
+   * 那个函数有单测，之前这十行手写的剥壳把尺寸段留下了，整串被当相对路径，
+   * 主进程去 asar 里找文件，日志里一片 `404 stat failed`，界面上一片色块。
    */
-  const inner = art.startsWith(REMOTE_IMAGE) ? art.slice(REMOTE_IMAGE.length) : art
-  const upstream = decodeURIComponent(inner.replace(/^n\d{2,4}\//, ''))
-  /*
-   * 本机曲目的封面本身就是 aurora-media://（扫描时从文件里抠出来的封面）。
-   * 主进程那个代理只转 http(s)，把自定义协议递进去只能换回 400，图也出不来，
-   * 所以本地地址原样交给页面——CSP 允许 aurora-media:。
-   */
-  if (!/^https?:/i.test(upstream)) return upstream
+  if (isLocalArtwork(art)) return art
+  const upstream = upstreamOfArtwork(art)
+  if (!upstream) return null
   return remoteImageUrl(sizedImage(upstream, px), px)
 }
 
