@@ -93,6 +93,17 @@ const api = {
     readClipboard: () => ipcRenderer.invoke('app:readClipboard') as Promise<string>,
     gpuStatus: () =>
       ipcRenderer.invoke('app:gpuStatus') as Promise<{ features: Record<string, string>; summary: string }>,
+    /** 各进程内存，已按 Chromium 进程类型归好；`line` 是可以直接显示的一句。 */
+    metrics: () =>
+      ipcRenderer.invoke('app:metrics') as Promise<{
+        summary: {
+          totalMb: number
+          byType: Array<{ type: string; mb: number; processes: number }>
+          processes: number
+        }
+        line: string
+        parts: string
+      }>,
     /** 重启应用：导入备份之后要把新数据重新加载一遍。 */
     relaunch: () => ipcRenderer.invoke('app:relaunch') as Promise<void>,
     /** 把诊断日志导成文件；取消保存时是空串。 */

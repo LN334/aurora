@@ -1,5 +1,6 @@
 import { app, clipboard, ipcMain, shell } from 'electron'
 import { chooseIcon, iconPreview, resetIcon } from '../app-icon'
+import { memoryLine, memoryParts, summarizeMemory } from '../pure/app-metrics'
 import { gpuSummary } from '../pure/gpu-status'
 import { mainWindowVisibility } from '../pure/scan-progress'
 import { takeCrashReport } from '../crash-guard'
@@ -78,6 +79,19 @@ export function registerAppIpc(deps: WindowSource): void {
     const features = app.getGPUFeatureStatus()
     /* 判定在主进程做一次，界面只显示结论——两边各写一遍规则迟早会不一致。 */
     return { features, summary: gpuSummary(features) }
+  })
+  /*
+   * 各进程内存。`getAppMetrics()` 是 Electron 自己按 Chromium 进程类型报的，
+   * 比从外面按 exe 名聚合准——外面分不出渲染进程和工具进程。
+   */
+  ipcMain.handle('app:metrics', () => {
+    const rows = app.getAppMetrics().map((metric) => ({
+      type: metric.type,
+      workingSetKb: metric.memory?.workingSetSize ?? 0,
+      pid: metric.pid
+    }))
+    const summary = summarizeMemory(rows)
+    return { summary, line: memoryLine(summary), parts: memoryParts(summary) }
   })
   ipcMain.handle('app:copy', (_event, text: unknown) => {
     if (typeof text !== 'string' || !text) return false

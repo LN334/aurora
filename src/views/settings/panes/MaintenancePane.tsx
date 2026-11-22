@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { JunkId } from '../../../env'
 import { formatBytes, useSettingsPage } from '../../../features/settings/store'
 import { bridge } from '../../../bridge'
@@ -39,6 +39,25 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
   const [backupBusy, setBackupBusy] = useState(false)
   const [backupNote, setBackupNote] = useState('')
   const [restartReady, setRestartReady] = useState(false)
+  /*
+   * 当前内存。
+   *
+   * 数据来自主进程的 `getAppMetrics()`（Chromium 自己按进程类型报的），比从外面
+   * 按 exe 名聚合准——外面分不出渲染进程和工具进程。
+   */
+  const [memoryHint, setMemoryHint] = useState('')
+  const [memoryTotal, setMemoryTotal] = useState('')
+
+  const readMetrics = async (): Promise<void> => {
+    const result = await bridge.app.metrics()
+    setMemoryHint(result.parts)
+    setMemoryTotal(result.summary.totalMb > 0 ? result.summary.totalMb + ' MB' : '')
+  }
+
+  /* 进页面先读一次：这一行是「我现在占多少」，不该要用户先点一下才有数。 */
+  useEffect(() => {
+    void readMetrics()
+  }, [])
   const junk = page.junk
   const memory = page.memory
 
@@ -85,6 +104,15 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
     <>
       <Sub title="内存">
         <Rows>
+          <Row
+            label="当前占用"
+            hint={memoryHint ? memoryHint + '；合计里含显卡与工具进程' : '各进程按 Chromium 的类型分开算，合计里包含显卡进程。'}
+          >
+            {memoryTotal ? <span className="settings__number">{memoryTotal}</span> : null}
+            <button className="btn" type="button" onClick={() => void readMetrics()}>
+              刷新
+            </button>
+          </Row>
           <Row
             label="释放内存"
             hint="把空闲页面的内存还给系统。"

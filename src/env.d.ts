@@ -109,6 +109,16 @@ export interface WindowVisibilityState {
   readClipboard(): Promise<string>
   /** 显卡加速各管线状态；设置页据此提示「现在在软渲染」。 */
   gpuStatus(): Promise<{ features: Record<string, string>; summary: string }>
+  /** 各进程内存，已按 Chromium 进程类型归好；`line` 是可以直接显示的一句。 */
+  metrics(): Promise<{
+    summary: {
+      totalMb: number
+      byType: Array<{ type: string; mb: number; processes: number }>
+      processes: number
+    }
+    line: string
+    parts: string
+  }>
   /** 重启应用（导入备份之后要让新的数据重新加载一次）。 */
   relaunch(): Promise<void>
   getVisibility(): Promise<WindowVisibilityState>

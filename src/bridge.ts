@@ -131,6 +131,8 @@ const webFallback: AuroraApi = {
     },
     /* 预览里是正常网页，navigator.clipboard 能读；桌面版由主进程读。 */
     gpuStatus: async () => ({ features: {}, summary: '' }),
+    /* 浏览器里只有一个页面，没有多进程可拆；给空表让界面不显示这一块。 */
+    metrics: async () => ({ summary: { totalMb: 0, byType: [], processes: 0 }, line: '', parts: '' }),
     readClipboard: async () => {
       try {
         return await navigator.clipboard.readText()
