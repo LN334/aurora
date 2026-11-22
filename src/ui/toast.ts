@@ -101,7 +101,13 @@ export const useToast = create<ToastState>()((set, get) => ({
   items: [],
 
   push(input) {
-    const message = String(input.message ?? '').trim()
+    /*
+     * 只收字符串。
+     *
+     * 传进来的若是对象，String() 会得到 "[object Object]"——一条长得像 bug 的
+     * 提示，既没说清原因，还让人以为是界面坏了。宁可什么都不显示，也不显示这句。
+     */
+    const message = typeof input.message === 'string' ? input.message.trim() : ''
     if (!message) return ''
     const ttl = input.ttl ?? (message.length > 24 ? LONG_TTL : DEFAULT_TTL)
     const item: ToastItem = {

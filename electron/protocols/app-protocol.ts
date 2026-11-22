@@ -1,9 +1,10 @@
-import { protocol } from 'electron'
+import { app, protocol } from 'electron'
 import { Readable } from 'node:stream'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveAppAsset } from '../pure/app-paths'
+import { otaDirAllowed, parseOtaState } from '../pure/ota-renderer'
 import { write } from '../startup-log'
 
 /**
@@ -29,6 +30,44 @@ export const APP_ORIGIN = `${APP_SCHEME}://app`
 /** 渲染层产物目录。本文件编译到 dist-electron/protocols/，所以要上两级。 */
 
 const distRoot = (): string => path.resolve(__dirname, '..', '..', 'dist')
+
+/*
+ * 本机热更：userData/ota/state.json 指向哪份产物就加载哪份。
+ *
+ * 只在启动时算一次——热更是「这次启动用哪份」，不是运行中换壳。目录必须落在
+ * userData/ota/renderers 之下（那是一份可手改的普通文件），且必须真的有
+ * index.html；任何一条不满足都回落到安装包，不让一个写坏的 state 影响启动。
+ */
+let rendererRootCache: string | null = null
+
+function otaRoot(): string | null {
+  try {
+    const base = path.join(app.getPath('userData'), 'ota')
+    const renderers = path.join(base, 'renderers')
+    write(`ota: userData=${app.getPath('userData')} state=${path.join(base, 'state.json')}`)
+    const state = parseOtaState(fs.readFileSync(path.join(base, 'state.json'), 'utf8'))
+    if (!state) return null
+    if (!otaDirAllowed(state.dir, renderers)) {
+      write(`ota: refused dir=${state.dir}`)
+      return null
+    }
+    if (!fs.existsSync(path.join(state.dir, 'index.html'))) {
+      write(`ota: missing index.html dir=${state.dir}`)
+      return null
+    }
+    write(`ota: active dir=${state.dir} hash=${state.hash}`)
+    return state.dir
+  } catch (error) {
+    /* 没有 state.json 就是没有热更，这是常态；写一行，省得下次再猜。 */
+    write(`ota: none (${(error as Error)?.message ?? 'no state'})`)
+    return null
+  }
+}
+
+function rendererRoot(): string {
+  if (!rendererRootCache) rendererRootCache = otaRoot() ?? distRoot()
+  return rendererRootCache
+}
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -82,7 +121,7 @@ export function handleAppProtocol(): void {
       return new Response('not found', { status: 404 })
     }
 
-    const root = distRoot()
+    const root = rendererRoot()
     // 连路径一起记：只写 404 无法判断是算错了路径还是文件真的不在。
     write(`  __dirname=${__dirname}`)
     write(`  module=${__filename}`)

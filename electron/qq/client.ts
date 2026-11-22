@@ -1,3 +1,4 @@
+import { errorText } from '../pure/error-text.ts'
 import {
   likedPlaylistId,
   mergeTranslation,
@@ -1043,7 +1044,7 @@ function rememberAll(songs: QqSong[]): QqSong[] {
 }
 
 function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return errorText(error)
 }
 // --- 歌单写 --------------------------------------------------------------
 //

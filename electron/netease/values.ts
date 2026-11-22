@@ -1,3 +1,4 @@
+import { errorText } from '../pure/error-text.ts'
 import type { NeteaseAlbumRef, NeteaseArtist, NeteaseSong } from './types'
 
 // --- untrusted-response readers -------------------------------------------
@@ -30,8 +31,7 @@ export function payloadOf(body: unknown): Json {
 }
 
 export function readable(error: unknown): string {
-  if (error instanceof Error) return error.message
-  return String(error)
+  return errorText(error)
 }
 
 // --- normalisation --------------------------------------------------------

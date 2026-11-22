@@ -222,10 +222,14 @@ export function CommentSection({ track }: { track: Track }) {
        * 而「发不出去」是刚按下发送那一刻最需要知道的。要登录的时候顺带给一颗
        * 去登录——说了原因却不给出路，等于让人自己去找账号在哪。
        */
+      const reason =
+        typeof result.message === 'string' && result.message.trim()
+          ? result.message
+          : '没发出去，稍后再试'
       toast({
-        message: result.message,
+        message: reason,
         tone: 'error',
-        ...(result.message.includes('登录')
+        ...(reason.includes('登录')
           ? { action: { label: '去登录', onSelect: () => setLoginOpen(true) } }
           : {})
       })

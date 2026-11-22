@@ -4,6 +4,21 @@
 
 本文件从 0.6.7 起跟着版本记；更早的版本按 Release 页为准。
 
+## 0.9.24 — 2026-11-22
+
+### 提示
+
+- **修：报错有时显示成 `[object Object]`。** 上游抛的不一定是 `Error`：axios 的拒绝值、`{ code, message }`、甚至普通对象。各处那句 `String(error)` 对它们只得到 `[object Object]`，这句话一路带到右下角的提示里，等于什么都没说。现在统一走 `errorText`：先取 `.message`，再退到 JSON，都不成才说「未知错误」。
+- 网易云、QQ、酷狗三家的错误文本都换成这一个函数；右下角那一列也只收字符串，不再把对象排版成 `[object Object]`。
+
+### 本机热更
+
+- 新增 `scripts/ota-push.mjs`：把当前 `dist/` 推到 `userData/ota/renderers/<指纹>/`，主进程下次启动优先加载它——改界面不必重新打包一百兆的安装包。目录必须落在 `ota/renderers` 之下且有 `index.html`，否则回落到安装包；`--revert` 随时撤掉。只作用于本机，联网更新仍走 electron-updater。
+
+### 评论
+
+- 发送失败的提示用 `errorText` 的结果；万一仍拿不到可读原因，显示「没发出去，稍后再试」。
+
 ## 0.9.23 — 2026-11-22
 
 ### 评论

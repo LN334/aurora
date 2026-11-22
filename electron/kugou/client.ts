@@ -1,3 +1,4 @@
+import { errorText } from '../pure/error-text.ts'
 import { spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
@@ -1226,7 +1227,7 @@ export function kugouSetQuality(quality: KugouQuality): KugouQuality {
 // --- 小工具 -------------------------------------------------------------
 
 function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return errorText(error)
 }
 
 /** 未实测形状的排障用：只写第一层 key，不写值（里面有 token）。 */

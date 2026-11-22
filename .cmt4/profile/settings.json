@@ -1,0 +1,19 @@
+{
+  "autoCheckUpdates": true,
+  "updateInterval": "daily",
+  "lastUpdateCheck": 1795325361619,
+  "trayHintShown": false,
+  "desktopLyricsSize": 34,
+  "onlineLyrics": false,
+  "closeToTray": true,
+  "launchAtLogin": false,
+  "preventSleepWhilePlaying": true,
+  "openAfterDownload": false,
+  "trayClick": "toggle",
+  "overlayHoverControls": true,
+  "neteaseQuality": "exhigh",
+  "downloadDir": "",
+  "downloadFormat": "original",
+  "downloadBitrate": 256,
+  "mediaCacheLimitMb": 2048
+}
