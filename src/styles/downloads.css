@@ -8,7 +8,12 @@
 .dlbar {
   position: fixed;
   right: 20px;
-  bottom: 100px;
+  /*
+   * 右下角这一列从下往上：下载胶囊 → 长列表的两颗圆钮 → 提示。
+   * 没在放歌时没有播放条，这条就贴窗口底；有播放条时让出它那一行（见文件末尾
+   * 的 :has 覆盖）。悬空一百像素的胶囊看着像忘了收，比贴着难看。
+   */
+  bottom: 8px;
   z-index: 40;
   display: flex;
   align-items: center;
@@ -22,7 +27,7 @@
   box-shadow: 0 10px 28px rgb(var(--shade-rgb) / 0.32), inset 0 1px 0 rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   font-size: 12px;
-  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
+  transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease, opacity 0.16s ease;
   /* 任务来了才冒出来：从下沿长出来，而不是凭空出现在那个角上。 */
   animation: dlIn var(--dur-2) var(--ease-out) both;
 }
@@ -65,7 +70,7 @@
 .dlpanel {
   position: fixed;
   right: 20px;
-  bottom: 100px;
+  bottom: 8px;
   z-index: 41;
   display: flex;
   flex-direction: column;
@@ -304,4 +309,10 @@
 .seg.is-muted button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* 有播放条时，右下角这一列整体让出它那一行。 */
+body:has(.player) .dlbar,
+body:has(.player) .dlpanel {
+  bottom: calc(var(--player-h) + 8px);
 }

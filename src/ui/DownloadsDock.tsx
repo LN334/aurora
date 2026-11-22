@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { isNative } from '../bridge'
 import { useDownloads } from '../features/downloads/store'
 import type { DownloadFormat, DownloadView } from '../env'
@@ -35,6 +35,34 @@ export function DownloadsDock() {
   const reveal = useDownloads((state) => state.reveal)
   const openFolder = useDownloads((state) => state.openFolder)
 
+  /*
+   * 面板打开时把提示列抬到它上面。
+   *
+   * 提示和面板同住右下角：面板一展开就盖住提示，或者反过来说提示盖住面板下半截
+   * ——那里正好是任务行与「打开文件夹」那颗按钮。面板高度随任务数变，所以量出来
+   * 写进 --toast-lift，由那一列自己加到底边偏移上。
+   */
+  const panel = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const root = document.documentElement
+    const el = panel.current
+    if (!el) {
+      root.style.removeProperty('--toast-lift')
+      return
+    }
+    const sync = (): void => {
+      root.style.setProperty('--toast-lift', Math.round(el.getBoundingClientRect().height + 10) + 'px')
+    }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--toast-lift')
+    }
+  }, [open, views.length])
+
   const active = useMemo(() => views.filter((view) => ACTIVE.has(view.state)), [views])
   const done = useMemo(() => views.filter((view) => view.state === 'done'), [views])
   const failed = useMemo(() => views.filter((view) => view.state === 'failed'), [views])
@@ -62,7 +90,7 @@ export function DownloadsDock() {
   }
 
   return (
-    <section className={'dlpanel' + (leaving ? ' is-closing' : '')} aria-label="下载队列">
+    <section ref={panel} className={'dlpanel' + (leaving ? ' is-closing' : '')} aria-label="下载队列">
       <header className="dlpanel__head">
         <span className="dlpanel__title">下载</span>
         <span className="dlpanel__count">

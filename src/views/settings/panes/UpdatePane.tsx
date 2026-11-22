@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../../../bridge'
 import { useSettingsPage } from '../../../features/settings/store'
 import { UpdatePanel } from '../../../ui/UpdatePanel'
-import { showFlash } from '../../../ui/flash'
+import { toast } from '../../../ui/toast'
 import { Row, Rows, Sub, Toggle } from '../parts'
 import {
   ISSUES_URL,
@@ -110,7 +110,7 @@ function About() {
     try {
       const path = await bridge.app.exportLogs()
       /* 取消保存时拿到空串：不提示，那也是一次正常结束。 */
-      if (path) showFlash(`日志已导出：${path}`)
+      if (path) toast(`日志已导出：${path}`)
     } finally {
       setExporting(false)
     }

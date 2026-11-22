@@ -15,7 +15,7 @@ import { wheelVolume } from '../features/player/volume'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
-import { showFlash } from '../ui/flash'
+import { toast } from '../ui/toast'
 import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
 import { useOnlineStore } from '../features/online/store'
@@ -529,10 +529,10 @@ export function NowPlayingPage({
             const name = target?.label ?? '这一家'
             void toggleLiked(target?.track ?? track).then((result) => {
               if (!result.ok) {
-                if (result.message) showFlash(result.message)
+                if (result.message) toast(result.message)
                 return
               }
-              showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+              toast(result.liked ? '已收藏到' + name : '已从' + name + '取消')
             })
           }}
           onAnimationEnd={(event) => {

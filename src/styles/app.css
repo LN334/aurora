@@ -3,6 +3,7 @@
 @import './panels.css';
 @import './playlists.css';
 @import './update.css';
+@import './toasts.css';
 @import './downloads.css';
 @import './accounts.css';
 @import './shell.css';
@@ -2159,12 +2160,14 @@ html.is-resizing {
 }
 .tracks__tools {
   position: fixed;
-  right: 26px;
-  bottom: 116px;
+  right: 20px;
+  /* 让开下面那条下载胶囊（34 高 + 缝），否则胶囊会盖住下面那颗钮。 */
+  bottom: 52px;
   z-index: 6;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: opacity 0.16s ease;
 }
 .tracks__tool {
   width: 40px;
@@ -2328,8 +2331,8 @@ html.is-resizing {
  * 调壁纸属性时把玻璃调薄。
  *
  * 平时 20px 模糊会把场景压成一片色，站在属性面板上调「雾气」「粒子」看不出
- * 区别，用户会以为这些开关是假的。这一段只在那份面板挂着的时候生效（body 上
- * 有 `is-tuning-wallpaper`），离开设置页立刻恢复用户设的模糊。
+ * 区别，用户会以为这些开关是假的。这一段只在那份面板进入视口时生效（body 上
+ * 有 `is-tuning-wallpaper`），面板滚出画面立刻恢复用户设的模糊。
  */
 body.is-tuning-wallpaper .shell.has-wallpaper > .main,
 body.is-tuning-wallpaper .shell.has-wallpaper > .rail,
@@ -2580,4 +2583,9 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* 有播放条时，长列表的两颗圆钮跟着右下那一列上移。 */
+body:has(.player) .tracks__tools {
+  bottom: calc(var(--player-h) + 52px);
 }

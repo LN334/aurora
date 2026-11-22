@@ -35,7 +35,7 @@ import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
 import { SkeletonAlbums, SkeletonCards, SkeletonFresh } from '../ui/Skeleton'
 import { formatSince, formatSpan, formatTime } from '../ui/format'
-import { showFlash } from '../ui/flash'
+import { toast } from '../ui/toast'
 import { ChevronLeft, ChevronRight, Folder, Heart, List, Note, Pause, Play } from '../ui/icons'
 
 /**
@@ -628,10 +628,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
                  */
                 void toggleLiked(focus).then((result) => {
                   if (!result.ok) {
-                    if (result.message) showFlash(result.message)
+                    if (result.message) toast(result.message)
                     return
                   }
-                  showFlash(result.liked ? '已喜欢' : '已取消喜欢')
+                  toast(result.liked ? '已喜欢' : '已取消喜欢')
                 })
               }}
             >

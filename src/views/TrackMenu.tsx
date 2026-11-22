@@ -3,7 +3,7 @@ import { isNative } from '../bridge'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
-import { showFlash } from '../ui/flash'
+import { toast } from '../ui/toast'
 import type { Track } from '../types'
 
 interface TrackMenuProps {
@@ -157,14 +157,14 @@ export function TrackMenu({
           onClose()
           // 在线歌要写平台账号，失败必须说一句，不能点了没变化。
           if (!target || !target.writable) {
-            showFlash('这首歌所在的平台还没有收藏接口')
+            toast('这首歌所在的平台还没有收藏接口')
             return
           }
           void toggleLiked(target.track).then((result) => {
             if (!result.ok) {
-              if (result.message) showFlash(result.message)
+              if (result.message) toast(result.message)
             } else {
-              showFlash(result.liked ? '已收藏到' + target.label : '已从' + target.label + '取消')
+              toast(result.liked ? '已收藏到' + target.label : '已从' + target.label + '取消')
             }
           })
         }}

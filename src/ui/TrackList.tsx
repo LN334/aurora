@@ -8,7 +8,7 @@ import { likeTargets } from '../features/favorites/like-targets'
 import type { LikeTarget } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
 import { formatTime } from './format'
-import { showFlash } from './flash'
+import { toast } from './toast'
 import { ArrowUp, Heart, Locate, Note, Play } from './icons'
 import { coverFor } from '../features/library/cover'
 import { artThumbFor } from '../features/library/source'
@@ -185,7 +185,7 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
   const showCurrent = () => {
     const index = tracks.findIndex((track) => track.id === currentId)
     if (index < 0) {
-      showFlash(currentId ? '这一页里没有正在播的那首' : '还没有在播的歌')
+      toast(currentId ? '这一页里没有正在播的那首' : '还没有在播的歌')
       return
     }
     const reveal = () => {
@@ -251,15 +251,15 @@ export function TrackList({ tracks, currentId, playing, onPlayAt, onMenu }: Trac
          */
         const likeAt = (target: LikeTarget | undefined, name: string) => {
           if (!target || !target.writable) {
-            showFlash(name + ' 没有收藏接口，这一版收不进去')
+            toast(name + ' 没有收藏接口，这一版收不进去')
             return
           }
           void toggleLiked(target.track).then((result) => {
             if (!result.ok) {
-              if (result.message) showFlash(result.message)
+              if (result.message) toast(result.message)
               return
             }
-            showFlash(result.liked ? '已收藏到' + name : '已从' + name + '取消')
+            toast(result.liked ? '已收藏到' + name : '已从' + name + '取消')
           })
         }
         return (

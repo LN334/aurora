@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { JunkId } from '../../../env'
 import { formatBytes, useSettingsPage } from '../../../features/settings/store'
 import { bridge } from '../../../bridge'
-import { showFlash } from '../../../ui/flash'
+import { toast } from '../../../ui/toast'
 import { Actions, Row, Rows, Sub } from '../parts'
 
 const ALL_JUNK: JunkId[] = ['cache', 'logs', 'crashes']
@@ -63,7 +63,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
     setBackupBusy(true)
     try {
       const result = await bridge.maintenance.exportBackup(storageSnapshot())
-      showFlash(
+      toast(
         result.ok ? `已保存 ${fileName(result.path)} · ${result.summary}` : `没有导出：${result.reason}`
       )
     } finally {
@@ -76,7 +76,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
     try {
       const result = await bridge.maintenance.restoreBackup()
       if (!result.ok) {
-        showFlash(`没有导入：${result.reason}`)
+        toast(`没有导入：${result.reason}`)
         return
       }
       let written = 0
@@ -89,7 +89,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           break
         }
       }
-      showFlash(`已导入 ${result.summary}，写回 ${written} 项；重启后生效。`)
+      toast(`已导入 ${result.summary}，写回 ${written} 项；重启后生效。`)
       setRestartReady(true)
     } finally {
       setBackupBusy(false)

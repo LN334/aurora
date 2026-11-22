@@ -1,0 +1,155 @@
+/*
+ * 右下角的提示列。
+ *
+ * 这里是全应用唯一一处「一句话反馈」的位置：收藏结果、导入导出、更新提示都排
+ * 在这一列。放在右下是因为它离视线落点（播放条、正在看的那一行）都远一点，
+ * 出现时不打断，又比左栏一颗点更容易被看见。
+ *
+ * 底边让出播放条的高度；宽度取一个能放下两句中文的区间，再宽就压到内容上，
+ * 再窄按钮会换行。整列不吃鼠标（指针事件只在卡片上开），所以它盖住的地方仍
+ * 能点到下面的界面。
+ */
+.toasts {
+  position: fixed;
+  right: 20px;
+  /*
+    没在放歌时没有播放条：直接贴窗口底。
+    有播放条时由下面的 .has-player 让出它那一行——两者都不该悬空。
+  */
+  bottom: calc(6px + var(--toast-lift, 0px));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(340px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toasts > * {
+  pointer-events: auto;
+}
+
+/* 有播放条：让出它那一行，提示贴它的上沿。 */
+.toasts.has-player {
+  bottom: calc(var(--player-h) + 6px + var(--toast-lift, 0px));
+}
+
+/*
+ * 一行的操作结果。
+ *
+ * 与更新提示同一套材料（玻璃卡），只在左边留一条 accent 竖线：它是对「刚做
+ * 的那一下」的回应，看一眼就该走，所以不给自己任何按钮，只留一个关闭。
+ * 入场用 @starting-style 而不是 keyframes——窗口被遮挡时动画帧不推进，keyframes
+ * 会停在第一帧的透明态，截图探针撞见过这个。
+ */
+/*
+ * 一条操作反馈。
+ *
+ * 材料与更新提示同一套玻璃；右边一条 2px 的竖线标轻重——普通是 accent，
+ * 成功用 --ok、失败用 --danger。不用图标：这一列本来就窄，一个对勾会把
+ * 两句中文挤成三行。
+ */
+.toast {
+  /* 竖线颜色由 tone 改，其余规则只写一份。 */
+  --toast-edge: rgb(var(--accent-rgb) / 0.85);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 10px 10px 10px 14px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
+  border-radius: var(--r-panel);
+  background: rgb(var(--plane-rgb) / 0.94);
+  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow:
+    inset 2px 0 0 var(--toast-edge),
+    0 18px 44px -18px rgb(var(--shade-rgb) / 0.5);
+  color: var(--text-hi);
+  font-size: var(--fs-meta);
+  /* 入场用 @starting-style 而不是 keyframes：窗口被遮挡时动画帧不推进，
+     keyframes 会停在第一帧的透明态，截图探针撞见过这个。 */
+  transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+/* 退场：同一条 transition 往回走一点，200ms 后由 store 摘掉（时间要对上，
+   见 toast.ts 的 LEAVE_MS）。 */
+.toast.is-leaving {
+  opacity: 0;
+  translate: 0 6px;
+  pointer-events: none;
+}
+
+.toast--success {
+  --toast-edge: var(--ok);
+}
+
+.toast--error {
+  --toast-edge: var(--danger);
+}
+
+.toast__text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+/* 提示里的那个动作：撤销、去登录、重试。不做成整颗按钮，一句提示里放一颗
+   实心按钮会把注意力从内容上拽走。 */
+.toast__action {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: var(--r-control);
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-hi);
+  font-size: var(--fs-micro);
+  transition: background var(--dur-1) var(--ease-out);
+}
+
+.toast__action:hover {
+  background: rgb(var(--tint-rgb) / 0.16);
+}
+
+.toast__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-low);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+
+.toast__close:hover {
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-hi);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    transition: none;
+  }
+}
+
+/*
+ * 提示出现时，这一角只留提示。
+ *
+ * 右下的常驻件——下载胶囊、长列表的两颗圆钮——和提示列抢同一个角。提示是短时
+ * 的、要人看一眼的，常驻件是随时能回来的：让它们淡出 150ms，比让提示挪到别处
+ * 或者叠在按钮上更合理。下载在后台照常跑，数字回来时再看也来得及。
+ *
+ * 用 :has() 是因为 .toasts 挂在 body 上，提示存不存在这件事只有样式层看得见。
+ */
+body:has(.toasts .toast) .dlbar,
+body:has(.toasts .toast) .tracks__tools,
+body:has(.toasts .uptoast) .dlbar,
+body:has(.toasts .uptoast) .tracks__tools {
+  opacity: 0;
+  pointer-events: none;
+}

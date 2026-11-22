@@ -2,7 +2,7 @@ import type { Track } from '../../types.ts'
 import { getProvider } from './registry.ts'
 import type { PlatformBackend } from './store.ts'
 import type { ProviderPlaylistWriteApi, ProviderId } from './types.ts'
-import { showFlash } from '../../ui/flash.ts'
+import { toast } from '../../ui/toast.ts'
 
 /**
  * 平台歌单的写入，界面这一侧只认这四件事：改名、删单、加歌、移出歌。
@@ -114,6 +114,6 @@ export async function removeTrackFromOnlinePlaylist(
 
 /** 结果直接弹一句：这类动作没有第二个落点，静默失败等于没做。 */
 export function reportWrite(result: WriteResult, done: string): void {
-  if (result.ok) showFlash(done)
-  else if (result.message) showFlash(result.message)
+  if (result.ok) toast(done)
+  else if (result.message) toast(result.message)
 }

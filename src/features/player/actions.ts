@@ -4,7 +4,7 @@ import { applyMode, modeOf, nextMode } from './mode'
 import { driver } from './driver'
 import { step } from './queue'
 import { isRestoringPrefs, usePlayer } from './store'
-import { showFlash } from '../../ui/flash'
+import { toast } from '../../ui/toast'
 
 /**
  * User intents. Components call these; they mutate the store and drive the
@@ -139,7 +139,7 @@ export const player = {
 
     if (skipChain + 1 >= MAX_SKIP_CHAIN) {
       skipChain = 0
-      showFlash(`连着 ${MAX_SKIP_CHAIN} 首都取不到音源，先停在这里`)
+      toast(`连着 ${MAX_SKIP_CHAIN} 首都取不到音源，先停在这里`)
       return
     }
     skipChain += 1
@@ -148,7 +148,7 @@ export const player = {
      * 没问题；连撞两首还一句话都没有，用户看到的就是「歌刚开头就被切走、界面
      * 自己在换台」——那看起来像失控，而不像在跳过放不了的歌。
      */
-    if (skipChain === 2) showFlash('这首取不到音源，先往后跳')
+    if (skipChain === 2) toast('这首取不到音源，先往后跳')
     player.next(true)
   },
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { likeTargets } from '../features/favorites/like-targets'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLikeMenu } from '../features/favorites/like-menu'
-import { showFlash } from '../ui/flash'
+import { toast } from '../ui/toast'
 import { Heart } from '../ui/icons'
 import { useLeave } from '../ui/presence'
 import '../styles/like-menu.css'
@@ -84,9 +84,9 @@ export function LikeMenu() {
             onClick={() => {
               void toggleLiked(target.track).then((result) => {
                 if (!result.ok) {
-                  if (result.message) showFlash(result.message)
+                  if (result.message) toast(result.message)
                 } else {
-                  showFlash(liked ? '已从' + target.label + '取消喜欢' : '已收藏到' + target.label)
+                  toast(liked ? '已从' + target.label + '取消喜欢' : '已收藏到' + target.label)
                 }
               })
               closeMenu()

@@ -35,14 +35,16 @@ import { QueuePanel } from './views/QueuePanel'
 import { Rail } from './app/Rail'
 import { TitleBar } from './app/TitleBar'
 import type { TrackMenuRequest } from './ui/TrackList'
-import { useFlash } from './ui/flash'
+import { createPortal } from 'react-dom'
+import { ToastStack } from './ui/ToastStack'
+import { toast, useToast } from './ui/toast'
 import { UpdateToast } from './ui/UpdateToast'
 import { CrashDialog } from './ui/CrashDialog'
 import { UpdateDialog } from './ui/UpdateDialog'
 import { WhatsNew } from './views/WhatsNew'
 import { TrackMenu } from './views/TrackMenu'
 import { LikeMenu } from './views/LikeMenu'
-import { ChevronLeft, Close, Plus, Refresh, Search } from './ui/icons'
+import { ChevronLeft, Plus, Refresh, Search } from './ui/icons'
 import { bridge, isNative } from './bridge'
 import { demoLibrary } from './features/library/demo'
 import { useLyrics, usePalette } from './features/library/hooks'
@@ -203,14 +205,7 @@ export function App() {  if (!isNative) {
     size: 34,
     visible: false
   })
-  /** Transient result message for import/export, dismissed on navigation. */
-  /*
-   * 顶部提示放在共享 store 里：列表行里的喜欢动作也要能说一句「没改成」。
-   * 名字仍叫 flash/setFlash，App 里原来的调用点不用改。
-   */
-  const flash = useFlash((state) => state.message)
-  const setFlash = useFlash((state) => state.show)
-  /** 漫游需要账号：这不是一句提示，是一件要人当场决定的事，所以摆对话框而不是 flash。 */
+  /** 漫游需要账号：这不是一句提示，是一件要人当场决定的事，所以摆对话框而不是提示条。 */
   const needSignIn = useRoam((state) => state.needSignIn)
   /** The open per-track actions menu, if any. */
   const [trackMenu, setTrackMenu] = useState<TrackMenuRequest | null>(null)
@@ -359,7 +354,8 @@ export function App() {  if (!isNative) {
         setStack([...trimmed, next])
         setCursor(trimmed.length)
       })
-      setFlash(null)
+      /* 翻页了：上一页那句结果提示没有意义了，收掉。 */
+      useToast.getState().clear()
     },
     [stack, cursor, commitPageChange]
   )
@@ -391,7 +387,7 @@ export function App() {  if (!isNative) {
         // 点了没反应比报错更糟：要不到时把原因说出来。
         // 缺登录不走这条路，它由对话框接管（见下面的 needSignIn）。
         if (useRoam.getState().needSignIn) return
-        setFlash(useRoam.getState().error || '这一趟没要到歌')
+        toast(useRoam.getState().error || '这一趟没要到歌')
         return
       }
       /*
@@ -810,7 +806,7 @@ export function App() {  if (!isNative) {
     activePlaylist,
     playlistTracks: playlistTracks.tracks,
     navigate,
-    onMessage: setFlash
+    onMessage: (message: string) => toast(message)
   })
 
   /**
@@ -842,7 +838,7 @@ export function App() {  if (!isNative) {
       const next = await add()
       if (isNative && next.length > 0) await runScan()
     } catch (error) {
-      setFlash(`加入文件夹失败：${error instanceof Error ? error.message : String(error)}`)
+      toast(`加入文件夹失败：${error instanceof Error ? error.message : String(error)}`)
     }
   }, [add])
 
@@ -1283,17 +1279,31 @@ export function App() {  if (!isNative) {
               }}
             />
           ) : null}
-          {flash ? (
-            <div className="flash" role="status">
-              <span>{flash}</span>
-              <button className="icon-btn" onClick={() => setFlash(null)} title="关闭" aria-label="关闭提示">
-                <Close size={15} />
-              </button>
-            </div>
-          ) : null}
+          {/*
+            提示只在一个地方出现：右下角。
 
-          {/* 更新提示住在右下角：不弹模态、不抢焦点，但比左栏那颗点更容易被看见。 */}
-          <UpdateToast />
+            以前两种提示各住一边——操作反馈在页头下面插一条，更新提示在右下浮着。
+            同一句「已收藏到某处」在一屏里有两个可能的位置，眼睛得过一会儿才找到。
+            现在都收进这一列：更新在上（它要人做决定），操作反馈在下（看一眼就走）。
+          */}
+          {/*
+            挂到 body 上，而不是留在这层 DOM 里。
+
+            这一页的祖先里有玻璃（backdrop-filter）：被它包住的 fixed 元素不再
+            相对窗口定位，而是相对那块玻璃——提示于是永远悬在播放条上方一百像素，
+            看着像没贴住。portal 出去，fixed 才是真的贴着窗口底边。
+
+            有没有播放条决定贴谁：有，让出它那一行；没有，直接贴窗口底。
+          */}
+          {createPortal(
+            <div className={track ? 'toasts has-player' : 'toasts'}>
+              {/* 更新提示不弹模态、不抢焦点，但比左栏那颗点更容易被看见。 */}
+              <UpdateToast />
+              {/* 操作反馈：一句就走，自动收起。 */}
+              <ToastStack />
+            </div>,
+            document.body
+          )}
 
           {/* 「发现新版本」：查到新版弹一次，交代改了什么，下载与否由人按。 */}
           <UpdateDialog />
@@ -1424,7 +1434,7 @@ export function App() {  if (!isNative) {
           onPlayNext={() => {
             player.addToQueue([trackMenu.track], 'next')
             closeTrackMenu()
-            setFlash(`已把《${trackMenu.track.title}》排到下一首`)
+            toast(`已把《${trackMenu.track.title}》排到下一首`)
           }}
           onRoam={() => {
             const seed = trackMenu.track
@@ -1437,11 +1447,11 @@ export function App() {  if (!isNative) {
                   const request = downloadRequestOf(trackMenu.track)
                   closeTrackMenu()
                   if (!request) {
-                    setFlash('这首歌取不到音源，没法下载')
+                    toast('这首歌取不到音源，没法下载')
                     return
                   }
                   void useDownloads.getState().enqueue(request).then((queued) => {
-                    setFlash(
+                    toast(
                       queued ? `已把《${request.title}》加进下载` : '浏览器预览模式没有下载能力'
                     )
                   })

@@ -2,31 +2,6 @@
    Playlists
    ========================================================================== */
 
-/* Transient result of an import or export. Sits between the header and the
-   content rather than floating over it, so it never covers what it describes. */
-.flash {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin: var(--s3) var(--s5) 0;
-  padding: var(--s2) var(--s2) var(--s2) var(--s3);
-  border-radius: var(--r-panel);
-  background: rgb(var(--accent-rgb) / 0.12);
-  border: 1px solid rgb(var(--accent-rgb) / 0.34);
-  font-size: var(--fs-meta);
-  color: var(--text-hi);
-  /* 导入/导出的结果条是插进来的，淡一下，别在页头突然多出一块。 */
-  animation: flashIn var(--dur-2) var(--ease-out) both;
-}
-@keyframes flashIn {
-  from { opacity: 0; }
-}
-.flash span {
-  flex: 1;
-  min-width: 0;
-}
-
-
 /* --- detail -------------------------------------------------------------- */
 
 .pl-detail {
@@ -201,11 +176,6 @@
 .pl-track:hover .pl-track__remove,
 .pl-track__remove:focus-visible {
   opacity: 1;
-}
-
-/* 令牌在 reduce 下已经降到 1ms，但 scale 仍会硬跳一下，这里直接关掉。 */
-@media (prefers-reduced-motion: reduce) {
-  .flash { animation: none; }
 }
 
 /* 歌单页顶部：自己建的与收来的分开看。

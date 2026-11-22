@@ -112,15 +112,13 @@
 
 /*
  * 一条常驻但不抢焦点的提示：不弹模态、不自动消失、不挡播放条。
- * bottom 让出播放条的高度，右侧留 16px；宽 316 是能放下「发现新版本 0.8.1」和
- * 两颗按钮的最小宽度，再窄按钮就会换行。
+ *
+ * 它自己不再定位——右下角的位置由 .toasts 那一列统一给，那里还要按顺序排
+ * 「更新在上、操作反馈在下」。宽 316 是能放下「发现新版本 0.8.1」和两颗按钮的
+ * 最小宽度，再窄按钮就会换行。
  */
 .uptoast {
-  position: fixed;
-  right: 16px;
-  bottom: calc(var(--player-h) + 16px);
-  z-index: 60;
-  width: 316px;
+  width: 100%;
   padding: 14px 16px 12px;
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
   border-radius: var(--r-panel);

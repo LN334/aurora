@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Track } from '../../types'
-import { showFlash } from '../../ui/flash'
+import { toast } from '../../ui/toast'
 import { useAccounts } from '../accounts/store'
 import { player } from '../player/actions'
 import { getProvider, providerSupports } from './registry'
@@ -343,7 +343,7 @@ function createOnlineStore(providerId: ProviderId) {
      * 那些地方本来就有空态。
      */
     const announce = (reason: string): void => {
-      showFlash(failTextFor(providerId, reason))
+      toast(failTextFor(providerId, reason))
     }
 
     /** Drop everything that belonged to the previous account or profile. */
