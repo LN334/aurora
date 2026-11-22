@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { WallpaperEntry, WallpaperProperty } from '../../env'
 import { colorToHex, coercePropertyValue, hexToColor } from '../../features/wallpaper/pure'
 import type { PropertyValue } from '../../features/wallpaper/pure'
@@ -15,9 +15,9 @@ import { Toggle } from './parts'
  * 控件形态只有四种，一一对应 WE 的类型；没有样式的项（作者写的 HTML 说明横幅、
  * 文件选择、文本框之类的）在主进程就丢掉了，这里不用再判。
  *
- * 打开这份面板时给 body 挂 `is-tuning-wallpaper`：正常浏览时玻璃把壁纸糊成
- * 一片色，站在这个面板上调「雾气」「粒子」是看不出区别的，用户会以为设置是
- * 假的。调的这一会儿把玻璃调薄，离开这一页就恢复。
+ * 这块面板进入视口时给 body 挂 `is-tuning-wallpaper`：正常浏览时玻璃把壁纸
+ * 糊成一片色，站在这块面板上调「雾气」「粒子」是看不出区别的，用户会以为设置
+ * 是假的。面板滚出画面就把玻璃恢复成用户设的模糊。
  */
 export function WallpaperProps({
   entry,
@@ -31,20 +31,45 @@ export function WallpaperProps({
   onChange(name: string, value: PropertyValue): void
   onReset(): void
 }) {
-  useEffect(() => {
-    document.body.classList.add('is-tuning-wallpaper')
-    return () => {
-      document.body.classList.remove('is-tuning-wallpaper')
-    }
-  }, [])
+  const rootRef = useRef<HTMLDivElement | null>(null)
   /* 静音项（音频感应、自定义文字、帧率显示）不给入口，但仍然作为「关」传给引擎。 */
   const properties = (entry.properties ?? []).filter((property) => !property.muted)
+
+  /*
+   * 调薄玻璃的开关跟着这份面板的可见性走，不跟组件挂载走。
+   *
+   * 原来在挂载时给 body 挂 `is-tuning-wallpaper`，离开设置页才摘。可「外观与
+   * 桌面」这一截一渲染就挂上，而属性面板在整页的最下面、人根本没看见它。于是
+   * 这一页的玻璃一直停在 blur(2px)：用户在上面拖「模糊程度」，10px 和 40px
+   * 看起来一模一样，报的就是「这一页背景模糊失效」。
+   *
+   * 现在只在面板真的进视口时调薄；滚回上面调滑块，看到的还是用户设的模糊。
+   */
+  useEffect(() => {
+    const node = rootRef.current
+    if (!node) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const item of entries) {
+          document.body.classList.toggle('is-tuning-wallpaper', item.isIntersecting)
+        }
+      },
+      { threshold: 0.35 }
+    )
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+      document.body.classList.remove('is-tuning-wallpaper')
+    }
+    /* 属性项是异步来的：从 0 变到 N 时节点才真正挂上，要重新观察。 */
+  }, [properties.length])
+
   if (properties.length === 0) return null
 
   const changed = Boolean(values && Object.keys(values).length > 0)
 
   return (
-    <div className="wp-props">
+    <div className="wp-props" ref={rootRef}>
       <div className="wp-props__head">
         <div className="settings__text">
           <div className="settings__label">这张壁纸的可调项</div>
