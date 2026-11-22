@@ -13,6 +13,7 @@ import {
 import { setLoginOpen } from '../features/netease/store'
 import { remoteImageUrl } from '../features/player/urls'
 import { formatSince } from '../ui/format'
+import { toast } from '../ui/toast'
 import { Comment as CommentIcon, Heart, User } from '../ui/icons'
 
 /** 每页条数：四家上游都可按页取，20 条正好一屏半，滚动不空。 */
@@ -144,7 +145,6 @@ export function CommentSection({ track }: { track: Track }) {
   const [pagingFailed, setPagingFailed] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
-  const [sendNote, setSendNote] = useState('')
   /*
    * 切歌时上一首的请求可能后到。用轮次认领：只有当前这一轮能写状态，
    * 否则会在新歌的评论下面续上旧歌的第二页。
@@ -161,7 +161,6 @@ export function CommentSection({ track }: { track: Track }) {
     setPaging(false)
     setPagingFailed(false)
     setDraft('')
-    setSendNote('')
     if (!canComment(track)) {
       setPhase('ready')
       return
@@ -213,11 +212,23 @@ export function CommentSection({ track }: { track: Track }) {
     const text = draft.trim()
     if (!text || sending) return
     setSending(true)
-    setSendNote('')
     const result = await sendComment(track, text)
     setSending(false)
     if (!result.ok) {
-      setSendNote(result.message)
+      /*
+       * 失败也要在右下说一声。
+       *
+       * 输入框下面那行小字是「这一栏的事」，眼睛正盯着输入框时未必看得见；
+       * 而「发不出去」是刚按下发送那一刻最需要知道的。要登录的时候顺带给一颗
+       * 去登录——说了原因却不给出路，等于让人自己去找账号在哪。
+       */
+      toast({
+        message: result.message,
+        tone: 'error',
+        ...(result.message.includes('登录')
+          ? { action: { label: '去登录', onSelect: () => setLoginOpen(true) } }
+          : {})
+      })
       return
     }
     setDraft('')
@@ -272,14 +283,10 @@ export function CommentSection({ track }: { track: Track }) {
             aria-label="写评论"
           />
           <div className="cmt__compose-foot">
-            <span className={sendNote ? 'cmt__hint is-error' : 'cmt__hint'}>
-              {sendNote || `${draft.length}/${MAX_LENGTH}`}
+            {/* 只报字数；失败走右下角那条提示，屏幕上不重复说第二遍。 */}
+            <span className="cmt__hint">
+              {draft.length}/{MAX_LENGTH}
             </span>
-            {sendNote.includes('登录') ? (
-              <button className="cmt__link" type="button" onClick={() => setLoginOpen(true)}>
-                去登录
-              </button>
-            ) : null}
             <button
               className="cmt__send"
               type="button"

@@ -997,8 +997,14 @@ export function App() {  if (!isNative) {
     if (view === 'party') return <PartyPage />
     if (view === 'sakura') return <SakuraPage />
     if (view === 'settings') return <SettingsPage />
-    /* 评论：播放页那颗按钮点进来的独立页，只认正在播的那一首。 */
-    if (view === 'comments') return <CommentsPage />
+    /*
+     * 评论：播放页那颗按钮点进来的独立页，只认正在播的那一首。
+     *
+     * 这里必须问 shell.view，不能问 view。view 是 shellToRoute 翻译出来的旧
+     * 路由，而那张表里没有 comments——它落到 default 的 discover，于是这一页
+     * 永远不渲染，屏幕上只剩一个标题。新页面（一起听、设置）都走 shell.view。
+     */
+    if (shell.view === 'comments') return <CommentsPage />
     // Search is its own screen: it answers from either catalogue, so it cannot be
     // a mode of the library views or of the online one.
     if (view === 'search') return <SearchView onMenu={openTrackMenu} />

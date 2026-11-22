@@ -276,3 +276,46 @@
     margin-top: 30px;
   }
 }
+
+/* =============================================================================
+   评论页（从播放页那颗按钮进来的独立页）
+
+   原来这一页没有任何自己的样式：标题靠 h1 的浏览器默认值，下面直接接 .cmt 的
+   上外边距。补最小的一套——标题块、副标题、空态，够它立得住就行。
+   ========================================================================== */
+.cmtpage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-bottom: var(--s7);
+}
+
+.cmtpage__head {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s4);
+}
+
+.cmtpage__meta {
+  min-width: 0;
+}
+
+.cmtpage__title {
+  margin: 0;
+  /* 这一行是歌名，不是一个小节标题：15px 的 --fs-title 放在 27px 的外壳页名下面太弱。 */
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.cmtpage__sub {
+  margin: 4px 0 0;
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+
+.cmtpage__empty {
+  margin: var(--s5) 0 0;
+  font-size: var(--fs-body);
+  color: var(--text-low);
+}
