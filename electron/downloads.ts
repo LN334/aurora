@@ -163,9 +163,17 @@ async function resolveStream(request: DownloadRequest): Promise<ResolvedStream |
       if (!result.ok) return { ok: false, message: result.message ?? '酷狗没有给出可取地址' }
       return { ok: true, url: result.url, trial: result.trial }
     }
-    const result = await qishuiStreamUrl(Number(request.trackId), 'standard')
-    if (!result.ok) return { ok: false, message: result.message ?? '汽水音乐没有给出可取地址' }
-    return { ok: true, url: result.url, trial: result.trial }
+    if (request.provider === 'qishui') {
+      const result = await qishuiStreamUrl(Number(request.trackId), 'standard')
+      if (!result.ok) return { ok: false, message: result.message ?? '汽水音乐没有给出可取地址' }
+      return { ok: true, url: result.url, trial: result.trial }
+    }
+    /*
+     * 兜底而不是默认走汽水：IPC 那头的 provider 是字符串，闭集类型在这里帮不上忙。
+     * 拿别的平台的 id 去汽水取流，最坏情况不是报错，而是取回另一首歌 —— 下错歌
+     * 比下载失败更糟，因为失败会说出来，下错不会。
+     */
+    return { ok: false, message: '这个来源暂不支持下载：' + String(request.provider) }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return { ok: false, message: '取流失败：' + message }
