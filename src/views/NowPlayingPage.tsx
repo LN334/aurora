@@ -18,6 +18,7 @@ import { useLikeMenu } from '../features/favorites/like-menu'
 import { toast } from '../ui/toast'
 import { artworkFor } from '../features/library/source'
 import { sourceLabelById } from '../features/online/registry'
+import { QualityMenu } from './player-bar/QualityMenu'
 import { useOnlineStore } from '../features/online/store'
 import { bridge } from '../bridge'
 import { Artwork } from '../ui/Artwork'
@@ -468,6 +469,19 @@ export function NowPlayingPage({
                   <AlbumName track={track} />
                 </span>
               ) : null}
+              {/*
+               * 实际到手的档位：一行事实，不是设置。它从工具键那一排挪到这里——
+               * 音质键挂上来之后，那颗键管「想听哪档」，这句管「真给了什么」，
+               * 两件事并排放在同一行会让人以为都是可点的。
+               */}
+              {delivered ? (
+                <>
+                  <span className="np__dot">·</span>
+                  <span className={`np__tier${fellBack ? ' is-fell-back' : ''}`} title={delivered}>
+                    {delivered.split(' · ')[0]}
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -593,30 +607,25 @@ export function NowPlayingPage({
           <button type="button" className="icon-btn" data-tip="评论" aria-label="评论" onClick={onOpenComments}>
             <CommentIcon size={17} />
           </button>
-              {delivered ? (
-                <>
-                  <span className="np__dot">·</span>
-                  <span
-                    className={`np__tier${fellBack ? ' is-fell-back' : ''}`}
-                    title={delivered}
-                  >
-                    {delivered.split(' · ')[0]}
-                  </span>
-                </>
-              ) : null}
-              <button
-                type="button"
-                className={`np__rate${rate === 1 ? '' : ' is-on'}`}
-                onClick={() => {
-                  const rates = [0.75, 1, 1.25, 1.5, 2]
-                  const at = rates.indexOf(rate)
-                  usePlayer.getState().setPlaybackRate(rates[(at + 1) % rates.length] ?? 1)
-                }}
-                data-tip="播放速度"
-                aria-label={`播放速度 ${rate} 倍`}
-              >
-                {rate}×
-              </button>
+          {/*
+           * 底栏在这一页是收走的（.is-nowplaying > .player 整条 display:none），
+           * 音质键不搬过来，这一页就彻底没有换档的入口——只剩一行只读小字。
+           * 同一颗组件，弹层与「换档从下一首起生效」的说明都跟着来。
+           */}
+          <QualityMenu />
+          <button
+            type="button"
+            className={`np__rate${rate === 1 ? '' : ' is-on'}`}
+            onClick={() => {
+              const rates = [0.75, 1, 1.25, 1.5, 2]
+              const at = rates.indexOf(rate)
+              usePlayer.getState().setPlaybackRate(rates[(at + 1) % rates.length] ?? 1)
+            }}
+            data-tip="播放速度"
+            aria-label={`播放速度 ${rate} 倍`}
+          >
+            {rate}×
+          </button>
         {/*
          * 音量：一颗静音键，滑条藏在它上面，鼠标移上来才浮出来。
          *

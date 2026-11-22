@@ -4116,3 +4116,50 @@
 .shell.is-nowplaying > .main .np__acts {
   padding: 4px 0 0 !important;
 }
+
+/* =============================================================================
+   播放页控制条上的音质键（2026-11-22）
+   -----------------------------------------------------------------------------
+   这一页把底栏收走了（.is-nowplaying > .player 整条 display:none），音质键不搬
+   过来这里就只剩一行只读的「实际档」，换不了档。组件直接复用底栏那颗，样式收回
+   倍速胶囊的规格——底栏那套 30px 是给「一排 30px 见方的图标键」定的，放进这里
+   比旁边的 1× 高出一头，一排里三个高度反而显乱。
+   ========================================================================== */
+
+.shell.is-nowplaying .np__acts .pb-quality {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 1px 7px;
+  border-radius: 7px;
+  border-color: rgb(var(--tint-rgb) / 0.14);
+  background: rgb(var(--tint-rgb) / 0.1);
+  color: var(--text-mid);
+}
+
+.shell.is-nowplaying .np__acts .pb-quality:hover {
+  background: rgb(var(--tint-rgb) / 0.14);
+  color: var(--text-hi);
+}
+
+/* 菜单开着 = 这颗键正被用着，和倍速「改了速度才亮」同一套示意。 */
+.shell.is-nowplaying .np__acts .pb-quality.is-on {
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: var(--accent);
+}
+
+.shell.is-nowplaying .np__acts .pb-quality__text {
+  font-size: var(--fs-micro);
+}
+
+/*
+ * 落档记号按 30px 的键放（top/right 各 5px），收矮之后会悬在键外。
+ * 收到右上角内侧，仍留在边框里。
+ */
+.shell.is-nowplaying .np__acts .pb-quality.is-fell::after {
+  top: 1px;
+  right: 3px;
+  width: 3px;
+  height: 3px;
+}
+
