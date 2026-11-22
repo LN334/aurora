@@ -292,8 +292,19 @@
 
 .cmtpage__head {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--s4);
+}
+
+/* 封面：和详情页头部同一档圆角，尺寸取 72——足够认出是哪首，又不至于把标题挤到第二行。 */
+.cmtpage__art {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: var(--r-art);
+  object-fit: cover;
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.08);
 }
 
 .cmtpage__meta {
@@ -318,4 +329,16 @@
   margin: var(--s5) 0 0;
   font-size: var(--fs-body);
   color: var(--text-low);
+}
+
+/*
+ * 评论页里评论区不再自带大上边距。
+ *
+ * 曲目详情页里那块离正文很远是对的——上面是歌词、事实，评论属于另一件事；
+ * 但这一页的正文就是评论本身，标题下面再空七十像素就只剩「太空了」。
+ */
+.cmtpage .cmt {
+  margin-top: var(--s5);
+  padding-top: 0;
+  border-top: 0;
 }

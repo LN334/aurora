@@ -1,5 +1,6 @@
 import { CommentSection } from './CommentSection'
 import { canComment } from '../features/comments/api'
+import { artworkFor } from '../features/library/source'
 import { usePlayer } from '../features/player/store'
 import { formatTime } from '../ui/format'
 
@@ -25,9 +26,12 @@ export function CommentsPage() {
       </div>
     )
   }
+  /* 头部带封面：这一页正文只有评论，光一行歌名压不住上面那片空白。 */
+  const art = artworkFor(track, 160)
   return (
     <div className="cmtpage">
       <header className="cmtpage__head">
+        {art ? <img className="cmtpage__art" src={art} alt="" draggable={false} /> : null}
         <div className="cmtpage__meta">
           <h1 className="cmtpage__title">{track.title}</h1>
           <p className="cmtpage__sub">
