@@ -11,10 +11,10 @@ export function HomePane() {
   const sections = useHomeSections()
   return (
     <Part zh="首页">
-      <Sub title="首页上摆哪些" hint="关掉的区块不出现在首页；每日推荐与上面的快捷入口一直都在。">
+      <Sub title="首页上摆哪些">
         <Rows>
           {HOME_SECTIONS.map((item) => (
-            <Row key={item.id} label={item.name} hint={item.hint}>
+            <Row key={item.id} label={item.name}>
               <Toggle
                 checked={sections[item.id]}
                 label={item.name}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { JunkId } from '../../../env'
 import { formatBytes, useSettingsPage } from '../../../features/settings/store'
 import { bridge } from '../../../bridge'
+import { showFlash } from '../../../ui/flash'
 import { Actions, Row, Rows, Sub } from '../parts'
 
 const ALL_JUNK: JunkId[] = ['cache', 'logs', 'crashes']
@@ -37,7 +38,6 @@ function fileName(path: string): string {
 export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const [confirming, setConfirming] = useState(false)
   const [backupBusy, setBackupBusy] = useState(false)
-  const [backupNote, setBackupNote] = useState('')
   const [restartReady, setRestartReady] = useState(false)
   /*
    * 当前内存。
@@ -45,12 +45,10 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
    * 数据来自主进程的 `getAppMetrics()`（Chromium 自己按进程类型报的），比从外面
    * 按 exe 名聚合准——外面分不出渲染进程和工具进程。
    */
-  const [memoryHint, setMemoryHint] = useState('')
   const [memoryTotal, setMemoryTotal] = useState('')
 
   const readMetrics = async (): Promise<void> => {
     const result = await bridge.app.metrics()
-    setMemoryHint(result.parts)
     setMemoryTotal(result.summary.totalMb > 0 ? result.summary.totalMb + ' MB' : '')
   }
 
@@ -65,7 +63,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
     setBackupBusy(true)
     try {
       const result = await bridge.maintenance.exportBackup(storageSnapshot())
-      setBackupNote(
+      showFlash(
         result.ok ? `已保存 ${fileName(result.path)} · ${result.summary}` : `没有导出：${result.reason}`
       )
     } finally {
@@ -78,7 +76,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
     try {
       const result = await bridge.maintenance.restoreBackup()
       if (!result.ok) {
-        setBackupNote(`没有导入：${result.reason}`)
+        showFlash(`没有导入：${result.reason}`)
         return
       }
       let written = 0
@@ -91,9 +89,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           break
         }
       }
-      setBackupNote(
-        `已导入 ${result.summary}，写回 ${written} 项；重启后生效。导入前的旧数据留在 backup-before-restore。`
-      )
+      showFlash(`已导入 ${result.summary}，写回 ${written} 项；重启后生效。`)
       setRestartReady(true)
     } finally {
       setBackupBusy(false)
@@ -106,7 +102,6 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         <Rows>
           <Row
             label="当前占用"
-            hint={memoryHint ? memoryHint + '；合计里含显卡与工具进程' : '各进程按 Chromium 的类型分开算，合计里包含显卡进程。'}
           >
             {memoryTotal ? <span className="settings__number">{memoryTotal}</span> : null}
             <button className="btn" type="button" onClick={() => void readMetrics()}>
@@ -115,7 +110,6 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
           </Row>
           <Row
             label="释放内存"
-            hint="把空闲页面的内存还给系统。"
           >
             {memory ? (
               <span className="settings__number">
@@ -135,7 +129,7 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
         </Rows>
       </Sub>
 
-      <Sub title="垃圾文件" hint="界面缓存、日志与崩溃转储；在线缓存不在这里。">
+      <Sub title="垃圾文件">
         {junk ? (
           <Rows>
             {junk.parts.map((part) => (
@@ -143,12 +137,12 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
                 <span className="settings__number">{formatBytes(part.bytes)}</span>
               </Row>
             ))}
-            <Row label="合计" hint="上面这几项加起来。">
+            <Row label="合计">
               <span className="settings__number">{formatBytes(junk.totalBytes)}</span>
             </Row>
             <Row
               label="整个数据目录"
-              hint="曲库、歌单、登录状态、在线缓存与日志都在这里。"
+              
               title={page.storage?.userData}
             >
               <span className="settings__number">
@@ -172,17 +166,12 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
             {junk.deferredBytes > 0 ? (
               <Row
                 label="下次启动再清"
-                hint="播放器占用中，下次启动前清掉。"
               >
                 <span className="settings__number">{formatBytes(junk.deferredBytes)}</span>
               </Row>
             ) : null}
           </Rows>
-        ) : (
-          <p className="settings__hint">
-            {page.junkBusy ? '正在测量…' : '还没有测量。'}
-          </p>
-        )}
+        ) : null}
 
         {confirming ? (
           <>
@@ -225,24 +214,21 @@ export function MaintenancePane({ page }: { page: ReturnType<typeof useSettingsP
 
       <Sub
         title="备份"
-        hint="设置、曲库、歌单与收听记录打成一个文件；登录状态不含。"
       >
         <Rows>
-          <Row label="导出备份" hint="选个位置存下来，文件名带时间。">
+          <Row label="导出备份">
             <button className="btn" disabled={backupBusy} onClick={() => void runExport()}>
               {backupBusy ? '请稍候' : '导出'}
             </button>
           </Row>
           <Row
             label="导入备份"
-            hint="会覆盖当前数据，旧文件先备份。"
           >
             <button className="btn" disabled={backupBusy} onClick={() => void runRestore()}>
               {backupBusy ? '请稍候' : '导入'}
             </button>
           </Row>
         </Rows>
-        {backupNote ? <p className="settings__hint">{backupNote}</p> : null}
         {restartReady ? (
           <Actions>
             <button className="btn" type="button" onClick={() => void bridge.app.relaunch()}>

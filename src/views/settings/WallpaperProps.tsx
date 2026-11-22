@@ -48,9 +48,6 @@ export function WallpaperProps({
       <div className="wp-props__head">
         <div className="settings__text">
           <div className="settings__label">这张壁纸的可调项</div>
-          <p className="settings__hint">
-            只改播放器背景，不动 Wallpaper Engine 工程。调的时候背景会临时调清楚，离开这一页恢复。
-          </p>
         </div>
         {changed ? (
           <button className="btn" onClick={onReset}>

@@ -32,9 +32,6 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
       <div className="settings__row settings__row--stacked">
         <div className="settings__text">
           <div className="settings__label">交叉淡化</div>
-          <p className="settings__hint">
-            切歌时先把这一首淡出、再把下一首淡入，各用这么久。0 就是硬切。
-          </p>
         </div>
         <div className="settings__slider">
           <input
@@ -50,7 +47,7 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
         </div>
       </div>
 
-      <Row label="调音台" hint="10 段推子、实时电平与预设，按 E 从播放界面打开。">
+      <Row label="调音台">
         <Toggle
           checked={eqEnabled}
           label="均衡"
@@ -64,7 +61,6 @@ export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="在线歌词"
-        hint="本地没有歌词时向 lrclib.net 查询。"
       >
         <Toggle
           checked={onlineLyrics}
@@ -94,7 +90,7 @@ function PlatformQualityRows() {
 
   if (providers.length === 0) {
     return (
-      <Row label="在线音质" hint="当前没有可用的在线平台。">
+      <Row label="在线音质">
         <span className="settings__number">—</span>
       </Row>
     )
@@ -155,11 +151,6 @@ function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
   return (
     <Row
       label={`${provider.displayName}音质`}
-      hint={
-        quality
-          ? `${TIER_LABELS[quality]} · 换档从下一首起生效，正在播的这首不会中断。`
-          : `${provider.displayName}还没有回答当前档位，给不了时会自动回退。`
-      }
     >
       <div className="seg">
         {tiers.map((tier) => (
@@ -192,7 +183,7 @@ function SourceOrderRows() {
 
   if (shown.length < 2) {
     return (
-      <Row label="音源优先级" hint="只有一个可用音源时不需要排序。">
+      <Row label="音源优先级">
         <span className="settings__number">—</span>
       </Row>
     )
@@ -202,9 +193,6 @@ function SourceOrderRows() {
     <div className="settings__row settings__row--stacked">
       <div className="settings__text">
         <div className="settings__label">音源优先级</div>
-        <p className="settings__hint">
-          同一首歌在几个平台都有时，按这个顺序挑第一个能放的。默认先问平台，本机排在最后。
-        </p>
       </div>
       <ol className="settings__order">
         {shown.map((id, index) => (

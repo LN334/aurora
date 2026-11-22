@@ -204,13 +204,6 @@
   translate: 0 -50%;
 }
 
-.set-sub__hint {
-  min-width: 0;
-  font-size: var(--fs-micro);
-  line-height: 1.5;
-  color: var(--text-low);
-}
-
 .set-sub__body {
   display: flex;
   flex-direction: column;
@@ -222,7 +215,7 @@
   flex-direction: column;
 }
 
-/* 行下方的一排操作：按钮 + 一句说明。 */
+/* 行下方的一排操作。 */
 .set-actions {
   display: flex;
   align-items: center;
@@ -231,11 +224,7 @@
   padding: var(--s3) 2px 0;
 }
 
-.set-actions .settings__hint {
-  margin-top: 0;
-}
-
-/* 空态：比 hint 更明显一点，但仍然是一句话，不是一张卡片。 */
+/* 空态：一句话，不是一张卡片。 */
 .set-empty {
   padding: var(--s3) 2px;
   font-size: var(--fs-meta);
@@ -280,7 +269,6 @@
 }
 
 /* 更新结果里那句进度/就绪提示与行之间留一点距离。 */
-.set-part__body .update ~ .settings__hint,
 .set-part__body .update ~ .settings__danger {
   margin-top: var(--s3);
 }
@@ -316,22 +304,6 @@
 .settings__label {
   font-size: var(--fs-body);
   color: var(--text-hi);
-}
-
-.settings__hint {
-  margin-top: var(--s1);
-  font-size: var(--fs-meta);
-  line-height: 1.55;
-  color: var(--text-low);
-  /*
-   * 说明文字一条一行读完。
-   *
-   * 之前限在 42–56ch：中文字宽约一个 em（两个 ch），一行只放得下二十来个字，
-   * 三十来字的说明被切成两行，末行常常只剩「套。」这种两个字，看着像断句错。
-   * 行卡里 label 那一侧本来就有五百多像素，放得下就让它放。
-   */
-  max-width: min(72ch, 100%);
-  text-wrap: pretty;
 }
 
 .settings__control {
@@ -910,13 +882,26 @@
 }
 
 .settings__row {
+  /*
+   * 两侧留白。
+   *
+   * 行表贴着玻璃卡的内边铺到底，悬停时那块淡底就是从最左一条横到最右——
+   * 看起来像一条没做完的表格线，而不是「指到了这一项」。让行本身缩进一点，
+   * 悬停的高亮就成了垫在行下面的一小片，两侧留出底色。
+   */
+  /*
+   * 不给悬停底色。
+   *
+   * 原先那一片淡底是从玻璃卡最左横到最右的一条带，两边没有留白，鼠标扫过去
+   * 像表格没画完；把行缩进来做「有留白的高亮块」，代价是内容和上面的分区标题
+   * 错开十六像素，也不好看。索性不要那块底：行与行之间本来就有发丝线，指到
+   * 哪一行靠按钮与控件自己那点反馈就够了。
+   */
   background: transparent;
   border: 0;
   border-bottom: 1px solid rgb(var(--tint-rgb) / 0.1);
   border-radius: 0;
   padding: 14px 2px;
-  /* 行卡悬停只提亮一点点底色，没有过渡时整片页面扫过去像在闪开关。 */
-  transition: background-color var(--dur-1) var(--ease-out);
 }
 .settings__row:last-child,
 .set-rows > .settings__row:last-child {
@@ -925,10 +910,6 @@
 .set-rows > .settings__row:first-child {
   border-top: 0;
 }
-.settings__row:hover {
-  background: rgb(var(--tint-rgb) / 0.025);
-}
-
 .set-rows {
   gap: 0;
 }

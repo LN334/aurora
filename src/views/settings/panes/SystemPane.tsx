@@ -31,7 +31,6 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
     <Rows>
       <Row
         label="开机自启"
-        hint="开机后在托盘里等你，不弹窗口。打包版才生效，源码运行不注册。"
       >
         <Toggle
           checked={launchAtLogin}
@@ -43,7 +42,6 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="放歌时阻止系统休眠"
-        hint="只拦系统挂起；屏幕该黑还是黑，按你自己的电源计划走。"
       >
         <Toggle
           checked={preventSleepWhilePlaying}
@@ -55,7 +53,6 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="启动时恢复上次队列"
-        hint="记住队列，进度从 0:00 开始。"
       >
         <Toggle
           checked={restoreQueue}
@@ -66,7 +63,6 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="点一下托盘图标"
-        hint="选「只显示」时，点它不会收窗口。"
       >
         <div className="seg">
           <button
@@ -88,7 +84,7 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
         </div>
       </Row>
 
-      <Row label="点关闭按钮时" hint="收进托盘时窗口消失、继续播放。">
+      <Row label="点关闭按钮时">
         <div className="seg">
           <button
             className={closeToTray ? 'is-active' : ''}
@@ -110,7 +106,7 @@ export function SystemPane({ page }: { page: ReturnType<typeof useSettingsPage> 
       </Row>
 
       {gpuNote ? (
-        <Row label="显卡加速" hint={gpuNote + "。更新显卡驱动，或在系统里关掉省电/节能模式之后重启应用"}>
+        <Row label="显卡加速">
           <span className="settings__number">没在生效</span>
         </Row>
       ) : null}

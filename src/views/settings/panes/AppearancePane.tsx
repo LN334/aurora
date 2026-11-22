@@ -131,23 +131,10 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
     if (wallpaperEnabled) void refreshWallpaper()
   }, [wallpaperEnabled, refreshWallpaper])
 
-  const wallpaperHint =
-    wallpaperInfo && !wallpaperInfo.found
-      ? wallpaperInfo.note
-      : '把 Wallpaper Engine 的壁纸当作播放器背景，场景、视频、网页壁纸都能放。'
-
-  const wallpaperLibraryHint =
-    wallpaperList.length === 0
-      ? wallpaperLoading
-        ? '正在扫描 Wallpaper Engine 壁纸库…'
-        : '没有读到壁纸：可能没有安装 Wallpaper Engine，或创意工坊目录是空的。'
-      : `${wallpaperList.length} 张可用，点一下就是背景。`
-
   return (
     <Rows>
       <Row
         label="主题"
-        hint="跟随系统，或手动固定一套。"
       >
         <div className="seg">
           {THEMES.map((item) => (
@@ -162,7 +149,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      <Row label="背景" hint="标准：厚玻璃，壁纸糊成一片色。轻薄：更透。">
+      <Row label="背景">
         <div className="seg">
           <button
             className={backdrop.mode === 'frosted' ? 'is-active' : ''}
@@ -181,11 +168,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="模糊程度"
-        hint={
-          backdrop.mode === 'frosted'
-            ? '0 只铺一层淡底不糊，越大壁纸越模糊。拖动即刻生效。'
-            : '轻薄亚克力下这里调的是玻璃本身糊多少：0 几乎不糊，越大背景越软。拖动即刻生效。'
-        }
       >
         <div className="settings__slider">
           <input
@@ -216,7 +198,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="界面跟着封面取色"
-        hint="关掉后界面只用一套冷灰。开了壁纸、背景本身很花时，关掉更清爽。"
       >
         <Toggle
           checked={accentFromArt}
@@ -225,15 +206,12 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         />
       </Row>
 
-      <Sub title="桌面歌词" hint="独立窗口，跟着当前播放的那一句走。">
+      <Sub title="桌面歌词">
         <DesktopLyricsRows page={page} />
 
       <div className="settings__row settings__row--stacked">
         <div className="settings__text">
           <div className="settings__label">桌面歌词字号</div>
-          <p className="settings__hint">
-            桌面歌词窗口的字号。
-          </p>
         </div>
         <div className="settings__preview" style={{ fontSize: previewSize }}>
           我把名字写在起雾的玻璃上
@@ -257,7 +235,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
       <div className="settings__row settings__row--stacked">
         <div className="settings__text">
           <div className="settings__label">播放页歌词字号</div>
-          <p className="settings__hint">播放页那一列歌词的大小，松手就生效。</p>
         </div>
         <div className="settings__slider">
           <input
@@ -284,7 +261,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="窗口显示"
-        hint="全屏不会记住，下次启动仍是普通窗口。"
       >
         <button className="btn" onClick={() => void bridge.window.toggleFullscreen()}>
           切换全屏 / F11
@@ -293,7 +269,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="动态效果"
-        hint="关掉后界面动画直接跳过。"
       >
         <Toggle
           checked={reduceMotion}
@@ -307,11 +282,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
 
       <Row
         label="应用图标"
-        hint={
-          isNative
-            ? '窗口、任务栏、托盘和桌面快捷方式会一起换。'
-            : '浏览器预览里没有图标可换，装好应用才能用。'
-        }
       >
         <div className="set-icon">
           {appIcon.dataUrl ? (
@@ -341,8 +311,8 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      <Sub title="舞台粒子" hint="全屏歌词页上那层慢慢上浮的光点，颜色跟着封面走。">
-        <Row label="粒子" hint="关掉后舞台只剩背景和歌词。">
+      <Sub title="舞台粒子">
+        <Row label="粒子">
           <Toggle
             checked={particles.enabled}
             label="舞台粒子"
@@ -351,7 +321,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </Row>
         {particles.enabled ? (
           <>
-            <Row label="多少" hint="越多越热闹；太少就看不出在飘。">
+            <Row label="多少">
               <div className="settings__slider">
                 <input
                   type="range"
@@ -369,7 +339,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
                 <span className="settings__number">{Math.round(mote.density * 100)}%</span>
               </div>
             </Row>
-            <Row label="快慢" hint="上浮的节奏；慢一点更像呼吸。">
+            <Row label="快慢">
               <div className="settings__slider">
                 <input
                   type="range"
@@ -387,7 +357,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
                 <span className="settings__number">{Math.round(mote.speed * 100)}%</span>
               </div>
             </Row>
-            <Row label="大小" hint="光点本身的大小，和数量互不影响。">
+            <Row label="大小">
               <div className="settings__slider">
                 <input
                   type="range"
@@ -408,7 +378,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
           </>
         ) : null}
       </Sub>
-      <Row label="列表行密度" hint="歌单、搜索结果、队列里每一行的高度。">
+      <Row label="列表行密度">
         <div className="seg">
           {ROW_DENSITIES.map((item) => (
             <button
@@ -422,7 +392,7 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
         </div>
       </Row>
 
-      <Row label="Wallpaper Engine 动态背景" hint={wallpaperHint}>
+      <Row label="Wallpaper Engine 动态背景">
         <Toggle
           checked={wallpaperEnabled}
           label="Wallpaper Engine 动态背景"
@@ -437,7 +407,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
               <div className="wp-picker__head">
                 <div className="settings__text">
                   <div className="settings__label">壁纸库</div>
-                  <p className="settings__hint">{wallpaperLibraryHint}</p>
                 </div>
                 <button
                   className="btn"
@@ -485,9 +454,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
             <div className="settings__row settings__row--stacked">
               <div className="settings__text">
                 <div className="settings__label">壁纸画质</div>
-                <p className="settings__hint">
-                  越高越清晰，也越费显卡和电。
-                </p>
               </div>
               <div className="seg">
                 {(
@@ -513,9 +479,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
           <div className="settings__row settings__row--stacked">
             <div className="settings__text">
               <div className="settings__label">壁纸可见度</div>
-              <p className="settings__hint">
-                往右壁纸更清楚，往左文字更清楚。
-              </p>
             </div>
             <div className="settings__slider">
               <input
@@ -553,7 +516,6 @@ function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> 
     <>
       <Row
         label="显示桌面歌词"
-        hint="在桌面上开一个小窗口，只显示当前这一句；换歌自动跟上。"
       >
         {isNative ? (
           <button className="btn" onClick={() => void bridge.overlay.toggle(!open)}>
@@ -566,7 +528,6 @@ function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="锁住歌词位置"
-        hint="锁上后鼠标点不中那一行字，点击会落到它底下的窗口上。"
       >
         <Toggle
           checked={locked}
@@ -578,7 +539,6 @@ function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> 
 
       <Row
         label="锁住时也能悬停"
-        hint="开着：悬停出控制条，那一下点击归歌词。关掉：完全穿透。"
       >
         <Toggle
           checked={page.settings.overlayHoverControls}

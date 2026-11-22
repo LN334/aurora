@@ -33,17 +33,15 @@ export function Part({ zh, id, children }: PartProps) {
 interface SubProps {
   /** 分区内的次级小标题，沿用 app 里 .accounts__heading 的 11px 低对比做法。 */
   title: string
-  hint?: string
   children: ReactNode
 }
 
 /** 分区内的一小节。01 需要它来分开档案、平台、来源与文件夹。 */
-export function Sub({ title, hint, children }: SubProps) {
+export function Sub({ title, children }: SubProps) {
   return (
     <div className="set-sub">
       <div className="set-sub__head">
         <h3 className="set-sub__title">{title}</h3>
-        {hint ? <p className="set-sub__hint">{hint}</p> : null}
       </div>
       <div className="set-sub__body">{children}</div>
     </div>
@@ -62,21 +60,24 @@ export function Rows({ children }: { children: ReactNode }) {
 
 interface RowProps {
   label: string
-  hint?: string
   /** 悬停提示，给放不下的路径一类的长文本。 */
   title?: string
   children: ReactNode
 }
 
-/** 一行设置：左边 label（可带一行说明），右边控件。 */
-export function Row({ label, hint, title, children }: RowProps) {
+/**
+ * 一行设置：左边 label，右边控件。
+ *
+ * 不再带第二行说明。设置页原来每一行底下都跟一句解释，八十几行叠下来，整页
+ * 像一份说明书；而大多数那类句子只是在把控件本身再说一遍。
+ */
+export function Row({ label, title, children }: RowProps) {
   return (
     <div className="settings__row">
       <div className="settings__text">
         <div className="settings__label" title={title}>
           {label}
         </div>
-        {hint ? <p className="settings__hint">{hint}</p> : null}
       </div>
       <div className="settings__control">{children}</div>
     </div>

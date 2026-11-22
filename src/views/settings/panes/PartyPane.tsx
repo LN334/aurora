@@ -37,14 +37,13 @@ export function PartyPane() {
     <Rows>
       <Row
         label="替房间转发音频"
-        hint="开着：客人按你的档位听；关着：各听各的。"
       >
         <Toggle checked={relay !== '0'} label="默认替房间转发音频" onChange={(next) => setRelay(next ? '1' : '0')} />
       </Row>
 
       <Row
         label="房间端口"
-        hint="固定后隧道端口只需配一次；留空则每次随机。"
+        
         title="被占用时会自动退回随机端口"
       >
         <input
@@ -58,20 +57,20 @@ export function PartyPane() {
 
       <Row
         label="樱花 frpc"
-        hint="找不到就去樱花隧道页装一份；这里显示用的是哪个。"
+        
         title={frpc || undefined}
       >
         <input className="settings__input settings__input--wide" value={frpc} readOnly placeholder="还没找到" />
       </Row>
 
-      <Row label="访问密钥" hint="填一次就记在本机。要换一把，去樱花隧道页点「重新填写」。">
+      <Row label="访问密钥">
         <span className="set-count">{token ? '已配置' : '还没填'}</span>
         <button className="rh-btn" type="button" onClick={openTunnels}>
           去樱花隧道页
         </button>
       </Row>
 
-      <Row label="当前隧道" hint="上一次在卡片上点开的那条；隧道里的本地端口会自动对齐房间。">
+      <Row label="当前隧道">
         <span className="set-count">{tunnelId ? '#' + tunnelId : '还没选'}</span>
         <button className="rh-btn" type="button" onClick={openTunnels}>
           挑一条

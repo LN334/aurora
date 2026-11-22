@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../../bridge'
-import { Actions, Row, Rows, Sub } from '../parts'
+import { Actions, Row, Rows } from '../parts'
 import { openPlatformLogin } from './PlatformSignIn'
 
 /** 平台 id → 界面上叫的名字。 */
@@ -64,14 +64,8 @@ export function PlatformsPane() {
 
   return (
     <Rows>
-      <Sub title="后端状态">
-        <p className="settings__hint">
-          播放前要先把平台后端拉起来。这里显示它们现在能不能用；失败时可以就地重连，不必重启应用。
-        </p>
-      </Sub>
-
       {list.length === 0 ? (
-        <Row label="还没读到状态" hint="开屏之后会先把登录过的平台拉起来，这里随后就有内容。">
+        <Row label="还没读到状态">
           <span className="settings__number">—</span>
         </Row>
       ) : (
@@ -79,15 +73,6 @@ export function PlatformsPane() {
           <Row
             key={item.id}
             label={NAMES[item.id] ?? item.id}
-            hint={
-              item.detail
-                ? item.detail
-                : item.loggedIn === false
-                  ? '这个档案下还没登录'
-                  : item.loggedIn
-                    ? '已登录'
-                    : undefined
-            }
           >
             <Actions>
               <span className={'settings__number' + (item.state === 'error' || item.state === 'offline' ? ' is-warn' : '')}>

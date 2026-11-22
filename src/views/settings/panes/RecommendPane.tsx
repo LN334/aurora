@@ -31,24 +31,21 @@ export function RecommendPane() {
 
   return (
     <>
-      <Sub title="每块收多少" hint="总数是定好的，不随下面的勾选变。">
+      <Sub title="每块收多少">
         <Rows>
           {SHELVES.map((shelf) => (
-            <Row key={shelf.name} label={shelf.name} hint={shelf.hint}>
+            <Row key={shelf.name} label={shelf.name}>
               <span className="set-count">{shelf.count}</span>
             </Row>
           ))}
         </Rows>
       </Sub>
 
-      {candidates.length === 0 ? (
-        <p className="settings__hint">还没有能推荐曲目的平台。去「我」登录一个，这里就会出现。</p>
-      ) : (
-        <Sub title="从哪几家要" hint="勾掉的平台不再请求，位置由其他平台补；至少留一家。">
+      {candidates.length === 0 ? null : (
+        <Sub title="从哪几家要">
           <Rows>
             <Row
               label="只用我登录了的平台"
-              hint="关掉后，没登录的平台也会推，但推的是公开榜单，不是给你的推荐。"
             >
               <Toggle checked={signedOnly} onChange={setPushSignedOnly} label="只用我登录了的平台" />
             </Row>
@@ -66,9 +63,9 @@ export function RecommendPane() {
         </Sub>
       )}
 
-      <Sub title="第一次启动的那一遍" hint="引导里挑的也是这一份推流来源，可以再看一遍。">
+      <Sub title="第一次启动的那一遍">
         <Rows>
-          <Row label="新手引导" hint="重新显示第一次启动时的设置层。">
+          <Row label="新手引导">
             <button className="btn btn--small" type="button" onClick={() => setOnboarded(false)}>
               重看一遍
             </button>

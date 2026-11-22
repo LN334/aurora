@@ -293,14 +293,3 @@ export function formatBytes(bytes: number | null): string {
   return `${value.toFixed(1)} ${units[unit]}`
 }
 
-/** "今天 14:03" style, or a plain dash when nothing has run yet. */
-export function formatCheckedAt(at: number): string {
-  if (!at) return '还没有检查过'
-  const then = new Date(at)
-  const days = Math.floor((Date.now() - at) / (24 * 60 * 60 * 1000))
-  const time = then.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  if (days <= 0) return `今天 ${time}`
-  if (days === 1) return `昨天 ${time}`
-  if (days < 30) return `${days} 天前`
-  return then.toLocaleDateString('zh-CN')
-}

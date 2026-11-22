@@ -71,14 +71,13 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
   const format = prefs?.format ?? 'original'
   const bitrate = prefs?.bitrate ?? 256
-  const lossy = format === 'mp3' || format === 'm4a'
   const cacheLimit = page.settings.mediaCacheLimitMb
 
   return (
     <Rows>
       <Row
         label="保存到"
-        hint="没改过就放在系统音乐目录下的 Aurora 文件夹。"
+        
         title={prefs?.effectiveDir}
       >
         <div className="dlp__dir">
@@ -96,7 +95,6 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="下完在文件夹里显示"
-        hint="一批下完才弹一次，不会每首各开一个窗口。"
       >
         <Toggle
           checked={page.settings.openAfterDownload}
@@ -106,7 +104,7 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
         />
       </Row>
 
-      <Row label="格式" hint={FORMATS.find((item) => item.value === format)?.hint}>
+      <Row label="格式">
         <div className="seg" role="group" aria-label="下载格式">
           {FORMATS.map((item) => (
             <button
@@ -123,13 +121,6 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="码率"
-        hint={
-          format === 'flac'
-            ? 'FLAC 是无损，不需要码率。'
-            : lossy
-              ? '数字越大越接近原文件，文件也越大。'
-              : '选了原格式，不重新编码，码率由平台决定。'
-        }
       >
         <div className={`seg${format === 'original' || format === 'flac' ? ' is-muted' : ''}`} role="group" aria-label="下载码率">
           {BITRATES.map((value) => (
@@ -148,11 +139,6 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="转码器"
-        hint={
-          prefs?.ffmpeg
-            ? '已经找到 ffmpeg，可用的格式都能转。'
-            : '没找到 ffmpeg，转码用不了。把 ffmpeg.exe 放进资源目录，或设 AURORA_FFMPEG 指向它。'
-        }
       >
         <span className={`dlp__badge${prefs?.ffmpeg ? ' is-ok' : ''}`}>
           {prefs?.ffmpeg ? '可用' : '未安装'}
@@ -161,11 +147,6 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="在线缓存上限"
-        hint={
-          cacheLimit === 0
-            ? '关掉之后，听过的歌不再留在本地，每次都重新联网取。'
-            : '听过的歌存在本机，再听同一首直接读盘、不再联网。超了按最久未听先删。'
-        }
       >
         <div className="seg" role="group" aria-label="在线缓存上限">
           {CACHE_LIMITS.map((megabytes) => (
@@ -184,7 +165,7 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
 
       <Row
         label="缓存占用"
-        hint={cacheLimit === 0 ? undefined : '这部分只存音频，清掉不影响下载目录里的歌。'}
+        
         title={cache?.directory}
       >
         <div className="dlp__dir">

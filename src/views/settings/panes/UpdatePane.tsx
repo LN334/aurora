@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../../../bridge'
-import {
-  formatCheckedAt,
-  useSettingsPage
-} from '../../../features/settings/store'
+import { useSettingsPage } from '../../../features/settings/store'
 import { UpdatePanel } from '../../../ui/UpdatePanel'
+import { showFlash } from '../../../ui/flash'
 import { Row, Rows, Sub, Toggle } from '../parts'
 import {
   ISSUES_URL,
@@ -40,11 +38,6 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
            */}
           <Row
             label="自动检查"
-            hint={
-              updateInterval === 'manual'
-                ? '关掉后只在你点「检查更新」时查。'
-                : `上次检查：${formatCheckedAt(page.prefs.lastCheck)}`
-            }
           >
             <Toggle
               checked={updateInterval !== 'manual'}
@@ -88,7 +81,6 @@ function About() {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof bridge.info>> | null>(null)
   /* 导出日志的两态：正在写、以及写到哪儿了（取消时是空串）。 */
   const [exporting, setExporting] = useState(false)
-  const [savedTo, setSavedTo] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -116,7 +108,9 @@ function About() {
   const exportLogs = async (): Promise<void> => {
     setExporting(true)
     try {
-      setSavedTo(await bridge.app.exportLogs())
+      const path = await bridge.app.exportLogs()
+      /* 取消保存时拿到空串：不提示，那也是一次正常结束。 */
+      if (path) showFlash(`日志已导出：${path}`)
     } finally {
       setExporting(false)
     }
@@ -164,18 +158,13 @@ function About() {
         ) : null}
       </dl>
       <Rows>
-        <Row label="项目主页" hint="源码与全部发行版。">
+        <Row label="项目主页">
           <button className="btn btn--small" onClick={() => open(REPO_URL)}>
             github.com/LN334/aurora ↗
           </button>
         </Row>
         <Row
           label="导出日志"
-          hint={
-            savedTo
-              ? `已保存到 ${savedTo}`
-              : '存成一个 txt：包含这一次和上一次运行的日志（出问题那次通常在上一份），token 与 cookie 会先被替换掉。'
-          }
         >
           <button
             className="btn btn--small"
@@ -185,12 +174,12 @@ function About() {
             {exporting ? '正在导出…' : '导出'}
           </button>
         </Row>
-        <Row label="反馈问题" hint="提 issue，自动带上版本与环境。">
+        <Row label="反馈问题">
           <button className="btn btn--small" onClick={() => open(issueUrl(facts))}>
             反馈 ↗
           </button>
         </Row>
-        <Row label="开源协议" hint="MIT，可自用与再分发。">
+        <Row label="开源协议">
           <span className="specs__path">MIT</span>
         </Row>
         <Row label="已提的问题">
