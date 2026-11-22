@@ -64,12 +64,17 @@ const PLAN_FILES = new Set(['docs/roadmap.md'])
  * 方案已被否决。按本仓的文件表解析它们，只会得到十条假阳性——假阳性一多，真失效
  * 引用就会被淹掉，这才是这份审计存在的意义。
  *
- * 代价：这两份文档里若真写了本仓路径、那文件后来又被挪走，这里会漏报。它们只记录
- * 2026-11-17 的调研和一次撤销的提案，不改任何行为，可以接受。
+ * installed-apps-teardown.md 也一样：`src/renderer/api/musicParser.ts` 与
+ * `src/main/server.ts` 是 AlgerMusicPlayer 的 app.asar 里的行号，`electron/ota.ts`
+ * 是一条「将来可以新建」的建议落点，本仓都没有这个路径。
+ *
+ * 代价：这三份文档里若真写了本仓路径、那文件后来又被挪走，这里会漏报。它们只记录
+ * 2026-11-17 的调研、一次撤销的提案和 2026-11-22 的拆解，不改任何行为，可以接受。
  */
 const REFERENCE_FILES = new Set([
   'docs/other-players-platform-adapters.md',
-  'docs/guest-playback-and-upstream-plan.md'
+  'docs/guest-playback-and-upstream-plan.md',
+  'docs/installed-apps-teardown.md'
 ])
 
 /*
