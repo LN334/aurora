@@ -52,6 +52,21 @@ export interface PartyNow {
   at: number
   position: number
   playing: boolean
+  /**
+   * 房间给这条「现在」排的号，房主那一侧单调递增。
+   *
+   * 两个人几乎同时按键时，两条消息会在路上交错；没有号的话各端先按自己的那份
+   * 执行，再被对方那条拉回来，看起来就是两个人在抢播放键。有号之后，收到比已
+   * 应用过的更旧的号直接丢。
+   */
+  seq?: number
+  /**
+   * 这次变的是哪一样：换歌、起停、拖进度，还是房主的定时心跳。
+   *
+   * 它是断掉「暂停回声」的关键：跟着别人暂停而暂停的客户端也会上报，但它报的
+   * 「暂停」与房间当前状态一模一样，房主据此原样丢掉，不再推回去。
+   */
+  why?: 'track' | 'state' | 'seek' | 'tick'
   /** 这首歌是什么。客人队列里没有它时，靠这份描述就地装进来。 */
   track?: {
     id: string
@@ -111,6 +126,13 @@ export interface PartyState {
   refused: string
   /** 房间里最近的话；中途进来的人也看得到上一段。 */
   messages: PartyMessage[]
+  /**
+   * 房间状态的版本号，每次播放或队列真的变了才 +1。
+   *
+   * 与 `now.seq` 同一个计数器：一条状态广播里的 `rev` 就是它里面那份
+   * `now.seq`。
+   */
+  rev: number
   error: string
 }
 
@@ -121,8 +143,18 @@ export interface PartyApi {
   join(address: string, code: string, name: string, pass?: string): Promise<PartyState>
   leave(): Promise<PartyState>
   pushNow(now: PartyNow): Promise<PartyState>
-  /** 房主把房间队列定下来；客人调用不会改到别人的房间。 */
+  /** 房主把房间队列整包换掉（客人调用无效果；逐首操作请走下面那几个）。 */
   setQueue(queue: PartyQueueItem[]): Promise<PartyState>
+  /** 往房间列表末尾加一首；房里谁都能加，重复的不会加第二次。 */
+  queueAdd(item: PartyQueueItem): Promise<PartyState>
+  /** 从房间列表拿掉一首。 */
+  queueRemove(id: string): Promise<PartyState>
+  /** 把房间列表里的一首挪到第 `to` 位。 */
+  queueMove(id: string, to: number): Promise<PartyState>
+  /** 放房间列表里的这一首：房里谁都能按，放的是所有人都听得到的那一份。 */
+  queuePlay(id: string): Promise<PartyState>
+  /** 清空房间列表；正在放的那首不受影响。 */
+  queueClear(): Promise<PartyState>
   chat(text: string): Promise<PartyState>
   /** 房主填公网地址；客人调用无效果。 */
   setPublic(address: string): Promise<PartyState>

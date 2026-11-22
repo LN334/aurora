@@ -126,3 +126,43 @@ export function sawSeek(before: PlaybackTick, after: PlaybackTick): boolean {
   const expected = before.position + (before.playing ? elapsed : 0)
   return Math.abs(after.position - expected) > SEEK_JUMP
 }
+
+/**
+ * 房间最近一次要求我们处在的状态。
+ *
+ * 与上面的 `PartyMoment` 分开：那个是「房主那一刻报的数」，这个是「客户端最后
+ * 一次照它执行的那份」——跟着房间走造成的变化要拿它来认，认出来就不该再上报。
+ */
+export interface RemoteMoment {
+  trackId: string
+  playing: boolean
+  position: number
+  /** Unix 毫秒：这份要求的时刻。 */
+  at: number
+}
+
+/**
+ * 本地这一次变化，是不是房间刚让我们变成这样的。
+ *
+ * 一起听里谁都能按暂停。A 按下之后，B 是被广播推着暂停的——如果 B 也把这次
+ * 「变化」报上去，房主就收到两条暂停；两条都盖新的号再推一遍，播放键就开始
+ * 自己跳。所以客户端在每一条上报前都先问这一句。
+ *
+ * 只比这类变化关心的那一项：换歌看曲目、起停看状态、拖动看位置（留 `drift`
+ * 秒宽限——缓冲与取流会让位置差个一两秒）。比上了就是「我在服从」，不是「我
+ * 在操作」。
+ */
+export function followsRemote(
+  kind: 'track' | 'state' | 'seek',
+  remote: RemoteMoment | null,
+  sample: { trackId?: string; playing?: boolean; position?: number },
+  at: number,
+  drift = DRIFT_LIMIT
+): boolean {
+  if (!remote) return false
+  if (kind === 'track') return sample.trackId === remote.trackId
+  if (kind === 'state') return sample.playing === remote.playing
+  if (sample.position === undefined) return false
+  const expected = remote.position + (remote.playing ? Math.max(0, (at - remote.at) / 1000) : 0)
+  return Math.abs(sample.position - expected) <= drift
+}

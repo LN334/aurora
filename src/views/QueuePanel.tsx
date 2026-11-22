@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
+import { useParty } from '../features/party/store'
 import { usePlayer } from '../features/player/store'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
 import type { Track } from '../types'
@@ -7,7 +8,7 @@ import { useRoam } from '../features/player/roam-session'
 import { formatTime } from '../ui/format'
 import { ArtistName } from '../ui/NameRef'
 import { sourceLabelById } from '../features/online/registry'
-import { Close, Compass, Heart, List, Next, Trash } from '../ui/icons'
+import { Close, Compass, Heart, List, Next, Plus, Trash } from '../ui/icons'
 import { usePresence } from '../ui/presence'
 
 /** 「接下来」每页多少行。 */
@@ -29,11 +30,13 @@ interface RowProps {
   label: string
   isCurrent: boolean
   playing: boolean
+  /** 在房间里时多一颗「加进房间」；不在房间就不该出现，按了也没地方去。 */
+  inRoom: boolean
   onJump(queueIndex: number): void
   onRemove(queueIndex: number): void
 }
 
-function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, onJump, onRemove }: RowProps) {
+function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, inRoom, onJump, onRemove }: RowProps) {
   if (!track) return null
 
   return (
@@ -78,6 +81,23 @@ function QueueRow({ trackIndex, track, liked, label, isCurrent, playing, onJump,
         >
           <Heart size={13} />
         </button>
+        {/*
+          加进一起听。
+
+          以前房间列表是房主队列的镜像，客人只能看；现在它单独一份，这颗键就是
+          「往那份里放一首」的入口。正在放的那首也允许加——把这一首排进房间的
+          下几首，本来就是最常做的动作。
+        */}
+        {inRoom ? (
+          <button
+            className="queue-row__op"
+            onClick={() => void useParty.getState().addToRoom(track)}
+            title="加进一起听房间"
+            aria-label={`把 ${track.title} 加进一起听房间`}
+          >
+            <Plus size={13} />
+          </button>
+        ) : null}
         {isCurrent ? null : (
           <>
             <button
@@ -142,6 +162,8 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
   const likedIds = useLikedIds()
   // 关闭时先留着，让抽屉滑出去再卸载。
   const { mounted, closing } = usePresence(open, 320)
+  /* 在房间里才给「加进房间」那颗键：不在房间时它没有去处。 */
+  const inRoom = useParty((s) => s.state.role !== 'idle')
 
   if (!mounted) return null
 
@@ -225,6 +247,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                     label=""
                     isCurrent
                     playing={playing}
+                    inRoom={inRoom}
                     onJump={jump}
                     onRemove={remove}
                   />
@@ -254,6 +277,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                       label={String(position + 1)}
                       isCurrent={false}
                       playing={playing}
+                      inRoom={inRoom}
                       onJump={jump}
                       onRemove={remove}
                     />
@@ -285,6 +309,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                       label="·"
                       isCurrent={false}
                       playing={false}
+                      inRoom={inRoom}
                       onJump={jump}
                       onRemove={remove}
                     />

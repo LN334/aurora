@@ -34,6 +34,7 @@ const IDLE_PARTY = {
   connecting: false,
   refused: '',
   messages: [],
+  rev: 0,
   error: ''
 }
 
@@ -538,6 +539,12 @@ const webFallback: AuroraApi = {
     leave: async () => IDLE_PARTY,
     pushNow: async () => IDLE_PARTY,
     setQueue: async () => IDLE_PARTY,
+    /* 房间列表在预览里没有后端可加：原样返回空房间，界面照实提示。 */
+    queueAdd: async () => IDLE_PARTY,
+    queueRemove: async () => IDLE_PARTY,
+    queueMove: async () => IDLE_PARTY,
+    queuePlay: async () => IDLE_PARTY,
+    queueClear: async () => IDLE_PARTY,
     chat: async () => ({ ...IDLE_PARTY, error: '浏览器预览模式没有一起听后端' }),
     setPublic: async () => IDLE_PARTY,
     rename: async () => IDLE_PARTY,

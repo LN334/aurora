@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { inviteText, landingLink, normalizeCode, parseInvite } from '../features/party/invite'
+import { formatTime } from '../ui/format'
 import { Lock } from '../ui/icons'
 import { useParty } from '../features/party/store'
 import { usePresence } from '../ui/presence'
@@ -599,6 +600,63 @@ export function PartyPage() {
               <strong>房间还没有在播的歌</strong>
               <span>房主开始播放，这里就会跟着动</span>
             </div>
+          )}
+        </div>
+
+        {/*
+          房间自己的列表。
+
+          以前「房间列表」就是房主本地那条队列的镜像：房主加什么这里就有什么，
+          客人只能看。现在它是单独一份——谁都能往里加、能删、能直接放。正在放
+          的那首不进列表（它在上面那张卡里），所以这里没有「删掉在放的歌」。
+        */}
+        <div className="party-room__queue">
+          <div className="party-room__queue-head">
+            <b>房间列表</b>
+            <span>
+              {state.queue.length ? state.queue.length + ' 首待放' : '待放队列是空的'}
+              · 谁都能加、能删、能放
+            </span>
+            {state.queue.length ? (
+              <button className="rh-btn" type="button" onClick={() => void useParty.getState().clearRoom()}>
+                清空
+              </button>
+            ) : null}
+          </div>
+          {state.queue.length ? (
+            <ol className="party-room__queue-list">
+              {state.queue.map((item, index) => (
+                <li key={item.id} className="party-room__queue-row">
+                  <span className="party-room__queue-index tnum">{index + 1}</span>
+                  <span className="party-room__queue-main">
+                    <span className="party-room__queue-title">{item.title || '（无标题）'}</span>
+                    <span className="party-room__queue-artist">{item.artist || '未知歌手'}</span>
+                  </span>
+                  <span className="party-room__queue-time tnum">{formatTime(item.duration)}</span>
+                  <button
+                    className="rh-btn"
+                    type="button"
+                    title="放这一首：房里所有人都跟着换"
+                    onClick={() => void useParty.getState().playFromRoom(item.id)}
+                  >
+                    放
+                  </button>
+                  <button
+                    className="rh-btn"
+                    type="button"
+                    title="从房间列表拿掉"
+                    aria-label={'从房间列表拿掉 ' + (item.title || '这一首')}
+                    onClick={() => void useParty.getState().removeFromRoom(item.id)}
+                  >
+                    移
+                  </button>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="party-room__queue-empty">
+              列表是空的。在你自己的「接下来」面板里点 +，把歌加进这个房间。
+            </p>
           )}
         </div>
 

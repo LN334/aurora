@@ -8,6 +8,7 @@ import { WebSocket, WebSocketServer } from 'ws'
 import { upstreamHeaders } from '../upstream-headers.ts'
 import { cleanCode } from './code.ts'
 import { startAnswering, stopAnswering } from './discover.ts'
+import { addToQueue, moveInQueue, removeFromQueue } from './queue.ts'
 
 /**
  * 一起听：局域网房间。
@@ -59,6 +60,24 @@ export interface PartyNow {
    */
   position: number
   playing: boolean
+  /**
+   * 房间给这条「现在」排的号，由房主那一份状态单调递增。
+   *
+   * 以前谁后到谁赢：两个人几乎同时按下去，两条消息在路上交错，各自先按自己的
+   * 那份执行，再被对方那条拉回来——看起来就是两个人在抢播放键。有了号，收到
+   * 比自己已经应用过的更旧的号就直接丢，迟到的消息没法把状态倒回去。
+   *
+   * 没有号（老版本房主）时按 0 处理，行为与以前一致。
+   */
+  seq?: number
+  /**
+   * 这条变化是哪一类：换歌、起停、拖进度，还是房主的定时心跳。
+   *
+   * 有它，房主才能做等价判断：一个人按暂停、别人跟着被暂停，别人那一份
+   * 「暂停」回来时与房间当前状态一模一样，原样丢掉——不盖新号，也不再回推。
+   * 少了这一道，两个客户端会你报一次、我报一次，播放键自己跳个不停。
+   */
+  why?: 'track' | 'state' | 'seek' | 'tick'
   /** 这首歌是什么；客人队列里没有它时靠它就地装进来。 */
   track?: {
     id: string
@@ -165,6 +184,13 @@ export interface PartyState {
    * 房间的记忆就断一次。只留最近几十条，再多就该滑动条了。
    */
   messages: PartyMessage[]
+  /**
+   * 房间状态的版本号，每次播放或队列真的变了才 +1。
+   *
+   * 与 `now.seq` 同一个计数器：一条状态广播里的 `rev` 就是它里面那份
+   * `now.seq`。界面与客户端拿它判断「这条比我已经应用过的旧不旧」。
+   */
+  rev: number
   /** 最近一次拒绝的原因，给界面用；成功时为空串。 */
   error: string
 }
@@ -224,6 +250,7 @@ function idle(): PartyState {
     connecting: false,
     refused: '',
     messages: [],
+    rev: 0,
     error: ''
   }
 }
@@ -322,6 +349,18 @@ let hostCode = ''
 let hostPassword = ''
 let hostPort = 0
 let guestSocket: WebSocket | null = null
+/**
+ * 房间状态的版本号。
+ *
+ * 每条真的改变了「在听什么」或「接下来放什么」的命令 +1；同一条命令的两次
+ * 广播共用一个号。它只在房主进程里有意义——房间状态的唯一一份就在那儿。
+ */
+let roomRev = 0
+
+function stampRev(): number {
+  roomRev += 1
+  return roomRev
+}
 
 function membersNow(): PartyMember[] {
   const host = current.role === 'host'
@@ -530,6 +569,7 @@ export function startHost(name: string, port = 0): PartyState {
     connecting: false,
     refused: '',
     messages: [],
+    rev: 0,
     error: ''
   })
 
@@ -612,12 +652,23 @@ export function startHost(name: string, port = 0): PartyState {
         })
         return
       }
+      /*
+       * 「在听什么」谁都能改，但只有房主这一份进程能落定。
+       *
+       * 这是这一版与之前最大的不同：以前客人只被允许切歌，暂停与拖动只有房主
+       * 说了算——「不想限制房客」就是把这三种放平。放平之后靠的不是权限，而是
+       * 这里的串行 + 排号：两条命令按到达顺序各得一个更号，客户端丢掉更旧的，
+       * 于是不会出现「你拉我、我拉你」。
+       */
       if (message.t === 'now' && typeof message.now === 'object' && message.now) {
-        // 只有房主能改「现在听什么」。
         if (current.role !== 'host') return
-        const now = message.now as unknown as PartyNow
-        publish({ now })
-        broadcast(current)
+        publishNow(message.now as unknown as PartyNow)
+        return
+      }
+      if (message.t === 'queue') {
+        if (current.role !== 'host') return
+        applyQueueCommand(String(message.op ?? ''), message)
+        return
       }
     })
     socket.on('close', () => {
@@ -667,6 +718,8 @@ export function stopParty(): void {
   hostCode = ''
   hostPassword = ''
   hostPort = 0
+  /* 房间重开之后号要从头数：留着上一个房间的号，新客人的第一条命令会被当成旧的。 */
+  roomRev = 0
   publish(idle())
 }
 
@@ -823,8 +876,211 @@ function sameQueue(a: PartyQueueItem[], b: PartyQueueItem[]): boolean {
 export function setQueue(queue: PartyQueueItem[]): void {
   if (current.role !== 'host') return
   if (sameQueue(current.queue, queue)) return
-  publish({ queue })
+  publish({ queue, rev: stampRev() })
   broadcast(current)
+}
+
+/**
+ * 一串文本能进房间状态的最大长度。
+ *
+ * 房间里谁都能下命令（这是有意的），所以每个字段都得截：不截的话，一个把
+ * 歌名塞成两万字的客户端能让所有人的面板同时跳一下，而它自己看起来很正常。
+ */
+function clip(value: unknown, max: number): string {
+  return typeof value === 'string' ? [...value].slice(0, max).join('') : ''
+}
+
+/** 队列里的一首：字段一个一个过，形状不对就当没这一条。 */
+function cleanQueueItem(raw: unknown): PartyQueueItem | null {
+  if (!raw || typeof raw !== 'object') return null
+  const item = raw as Partial<PartyQueueItem>
+  const id = clip(item.id, 160)
+  if (!id) return null
+  const duration = Number(item.duration)
+  return {
+    id,
+    source: clip(item.source, 24) || 'local',
+    title: clip(item.title, 120),
+    artist: clip(item.artist, 120),
+    album: clip(item.album, 120),
+    duration: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0,
+    coverUrl: typeof item.coverUrl === 'string' ? clip(item.coverUrl, 512) : null,
+    hasArt: item.hasArt === true
+  }
+}
+
+/** 房主那份流：地址与音质都截一下，`via` 只认这两个值。 */
+function cleanStream(raw: PartyNow['stream']): PartyNow['stream'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const url = clip(raw.url, 2048)
+  if (!url) return undefined
+  return {
+    url,
+    quality: clip(raw.quality, 16),
+    via: raw.via === 'relay' ? 'relay' : 'direct'
+  }
+}
+
+/**
+ * 一条「在听什么」的清洗。
+ *
+ * `seq` 不在这里给：它只由 `publishNow` 盖章。客户端带什么号都会被丢掉——
+ * 号是房主这一侧的记账，不是发言人的特权。
+ */
+function cleanNow(raw: PartyNow): PartyNow {
+  const track = raw.track ? cleanQueueItem(raw.track) : null
+  const stream = cleanStream(raw.stream)
+  const position = Number(raw.position)
+  const at = Number(raw.at)
+  return {
+    trackId: clip(raw.trackId, 160),
+    title: clip(raw.title, 160),
+    artist: clip(raw.artist, 160),
+    at: Number.isFinite(at) && at > 0 ? at : Date.now(),
+    position: Number.isFinite(position) && position > 0 ? position : 0,
+    playing: raw.playing === true,
+    ...(raw.why === 'track' || raw.why === 'state' || raw.why === 'seek' || raw.why === 'tick'
+      ? { why: raw.why }
+      : {}),
+    ...(track ? { track } : {}),
+    ...(stream ? { stream } : {})
+  }
+}
+
+/** 位置差这么多秒以内，就算「不是一次新的拖动」。 */
+const REPEAT_POSITION_EPS_S = 1.5
+
+/** 房间此刻应该在第几秒：`now` 自己会随播放往前推。 */
+function livePosition(now: PartyNow, at = Date.now()): number {
+  if (!now.playing) return now.position
+  return now.position + Math.max(0, (at - now.at) / 1000)
+}
+
+/**
+ * 这条命令是不是「房间已经是这样了」。
+ *
+ * 这是断掉回声的第一道闸，也是最重要的一道。一个人按暂停，房里其他人跟着被
+ * 暂停——他们的客户端会看到一次「本地状态变了」，如果照报，房主就会收到一串
+ * 「暂停」；每条都盖新号再推回去，播放键就开始自己跳。这里按命令的类别比：
+ * 起停只看 `playing`，切歌只看曲目，拖动看位置差。等价就不算变化。
+ */
+function redundant(why: string, now: PartyNow): boolean {
+  const prev = current.now
+  if (!prev) return false
+  if (prev.trackId !== now.trackId) return false
+  if (why === 'state') return prev.playing === now.playing
+  if (why === 'track' || why === 'seek') {
+    return Math.abs(livePosition(prev) - now.position) <= REPEAT_POSITION_EPS_S
+  }
+  return false
+}
+
+/**
+ * 应用一条「在听什么」，然后广播。
+ *
+ * 房主本地的操作与成员发来的命令都走这一条：房间里只有这一处给状态盖章，
+ * 谁先按、谁后按最终都由这里排号——不是各端自己说了算。等价命令在这里被
+ * 吸收掉，连号都不盖：它没有改变任何东西，广播出去只会让别人的 watcher
+ * 再动一次。
+ */
+function publishNow(raw: PartyNow): void {
+  const now = cleanNow(raw)
+  const why = now.why
+  if (why && why !== 'tick' && redundant(why, now)) return
+  publish({ now: { ...now, seq: stampRev() }, rev: roomRev })
+  broadcast(current)
+}
+
+/** 把队列里的一首提上来放：先从队列拿走，再作为「现在」广播。 */
+function playQueueEntry(id: string): void {
+  if (current.role !== 'host') return
+  const item = current.queue.find((each) => each.id === id)
+  if (!item) return
+  publish({ queue: removeFromQueue(current.queue, id) })
+  publishNow({
+    trackId: item.id,
+    title: item.title,
+    artist: item.artist,
+    at: Date.now(),
+    position: 0,
+    playing: true,
+    why: 'track',
+    track: { ...item }
+  })
+}
+
+/**
+ * 队列命令的唯一入口。
+ *
+ * `add` / `remove` / `move` / `play` / `clear` 都在这儿落地。没有「谁的歌
+ * 才能删」这一说：房间列表是大家共用的，谁都能整理；不设权限是因为一起听本来
+ * 就是熟人之间的小房间，管得太细只会让「想换一首」变成要去找房主。
+ */
+function applyQueueCommand(op: string, data: Record<string, unknown>): void {
+  if (current.role !== 'host') return
+  const id = typeof data.id === 'string' ? data.id : ''
+  if (op === 'add') {
+    const item = cleanQueueItem(data.item)
+    if (!item) return
+    const next = addToQueue(current.queue, item)
+    if (next === current.queue) return
+    publish({ queue: next, rev: stampRev() })
+    broadcast(current)
+    return
+  }
+  if (op === 'remove') {
+    const next = removeFromQueue(current.queue, id)
+    if (next === current.queue) return
+    publish({ queue: next, rev: stampRev() })
+    broadcast(current)
+    return
+  }
+  if (op === 'move') {
+    const next = moveInQueue(current.queue, id, Number(data.to))
+    if (next === current.queue) return
+    publish({ queue: next, rev: stampRev() })
+    broadcast(current)
+    return
+  }
+  if (op === 'clear') {
+    if (current.queue.length === 0) return
+    publish({ queue: [], rev: stampRev() })
+    broadcast(current)
+    return
+  }
+  if (op === 'play') playQueueEntry(id)
+}
+
+/** 房主本地直接应用；客人把命令交给房主，等它广播回来才生效。 */
+function queueCommand(payload: Record<string, unknown>): void {
+  if (current.role === 'guest') {
+    if (guestSocket?.readyState === WebSocket.OPEN) {
+      guestSocket.send(JSON.stringify(payload))
+    }
+    return
+  }
+  if (current.role !== 'host') return
+  applyQueueCommand(String(payload.op ?? ''), payload)
+}
+
+export function addQueueItem(item: PartyQueueItem): void {
+  queueCommand({ t: 'queue', op: 'add', item })
+}
+
+export function removeQueueItem(id: string): void {
+  queueCommand({ t: 'queue', op: 'remove', id })
+}
+
+export function moveQueueItem(id: string, to: number): void {
+  queueCommand({ t: 'queue', op: 'move', id, to })
+}
+
+export function playQueueItem(id: string): void {
+  queueCommand({ t: 'queue', op: 'play', id })
+}
+
+export function clearRoomQueue(): void {
+  queueCommand({ t: 'queue', op: 'clear' })
 }
 
 export function pushNow(now: PartyNow): void {
@@ -842,8 +1098,7 @@ export function pushNow(now: PartyNow): void {
     return
   }
   if (current.role !== 'host') return
-  publish({ now })
-  broadcast(current)
+  publishNow(now)
 }
 
 /**

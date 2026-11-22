@@ -8,11 +8,16 @@ import { sakuraCheckFrpc, sakuraFindFrpc, sakuraInstallFrpc } from '../sakura/fr
 import { chatWindowOpen } from '../chat-window'
 import { clearTunnelLog, onTunnelState, startTunnel, stopTunnel, tunnelState } from './tunnel'
 import {
+  addQueueItem,
+  clearRoomQueue,
   joinParty,
   kickMember,
+  moveQueueItem,
   onPartyState,
   partyState,
+  playQueueItem,
   pushNow,
+  removeQueueItem,
   renameRoom,
   sendChat,
   setHostPassword,
@@ -21,7 +26,7 @@ import {
   startHost,
   stopParty
 } from './room'
-import type { PartyNow } from './room'
+import type { PartyNow, PartyQueueItem } from './room'
 
 /**
  * 一起听的 IPC。
@@ -143,6 +148,41 @@ export function registerPartyIpc(): void {
     const raw = asRecord(args)
     const now = raw.now as PartyNow | undefined
     if (now && typeof now.trackId === 'string') pushNow(now)
+    return partyState()
+  })
+
+  /*
+   * 房间列表的五个动作：加、删、挪、放、清。
+   *
+   * 与房主 / 客人的身份无关，谁调都一样——这些不是「房主的房间设置」，而是
+   * 房间里共用的那份列表。房主调用就地生效，客人调用的是一条交给房主的命令。
+   */
+  ipcMain.handle('party:queueAdd', (_event, args: unknown) => {
+    const item = asRecord(args).item
+    if (item && typeof item === 'object') addQueueItem(item as PartyQueueItem)
+    return partyState()
+  })
+
+  ipcMain.handle('party:queueRemove', (_event, args: unknown) => {
+    const id = asText(asRecord(args).id)
+    if (id) removeQueueItem(id)
+    return partyState()
+  })
+
+  ipcMain.handle('party:queueMove', (_event, args: unknown) => {
+    const raw = asRecord(args)
+    moveQueueItem(asText(raw.id), Number(raw.to))
+    return partyState()
+  })
+
+  ipcMain.handle('party:queuePlay', (_event, args: unknown) => {
+    const id = asText(asRecord(args).id)
+    if (id) playQueueItem(id)
+    return partyState()
+  })
+
+  ipcMain.handle('party:queueClear', () => {
+    clearRoomQueue()
     return partyState()
   })
 

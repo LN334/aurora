@@ -6,6 +6,7 @@ import {
   expectedPosition,
   momentStale,
   playStateFor,
+  followsRemote,
   sawSeek,
   seekTarget,
   type LocalPlayback,
@@ -119,4 +120,49 @@ test('a clock off by half an hour is treated as untrustworthy, in either directi
   assert.equal(momentStale(moment(90, true, 30 * 60 * 1000), at0), true)
   /* 房主的钟快半小时 → 负的半小时。 */
   assert.equal(momentStale({ ...moment(90, true), at: at0 + 30 * 60 * 1000 }, at0), true)
+})
+
+
+/*
+ * 跟着房间走，不等于本机有人动手。
+ *
+ * 「暂停回声」是放开控制权之后最容易炸的那一支：A 按暂停，B 被广播推着暂停；
+ * B 若把这当成自己的操作再报，房主收到两条暂停、两条都推回去，播放键就开始
+ * 自己跳。所以每一条上报前都要先问这一句。
+ */
+const remoteNow = { trackId: 'netease:1', playing: true, position: 90, at: at0 }
+
+test('being pulled to another track is following, not switching', () => {
+  assert.equal(followsRemote('track', remoteNow, { trackId: 'netease:1' }, at0 + 200), true)
+  assert.equal(followsRemote('track', remoteNow, { trackId: 'qq:2' }, at0 + 200), false)
+})
+
+test('being pulled into a pause is following, not a keypress', () => {
+  /* 房间里已经是暂停，本地跟着变成暂停：这是回声。 */
+  assert.equal(
+    followsRemote('state', { ...remoteNow, playing: false }, { playing: false }, at0 + 200),
+    true
+  )
+  /* 房间里还在放，本地却按了暂停：这是人按的，要报。 */
+  assert.equal(followsRemote('state', remoteNow, { playing: false }, at0 + 200), false)
+})
+
+test('a position near the room target is the seek we were pulled through', () => {
+  const later = at0 + 2000
+  /* 房间 90 秒处，两秒后应该在 92 秒附近；本地就在这里。 */
+  assert.equal(followsRemote('seek', remoteNow, { position: 92 }, later), true)
+  /* 差得远的就是有人拖了。 */
+  assert.equal(followsRemote('seek', remoteNow, { position: 30 }, later), false)
+})
+
+test('a paused room does not drift forward while judging a seek', () => {
+  const paused = { ...remoteNow, playing: false, position: 42 }
+  assert.equal(followsRemote('seek', paused, { position: 42 }, at0 + 60_000), true)
+  assert.equal(followsRemote('seek', paused, { position: 52 }, at0 + 60_000), false)
+})
+
+test('without a room target nothing is treated as following', () => {
+  assert.equal(followsRemote('state', null, { playing: false }, at0), false)
+  assert.equal(followsRemote('track', null, { trackId: 'netease:1' }, at0), false)
+  assert.equal(followsRemote('seek', null, { position: 1 }, at0), false)
 })

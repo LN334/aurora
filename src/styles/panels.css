@@ -1757,6 +1757,98 @@ body.is-party-window {
   color: var(--text-low);
 }
 
+/* 房间自己的列表：待放的几首，房里谁都能加、能删、能放。 */
+.party-room__queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid rgb(var(--tint-rgb) / 0.07);
+  border-radius: 14px;
+  background: rgb(var(--tint-rgb) / 0.02);
+}
+
+.party-room__queue-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.party-room__queue-head b {
+  font-size: var(--fs-body);
+  color: var(--text-hi);
+}
+
+.party-room__queue-head span {
+  flex: 1;
+  font-size: var(--fs-micro);
+  color: var(--text-low);
+}
+
+.party-room__queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.party-room__queue-row {
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  border-radius: 8px;
+}
+
+.party-room__queue-row:hover {
+  background: rgb(var(--tint-rgb) / 0.04);
+}
+
+.party-room__queue-index {
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+  text-align: right;
+}
+
+.party-room__queue-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.party-room__queue-title {
+  overflow: hidden;
+  color: var(--text-hi);
+  font-size: var(--fs-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-room__queue-artist {
+  overflow: hidden;
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-room__queue-time {
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}
+
+.party-room__queue-empty {
+  margin: 0;
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}
+
 .party-room__empty {
   display: flex;
   flex-direction: column;

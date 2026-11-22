@@ -687,6 +687,12 @@ const api = {
     leave: () => ipcRenderer.invoke('party:leave'),
     pushNow: (now: unknown) => ipcRenderer.invoke('party:now', { now }),
     setQueue: (queue: unknown) => ipcRenderer.invoke('party:queue', { queue }),
+    /* 房间列表：房里谁都能加、能删、能挪、能放。 */
+    queueAdd: (item: unknown) => ipcRenderer.invoke('party:queueAdd', { item }),
+    queueRemove: (id: string) => ipcRenderer.invoke('party:queueRemove', { id }),
+    queueMove: (id: string, to: number) => ipcRenderer.invoke('party:queueMove', { id, to }),
+    queuePlay: (id: string) => ipcRenderer.invoke('party:queuePlay', { id }),
+    queueClear: () => ipcRenderer.invoke('party:queueClear'),
     chat: (text: string) => ipcRenderer.invoke('party:chat', { text }),
     setPublic: (address: string) => ipcRenderer.invoke('party:public', { address }),
     rename: (name: string) => ipcRenderer.invoke('party:rename', { name }),

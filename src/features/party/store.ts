@@ -8,7 +8,7 @@ import { usePlayer } from '../player/store'
 import { rememberSharedOrigin, rememberSharedStream } from './shared-stream'
 import { partyTrackInfoOf, trackFromParty } from './shared-track'
 import { normalizeCode, parseInvite } from './invite'
-import { HOLD_MS, playStateFor, sawSeek, seekTarget } from './pure'
+import { HOLD_MS, followsRemote, playStateFor, sawSeek, seekTarget, type RemoteMoment } from './pure'
 import type { Track } from '../../types'
 import type { PartyQueueItem } from '../../env-types/party'
 import type { PlaybackTick } from './pure'
@@ -36,6 +36,7 @@ const IDLE: PartyState = {
   connecting: false,
   refused: '',
   messages: [],
+  rev: 0,
   error: ''
 }
 
@@ -62,8 +63,18 @@ interface PartyStore {
   join(address: string, code: string, name: string, pass?: string): Promise<void>
   leave(): Promise<void>
   push(now: PartyNow): Promise<void>
-  /** 房主把房间队列定下来；客人调用不会改到别人的房间。 */
+  /** 房主把房间队列整包换掉（房间列表一般用下面几个逐首操作）。 */
   setQueue(queue: PartyQueueItem[]): Promise<void>
+  /** 往房间列表末尾加一首；谁都能加，重复的不会加第二次。 */
+  addToRoom(track: Track): Promise<void>
+  /** 从房间列表拿掉一首。 */
+  removeFromRoom(id: string): Promise<void>
+  /** 把房间列表里的一首挪到第 `to` 位。 */
+  moveInRoom(id: string, to: number): Promise<void>
+  /** 放房间列表里的这一首：房里谁都能按。 */
+  playFromRoom(id: string): Promise<void>
+  /** 清空房间列表；正在放的那首不受影响。 */
+  clearRoom(): Promise<void>
   say(text: string): Promise<void>
   setPublic(address: string): Promise<void>
   /** 房主给房间改名；客人调用无效果。 */
@@ -121,6 +132,22 @@ let applyingRemote = false
 let pushedAt = 0
 
 /**
+ * 房间最近一次要我们处在的状态。
+ *
+ * 这是断掉「暂停回声」的第二道闸。浏览器把 `play()/pause()` 的回调交回来时，
+ * `applyingRemote` 那个同步标记早就落下去了；不认这一份的话，每次跟着房间暂停
+ * 都会被当成「本机也有人按了暂停」再报回去，两个客户端就你一下我一下地互相
+ * 暂停。所以本地状态一变，先问一句：房间要的是不是正好是这个？是就只更新基线。
+ */
+let remote: RemoteMoment | null = null
+
+/** 已经应用过的最大序号；收到更旧的就跳过。 */
+let appliedSeq = 0
+
+/** 起停的上报要等这么久：缓冲导致的自动暂停常常在几百毫秒内自己恢复。 */
+const STATE_PUSH_DELAY_MS = 320
+
+/**
  * 客人刚进房时的静默期。
  *
  * 进房那一刻，本地播放器往往正放着它自己选的一首歌；join 会触发一串状态变化
@@ -143,10 +170,17 @@ function resetWatch(): void {
   lastPlaying = false
   lastTick = null
   holdUntil = 0
+  appliedSeq = 0
+  remote = null
 }
 
-/** 把「现在听什么、听到哪」报给房间。 */
-function pushMoment(): void {
+/**
+ * 把「现在听什么、听到哪」报给房间。
+ *
+ * `why` 说清这次变的是哪一样。房主拿它做等价判断：跟着别人暂停而暂停的客户端
+ * 也会走到这里，但它报的「暂停」与房间已经一致，房主原样丢掉，不会再推回去。
+ */
+function pushMoment(why: 'track' | 'state' | 'seek' | 'tick'): void {
   const playback = usePlayer.getState()
   pushedAt = Date.now()
   const track = playback.queue[playback.index] ?? null
@@ -168,6 +202,7 @@ function pushMoment(): void {
       at: Date.now(),
       position: playback.position,
       playing: playback.playing,
+      why,
       ...(info ? { track: info } : {})
     })
     return
@@ -203,6 +238,7 @@ function pushMoment(): void {
       at: Date.now(),
       position: playback.position,
       playing: playback.playing,
+      why,
       ...(info ? { track: info } : {})
     })
     return
@@ -235,6 +271,7 @@ function pushMoment(): void {
           at: Date.now(),
           position: state.position,
           playing: state.playing,
+          why,
           ...(info ? { track: info } : {}),
           stream: { url: '/stream/' + token, quality, via: 'relay' }
         })
@@ -340,32 +377,22 @@ function sameQueueIds(a: { id: string }[], b: { id: string }[]): boolean {
 }
 
 /**
- * 房主把当前队列推给房间。
- *
- * 只在队列本身变了才发：房间状态是整包广播，播放时位置每帧都在动，不筛一下
- * 就等于每帧给每个成员发一份队列。
- */
-function pushQueue(): void {
-  const party = useParty.getState()
-  if (party.state.role !== 'host') return
-  const items = usePlayer.getState().queue.map(queueItemOf)
-  if (sameQueueIds(items, party.state.queue)) return
-  void party.setQueue(items)
-}
-
-/**
  * 客人把房间队列镜像到本地。
  *
- * 不打断当前播放：先按曲目 id 找到「我正放到的那首」在新队列里的位置，找不到
- * 才回到开头。镜像之后两边的「下一首」指的是同一首，队列序号也就一致了。
+ * 房间列表现在不含正在放的那首（它在 `now` 里），所以「当前曲在这个队列里」
+ * 本来就常常找不到。找不到时**不做替换**：`setQueue` 会把播放位置甩到第 0 首，
+ * 紧接着又被 `now` 拉回正在放的那首，中间那一闪看着像跳了一首歌。房间列表在
+ * 房间页照样看得到，本机的「接下来」留着原来的，不影响房间的播放。
  */
 function mirrorQueue(items: PartyQueueItem[]): void {
   const player = usePlayer.getState()
   if (sameQueueIds(items, player.queue)) return
   const currentId = player.queue[player.index]?.id ?? null
+  if (!currentId) return
   const tracks = items.map((item) => trackFromParty(item))
-  const at = currentId ? tracks.findIndex((track) => track.id === currentId) : 0
-  player.setQueue(tracks, at >= 0 ? at : 0)
+  const at = tracks.findIndex((track) => track.id === currentId)
+  if (at < 0) return
+  player.setQueue(tracks, at)
 }
 
 /** 客人被拉回房主那首的节流：同一首一秒内只跳一次。 */
@@ -386,15 +413,40 @@ function noteFollowed(): void {
 }
 
 /**
+ * 这条「现在」是不是已经被更新的一条取代了。
+ *
+ * 单条连接是保序的，正常不会乱序；但广播与本地操作各走一遍、房主补发一份快照，
+ * 旧的那条仍可能晚到。号只会往前，收到旧的整条跳过：不跟随，也不改「房间期望」
+ * ——拿旧状态覆盖新状态，正是「点了没两秒又弹回去」的来源。
+ */
+function outdated(now: PartyNow): boolean {
+  const seq = typeof now.seq === 'number' ? now.seq : 0
+  if (seq <= 0) return false
+  if (seq < appliedSeq) return true
+  appliedSeq = seq
+  return false
+}
+
+/** 把「房间期望」与当前时刻一起交给纯函数；规则本身在 pure.ts，能单跑。 */
+function echoOf(
+  kind: 'track' | 'state' | 'seek',
+  sample: { trackId?: string; playing?: boolean; position?: number }
+): boolean {
+  return followsRemote(kind, remote, sample, Date.now())
+}
+
+/**
  * 把房间的「现在」套到本地播放器上。
  *
  * 所有角色共用这一条入口：房主也在被别人的操作带着走（客人切了歌，房主
- * 同样要跟）。套用期间挂上 applyingRemote，挡住「跟随又被当成新操作」。
+ * 同样要跟）。套用期间挂上 applyingRemote，挡住「跟随又被当成新操作」；
+ * 同时记下 `remote`，之后本地的每一次变化都要先拿它比一遍（见 `echoOf`）。
  */
 function applyRemote(now: PartyNow): void {
   applyingRemote = true
   try {
     const playback = usePlayer.getState()
+    remote = { trackId: now.trackId, playing: now.playing, position: now.position, at: now.at }
     /* 已经收到房主的「现在」，说明房间是活的，静默期可以收了。 */
     noteFollowed()
     if (playback.queue[playback.index]?.id !== now.trackId) followThrottled(now)
@@ -442,12 +494,34 @@ function alignWith(now: PartyNow): void {
 }
 
 /**
+ * 起停变化延后一会儿再报。
+ *
+ * 缓冲、换流、系统打断都会让 `playing` 闪一下，那不是有人按了播放键。等
+ * 320ms，闪回去了就什么都不发；真是人按的，这点延迟感觉不到。
+ *
+ * 它同时是「暂停回声」的第一道路障：跟着房间暂停的客户端，在这 320ms 里
+ * 通常已经被下一次对齐拉齐，`echoOf` 一比就退出。
+ */
+let statePushTimer: number | null = null
+
+function pushStateSoon(): void {
+  if (statePushTimer !== null) window.clearTimeout(statePushTimer)
+  statePushTimer = window.setTimeout(() => {
+    statePushTimer = null
+    const playback = usePlayer.getState()
+    const track = playback.queue[playback.index]
+    if (!track) return
+    if (echoOf('state', { playing: playback.playing })) return
+    pushMoment('state')
+  }, STATE_PUSH_DELAY_MS)
+}
+
+/**
  * 订一份播放状态，房主与客人各取所需。
  *
- * 房主：换歌、起停都立刻报一声——这是房间存在的主要理由，不该靠手点。
- *
- * 客人：认出「自己拖了进度」。正常播放时位置按时间前进，突然跳出一大截只能
- * 是拖了进度条；这时记下抑制窗口，免得下一条消息立刻把人拽回去。
+ * 房里每个人都能换歌、起停、拖进度（这是有意的），所以这里的每一条上报都得
+ * 先说清「这是本机有人动手」还是「我只是跟着房间走」。分不清的话，A 按一下
+ * 暂停，B 被暂停、又报一轮暂停，播放键就开始自己跳。
  */
 function watchPlayback(): void {
   if (watching) return
@@ -479,11 +553,13 @@ function watchPlayback(): void {
     /* 刚进房的那几秒：只跟、不推，原因见 guestSilentUntil 的注释。 */
     if (role === 'guest' && Date.now() < guestSilentUntil) return
 
-    /* 队列本身变了（加歌、删歌、换一批）才推，位置更新不推。 */
-    if (state.queue !== lastQueueRef) {
-      lastQueueRef = state.queue
-      if (role === 'host') pushQueue()
-    }
+    /*
+     * 只记一下队列换没换，不再往房间推。
+     *
+     * 以前房主本地队列一变就整包灌进房间，「房间列表」其实就是房主自己的队列；
+     * 现在房间列表是单独一份，靠人往里加，播放时换到的歌不会悄悄塞进来。
+     */
+    if (state.queue !== lastQueueRef) lastQueueRef = state.queue
 
     const track = state.queue[state.index] ?? null
     if (!track) return
@@ -491,19 +567,20 @@ function watchPlayback(): void {
       lastTrackId = track.id
       lastPlaying = state.playing
       lastTick = { trackId: track.id, position: state.position, playing: state.playing, at: Date.now() }
-      pushMoment()
+      /* 跟着房间换到的这一首，房间已经知道了：再报一次就是回声。 */
+      if (!echoOf('track', { trackId: track.id })) pushMoment('track')
       return
     }
     if (state.playing !== lastPlaying) {
       lastPlaying = state.playing
       /*
-       * 起停只由房主说了算。
+       * 起停现在谁都能改，所以先分清这一次是不是房间让我们改的。
        *
-       * 两边都能广播起停时，一个缓冲、一次自动暂停就会被对面当成「他按了
-       * 暂停」再广播回来，房间里的播放键开始自己跳。客人这一下只留在本地，
-       * 下一次对齐会按房主的状态把它纠正过来。
+       * 以前只有房主能报，是为了躲开这个回声；代价是客人按暂停等于没按——
+       * 一两秒后就被房主的心跳拽回播放。现在放开，靠的是「比一下房间要的
+       * 是不是同一个状态」：跟着暂停的不报，人真按下的才报。
        */
-      if (role === 'host') pushMoment()
+      if (!echoOf('state', { playing: state.playing })) pushStateSoon()
       return
     }
 
@@ -527,12 +604,13 @@ function watchPlayback(): void {
     if (sawSeek(before, sample)) {
       holdUntil = Date.now() + HOLD_MS
       /*
-       * 拖进度同理：只有房主上报。
+       * 拖进度也放开了，同样要先问一句「是不是被房间拉过去的」。
        *
        * 客人的 seek 有一部分不是人拖的——换流、缓冲后重定位都会让位置跳一
-       * 大截，以前这些也被当成「他在拖」，于是两边不停互相 seek。
+       * 大截。跟随造成的那一跳，位置正好落在房间那一份附近，比一下就退出；
+       * 真是人拖的，才发出去。
        */
-      if (role === 'host') pushMoment()
+      if (!echoOf('seek', { position: state.position })) pushMoment('seek')
     }
   })
 
@@ -545,7 +623,7 @@ function watchPlayback(): void {
      * 就成了两个人抢话筒。房主是那个稳定节拍，客人只在真动手时插一句。
      */
     if (role !== 'host' || !usePlayer.getState().playing) return
-    pushMoment()
+    pushMoment('tick')
   }, HEARTBEAT_MS)
 
   window.setInterval(() => {
@@ -689,6 +767,7 @@ export const useParty = create<PartyStore>((set, get) => ({
         }
       }
       if (!state.now) return
+      if (outdated(state.now)) return
       if (previous.now?.trackId !== state.now.trackId || Date.now() - pushedAt >= ECHO_MS) {
         applyRemote(state.now)
       }
@@ -851,6 +930,31 @@ export const useParty = create<PartyStore>((set, get) => ({
 
   async setQueue(queue) {
     const state = await window.aurora?.party?.setQueue(queue)
+    if (state) set({ state })
+  },
+
+  async addToRoom(track) {
+    const state = await window.aurora?.party?.queueAdd(queueItemOf(track))
+    if (state) set({ state })
+  },
+
+  async removeFromRoom(id) {
+    const state = await window.aurora?.party?.queueRemove(id)
+    if (state) set({ state })
+  },
+
+  async moveInRoom(id, to) {
+    const state = await window.aurora?.party?.queueMove(id, to)
+    if (state) set({ state })
+  },
+
+  async playFromRoom(id) {
+    const state = await window.aurora?.party?.queuePlay(id)
+    if (state) set({ state })
+  },
+
+  async clearRoom() {
+    const state = await window.aurora?.party?.queueClear()
     if (state) set({ state })
   },
 
