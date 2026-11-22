@@ -2209,26 +2209,28 @@ html.is-resizing {
  * 液态玻璃里真正不依赖背景对比度的那部分：光从指针那儿照过来，玻璃表面跟着亮一
  * 块。深色壁纸上位移折射读不出来，这一层读得出来。
  *
- * 坐标由 Refraction 写进 --mx / --my（百分比，相对元素自身），这里只管画。显隐
- * 交给 :hover，省得在 JS 里记谁进谁出。::after 是最后一个子层，盖在文字之上——
+ * 显隐交给 :hover，省得在 JS 里记谁进谁出。::after 是最后一个子层，盖在文字之上——
  * 这正是玻璃反光的样子，所以透明度压到 0.1，只提亮不发白。
+ *
+ * 光心落在 --mx / --my 上，没人写这两个变量时退回「正中偏上」，不再由指针驱动。
  * ------------------------------------------------------------------------- */
-.rh-sc,
-.rh-daily,
 .tracks__tool {
-  /* ::after 要贴着元素自身定位；这几个原本都是 static，会跑到最近的定位祖先上 */
+  /* ::after 要贴着元素自身定位；它原本是 static，会跑到最近的定位祖先上 */
   position: relative;
 }
 
 /* .player 是 fixed（贴视口底边），不参与这条按回 relative 的规则。 */
 
+/*
+ * 只留给「表面本身就是一块玻璃」的三处：播放条、弹窗、长列表右下角的两颗工具钮。
+ *
+ * 首页的卡片曾经也在这张表里，但浅色主题下 --tint-rgb 是黑，那团「高光」画出来是
+ * 一块比卡片更暗的圆斑，鼠标一过就像浮起一个光圈。卡片要的是「抬一下」，不是发光，
+ * 所以卡片整个摘出去。
+ */
 .player,
-.panel,
-.rh-daily {
+.panel {
   --glow-r: 190px;
-}
-.rh-sc {
-  --glow-r: 150px;
 }
 .tracks__tool {
   /* 40px 的圆，光斑再大会整颗发白 */
@@ -2237,8 +2239,6 @@ html.is-resizing {
 
 .player::after,
 .panel::after,
-.rh-sc::after,
-.rh-daily::after,
 .tracks__tool::after {
   content: '';
   position: absolute;
@@ -2257,8 +2257,6 @@ html.is-resizing {
 
 .player:hover::after,
 .panel:hover::after,
-.rh-sc:hover::after,
-.rh-daily:hover::after,
 .tracks__tool:hover::after {
   opacity: 1;
 }
@@ -2266,8 +2264,6 @@ html.is-resizing {
 @media (prefers-reduced-motion: reduce) {
   .player::after,
   .panel::after,
-  .rh-sc::after,
-  .rh-daily::after,
   .tracks__tool::after {
     transition: none;
   }
