@@ -411,6 +411,16 @@
   font-size: var(--fs-body);
 }
 
+/*
+ * 「连接失败」「网络不通」这类状态词。
+ *
+ * 平时是灰的（和其它数值一样安静），只有真出问题才染上警示色——不然每个平台
+ * 都标一个红字，反而看不出哪个真坏了。
+ */
+.settings__number.is-warn {
+  color: var(--danger);
+}
+
 .settings__preview {
   display: flex;
   align-items: center;
