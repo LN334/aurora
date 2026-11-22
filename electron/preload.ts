@@ -47,7 +47,41 @@ const api = {
     warmUp: (ids: string[]) =>
       ipcRenderer.invoke('platforms:warmUp', ids) as Promise<{ warmed: number; total: number }>,
     signedIn: () =>
-      ipcRenderer.invoke('platforms:signedIn') as Promise<Record<string, boolean>>
+      ipcRenderer.invoke('platforms:signedIn') as Promise<Record<string, boolean>>,
+    /** 四家后端的当前状态，外加一句能直接显示给人看的摘要。 */
+    status: () =>
+      ipcRenderer.invoke('platforms:status') as Promise<{
+        list: Array<{
+          id: 'netease' | 'qq' | 'kugou' | 'qishui'
+          state: 'idle' | 'starting' | 'ready' | 'error' | 'offline'
+          detail: string
+          loggedIn: boolean | null
+          at: number
+        }>
+        summary: string
+      }>,
+    /** 让某一家重新拉起。立即返回，结果从 onStatus 回来。 */
+    retry: (id: string) =>
+      ipcRenderer.invoke('platforms:retry', id) as Promise<{ ok: boolean; reason?: string }>,
+    /** 订阅状态变化；返回取消订阅的函数。 */
+    onStatus: (
+      handler: (payload: {
+        list: Array<{
+          id: 'netease' | 'qq' | 'kugou' | 'qishui'
+          state: 'idle' | 'starting' | 'ready' | 'error' | 'offline'
+          detail: string
+          loggedIn: boolean | null
+          at: number
+        }>
+        summary: string
+      }) => void
+    ) => {
+      const listener = (_event: unknown, payload: Parameters<typeof handler>[0]): void => handler(payload)
+      ipcRenderer.on('platforms:changed', listener)
+      return (): void => {
+        ipcRenderer.removeListener('platforms:changed', listener)
+      }
+    }
   },
 
   app: {

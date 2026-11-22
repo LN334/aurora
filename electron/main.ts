@@ -21,7 +21,7 @@ import { registerPartyIpc } from './party/ipc'
  * 从命令行里捞出那条邀请链接；这么薄也放 pure 里，是为了能直接喂几种 argv 测。
  */
 import { inviteFromArgv } from './pure/invite-arg'
-import { registerWarmUpIpc } from './warmup'
+import { registerWarmUpIpc, setPlatformStatusBroadcaster } from './warmup'
 import { clearCrashMarker, installCrashGuard } from './crash-guard'
 import { createBootRecorder, setActiveBootRecorder, type BootRecorder } from './pure/boot-steps'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
@@ -946,6 +946,15 @@ if (!app.requestSingleInstanceLock()) {
     registerQishuiIpc()
   registerBilibiliIpc()
   registerPartyIpc()
+    /*
+     * 平台状态推给所有窗口：主进程里四家的状态一变（预热完成、重连失败），
+     * 界面那块表跟着变，不必自己轮询。
+     */
+    setPlatformStatusBroadcaster((channel, payload) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send(channel, payload)
+      }
+    })
     registerWarmUpIpc()
 
     /*

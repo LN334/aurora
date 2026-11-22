@@ -7,6 +7,7 @@ import { AppearancePane } from './panes/AppearancePane'
 import { HomePane } from './panes/HomePane'
 import { SystemPane } from './panes/SystemPane'
 import { PlaybackPane } from './panes/PlaybackPane'
+import { PlatformsPane } from './panes/PlatformsPane'
 import { PartyPane } from './panes/PartyPane'
 import { RecommendPane } from './panes/RecommendPane'
 import { DownloadPane } from './panes/DownloadPane'
@@ -42,6 +43,7 @@ const GROUPS: SettingsGroup[] = [
   {
     id: 'listen',
     sections: [
+      { id: 'platforms', label: '在线平台' },
       { id: 'playback', label: '播放与音质' },
       { id: 'party', label: '一起听' },
       { id: 'recommend', label: '推荐来源' }
@@ -78,6 +80,7 @@ type PageState = ReturnType<typeof useSettingsPage>
 type PaneFactory = (page: PageState) => ReactNode
 
 const PANES: Record<string, PaneFactory> = {
+  platforms: () => <PlatformsPane />,
   playback: (page) => <PlaybackPane page={page} />,
   party: () => <PartyPane />,
   recommend: () => <RecommendPane />,

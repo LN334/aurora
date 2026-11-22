@@ -26,11 +26,30 @@ export interface LibraryIndex {
   tracks: Track[]
 }
 
+/** 一家后端的状态，渲染层用得到的部分。 */
+interface PlatformStatusView {
+  id: 'netease' | 'qq' | 'kugou' | 'qishui'
+  /** idle 没拉起、starting 正在拉、ready 可用、error 失败、offline 断网。 */
+  state: 'idle' | 'starting' | 'ready' | 'error' | 'offline'
+  /** 一句人话；正常时是空串。 */
+  detail: string
+  /** 账号是否登录着；未知是 null。 */
+  loggedIn: boolean | null
+  /** 最近一次变化的时间戳。 */
+  at: number
+}
+
 /** 开屏期的平台预热：只做与账号无关的冷启动，重复调用安全。 */
 interface PlatformsApi {
   warmUp(ids: string[]): Promise<{ warmed: number; total: number }>
   /** 每个平台在当前档案下登录过没有。只读会话文件，不拉起任何后端。 */
   signedIn(): Promise<Record<string, boolean>>
+  /** 四家后端的当前状态，外加一句能直接显示给人看的摘要。 */
+  status(): Promise<{ list: PlatformStatusView[]; summary: string }>
+  /** 让某一家重新拉起。立即返回，结果从 onStatus 回来。 */
+  retry(id: string): Promise<{ ok: boolean; reason?: string }>
+  /** 订阅状态变化；返回取消订阅的函数。 */
+  onStatus(handler: (payload: { list: PlatformStatusView[]; summary: string }) => void): () => void
 }
 
  interface LibraryApi {

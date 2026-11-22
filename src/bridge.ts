@@ -98,7 +98,11 @@ const webFallback: AuroraApi = {
   platforms: {
     warmUp: async () => ({ warmed: 0, total: 0 }),
     // 没有主进程就没有会话文件，四家一律当没登录。
-    signedIn: async () => ({})
+    signedIn: async () => ({}),
+    /* 浏览器里没有后端，状态表是空的；界面拿到空表就不显示那一块。 */
+    status: async () => ({ list: [], summary: '' }),
+    retry: async () => ({ ok: false, reason: '浏览器预览没有后端' }),
+    onStatus: () => () => undefined
   },
   library: {
     // One browser preview is one profile, so switching is a no-op there.

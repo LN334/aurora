@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { PLATFORM_IDS, platformSummary, type PlatformId, type PlatformState, type PlatformStatus } from './pure/platform-status'
 import {
   activeProfile as neteaseProfile,
   neteaseWarmUp,
@@ -55,11 +56,96 @@ export function signedInPlatforms(): Record<string, boolean> {
   return result
 }
 
+/**
+ * 四个后端的状态表。
+ *
+ * 预热与「重新连接」共用同一条探活路径：调一次该家的 warm()，成功记 ready、失败
+ * 记 error（明确断网的记 offline）。渲染层不再各自拉 status，而是订阅这张表的
+ * 变化——四家的字段本来就不一样，归一之后界面才能用同一套话去说。
+ */
+const states: Record<PlatformId, { state: PlatformState; detail: string; at: number }> = {
+  netease: { state: 'idle', detail: '', at: 0 },
+  qq: { state: 'idle', detail: '', at: 0 },
+  kugou: { state: 'idle', detail: '', at: 0 },
+  qishui: { state: 'idle', detail: '', at: 0 }
+}
+
+let broadcaster: (channel: string, payload: unknown) => void = () => undefined
+
+/** 主进程启动时把「推给所有窗口」的实现交进来。 */
+export function setPlatformStatusBroadcaster(fn: (channel: string, payload: unknown) => void): void {
+  broadcaster = fn
+}
+
+function snapshot(): PlatformStatus[] {
+  const signed = signedInPlatforms()
+  return PLATFORM_IDS.map((id) => {
+    const row = states[id]
+    return { id, state: row.state, detail: row.detail, loggedIn: signed[id] ?? null, at: row.at }
+  })
+}
+
+function publish(): void {
+  const list = snapshot()
+  broadcaster('platforms:changed', { list, summary: platformSummary(list) })
+}
+
+function isOffline(error: unknown): boolean {
+  const text = String((error as { code?: string; message?: string })?.code ?? (error as { message?: string })?.message ?? error)
+  return /E(NOTFOUND|CONNREFUSED|CONNRESET|NETUNREACH|HOSTUNREACH|TIMEDOUT|AI_AGAIN)/i.test(text)
+}
+
+/**
+ * 探活一家：拉起它、记下结果。
+ *
+ * 并发调用共用同一次：连续点两下「重新连接」不该同时拉起两份后端。
+ */
+const inflight = new Map<PlatformId, Promise<PlatformStatus>>()
+
+function probePlatform(id: PlatformId): Promise<PlatformStatus> {
+  const running = inflight.get(id)
+  if (running) return running
+  const task = (async () => {
+    states[id] = { state: 'starting', detail: '', at: Date.now() }
+    publish()
+    try {
+      await warm[id]()
+      states[id] = { state: 'ready', detail: '', at: Date.now() }
+    } catch (error) {
+      const detail = String((error as { message?: string })?.message ?? error).slice(0, 200)
+      states[id] = { state: isOffline(error) ? 'offline' : 'error', detail, at: Date.now() }
+    } finally {
+      inflight.delete(id)
+    }
+    publish()
+    const row = states[id]
+    return { id, state: row.state, detail: row.detail, loggedIn: signedInPlatforms()[id] ?? null, at: row.at }
+  })()
+  inflight.set(id, task)
+  return task
+}
+
+/** 四家状态 + 一句摘要。 */
+function platformStatusSnapshot(): { list: PlatformStatus[]; summary: string } {
+  const list = snapshot()
+  return { list, summary: platformSummary(list) }
+}
+
 export function registerWarmUpIpc(): void {
   /*
    * 渲染层在取数前问一次「谁登录过」：没登录、而它的日推又需要账号的平台，
    * 连 init 都不必跑，省下整个后端的常驻内存。
    */
+  /* 状态查询与重新连接。渲染层订 platforms:changed，不再各自轮询。 */
+  ipcMain.handle('platforms:status', () => platformStatusSnapshot())
+  ipcMain.handle('platforms:retry', (_event, id: unknown) => {
+    const key = String(id) as PlatformId
+    if (!PLATFORM_IDS.includes(key)) return { ok: false, reason: 'unknown platform' }
+    /* 不 await：立即返回，结果由 platforms:changed 推回去。 */
+    void probePlatform(key)
+    return { ok: true }
+  })
+
   ipcMain.handle('platforms:signedIn', () => {
     const result: Record<string, boolean> = {}
     for (const [id, check] of Object.entries(signedIn)) result[id] = check()
@@ -71,25 +157,29 @@ export function registerWarmUpIpc(): void {
       ? [...new Set(ids.filter((id): id is string => typeof id === 'string'))]
       : []
     if (list.length === 0) return { warmed: 0, total: 0 }
-    const jobs: Promise<unknown>[] = []
+    const jobs: Promise<PlatformStatus>[] = []
     let skipped = 0
     for (const id of list) {
       const check = signedIn[id]
-      const start = warm[id]
-      if (!check || !start) continue
+      if (!check || !warm[id as PlatformId]) continue
       if (!check()) {
         skipped += 1
         continue
       }
-      jobs.push(start())
+      /*
+       * 走 probePlatform 而不是直接调 warm[id]：预热本身就要把后端拉起来，
+       * 顺带记下「成了还是没成」，界面那块状态表才有内容。两件事一条路。
+       */
+      jobs.push(probePlatform(id as PlatformId))
     }
     if (jobs.length === 0) {
       if (skipped > 0) write(`warmup skipped ${skipped} not signed in`)
       return { warmed: 0, total: 0 }
     }
     const started = Date.now()
-    const settled = await Promise.allSettled(jobs)
-    const warmed = settled.filter((item) => item.status === 'fulfilled').length
+    /* probePlatform 自己捕获错误，所以这里不会 reject；按结果里的状态数。 */
+    const settled = await Promise.all(jobs)
+    const warmed = settled.filter((item) => item.state === 'ready').length
     write(`warmup ${warmed}/${jobs.length} in ${Date.now() - started}ms`)
     return { warmed, total: jobs.length }
   })
