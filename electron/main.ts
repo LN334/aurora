@@ -23,6 +23,7 @@ import { registerPartyIpc } from './party/ipc'
 import { inviteFromArgv } from './pure/invite-arg'
 import { registerWarmUpIpc } from './warmup'
 import { clearCrashMarker, installCrashGuard } from './crash-guard'
+import { createBootRecorder, setActiveBootRecorder, type BootRecorder } from './pure/boot-steps'
 import { closeStartupLog, openStartupLog, startupLogPath, write } from './startup-log'
 import { applyStartupProfile } from './startup-profile'
 import { APP_ORIGIN, handleAppProtocol, registerAppScheme } from './protocols/app-protocol'
@@ -421,6 +422,7 @@ function createWindow(): void {
     if (!window) return
     // 「打开多久才看见东西」就是这一段：ready-to-show 之后才 show。
     write(`ready-to-show +${Date.now() - bootAt}ms`)
+    bootRecorder?.mark('ready-to-show')
     window.show()
     write(`window shown +${Date.now() - bootAt}ms`)
     installThumbar(window, lastPlaying, sendMediaCommand)
@@ -790,6 +792,9 @@ function deliverInvite(link: string): void {
   mainWindow.webContents.send('party:invite', link)
 }
 
+/** 启动步骤记录；diagnostics 导出时要它。 */
+let bootRecorder: BootRecorder | null = null
+
 const scratchProfile = process.env.AURORA_PROFILE
 if (scratchProfile) {
   app.setPath('userData', path.join(app.getPath('temp'), 'aurora-' + scratchProfile))
@@ -832,11 +837,15 @@ if (!app.requestSingleInstanceLock()) {
      * renderer made and what the main process answered.
      */
     openStartupLog(app.getPath('userData'), app.getVersion(), app.isPackaged)
+    bootRecorder = createBootRecorder({ log: (line) => write(line) })
+    setActiveBootRecorder(bootRecorder)
+    bootRecorder.mark('log-open')
     /*
      * 崩溃兜底：异常退出会留一份 crash.txt，下次启动由界面问一句要不要发日志。
      * 放在日志初始化之后，这样崩溃那句话两头都有（文件 + startup.log）。
      */
     installCrashGuard(app.getPath('userData'), (line) => write(line))
+    bootRecorder?.mark('crash-guard')
     registerInviteScheme()
     write(`invite arg=${inviteFromArgv(process.argv) ?? '(none)'}`)
     write(`userData=${app.getPath('userData')}`)
@@ -850,6 +859,7 @@ if (!app.requestSingleInstanceLock()) {
      * 收藏与关注列表却是空的。
      */
     const startupProfile = applyStartupProfile()
+    bootRecorder?.mark('profile')
     write(`startup profile=${startupProfile || '(none)'}`)
     //
     // 上次清理时被占用、没删掉的垃圾在这里补删。必须赶在窗口建起来之前：
@@ -860,6 +870,7 @@ if (!app.requestSingleInstanceLock()) {
     // 窗口尺寸必须在建窗之前拿到：读盘一旦晚于 createWindow，首帧就会退回默认
     // 1360x860，等保存的尺寸到位再跳一次。这一行是同步等待，代价是几毫秒读盘。
     await preloadWinState()
+    bootRecorder?.mark('window-state')
     // Scan progress is coalesced in its own module so the throttle is testable;
     // the actual delivery stays here, where the windows are known.
     configureProgressTransport({
@@ -869,12 +880,15 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
     })
+    bootRecorder?.mark('progress-transport')
     handleMediaProtocol()
+    bootRecorder?.mark('protocols')
     handleAppProtocol()
     handleRemoteProtocol()
     handleWallpaperProtocol()
     handleCacheProtocol(mediaCache())
     initOverlay((status) => {
+    bootRecorder?.mark('overlay')
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('overlay:status', status)
       }

@@ -1,6 +1,7 @@
 import { app, dialog, screen, type BrowserWindow } from 'electron'
 import os from 'node:os'
 import { partyState } from './party/room'
+import { activeBootSteps, formatBootSteps } from './pure/boot-steps'
 import { scrub } from './pure/log-scrub'
 import { loadSettings } from './settings'
 import { signedInPlatforms } from './warmup'
@@ -205,6 +206,12 @@ export async function exportDiagnostics(window: BrowserWindow | null): Promise<s
   const previous = readLogTail(path.join(dir, 'startup.log.1'))
   const blocks: string[] = [await header()]
   blocks.push(environmentSnapshot().join('\n'))
+  /*
+   * 启动步骤：每一步的相对时刻与间隔。回答「打开慢是慢在哪一段」这类问题，
+   * 平铺的日志只能靠时间戳自己减。
+   */
+  const steps = formatBootSteps(activeBootSteps())
+  if (steps) blocks.push('## 本次启动步骤' + '\n\n' + steps)
   /*
    * 上一次运行的日志排在前：用户是遇到问题、重启、然后才来导的，出问题那一段
    * 在上一份里。两份都脱敏——上一份同样是原始运行记录。
