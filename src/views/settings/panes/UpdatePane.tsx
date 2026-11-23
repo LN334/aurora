@@ -128,6 +128,11 @@ function About() {
     node: info?.node ?? '',
     platform: info?.platform ?? ''
   }
+  /*
+   * 界面这一份的指纹可能缺：热更界面比安装包新时，旧主进程给的 info 里
+   * 根本没有 renderer 这一项。所以这里整条链都按「可能没有」取。
+   */
+  const rendererHash = info?.renderer?.hash ?? ''
 
   return (
     <>
@@ -142,7 +147,7 @@ function About() {
          * 出错。把界面那一份的版本与写入时间摊开，才不用去翻 startup.log 猜。
          */}
         <dt>界面</dt>
-        <dd title={info?.renderer.hash ? '产物 ' + info.renderer.hash : undefined}>
+        <dd title={rendererHash ? '产物 ' + rendererHash : undefined}>
           {rendererLabel(info?.renderer)}
         </dd>
         <dt>运行环境</dt>
