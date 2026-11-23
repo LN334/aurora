@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { isNewer } from './version.ts'
 
 /**
  * 本机热更的渲染层（OTA）。
@@ -18,6 +19,15 @@ interface OtaRenderer {
   dir: string
   /** 产物指纹，写进启动日志方便对账。 */
   hash: string
+  /**
+   * 打包这份 dist 时的版本号（脚本从 package.json 抄来）。
+   *
+   * 旧的 state.json 没有这一项——那时热更只有指纹，看不出它是哪一版。空串表示
+   * 未记录，不代表错误：解析照常通过，只是「安装包是否已经超过它」无从判断。
+   */
+  version: string
+  /** 写这份 state 的毫秒时间；0 表示未记录。 */
+  at: number
 }
 
 /**
@@ -39,7 +49,21 @@ export function parseOtaState(text: string | null | undefined): OtaRenderer | nu
   const dir = typeof record.dir === 'string' ? record.dir.trim() : ''
   if (!dir) return null
   const hash = typeof record.hash === 'string' ? record.hash : ''
-  return { dir, hash }
+  const version = typeof record.version === 'string' ? record.version.trim() : ''
+  const at = typeof record.at === 'number' && Number.isFinite(record.at) ? record.at : 0
+  return { dir, hash, version, at }
+}
+
+/**
+ * 安装包是否已经比这份热更新。
+ *
+ * 严格大于才算：热更记录的版本通常等于当时的 package.json，而日常「改一行 →
+ * build → ota-push → 重启看」并不会 bump 版本——装回同版本时把热更撤掉，正好
+ * 把这条最常用的路堵死。只有真装上了更新的安装包，那份 dist 才必然包含这次热更。
+ */
+export function otaSuperseded(state: OtaRenderer, installVersion: string): boolean {
+  if (!state.version) return false
+  return isNewer(installVersion, state.version)
 }
 
 /**

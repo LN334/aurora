@@ -4,6 +4,8 @@ import {
   ISSUES_URL,
   issueUrl,
   platformLabel,
+  rendererLabel,
+  stamp,
   versionLabel
 } from '../src/features/settings/about.ts'
 
@@ -37,6 +39,34 @@ test('issueUrl prefills the version and the runtime so the report is complete', 
   assert.ok(body.includes('版本：0.4.0'))
   assert.ok(body.includes('Electron 44.7.2'))
   assert.ok(body.includes('平台：Windows'))
+})
+
+test('rendererLabel says where this copy of the UI came from', () => {
+  assert.equal(rendererLabel(undefined), '未知')
+  assert.equal(rendererLabel({ source: 'bundle', version: '', hash: '', at: 0 }), '安装包自带')
+  assert.equal(
+    rendererLabel({ source: 'ota', version: '0.9.25', hash: 'abc', at: 0 }),
+    '本机热更 0.9.25'
+  )
+  assert.equal(
+    rendererLabel({
+      source: 'ota',
+      version: '0.9.25',
+      hash: 'abc',
+      at: new Date(2026, 10, 22, 15, 52).getTime()
+    }),
+    '本机热更 0.9.25 · 11-22 15:52'
+  )
+  /* 老脚本写出的热更没有版本，只剩时间也要能读。 */
+  assert.equal(
+    rendererLabel({ source: 'ota', version: '', hash: 'abc', at: new Date(2026, 0, 3, 9, 5).getTime() }),
+    '本机热更 · 01-03 09:05'
+  )
+})
+
+test('stamp pads every field and refuses a time it cannot read', () => {
+  assert.equal(stamp(new Date(2026, 0, 3, 9, 5).getTime()), '01-03 09:05')
+  assert.equal(stamp(Number.NaN), '')
 })
 
 test('issueUrl survives missing facts without printing undefined', () => {

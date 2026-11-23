@@ -93,7 +93,9 @@ const webFallback: AuroraApi = {
     chrome: navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? 'n/a',
     node: 'n/a',
     platform: 'win32',
-    userData: '（浏览器预览模式，没有数据目录）'
+    userData: '（浏览器预览模式，没有数据目录）',
+    /* 浏览器预览没有主进程，也就没有热更。 */
+    renderer: { source: 'bundle', version: '', hash: '', at: 0 }
   }),
   // 浏览器预览没有主进程，也就没有后端要热；如实报 0 家。
   platforms: {

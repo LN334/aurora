@@ -17,6 +17,45 @@ interface AboutFacts {
   platform: string
 }
 
+/** 界面这一份从哪来；与「版本」那一行的安装包版本是两件事。 */
+interface RendererFacts {
+  source: 'ota' | 'bundle'
+  version: string
+  hash: string
+  at: number
+}
+
+/**
+ * 「界面」那一行写什么。
+ *
+ * 安装包版本与界面版本本来就可能是两个数：热更换掉的是渲染层目录，
+ * `app.getVersion()` 仍报安装包那个。这里把热更自己的版本与写入时间带出来，
+ * 一眼能看出眼前这份界面是安装包自带的，还是本机落后/领先于它。
+ */
+export function rendererLabel(renderer: RendererFacts | undefined): string {
+  if (!renderer) return '未知'
+  if (renderer.source !== 'ota') return '安装包自带'
+  const when = renderer.at > 0 ? stamp(renderer.at) : ''
+  const version = renderer.version ? ' ' + renderer.version : ''
+  return '本机热更' + version + (when ? ' · ' + when : '')
+}
+
+/** 毫秒时间戳 → `11-22 15:52`。只用来对账，年份反倒占地方。 */
+export function stamp(at: number): string {
+  const when = new Date(at)
+  if (!Number.isFinite(when.getTime())) return ''
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return (
+    pad(when.getMonth() + 1) +
+    '-' +
+    pad(when.getDate()) +
+    ' ' +
+    pad(when.getHours()) +
+    ':' +
+    pad(when.getMinutes())
+  )
+}
+
 /** `process.platform` 的常见值换成用户认得的名字。 */
 export function platformLabel(platform: string): string {
   if (platform === 'win32') return 'Windows'

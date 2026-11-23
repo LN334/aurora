@@ -617,6 +617,21 @@ export interface AuroraApi {
     node: string
     platform: string
     userData: string
+    /**
+     * 界面这一份从哪来。
+     *
+     * `version` 是安装包的，热更换掉的只是渲染层；两者对不上时，只有这一项能
+     * 说明「眼前这份界面是哪来的」。
+     */
+    renderer: {
+      source: 'ota' | 'bundle'
+      /** 热更那份 dist 的版本；安装包自带时为空。 */
+      version: string
+      /** 产物指纹；安装包自带时为空。 */
+      hash: string
+      /** 写这份热更的时间戳（毫秒）；0 表示没有。 */
+      at: number
+    }
   }>
   platforms: PlatformsApi
   library: LibraryApi

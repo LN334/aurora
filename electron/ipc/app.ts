@@ -5,6 +5,7 @@ import { gpuSummary } from '../pure/gpu-status'
 import { mainWindowVisibility } from '../pure/scan-progress'
 import { takeCrashReport } from '../crash-guard'
 import { exportDiagnostics } from '../diagnostics'
+import { otaFacts } from '../protocols/app-protocol'
 import type { WindowSource } from './host'
 
 /** Application facts, and whether the player window is on screen. */
@@ -15,7 +16,12 @@ export function registerAppIpc(deps: WindowSource): void {
     chrome: process.versions.chrome,
     node: process.versions.node,
     platform: process.platform,
-    userData: app.getPath('userData')
+    userData: app.getPath('userData'),
+    /*
+     * 版本号是安装包的，界面却可能来自本机热更——两个数字对不上时，这一项才
+     * 说得清「眼前这份界面是哪来的」。
+     */
+    renderer: otaFacts()
   }))
 
   /*

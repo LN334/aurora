@@ -8,6 +8,7 @@ import {
   ISSUES_URL,
   issueUrl,
   platformLabel,
+  rendererLabel,
   REPO_URL,
   versionLabel
 } from '../../../features/settings/about'
@@ -136,6 +137,14 @@ function About() {
       <dl className="specs">
         <dt>版本</dt>
         <dd className="tnum">{info ? versionLabel(info.version) : '—'}</dd>
+        {/*
+         * 版本号来自安装包，界面却可能来自本机热更：两个数对不上是常态，不是
+         * 出错。把界面那一份的版本与写入时间摊开，才不用去翻 startup.log 猜。
+         */}
+        <dt>界面</dt>
+        <dd title={info?.renderer.hash ? '产物 ' + info.renderer.hash : undefined}>
+          {rendererLabel(info?.renderer)}
+        </dd>
         <dt>运行环境</dt>
         <dd>{isNative ? 'Electron 桌面版' : '浏览器预览模式'}</dd>
         <dt>平台</dt>

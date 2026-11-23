@@ -4,7 +4,7 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveAppAsset } from '../pure/app-paths'
-import { otaDirAllowed, parseOtaState } from '../pure/ota-renderer'
+import { otaDirAllowed, otaSuperseded, parseOtaState } from '../pure/ota-renderer'
 import { write } from '../startup-log'
 
 /**
@@ -40,22 +40,53 @@ const distRoot = (): string => path.resolve(__dirname, '..', '..', 'dist')
  */
 let rendererRootCache: string | null = null
 
+/**
+ * 这一程实际加载的热更，给「更新与关于」那一屏用。
+ *
+ * 界面上的版本号来自安装包（app.getVersion()），而热更换掉的只是渲染层——两句话
+ * 对不上时，用户没法知道眼前这份界面是哪来的。这里把热更自己的版本和时间带出去。
+ */
+let otaActive: { version: string; hash: string; at: number } | null = null
+
+export function otaFacts(): {
+  source: 'ota' | 'bundle'
+  version: string
+  hash: string
+  at: number
+} {
+  if (otaActive) return { source: 'ota', ...otaActive }
+  return { source: 'bundle', version: '', hash: '', at: 0 }
+}
+
 function otaRoot(): string | null {
   try {
     const base = path.join(app.getPath('userData'), 'ota')
     const renderers = path.join(base, 'renderers')
-    write(`ota: userData=${app.getPath('userData')} state=${path.join(base, 'state.json')}`)
-    const state = parseOtaState(fs.readFileSync(path.join(base, 'state.json'), 'utf8'))
+    const statePath = path.join(base, 'state.json')
+    write(`ota: userData=${app.getPath('userData')} state=${statePath}`)
+    const state = parseOtaState(fs.readFileSync(statePath, 'utf8'))
     if (!state) return null
     if (!otaDirAllowed(state.dir, renderers)) {
       write(`ota: refused dir=${state.dir}`)
+      return null
+    }
+    /*
+     * 装上了更新的安装包之后，这份热更就是过期的：新 dist 已经包含它，再留着只会
+     * 让人分不清「跑的是哪一份」。撤掉 state 回到安装包，目录留给清理去收拾。
+     */
+    if (otaSuperseded(state, app.getVersion())) {
+      fs.rmSync(statePath, { force: true })
+      write(`ota: stale install=${app.getVersion()} ota=${state.version}，已撤掉 state`)
       return null
     }
     if (!fs.existsSync(path.join(state.dir, 'index.html'))) {
       write(`ota: missing index.html dir=${state.dir}`)
       return null
     }
-    write(`ota: active dir=${state.dir} hash=${state.hash}`)
+    otaActive = { version: state.version, hash: state.hash, at: state.at }
+    write(
+      `ota: active dir=${state.dir} hash=${state.hash} version=${state.version || '-'} at=${state.at || '-'}`
+    )
     return state.dir
   } catch (error) {
     /* 没有 state.json 就是没有热更，这是常态；写一行，省得下次再猜。 */
