@@ -40,7 +40,10 @@ interface PickedSource {
   url: string
 }
 
-export async function pickPlayable(track: Track): Promise<PickedSource | null> {
+export async function pickPlayable(
+  track: Track,
+  opts: { force?: boolean } = {}
+): Promise<PickedSource | null> {
   /*
    * 一起听里，房主那份地址优先。
    *
@@ -64,9 +67,13 @@ export async function pickPlayable(track: Track): Promise<PickedSource | null> {
   }
 
   for (const candidate of playableCandidates(track)) {
-    const direct = sourceFor(candidate).streamUrl(candidate)
+    /*
+     * force：缓存里那条地址刚被媒体元素拒过。再把它交出去只会再失败一次，所以
+     * 跳过同步命中，直接走到「去上游要一份新的」。
+     */
+    const direct = opts.force ? null : sourceFor(candidate).streamUrl(candidate)
     if (direct) return { track: candidate, url: direct }
-    const fetched = await loadOnlineStream(candidate)
+    const fetched = await loadOnlineStream(candidate, opts)
     if (fetched) return { track: candidate, url: fetched }
   }
   return null

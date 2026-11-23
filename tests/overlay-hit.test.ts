@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pointInBox, shouldShowControls, shouldTakeOver } from '../electron/pure/overlay-hit.ts'
+import { pointInBox, pollHover, shouldShowControls, shouldTakeOver } from '../electron/pure/overlay-hit.ts'
 
 /*
  * 桌面歌词的三条规则，用测试钉住：
@@ -51,4 +51,62 @@ test('歌词区命中不影响接管判定（它只用来决定控制条显不�
   const onWords = pointInBox({ x: 500, y: 90 }, origin, words)
   assert.equal(onWords, true)
   assert.equal(shouldTakeOver({ locked: true, hoverControls: true, pointerInToolbar: false }), false)
+})
+
+/*
+ * 轮询接线。
+ *
+ * 上一版主进程里 `if (locked || !hoverTakesOver()) return` 让整段判定变成死代码：
+ * 锁上之后指针位置根本不读，控制条永不出现，用户也就点不到那颗解锁键。纯函数
+ * 的旧测试测不到这一层，所以判定本身有了入口 pollHover。
+ */
+
+test('锁定 + 指针在歌词上：控制条浮出来，但仍然穿透', () => {
+  const result = pollHover({
+    locked: true,
+    hoverControls: true,
+    point: { x: 500, y: 90 },
+    origin,
+    hitArea: words,
+    toolbarArea: toolbar
+  })
+  assert.equal(result.hovering, true)
+  assert.equal(result.pointerInToolbar, false)
+  assert.equal(result.takeOver, false)
+})
+
+test('锁定 + 指针在控制条上：控制条在，且这一块接管鼠标', () => {
+  const result = pollHover({
+    locked: true,
+    hoverControls: true,
+    point: { x: 600, y: 170 },
+    origin,
+    hitArea: words,
+    toolbarArea: toolbar
+  })
+  assert.deepEqual(result, { hovering: true, pointerInToolbar: true, takeOver: true })
+})
+
+test('锁定 + 关掉悬停接管：既不显示控制条也不接管', () => {
+  const result = pollHover({
+    locked: true,
+    hoverControls: false,
+    point: { x: 600, y: 170 },
+    origin,
+    hitArea: words,
+    toolbarArea: toolbar
+  })
+  assert.deepEqual(result, { hovering: false, pointerInToolbar: false, takeOver: false })
+})
+
+test('解锁时轮询不改变任何判定：整窗接管', () => {
+  const result = pollHover({
+    locked: false,
+    hoverControls: true,
+    point: { x: 600, y: 170 },
+    origin,
+    hitArea: null,
+    toolbarArea: null
+  })
+  assert.deepEqual(result, { hovering: false, pointerInToolbar: false, takeOver: true })
 })

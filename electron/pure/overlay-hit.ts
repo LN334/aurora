@@ -55,3 +55,45 @@ export function shouldTakeOver(args: {
 export function shouldShowControls(args: { locked: boolean; hovering: boolean }): boolean {
   return !args.locked || args.hovering
 }
+
+interface HoverPoll {
+  /** 指针是否在这条歌词上（决定控制条浮不浮出来）。 */
+  hovering: boolean
+  /** 指针是否落在控制条上（锁定时只有这里接管鼠标）。 */
+  pointerInToolbar: boolean
+  /** 这一次要不要接管鼠标。 */
+  takeOver: boolean
+}
+
+/**
+ * 锁定态下 70ms 轮询一次的全部判定。
+ *
+ * 抽出来的原因和上面三条规则一样：接线错了没人看得出来。上一版就是主进程里
+ * `if (locked || !hoverTakesOver()) return` 把整段判定变成死代码——锁上之后再
+ * 也不计算指针位置，控制条永不出现，用户也就再也点不到解锁键。这种错误纯函数
+ * 测不出来，得让判定本身有个入口，测试直接问「锁着、指针在字上，控制条该不该
+ * 出来」。
+ */
+export function pollHover(args: {
+  locked: boolean
+  /** 设置里「悬停时临时接管」那一位。 */
+  hoverControls: boolean
+  point: Point
+  origin: Point
+  hitArea: Box | null
+  toolbarArea: Box | null
+}): HoverPoll {
+  if (!args.locked) {
+    // 解锁时整窗可交互，轮询不参与判定。
+    return { hovering: false, pointerInToolbar: false, takeOver: true }
+  }
+  const onWords = pointInBox(args.point, args.origin, args.hitArea)
+  const onTools = pointInBox(args.point, args.origin, args.toolbarArea)
+  const hovering = args.hoverControls && shouldShowControls({ locked: true, hovering: onWords || onTools })
+  const pointerInToolbar = args.hoverControls && onTools
+  return {
+    hovering,
+    pointerInToolbar,
+    takeOver: shouldTakeOver({ locked: true, hoverControls: args.hoverControls, pointerInToolbar })
+  }
+}

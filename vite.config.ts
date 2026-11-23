@@ -9,7 +9,15 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    /*
+     * 一次性调试目录不属于应用源码。它们常常是另一个进程正在写的 Edge
+     * profile 或截图输出，被 chokidar 扫到就是 EBUSY，整个 dev server 当场
+     * 退出——看起来像是改代码把应用弄崩了。
+     */
+    watch: {
+      ignored: ['**/.tmp-*/**', '**/.tmp-*']
+    }
   },
   build: {
     outDir: 'dist',

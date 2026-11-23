@@ -5,6 +5,7 @@ import { sourceFor } from '../library/source'
 import { pickPlayable } from './pick'
 import { rememberSharedStream, sharedStreamFor } from '../party/shared-stream'
 import { swapFadeMs } from './crossfade'
+import { sourceIsStale } from './stale-source'
 import type { Track } from '../../types'
 import { useHistory } from './history-store'
 import { EQ_BANDS, usePlayer } from './store'
@@ -118,6 +119,12 @@ class AudioEngine {
   private tickerActive = false
   private unbindVisibility: (() => void) | null = null
   private loadedPath: string | null = null
+  /** 元素里这份 src 是不是在线地址。本机文件不会过期，不该跟着重取。 */
+  private loadedOnline = false
+  /** 这份 src 是什么时候装上的（0 表示还没装过）。地址的寿命从这里算。 */
+  private loadedAt = 0
+  /** 过期重装之后要落回的位置（秒）。 */
+  private pendingSeek: number | null = null
   /**
    * 正在取流/装配的那一首。
    *
@@ -203,26 +210,54 @@ class AudioEngine {
 
     el.addEventListener('loadedmetadata', () => {
       if (Number.isFinite(el.duration)) usePlayer.getState().setDuration(el.duration)
+      /*
+       * 过期重取之后要落回原来那一秒：元素被指了新地址，进度已经归零，而用户
+       * 只是按了下播放键，不该听到从头再来。
+       */
+      const resume = this.pendingSeek
+      if (resume !== null) {
+        this.pendingSeek = null
+        const limit = Number.isFinite(el.duration) && el.duration > 0 ? el.duration - 0.05 : resume
+        el.currentTime = Math.max(0, Math.min(resume, limit))
+        usePlayer.getState().setPosition(el.currentTime)
+      }
       usePlayer.getState().setLoading(false)
     })
     el.addEventListener('canplay', () => usePlayer.getState().setLoading(false))
     el.addEventListener('waiting', () => usePlayer.getState().setLoading(true))
     el.addEventListener('error', () => {
+      const wasPlaying = usePlayer.getState().playing
       usePlayer.getState().setLoading(false)
       usePlayer.getState().setPlaying(false)
-      console.error('[aurora] media error', el.error?.message ?? el.error?.code)
+      // 换 src 造成的中断由那一次 load 自己接上，不算失败。
+      if (!el.error) return
+      console.error('[aurora] media error', el.error.message ?? el.error.code)
+      const player = usePlayer.getState()
+      const current = player.queue[player.index]
+      if (!current) return
       /*
        * 一起听里这一首用的是房主给的地址。它放不出来（对面断了、穿透没了、
        * 平台拒了），不该让客人干坐着——退回自己解析一次，听得差一点也比没有
        * 强。每首只回退一次，否则地址一直坏就是无限重试。
        */
-      const player = usePlayer.getState()
-      const current = player.queue[player.index]
-      if (!current || !sharedStreamFor(current.id)) return
-      if (this.streamFallback.has(current.id)) return
-      this.streamFallback.add(current.id)
-      rememberSharedStream(null)
-      void this.load(current, player.playing)
+      if (sharedStreamFor(current.id)) {
+        if (this.streamFallback.has(current.id)) return
+        this.streamFallback.add(current.id)
+        rememberSharedStream(null)
+        void this.load(current, wasPlaying)
+        return
+      }
+      /*
+       * 普通在线歌：地址还在缓存里，不代表它还能用——签错、CDN 拒、上游提前
+       * 换了域名都有可能，而缓存只能保证「取的时候是好的」。这里丢掉那条缓存，
+       * 真去上游要一份新的，并落回刚才那一秒（load 里的 pendingSeek 负责）。
+       * 每首只试一次：地址一直坏就是坏，循环重取只会让播放条在「加载中」和
+       * 「暂停」之间打转，比直接报错更难懂。
+       */
+      if (sourceFor(current).online !== true) return
+      if (this.sourceRetried.has(current.id)) return
+      this.sourceRetried.add(current.id)
+      void this.load(current, wasPlaying, true)
     })
     el.addEventListener('ended', () => {
       this.stopTicker()
@@ -310,8 +345,15 @@ class AudioEngine {
 
   /** 已经因为「房主的地址放不出来」回退过的曲目，每首只试一次。 */
   private streamFallback = new Set<string>()
+  /**
+   * 媒体元素拒过一次、已经重新要过地址的那几首。
+   *
+   * 每首只重试一次：地址一直坏就是坏，循环重取只会让播放条在「加载中」和
+   * 「暂停」之间打转，比直接报错更难懂。
+   */
+  private sourceRetried = new Set<string>()
 
-  async load(track: Track, autoplay: boolean): Promise<void> {
+  async load(track: Track, autoplay: boolean, force = false): Promise<void> {
     this.build()
     const ctx = this.ctx
     const el = this.el
@@ -320,13 +362,25 @@ class AudioEngine {
     if (ctx.state === 'suspended') await ctx.resume()
 
     this.loadingTrack = track
+    /*
+     * 同一首还会走到这里，只有一个原因：地址过期了（见 STALE_SOURCE_MS）。
+     * 那时候进度得留着——用户按的是播放，不是重播。
+     */
+    const here = this.loadedPath === track.path ? el.currentTime || 0 : 0
+    // 停在结尾不算「上一次听到哪儿」：那是播完了，不是暂停。
+    const atEnd = Number.isFinite(el.duration) && el.duration > 0 && here >= el.duration - 0.5
+    const resumeAt = atEnd ? 0 : here
     const store = usePlayer.getState()
     store.setLoading(true)
     // Show the tag duration immediately; the real one lands on loadedmetadata.
     store.setDuration(track.duration || 0)
-    store.setPosition(0)
+    store.setPosition(resumeAt)
 
-    const isSameFile = this.loadedPath === track.path
+    /*
+     * force：媒体元素刚把这份地址拒了。它不一定「过期」——也可能是签错、被
+     * CDN 拒了——但缓存里那条不能再信，必须重新要一份。
+     */
+    const isSameFile = !force && this.loadedPath === track.path && !this.sourceStale()
     if (!isSameFile) {
       /*
        * 哪一家来播这一首，由音源优先级决定。
@@ -335,7 +389,7 @@ class AudioEngine {
        * QQ 有无损，三者都挂着同一行。pickPlayable 按用户排的顺序挑第一个真能
        * 出流的版本，引擎只管播放它——引擎不需要知道平台有几个。
        */
-      const picked = await pickPlayable(track)
+      const picked = await pickPlayable(track, force ? { force: true } : undefined)
       if (!picked) {
         console.error('[aurora] this track has no playable source', track.id)
         /*
@@ -360,6 +414,7 @@ class AudioEngine {
       store.setStreamUrl(url)
       // 这一次真装上了：清掉回退标记，下次再遇到同一个死地址还能再退一次。
       this.streamFallback.delete(track.id)
+      this.sourceRetried.delete(track.id)
 
       const swapMs = swapFadeMs(store.crossfadeSec)
       /*
@@ -381,6 +436,10 @@ class AudioEngine {
       el.src = url
       el.load()
       this.loadedPath = track.path
+      this.loadedOnline = sourceFor(picked.track).online
+      this.loadedAt = Date.now()
+      // 过期重装：位置在 loadedmetadata 里落回去。
+      this.pendingSeek = resumeAt > 0.5 ? resumeAt : null
     }
 
     // 有源、装上了：连续跳过链到此为止。
@@ -413,7 +472,18 @@ class AudioEngine {
    */
   isTrackReady(track: Track): boolean {
     if (this.loadingTrack?.id === track.id) return true
+    /*
+     * 地址装上之后放得久了，元素里那份链接就只剩「装过」这个事实，不再能出声。
+     * 这时候要说「没准备好」，让调用方重新走一次 load——那是唯一会重新取地址
+     * 的路径。判的是地址的年龄，不是暂停了多久：地址不会因为这一首在播就停止
+     * 衰老。
+     */
+    if (this.loadedPath === track.path && this.sourceStale()) return false
     return this.loadedPath !== null && this.loadedPath === track.path
+  }
+
+  private sourceStale(): boolean {
+    return sourceIsStale(this.loadedOnline, this.loadedAt, Date.now())
   }
 
   async play(): Promise<void> {
@@ -421,6 +491,19 @@ class AudioEngine {
     const ctx = this.ctx
     const el = this.el
     if (!ctx || !el) return
+    /*
+     * 媒体键、系统媒体卡、桌面歌词那一侧是按 play 直接进来的，绕过了
+     * actions.toggle 的「装没装上」检查。地址已经过期时不能就这么 play：
+     * 元素会拿一份签过期的链接去续拉，结果是静默不出声。重新走 load——
+     * 那是唯一会重新取地址的路径。
+     */
+    if (this.sourceStale()) {
+      const track = usePlayer.getState().current()
+      if (track && this.loadedPath === track.path) {
+        await this.load(track, true)
+        return
+      }
+    }
     if (ctx.state === 'suspended') await ctx.resume()
 
     this.fadeToken += 1

@@ -1,7 +1,7 @@
 import { BrowserWindow, screen, type Rectangle } from 'electron'
 import path from 'node:path'
 import { startFullscreenWatch, stopFullscreenWatch } from './fullscreen-watch'
-import { pointInBox, shouldShowControls, shouldTakeOver } from './pure/overlay-hit'
+import { pollHover, shouldTakeOver } from './pure/overlay-hit'
 import { APP_ORIGIN } from './protocols/app-protocol'
 import {
   LYRIC_SIZE_MAX,
@@ -195,12 +195,16 @@ function hoverTakesOver(): boolean {
   return loadSettings().overlayHoverControls !== false
 }
 
+/**
+ * 上一次真正下发过的穿透状态。
+ *
+ * 悬停轮询每 70ms 跑一圈，而 Windows 上反复调 setIgnoreMouseEvents 会把
+ * `forward` 的鼠标转发弄坏——控制条看得见却点不动。只在状态翻转时下发。
+ */
+let takingOver: boolean | null = null
+
 function applyLock(): void {
   if (!overlay || overlay.isDestroyed()) return
-  /*
-   * 未锁定：整窗可交互（要能拖动）。
-   * 锁定：整窗穿透，只有指针进入底部那条唤醒带时临时接管。
-   */
   /*
    * 未锁定：整窗可交互（要能拖动、点歌词跳转）。
    * 锁定：整窗穿透——**包括歌词文字**；只有控制条那一块接管，好让用户点得到
@@ -211,6 +215,8 @@ function applyLock(): void {
     hoverControls: hoverTakesOver(),
     pointerInToolbar
   })
+  if (takeOver === takingOver) return
+  takingOver = takeOver
   overlay.setIgnoreMouseEvents(!takeOver, { forward: true })
 }
 
@@ -235,27 +241,24 @@ function startHoverPolling(): void {
   stopHoverPolling()
   hoverTimer = setInterval(() => {
     if (!overlay || overlay.isDestroyed() || !locked) return
-    // 关掉「锁住时也能悬停」就别再接管：把状态压回未悬停，窗口保持完全穿透。
-    // 定时器留着不关，用户把开关打开时下一次 tick 就能恢复，不用重开窗口。
-    /* 锁定态不看悬停：控制条只随锁定开关走，这里保持 false。 */
-    if (locked || !hoverTakesOver()) {
-      setHovering(false)
-      return
-    }
-    const point = screen.getCursorScreenPoint()
     const bounds = overlay.getBounds()
     /*
-     * 唤醒带贴着窗口底边：控制条就长在那附近，鼠标过去自然是想操作它。
-     * 这里只用主进程自己拿得到的两个值（光标、窗口矩形），页面坐标一概不用。
+     * 整个判定走 pollHover：锁定时指针在字上要浮出控制条、在控制条上要接管鼠标，
+     * 两件事必须一起算。以前这里分两段写，前一段的提前 return 让后一段永不执行，
+     * 锁上之后再没有控制条，也就没有解锁键。
      */
-    const origin = { x: bounds.x, y: bounds.y }
-    const inWords = pointInBox(point, origin, hitArea)
-    const inTools = pointInBox(point, origin, toolbarArea)
-    pointerInToolbar = inTools
-    /* 控制条显不显示看「悬在歌词或控制条上」；接管鼠标只看控制条和锁定状态。 */
-    setHovering(shouldShowControls({ locked, hovering: inWords || inTools }) && (inWords || inTools))
+    const next = pollHover({
+      locked,
+      hoverControls: hoverTakesOver(),
+      point: screen.getCursorScreenPoint(),
+      origin: { x: bounds.x, y: bounds.y },
+      hitArea,
+      toolbarArea
+    })
+    pointerInToolbar = next.pointerInToolbar
+    /* 说明见上一段：从字面挪到控制条上时 hovering 仍是 true，接管却要变。 */
+    setHovering(next.hovering)
     applyLock()
-    return
   }, 70)
 }
 
@@ -396,6 +399,7 @@ function open(): void {
   overlay.on('closed', () => {
     overlay = null
     hovering = false
+    takingOver = null
     stopFullscreenWatch()
     hiddenReasons.delete('system')
     notifyStatus()

@@ -15,10 +15,23 @@ body.overlay-body {
   font-family: var(--font-display);
   user-select: none;
   cursor: default;
+  /*
+   * 一圈 1px 的暗边，给白字留一条命。
+   *
+   * 软投影只在深色壁纸上顶用：换到浅色壁纸，白字直接化进背景（截图验过，只有
+   * 阴影的轮廓像幽灵）。四向 0 模糊的硬影画出来是一圈很细的描边，深色壁纸上
+   * 几乎看不见，浅色壁纸上正好把字沿箍住——这是「描边」而不是「加粗」，字芯
+   * 仍是白的。软投影照旧叠在后面负责立体感。
+   */
+  --rim:
+    -1px -1px 0 rgb(var(--shade-rgb) / 0.52),
+    1px -1px 0 rgb(var(--shade-rgb) / 0.52),
+    -1px 1px 0 rgb(var(--shade-rgb) / 0.52),
+    1px 1px 0 rgb(var(--shade-rgb) / 0.52);
 }
 
 /*
- * The window is deliberately wider than the words (a strip, roughly 980x140).
+ * The window is deliberately wider than the words (a strip, roughly 980x160).
  * The layer fills it and stays click-through so that only the stack takes the
  * pointer - see Overlay.tsx and the hit-area reporting in electron/lyrics-overlay.ts.
  */
@@ -43,8 +56,8 @@ body.overlay-body {
   max-width: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 4px 18px;
+  gap: 4px;
+  padding: 4px 22px;
   box-sizing: border-box;
   pointer-events: auto;
   -webkit-app-region: drag;
@@ -67,7 +80,60 @@ body.overlay-body {
   max-width: 100%;
   flex-direction: column;
   align-items: center;
+  gap: 4px;
+  /* 暂停时整块压暗；播放中不动。 */
+  transition: opacity 220ms ease;
+}
+
+/*
+ * One lyric is one block that arrives as a whole: the line, its translation, the
+ * next line and the toolbar never animate independently, so a line change is a
+ * single deliberate move instead of four things fading at slightly different
+ * times.
+ *
+ * `font-size` here is the base size - it is what the arrival animation's `em`
+ * offsets are measured against.
+ */
+.lyric-current {
+  display: flex;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
   gap: 3px;
+  font-size: var(--size, 34px);
+  animation: lyric-arrive 460ms cubic-bezier(0.16, 0.72, 0.26, 1) both;
+}
+
+/*
+ * Rise from slightly below, slightly small and slightly out of focus.
+ *
+ * A crossfade alone left the strip looking like a slideshow: the old line was
+ * gone before the eye could tell the new one had a different shape. Moving up
+ * from the direction the words travel, plus a short defocus that resolves before
+ * the line settles, is what makes the change read as motion rather than as a
+ * swap. It is short on purpose - a lyric line is on screen for three seconds.
+ */
+@keyframes lyric-arrive {
+  from {
+    opacity: 0;
+    filter: blur(0.1em);
+    transform: translate3d(0, 0.26em, 0) scale(0.985);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyric-current {
+    animation: none;
+  }
 }
 
 /*
@@ -75,24 +141,29 @@ body.overlay-body {
  *
  * The base copy carries the contrast (a shadow stack, because a plate behind the
  * words read as a rendering artefact on a wallpaper); the fill copy is painted in
- * the artwork accent and clipped to the part already sung. Identical text and
- * identical metrics are what make the clip look like progress through the line
+ * a lifted artwork accent and revealed as the line is sung. Identical text and
+ * identical metrics are what make the reveal look like progress through the line
  * rather than a second element appearing.
+ *
+ * No wrapping and no ellipsis, on purpose: a phrase broken over two lines stops
+ * being a phrase, and an ellipsis eats the rhyme. Long lines are shrunk by
+ * Overlay.tsx instead; only a line that is still too wide at the floor size gets
+ * clipped by the stack.
  */
 .lyric-line {
   position: relative;
   display: inline-block;
   max-width: 100%;
-  font-size: var(--size, 34px);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-size: var(--line-size, var(--size, 34px));
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.16;
   white-space: nowrap;
 }
 
 .lyric-line__base {
   display: block;
-  color: rgb(255 255 255 / 0.95);
+  color: rgb(255 255 255 / 0.92);
   /*
    * Shadow, not a rim.
    *
@@ -103,107 +174,200 @@ body.overlay-body {
    * a drop shadow, which is legible, where a hard rim was not pretty either way.
    */
   text-shadow:
-    0 1px 3px rgb(var(--shade-rgb) / 0.85),
-    0 4px 16px rgb(var(--shade-rgb) / 0.55),
-    0 0 34px rgb(var(--shade-rgb) / 0.35);
+    var(--rim),
+    0 0 1px rgb(var(--shade-rgb) / 0.78),
+    0 1px 2px rgb(var(--shade-rgb) / 0.72),
+    0 6px 20px rgb(var(--shade-rgb) / 0.42),
+    0 0 48px rgb(var(--shade-rgb) / 0.22);
 }
 
+/*
+ * The sung part.
+ *
+ * The accent is not used as-is: covers hand out muted mid-dark colours, and an
+ * exact accent on top of white text reads as slightly dirty white rather than as
+ * progress (that is what the old strip looked like). `sungColor` lifts it into a
+ * legible band while keeping the hue, so the reveal is recognisably *coloured*.
+ *
+ * The leading edge is a feathered mask instead of `clip-path`. A hard clip drops
+ * a glyph's worth of colour in one frame and looks like a shutter closing; a 2-4%
+ * feather moves a soft edge across the line, which is what singing looks like.
+ * `--progress` is written every animation frame by Overlay.tsx; at `-6%` the mask
+ * has not been reached yet (nothing painted) and past 100% it covers the line.
+ */
 .lyric-line__fill {
   position: absolute;
-  top: 0;
-  left: 0;
-  white-space: nowrap;
-  color: var(--accent, #7d8899);
-  /* `--cut` is the still-unsung width, walked from 100% to 0% by Overlay.tsx. */
-  clip-path: inset(0 var(--cut, 100%) 0 0);
-  transition: clip-path 120ms linear;
+  inset: 0;
+  color: var(--fill, #8fb6e6);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 calc(var(--progress, -6%) - 2.4%),
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) + 1.4%)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 calc(var(--progress, -6%) - 2.4%),
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) + 1.4%)
+  );
   text-shadow:
-    0 1px 2px rgb(var(--shade-rgb) / 0.4),
-    0 0 20px color-mix(in srgb, var(--accent, #7d8899) 34%, transparent);
+    var(--rim),
+    0 1px 2px rgb(var(--shade-rgb) / 0.5),
+    0 0 26px color-mix(in srgb, var(--fill, #8fb6e6) 62%, transparent);
+}
+
+/*
+ * 扫过字面的那道亮边。
+ *
+ * 只靠羽化遮罩，「唱到哪」是一条静态的分界：看得出进度，看不出推进。第三层
+ * 是同一行字的第二次绘制，只露出进度线附近一小段并调亮——它每帧跟着进度线
+ * 往右滑，边界才像有一盏灯扫过去。唱完时进度推到 140%，这条窗口整段移出字
+ * 面自然消失，不需要额外的收尾状态。
+ */
+.lyric-line__lead {
+  position: absolute;
+  inset: 0;
+  color: color-mix(in srgb, var(--fill, #8fb6e6) 68%, #fff);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) - 6.5%),
+    #000 calc(var(--progress, -6%) - 3.6%),
+    #000 calc(var(--progress, -6%) - 1.1%),
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) + 0.4%)
+  );
+  mask-image: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) - 6.5%),
+    #000 calc(var(--progress, -6%) - 3.6%),
+    #000 calc(var(--progress, -6%) - 1.1%),
+    rgb(0 0 0 / 0) calc(var(--progress, -6%) + 0.4%)
+  );
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--fill, #8fb6e6) 55%, transparent));
 }
 
 /*
  * 当前行的译文：贴在这一句下面，比原文小两档、比下一句亮一档。
  *
- * 和 .lyric-next 用同一种排版指标（字号、行高、截断），只有颜色不同——两行都是
- * 「另一句/另一种语言」，靠亮度而不是字号来分层，窗口高度才不会被两套字阶撑开。
+ * 和 .lyric-next 用同一种排版指标（字号比例、行高、截断），靠亮度与字号分层，
+ * 窗口高度才不会被两套字阶撑开。
  */
 .lyric-line__sub {
   max-width: 100%;
   overflow: hidden;
-  margin-top: calc(var(--size, 34px) * 0.16);
-  color: rgb(255 255 255 / 0.86);
-  font-size: calc(var(--size, 34px) * 0.56);
+  color: rgb(255 255 255 / 0.72);
+  font-size: calc(var(--size, 34px) * 0.5);
   font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.3;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
   text-overflow: ellipsis;
   text-shadow:
-    0 1px 1px rgb(var(--shade-rgb) / 0.7),
-    0 2px 8px rgb(var(--shade-rgb) / 0.55);
+    var(--rim),
+    0 1px 2px rgb(var(--shade-rgb) / 0.72),
+    0 3px 12px rgb(var(--shade-rgb) / 0.4);
   white-space: nowrap;
 }
 
 .lyric-next {
   max-width: 100%;
   overflow: hidden;
-  color: rgb(255 255 255 / 0.68);
-  font-size: calc(var(--size, 34px) * 0.58);
+  color: rgb(255 255 255 / 0.52);
+  font-size: calc(var(--size, 34px) * 0.54);
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
   line-height: 1.3;
   text-overflow: ellipsis;
   text-shadow:
-    0 1px 1px rgb(var(--shade-rgb) / 0.6),
-    0 2px 7px rgb(var(--shade-rgb) / 0.5);
+    var(--rim),
+    0 1px 2px rgb(var(--shade-rgb) / 0.6),
+    0 3px 10px rgb(var(--shade-rgb) / 0.34);
   white-space: nowrap;
 }
 
 /* No lyric at all: show what is playing instead of an empty strip. */
 .lyric-idle {
+  display: flex;
+  max-width: 100%;
+  align-items: baseline;
+  gap: calc(var(--size, 34px) * 0.32);
+  overflow: hidden;
+}
+
+.lyric-idle__note {
+  color: rgb(255 255 255 / 0.5);
+  font-size: calc(var(--size, 34px) * 0.36);
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.6);
+  white-space: nowrap;
+}
+
+.lyric-idle__title {
   max-width: 100%;
   overflow: hidden;
-  color: rgb(255 255 255 / 0.72);
-  font-size: calc(var(--size, 34px) * 0.72);
-  font-weight: 600;
+  color: rgb(255 255 255 / 0.9);
+  font-size: calc(var(--size, 34px) * 0.6);
+  font-weight: 700;
   letter-spacing: 0;
-  line-height: 1.3;
+  line-height: 1.25;
   text-overflow: ellipsis;
   text-shadow:
-    0 1px 2px rgb(var(--shade-rgb) / 0.6),
-    0 5px 18px rgb(var(--shade-rgb) / 0.5);
+    var(--rim),
+    0 1px 2px rgb(var(--shade-rgb) / 0.72),
+    0 6px 20px rgb(var(--shade-rgb) / 0.42);
+  white-space: nowrap;
+}
+
+.lyric-idle__artist {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.58);
+  font-size: calc(var(--size, 34px) * 0.42);
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.6);
   white-space: nowrap;
 }
 
 /*
- * The only opaque surface in the window.
+ * 暂停时整块字压暗一档。
  *
- * It sits *under* the words rather than behind them, and it is always laid out -
- * hidden with visibility, not display - so that showing it never resizes the
- * stack. Resizing it would move the hit area out from under the pointer that is
- * trying to reach its buttons.
+ * 播放中文字是随唱随亮的，停下来还保持全亮会让人以为还在放。压暗而不是加遮罩：
+ * 桌面歌词没有底板，任何盖一层的东西都会在壁纸上留下一块色斑。
+ */
+.lyric-stack.is-paused .lyric-words {
+  opacity: 0.68;
+}
+
+/*
+ * The only surface in the window.
+ *
+ * It sits below the words and only fades in while the pointer is on the strip, so
+ * at rest the picture is still just text on the wallpaper. The fill is opaque
+ * enough to hold white icons on any wallpaper; there is no backdrop blur because
+ * a transparent window has nothing to blur behind it, and pretending otherwise
+ * was what made the old plate look like a grey rectangle.
+ *
+ * It is always laid out - hidden with visibility, not display - so that showing
+ * it never resizes the stack. Resizing it would move the hit area out from under
+ * the pointer that is trying to reach its buttons.
  */
 .lyric-toolbar {
-  /*
-   * 只留按键，不要底板。
-   *
-   * 原来是一条玻璃矩形：深色底 + 细描边 + 背景模糊，压在歌词下面像另一个窗口
-   * 贴在桌面上。桌面歌词本来就该是「字浮在壁纸上」，中间再横一块板子会把
-   * 画面切成两截。所以这里只保留布局，底色交给每颗按键自己的悬停态。
-   */
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
+  gap: 2px;
+  margin-top: 10px;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(30 33 40 / 0.78), rgb(11 13 17 / 0.84));
+  box-shadow:
+    0 14px 34px -12px rgb(0 0 0 / 0.72),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 140ms ease,
-    visibility 140ms ease;
+    opacity 160ms ease,
+    visibility 160ms ease;
   -webkit-app-region: no-drag;
 }
 
@@ -215,15 +379,16 @@ body.overlay-body {
 .lyric-toolbar__transport {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .lyric-toolbar__tools {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding-left: 10px;
-  border-left: 1px solid rgb(var(--tint-rgb) / 0.12);
+  gap: 1px;
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid rgb(255 255 255 / 0.12);
 }
 
 .lyric-tool {
@@ -232,15 +397,9 @@ body.overlay-body {
   height: 30px;
   place-items: center;
   border: 0;
-  border-radius: 9px;
-  /*
-   * 底板拿掉之后，图标直接压在壁纸上。白色图标遇到浅色壁纸就糊成一片，
-   * 所以给它自己一层投影——不是加回底板，是让每一颗键在任何壁纸上都读得清。
-   * 悬停/按下时的浅色底仍然保留，作为「手指在哪」的反馈。
-   */
+  border-radius: 999px;
   background: transparent;
-  color: rgb(255 255 255 / 0.94);
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 1px rgb(0 0 0 / 0.4));
+  color: rgb(255 255 255 / 0.86);
   cursor: pointer;
   transition:
     background 120ms ease,
@@ -249,7 +408,7 @@ body.overlay-body {
 }
 
 .lyric-tool:hover {
-  background: rgb(var(--tint-rgb) / 0.14);
+  background: rgb(255 255 255 / 0.14);
   color: #fff;
 }
 
@@ -259,16 +418,13 @@ body.overlay-body {
  * rest of the toolbar cannot be.
  */
 .lyric-tool--key {
-  width: 34px;
-  height: 34px;
-  background: rgb(255 255 255 / 0.94);
-  color: #14161a;
-  box-shadow: 0 2px 10px rgb(var(--shade-rgb) / 0.28);
+  background: rgb(255 255 255 / 0.95);
+  color: #12161c;
 }
 
 .lyric-tool--key:hover {
   background: #fff;
-  color: #14161a;
+  color: #12161c;
 }
 
 .lyric-tool--sm {
@@ -284,7 +440,7 @@ body.overlay-body {
 
 /* Locked is the settled state, so it carries the accent instead of grey. */
 .lyric-tool.is-on {
-  color: var(--accent, #7d8899);
+  color: var(--fill, #8fb6e6);
 }
 
 .lyric-tool.is-on:hover {

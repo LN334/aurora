@@ -83,6 +83,13 @@ shots/
 .perf/
 .perf-*
 
+# 一次性调试目录：截图、临时 Edge profile、抽帧输出都往这里放。
+#
+# 里面常常有另一个进程正在写的文件。不挡住的话，vite 的 watcher 扫到就是
+# EBUSY、整个 dev server 当场退出，而 audit-css 这类按 `git ls-files --others`
+# 取文件表的脚本会把浏览器扩展的 CSS 当成项目样式一起数进去。
+.tmp-*/
+
 # 参考仓库的 README 与源码摘录，读的时候抓下来，不随项目入库。
 .refs/
 

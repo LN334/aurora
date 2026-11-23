@@ -92,6 +92,16 @@ export function rememberFailure(
   })
 }
 
+/**
+ * Drop one song's cached link, and any remembered refusal that came with it.
+ *
+ * Called when the media element has just rejected that very address: handing the
+ * same link back again would only fail once more.
+ */
+export function forgetStream(providerId: ProviderId, songId: number): void {
+  cache.delete(key(providerId, songId))
+}
+
 /** Called when the tier changes: none of the cached links were signed for it. */
 export function clearStreams(providerId?: ProviderId): void {
   if (!providerId) {

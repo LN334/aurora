@@ -2,7 +2,7 @@ import { cachedStreamUrl } from '../player/urls'
 import { setOnlineStreamLoader } from '../player/online-fetch'
 import { registerProviders } from './providers'
 import { useOnlineStore } from './store'
-import { cachedStream } from './streams'
+import { cachedStream, forgetStream } from './streams'
 import type { ProviderId } from './types'
 
 /**
@@ -24,7 +24,7 @@ registerProviders()
  * 用这个平台的 store 取一次再给。放在这里是刻意的：注册发生在应用启动时，
  * 一个 import 就够，没有调用顺序问题。
  */
-setOnlineStreamLoader(async (track) => {
+setOnlineStreamLoader(async (track, opts) => {
   const providerId = track.source as ProviderId | undefined
   const onlineId = track.onlineId
   if (!providerId || providerId === 'local' || onlineId === undefined) return null
@@ -35,6 +35,11 @@ setOnlineStreamLoader(async (track) => {
    * 出现「渲染层以为有缓存、主进程其实没有」的两套状态。
    */
   const key = `${providerId}:${onlineId}`
+  /*
+   * force：媒体元素刚把缓存里这条地址拒了（或它已经过期）。留着它只会把同一
+   * 份死链接再交一次——ensureStream 看到缓存还在就直接返回了。
+   */
+  if (opts?.force) forgetStream(providerId, onlineId)
   const cached = cachedStream(providerId, onlineId)
   if (cached) return cachedStreamUrl(key, cached.url)
 

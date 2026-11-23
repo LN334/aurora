@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Close, Lock, Next, Pause, Play, Prev, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
 import { splitLyricLine } from '../features/lyrics/line-parts'
+import { fitLyricSize, sungColor } from './visual'
 import type { OverlayState } from '../env'
 
 /**
@@ -27,23 +28,30 @@ const IDLE: OverlayState = {
 /**
  * The desktop lyric strip.
  *
- * Three layers, in reading order of importance:
+ * The window is a transparent, always-on-top sheet of text. Three things carry
+ * the design, and everything else is scaffolding:
  *
- *  - **the words** carry no plate at all. A dark rectangle floating on the
- *    desktop looked like a rendering mistake; what the text actually needs is
- *    local contrast, which the shadow stack on the base layer provides.
- *  - **the fill** is the same words again, clipped to the part already sung and
- *    painted in the artwork accent. It is what makes the strip feel alive
- *    instead of like a line of text that changes every four seconds.
- *  - **the toolbar** is a single opaque pill under the words. It only fades in
- *    on hover, but always occupies its space, so the window and its hit box
- *    never resize while the pointer is moving.
+ *  - **the line** is one unbroken sentence. It never wraps (a phrase split over
+ *    two lines stops being a phrase) and never shows an ellipsis (an ellipsis
+ *    eats the rhyme); it shrinks to fit instead. Contrast comes from a shadow
+ *    stack, not from a plate: a rectangle behind the words reads as a rendering
+ *    bug on a wallpaper.
+ *  - **the fill** is the same line painted again in the artwork accent and
+ *    revealed as the line is sung. It is the one thing that distinguishes a
+ *    lyric overlay from a subtitle, so it gets the most attention: the accent is
+ *    pulled into a legible saturation/lightness band (`sungColor`), the leading
+ *    edge is feathered by a soft mask instead of a hard clip, and the line
+ *    arrives with a short rise-and-focus animation so crossing a line boundary
+ *    looks deliberate.
+ *  - **the toolbar** appears only while the pointer is on the strip. It is the
+ *    one place with a surface; at rest the words sit directly on the desktop.
  *
  * Three interaction states matter:
  *
  *  - **locked** the window ignores the mouse, so it never eats a click meant for
  *    the app underneath. While the pointer is over the strip the window takes the
- *    mouse back, which is what makes the toolbar reachable without unlocking;
+ *    mouse back only over the toolbar, which is what makes its buttons reachable
+ *    without unlocking;
  *  - **hovered** the pointer is on the strip, so the toolbar fades in;
  *  - **unlocked** the window takes the mouse everywhere it covers, for dragging.
  */
@@ -51,9 +59,12 @@ export function Overlay() {
   const [state, setState] = useState<OverlayState>(IDLE)
   const [locked, setLocked] = useState(true)
   const [size, setSize] = useState(DEFAULT_SIZE)
+  const [hovering, setHovering] = useState(false)
+  /** Size the current line had to be rendered at to fit the window, or null when it fits. */
+  const [fitSize, setFitSize] = useState<number | null>(null)
   const stack = useRef<HTMLDivElement | null>(null)
   const toolbar = useRef<HTMLDivElement | null>(null)
-  const fill = useRef<HTMLSpanElement | null>(null)
+  const line = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => bridge.overlay.onState(setState), [])
 
@@ -95,7 +106,7 @@ export function Overlay() {
   /*
    * Report the stack's box whenever it changes size.
    *
-   * The window is a strip (about 980x150) and the words are a small column inside
+   * The window is a strip (about 980x160) and the words are a small column inside
    * it. Telling the main process where that column is keeps the invisible margins
    * click-through even when the lyrics themselves are interactive. The toolbar is
    * part of the box on purpose: hiding it with `display:none` would shrink the
@@ -142,47 +153,91 @@ export function Overlay() {
     const observer = new ResizeObserver(report)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [locked])
+  }, [locked, size, state.text, state.next])
 
   /*
    * Walk the fill forward locally.
    *
    * The line only crosses the process boundary when it changes, so the position
    * handed over with it is a starting point, not a live value. Running the clock
-   * here - ten times a second, straight into a CSS variable - keeps the strip in
-   * sync without a second IPC stream.
+   * here keeps the strip in sync without a second IPC stream.
+   *
+   * A gradient mask is used rather than `clip-path`, and it needs a real frame
+   * clock: at ten steps a second the feathered edge visibly jumps forward in
+   * chunks, which reads as stutter rather than singing.
    */
   useEffect(() => {
-    let lastText: string | null = null
-    const tick = () => {
-      const element = fill.current
-      if (!element) return
-      const { at, to, position, playing, text } = state
-      // A new line restarts from zero without animating backwards from the
-      // previous line's full width.
-      if (text !== lastText) {
-        lastText = text
-        element.style.transition = 'none'
-        element.style.setProperty('--cut', '100%')
-        void element.offsetWidth
-        element.style.transition = ''
-      }
-      if (at === null || to === null || to <= at) {
-        // Unsynchronised (or a line with no following timestamp): paint it
-        // plainly rather than faking a progress that means nothing.
-        element.style.setProperty('--cut', '0%')
-      } else {
-        const now = playing ? position + (performance.now() - stamp) / 1000 : position
-        const ratio = Math.min(1, Math.max(0, (now - at) / (to - at)))
-        element.style.setProperty('--cut', `${Math.round((1 - ratio) * 1000) / 10}%`)
-      }
+    /*
+     * Written on the line, not on the filled copy: the fill and the bright leading
+     * edge are two siblings, and a custom property set on one of them is invisible
+     * to the other. The line is their common parent, so both inherit the same
+     * value and their masks stay locked to the same edge.
+     */
+    const element = line.current
+    if (!element || !state.text) return
+    const { at, to, playing, position } = state
+    const paint = (ratio: number) => {
+      element.style.setProperty(
+        '--progress',
+        ratio <= 0 ? '-6%' : ratio >= 1 ? '140%' : `${(ratio * 100).toFixed(2)}%`
+      )
     }
-    // Anchored once per state push: `stamp` is when that position was read.
-    stamp = performance.now()
-    const timer = window.setInterval(tick, 100)
-    tick()
-    return () => window.clearInterval(timer)
+    if (at === null || to === null || to <= at) {
+      // Unsynchronised lyrics: paint the line plainly. Faking a progress that
+      // means nothing is worse than showing none.
+      paint(0)
+      return
+    }
+    if (!playing) {
+      paint((position - at) / (to - at))
+      return
+    }
+    const anchor = performance.now()
+    let frame = 0
+    const step = () => {
+      const now = position + (performance.now() - anchor) / 1000
+      const ratio = (now - at) / (to - at)
+      paint(ratio)
+      // Stop at the end of the line instead of spinning until the next push.
+      if (ratio < 1) frame = requestAnimationFrame(step)
+    }
+    step()
+    return () => cancelAnimationFrame(frame)
   }, [state])
+
+  /*
+   * Shrink the line to the window.
+   *
+   * Measured against the rendered element rather than estimated from character
+   * counts: mixed Chinese and Latin text has no useful per-character width, and a
+   * wrong estimate either clips the last character or shrinks a short line for no
+   * reason. The percentage the fill uses is relative to this same element, so the
+   * two copies stay aligned whatever size the line ends up at.
+   */
+  useLayoutEffect(() => {
+    const element = line.current
+    if (!element || !state.text) {
+      setFitSize(null)
+      return
+    }
+    const measure = () => {
+      // Ask for the base size first: a previous line's shrink must not be
+      // inherited by this one.
+      element.style.setProperty('--line-size', `${size}px`)
+      /*
+       * scrollWidth, not offsetWidth. The line is `max-width: 100%`, so its box
+       * stops at the window edge and offsetWidth would report the clamped box -
+       * a long line then looks like it fits and is clipped instead of shrunk.
+       * scrollWidth keeps reporting the width the text actually wants.
+       */
+      const measured = element.scrollWidth
+      const available = Math.max(240, window.innerWidth - 48)
+      setFitSize(Math.round(fitLyricSize(size, measured, available) * 2) / 2)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [size, state.text])
 
   const setLock = async (next: boolean) => {
     const applied = await bridge.overlay.setLocked(next)
@@ -190,10 +245,9 @@ export function Overlay() {
   }
 
   /*
-   * 解锁：一直显示控制条；锁定：默认收起，鼠标进到窗口底部那条唤醒带时再
-   * 浮出来——那颗锁按钮在锁定态就藏在这条带里，不显示它就没法解锁。
+   * 解锁：一直显示控制条；锁定：默认收起，鼠标进到这条带时再浮出来——那颗锁
+   * 按钮在锁定态就藏在这里，不显示它就没法解锁。
    */
-  const [hovering, setHovering] = useState(false)
   useEffect(() => bridge.overlay.onHover(setHovering), [])
   const active = !locked || hovering
 
@@ -205,40 +259,53 @@ export function Overlay() {
    * 两段无关的字。桌面歌词窗口只有一句话的位置，更不能把两种语言叠在同一处：
    * 原文照常渐亮，译文以小一号的字贴在下面。
    */
-  const line = splitLyricLine(state.text ?? '')
-  const next = splitLyricLine(state.next ?? '')
-
-  const words = state.text ? (
-    <>
-      <div className="lyric-line">
-        <span className="lyric-line__base">{line.main}</span>
-        <span ref={fill} className="lyric-line__fill" aria-hidden="true">
-          {line.main}
-        </span>
-      </div>
-      {line.sub ? <div className="lyric-line__sub">{line.sub}</div> : null}
-      {state.next ? <div className="lyric-next">{next.main}</div> : null}
-    </>
-  ) : state.title ? (
-    // Lyrics are not the only useful thing to show: this keeps the strip
-    // meaningful for instrumentals and untagged files.
-    <div className="lyric-idle">
-      {state.playing ? '♪ ' : '❙❙ '}
-      {state.title}
-      {state.artist ? ` — ${state.artist}` : ''}
-    </div>
-  ) : (
-    <div className="lyric-idle">Aurora 桌面歌词</div>
-  )
+  const lineParts = splitLyricLine(state.text ?? '')
+  const nextParts = splitLyricLine(state.next ?? '')
+  const idleTitle = state.title || 'Aurora 桌面歌词'
 
   return (
     <div className="lyric-layer">
       <div
         ref={stack}
-        className={`lyric-stack${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}`}
-        style={{ ['--size' as string]: `${size}px`, ['--accent' as string]: state.accent || '#7d8899' }}
+        className={`lyric-stack${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}${
+          state.playing ? '' : ' is-paused'
+        }`}
+        style={{
+          ['--size' as string]: `${size}px`,
+          ['--accent' as string]: state.accent || '#7d8899',
+          ['--fill' as string]: sungColor(state.accent)
+        }}
       >
-        <div className="lyric-words">{words}</div>
+        <div className="lyric-words">
+          {/* Re-keyed per line: the arrival animation is a remount, not a class toggle. */}
+          <div className="lyric-current" key={state.text ?? `idle:${idleTitle}`}>
+            {state.text ? (
+              <>
+                <div className="lyric-line" ref={line} style={{ ['--line-size' as string]: `${fitSize ?? size}px` }}>
+                  <span className="lyric-line__base">{lineParts.main}</span>
+                  <span className="lyric-line__fill" aria-hidden="true">
+                    {lineParts.main}
+                  </span>
+                  <span className="lyric-line__lead" aria-hidden="true">
+                    {lineParts.main}
+                  </span>
+                </div>
+                {lineParts.sub ? <div className="lyric-line__sub">{lineParts.sub}</div> : null}
+              </>
+            ) : (
+              // Lyrics are not the only useful thing to show: this keeps the strip
+              // meaningful for instrumentals and untagged files.
+              <div className="lyric-idle">
+                <span className="lyric-idle__note" aria-hidden="true">
+                  {state.playing ? '♪' : '❙❙'}
+                </span>
+                <span className="lyric-idle__title">{idleTitle}</span>
+                {state.artist ? <span className="lyric-idle__artist">{state.artist}</span> : null}
+              </div>
+            )}
+          </div>
+          {state.text && nextParts.main ? <div className="lyric-next">{nextParts.main}</div> : null}
+        </div>
 
         <div className="lyric-toolbar" ref={toolbar}>
           <span className="lyric-toolbar__transport">
@@ -248,7 +315,7 @@ export function Overlay() {
               title="上一首"
               aria-label="上一首"
             >
-              <Prev size={18} strokeWidth={1.9} />
+              <Prev size={17} strokeWidth={1.9} />
             </button>
             <button
               className="lyric-tool lyric-tool--key"
@@ -256,7 +323,7 @@ export function Overlay() {
               title={state.playing ? '暂停' : '播放'}
               aria-label={state.playing ? '暂停' : '播放'}
             >
-              {state.playing ? <Pause size={18} strokeWidth={1.9} /> : <Play size={18} strokeWidth={1.9} />}
+              {state.playing ? <Pause size={17} strokeWidth={1.9} /> : <Play size={17} strokeWidth={1.9} />}
             </button>
             <button
               className="lyric-tool"
@@ -264,7 +331,7 @@ export function Overlay() {
               title="下一首"
               aria-label="下一首"
             >
-              <Next size={18} strokeWidth={1.9} />
+              <Next size={17} strokeWidth={1.9} />
             </button>
           </span>
 
@@ -291,6 +358,3 @@ export function Overlay() {
     </div>
   )
 }
-
-/** When the current state's position was read off the player, in `performance.now()` ms. */
-let stamp = 0

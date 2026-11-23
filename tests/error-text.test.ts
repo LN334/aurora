@@ -44,3 +44,38 @@ test('a circular object falls back instead of throwing', () => {
   loop.self = loop
   assert.equal(errorText(loop), '未知错误')
 })
+
+/*
+ * 上游的失败是一条信封：{ status, body: { code, msg, data }, cookie }。
+ * 这层信封以前被整个 stringify 到提示条上（用户截图里那一屏花括号），
+ * 内层那句人话反而没人看见。
+ */
+
+test('a transport envelope is unwrapped to the message inside it', () => {
+  assert.equal(
+    errorText({ status: 502, body: { code: 502, msg: 'read ECONNRESET' }, cookie: [] }),
+    'read ECONNRESET'
+  )
+})
+
+test('the dialog title of a moderation block leads the sentence', () => {
+  assert.equal(
+    errorText({
+      status: 250,
+      body: {
+        code: 250,
+        msg: '抱歉，评论发布失败，请稍后重试',
+        data: { dialog: { title: '风险提示', buttonUrl: 'http://163.lu/EmUzy2' } }
+      },
+      cookie: []
+    }),
+    '风险提示：抱歉，评论发布失败，请稍后重试'
+  )
+})
+
+test('an envelope with nothing readable still falls back to JSON', () => {
+  assert.equal(
+    errorText({ status: 502, body: { code: 502 }, cookie: [] }),
+    '{"status":502,"body":{"code":502},"cookie":[]}'
+  )
+})
