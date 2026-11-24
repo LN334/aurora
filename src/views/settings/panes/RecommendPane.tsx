@@ -15,7 +15,7 @@ import { Row, Rows, Sub, Toggle } from '../parts'
  * 看起来像是坏了；现在摊开写：总数是定好的，勾选只决定由谁凑够。
  */
 const SHELVES: { name: string; hint: string; count: number }[] = [
-  { name: '今天听什么', hint: '一天一批，第二天换', count: SLOTS.daily },
+  { name: '今日推荐', hint: '一天一批，第二天换', count: SLOTS.daily },
   { name: '推荐歌单', hint: '四行六列', count: SLOTS.playlist },
   { name: '推荐专辑', hint: '一行横条、左右可翻；取三家新碟与新歌里的专辑，可按批翻页', count: SLOTS.album },
   { name: '新歌', hint: '左边一张主推，右边九行一屏往下滚；网易云走缓存，QQ 与酷狗现取新歌榜', count: SLOTS.fresh },

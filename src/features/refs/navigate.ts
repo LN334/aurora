@@ -1,4 +1,5 @@
 import type { ShellRoute } from '../../app/shell'
+import { rememberCover } from '../../ui/fly-cover'
 import { getProvider } from '../online/registry'
 import { useOnlineStore, type PlaylistFace } from '../online/store'
 import type { PlaylistOwnership, ProviderId } from '../online/types'
@@ -48,6 +49,8 @@ function nameCover(origin: HTMLElement | null | undefined): void {
     '.rh-card__art, .rh-alb-row__art, .ol-alb__art, .trk__art, .dp__art, .lk-card__art'
   )
   cover?.style.setProperty('view-transition-name', 'playlist-cover')
+  /* 浏览器那条路已经不通（整页 View Transition 被关掉了），把矩形留给封面飞行。 */
+  rememberCover(cover)
 }
 
 export function openOnlineAlbum(

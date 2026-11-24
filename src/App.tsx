@@ -22,6 +22,7 @@ import { PlatformLoginDialogs, closePlatformLogins } from './views/settings/pane
 import { useLikeMenu } from './features/favorites/like-menu'
 import { ConfirmModal } from './views/ConfirmModal'
 import { usePresence } from './ui/presence'
+import { retirePage, type PageParts } from './ui/page-transition'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
@@ -75,6 +76,7 @@ import type { Track } from './types'
 import { orderPlaylistTracks } from './features/library/views'
 import type { Route } from './app/routing'
 import {
+  SHELL_EYEBROWS,
   SHELL_TITLES,
   initialShell,
   routeToShell,
@@ -459,16 +461,57 @@ export function App() {  if (!isNative) {
    * app.css 里 .main__body 那条注释），位移只能靠这条来做，跳过就等于没有动画。
    */
   const lastRoute = useRef<string | null>(null)
+  const lastParts = useRef<PageParts | null>(null)
+  const leavingParts = useRef<PageParts | null>(null)
+
+  /*
+   * 记下「上一次提交后」的页头与正文节点。
+   *
+   * 换页的 key 会让旧节点在这次提交的 mutation 阶段就被摘掉，等 effect 跑起来
+   * 已经查不到它们了。所以每次提交后都留一份引用：下一次换页时，ref 里那个
+   * 正文的 isConnected 会变成 false，正好用来确认「它确实是刚才被换掉的那一页」。
+   */
+  useLayoutEffect(() => {
+    const body = document.querySelector<HTMLElement>('.main__body')
+    const head = document.querySelector<HTMLElement>('.main__header')
+    const now: PageParts | null = body
+      ? { header: head, body, headH: head?.offsetHeight ?? 0, headHTML: head?.outerHTML }
+      : null
+    const prev = lastParts.current
+    if (prev && now && prev.body !== now.body && !prev.body.isConnected) leavingParts.current = prev
+    lastParts.current = now
+  })
+
   useEffect(() => {
     const key = shell.view + ':' + (shell.id ?? '')
     const body = document.querySelector<HTMLElement>('.main__body')
-    if (body && lastRoute.current !== null && lastRoute.current !== key) {
+    const changed = lastRoute.current !== null && lastRoute.current !== key
+    if (body && changed) {
       body.classList.remove('is-enter')
       // 读一次布局，让上面那次 remove 落地；否则同一帧里加回来不重启动画。
       void body.offsetWidth
       body.classList.add('is-enter')
       const done = () => body.classList.remove('is-enter')
       body.addEventListener('animationend', done, { once: true })
+      /*
+       * 页头单独挂一次。它不在正文节点里（正文靠 key 重建，页头被 React 复用），
+       * 不挂的话转场一开始就露出新页标题，像「页已经切好了」。
+       */
+      const head = document.querySelector<HTMLElement>('.main__header')
+      if (head) {
+        head.classList.remove('is-enter-head')
+        void head.offsetWidth
+        head.classList.add('is-enter-head')
+        head.addEventListener('animationend', () => head.classList.remove('is-enter-head'), { once: true })
+      }
+      /*
+       * 位置取 .main 的：它不参与任何动画，量出来永远是稳定的一屏框。以前取正文
+       * 的，可正文有自己的入场位移，量到的框会跟着动画跑偏。
+       */
+      const main = document.querySelector<HTMLElement>('.main')
+      const gone = leavingParts.current
+      leavingParts.current = null
+      if (gone && main) retirePage(gone, main.getBoundingClientRect())
     }
     lastRoute.current = key
   }, [shell])
@@ -873,6 +916,8 @@ export function App() {  if (!isNative) {
   ])
   /* 播放页不另打页头标题：页内已有封面与歌名，再顶一行「正在播放」是重复。 */
   const headTitle = shell.view === 'nowplaying' ? '' : SHELL_TITLES[shell.view]
+  /* 英文眉标只锦上添花，缺了不影响任何一页。 */
+  const headEyebrow = SHELL_EYEBROWS[shell.view] ?? ''
   /*
    * Only scan state belongs here now. The header used to also report "N tracks"
    * while the shell's field was filtering the library in place; filtering moved to
@@ -1113,6 +1158,7 @@ export function App() {  if (!isNative) {
         // The veil opacity is CSS's business; the level itself is data.
         style={{ '--wp-level': String(wallpaperStrength) } as React.CSSProperties}
       >
+        {/* 整窗一块的极光板：垫在所有内容之下，慢慢漂。 */}
         {backdrop ? (
           <div
             className="shell__backdrop"
@@ -1196,7 +1242,11 @@ export function App() {  if (!isNative) {
             ) : null}
 
             <div className="main__titles">
-              {headTitle ? <h1 className="main__title">{headTitle}</h1> : null}
+              {headTitle ? (
+                <h1 className="main__title" data-en={headEyebrow || undefined}>
+                  {headTitle}
+                </h1>
+              ) : null}
               {headStatus ? <div className="main__sub">{headStatus}</div> : null}
             </div>
 
@@ -1319,7 +1369,7 @@ export function App() {  if (!isNative) {
           <WhatsNew />
 
           {/* 换页时换 key：新内容整块重挂，入场动画才会播（.main__body 上那条 pageIn）。 */}
-          <div className="main__body" key={shell.view + ':' + (shell.id ?? '')}>{body()}</div>
+          <div className="main__body" data-view={shell.view} key={shell.view + ':' + (shell.id ?? '')}>{body()}</div>
         </main>
 
         {/*

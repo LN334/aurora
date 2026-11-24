@@ -28,7 +28,7 @@
   background: transparent;
   color: var(--text-mid);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.45;
   cursor: pointer;
   /* 悬停是「手指碰到」的回应，用最短那档，缓动走全局的 ease-out。 */
@@ -138,7 +138,7 @@
   flex-shrink: 0;
   font-size: var(--fs-micro);
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--text-low);
   white-space: nowrap;
@@ -187,7 +187,7 @@
   position: relative;
   flex-shrink: 0;
   padding-left: 9px;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   color: var(--text-mid);
 }
@@ -305,6 +305,17 @@
   font-size: var(--fs-body);
   color: var(--text-hi);
 }
+/* label 后面那句状态：和 label 同一行，比它轻一档，读作「名字 · 状态」。 */
+.settings__aside {
+  margin-left: 10px;
+}
+.settings__aside-state {
+  font-size: var(--fs-meta);
+  color: var(--text-low);
+}
+.settings__aside-state.is-warn {
+  color: rgb(224 138 96);
+}
 
 .settings__control {
   flex-shrink: 0;
@@ -318,7 +329,7 @@
 .set-count {
   min-width: 2.5em;
   color: var(--text-hi);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -583,7 +594,7 @@
   margin: 0 0 var(--s1);
   font-size: var(--fs-micro);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--text-low);
 }
 .set-keyrow {
@@ -760,12 +771,12 @@
 }
 
 .settings__label {
-  font-size: 14px;
+  font-size: var(--fs-title);
 }
 
 .set-sub__title {
-  font-size: 12.5px;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-meta);
+  letter-spacing: 0.02em;
   text-transform: none;
   color: var(--text-mid);
 }
@@ -793,13 +804,13 @@
 
 .settings__order-index {
   color: var(--text-low);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .settings__order-name {
   flex: 1;
   color: var(--text-hi);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .settings__order-acts {
@@ -816,7 +827,7 @@
   border-radius: 7px;
   background: none;
   color: var(--text-mid);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   cursor: pointer;
   /* 悬停换底色/字色，禁用时只是变淡：两件事都补过渡。 */
   transition:

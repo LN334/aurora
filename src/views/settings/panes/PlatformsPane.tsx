@@ -73,11 +73,18 @@ export function PlatformsPane() {
           <Row
             key={item.id}
             label={NAMES[item.id] ?? item.id}
-          >
-            <Actions>
-              <span className={'settings__number' + (item.state === 'error' || item.state === 'offline' ? ' is-warn' : '')}>
+            aside={
+              <span
+                className={
+                  'settings__aside-state' +
+                  (item.state === 'error' || item.state === 'offline' ? ' is-warn' : '')
+                }
+              >
                 {stateLabel(item.state)}
               </span>
+            }
+          >
+            <Actions>
               {item.loggedIn === false ? (
                 <button className="btn" type="button" onClick={() => openPlatformLogin(item.id)}>
                   登录

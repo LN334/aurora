@@ -496,7 +496,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   return (
     <div className="rh">
       <header className="rh__head">
-        <p className="rh__greet">{greeting(now)}</p>
+        <p className="rh__greet" data-en="AURORA // TODAY">
+          {greeting(now)}
+        </p>
         {today.tracks > 0 ? (
           <p className="rh__today">
             今天 {today.tracks} 首 · {formatSpan(today.seconds)}
@@ -511,7 +513,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
         <section className="rh-daily">
           <div className="rh-daily__text">
             <span className="rh-daily__kicker">每日推荐 · {dailyLabel()}</span>
-            <h2>今天听什么</h2>
+            <h2>今日推荐</h2>
             <div className="rh-daily__acts">
               <button
                 className="rh-btn rh-btn--main"
@@ -569,22 +571,35 @@ export function HomePage({ onNavigate }: HomeViewProps) {
          * 那一刻先显示「去登录」会闪错。
          */
         <section className="rh-daily rh-daily--off">
+          {/*
+            未登录时这块右边是空的：1300px 宽的白卡里只有三行字。
+            加一行技术感的角标与一片极光，让「空」读起来是「待接入」，
+            而不是「页面没写完」。
+          */}
+          <span className="rh-daily__sig" aria-hidden="true">
+            NO SIGNAL
+          </span>
+          {/*
+            未登录时这块收成一条横条：日期与标题在左，入口在右。
+            原来它和数据态一样高（约 165px），1300px 宽的白卡里只放三行字，
+            首屏被一块空的占去两成。
+          */}
           <div className="rh-daily__text">
             <span className="rh-daily__kicker">
               每日推荐 · {dailyLabel()}
             </span>
-            <h2>今天听什么</h2>
-            <div className="rh-daily__acts">
-              {dailyOnline ? null : (
-                <button
-                  className="rh-btn rh-btn--main"
-                  type="button"
-                  onClick={() => onNavigate({ view: 'me' })}
-                >
-                  去登录
-                </button>
-              )}
-            </div>
+            <h2>今日推荐</h2>
+          </div>
+          <div className="rh-daily__acts">
+            {dailyOnline ? null : (
+              <button
+                className="rh-btn rh-btn--main"
+                type="button"
+                onClick={() => onNavigate({ view: 'me' })}
+              >
+                去登录
+              </button>
+            )}
           </div>
         </section>
       )}

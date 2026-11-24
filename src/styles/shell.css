@@ -89,7 +89,7 @@
 .track__kind {
   font-size: var(--fs-micro);
   color: var(--text-low);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 .track__title {
@@ -136,7 +136,7 @@
 }
 
 .track__lyrics {
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 2;
   color: var(--text-mid);
   white-space: pre-wrap;
@@ -199,7 +199,7 @@
   font-family: var(--font-display);
   font-size: 27px;
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
   line-height: 1.15;
 }
 
@@ -302,7 +302,7 @@
   flex: none;
   width: 48px;
   height: 48px;
-  border-radius: 11px;
+  border-radius: var(--r-art);
   background: rgb(var(--accent-rgb) / 0.16);
   color: var(--accent-strong);
 }
@@ -376,7 +376,7 @@
   gap: 4px;
   min-width: 0;
   padding: 5px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(var(--tint-rgb) / 0.06);
   font-size: var(--fs-micro);
   color: var(--text-mid);
@@ -414,7 +414,7 @@
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
 
@@ -550,7 +550,7 @@
   border: 0;
   background: none;
   color: var(--text-low);
-  font-size: 14px;
+  font-size: var(--fs-title);
   line-height: 1;
   cursor: pointer;
 }
@@ -828,7 +828,7 @@
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 14px;
+  border-radius: var(--r-art);
   overflow: hidden;
   border: 1px solid rgb(var(--tint-rgb) / 0.07);
   background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.035));
@@ -877,7 +877,7 @@
 .rh-fresh__lead-kicker {
   margin-top: var(--s3);
   font-size: var(--fs-micro);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--text-low);
 }
 .rh-fresh__lead-title {
@@ -950,7 +950,7 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   overflow: hidden;
   background: rgb(var(--tint-rgb) / 0.07);
   color: var(--text-mid);
@@ -1025,11 +1025,31 @@
  * 中间一条窄字、右边一列灰字，两边都空着，中间却挤。这一版把事实收成一条横贯
  * 的统计条——数字大、说明小，读出来是「这张专辑有多大」，而不是「一张配置表」。
  */
+/*
+ * 页头逐件入场：整块淡入等于什么都没发生，拆开之后眼睛有落脚的地方。
+ * 只有 opacity 与 translateY，不动布局，也不参与任何 transform 父级。
+ */
+.dp-rise {
+  animation: dpRise 540ms var(--ease-quint) both;
+}
+
+@keyframes dpRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .dp {
   display: flex;
   align-items: flex-end;
   gap: 26px;
-  margin: 6px 0 22px;
+  margin: 6px 0 26px;
 }
 
 .dp__art {
@@ -1063,18 +1083,38 @@
   min-width: 0;
 }
 
+/*
+ * 眉标：英文类型 // 中文类型。全站页头共用这一个语法。
+ *
+ * 英文给形状（等宽大写、字距拉开），中文给意思（不跟大写、字距收小）——所以
+ * 中间那个 // 要单独拿掉字距，否则它会被两边的字距推到很远的空处。
+ */
 .dp__k {
-  font-size: 10.5px;
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--accent-strong);
+  color: var(--text-mid);
   transition: color var(--tint-ms) var(--ease-out);
+}
+.dp__k b {
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  color: var(--accent-strong);
+}
+.dp__k i {
+  margin: 0 8px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: rgb(var(--tint-rgb) / 0.42);
 }
 
 .dp__t {
   display: -webkit-box;
-  margin: 9px 0 12px;
+  margin: 9px 0 0;
   max-width: 100%;
   overflow: hidden;
   font-family: var(--font-display);
@@ -1106,15 +1146,28 @@
   background: rgb(var(--tint-rgb) / 0.09);
 }
 
+/*
+ * 手画的横线：详情页标题下面那条。
+ *
+ * 横着拉到满宽（preserveAspectRatio="none"），所以必须给 non-scaling-stroke，
+ * 否则 1px 的笔被横向拉伸成一头粗一头细，看起来像扫描件。
+ */
+
 .dp__m {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 9px;
-  font-size: 12.5px;
+  /*
+   * 标题下面原来垫着一条手画横线，它把两行分开了；线撤掉之后，间距要由这里
+   * 自己撑住，否则标题的最后一笔会直接压到作者名上。
+   */
+  margin-top: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-mid);
 }
 .dp__m .sep2 {
+  margin: 0 3px;
   color: var(--text-low);
 }
 
@@ -1161,11 +1214,11 @@
   gap: 7px;
   height: 35px;
   padding: 0 17px;
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   border: 1px solid var(--line-soft);
   background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
   transition: background 130ms var(--ease-out), border-color 130ms var(--ease-out);
 }
@@ -1195,29 +1248,52 @@
   background: #fff;
 }
 
-/* 统计条：这一页的规模，一行横着读完。 */
+/*
+ * 统计：跟着作者那一行走，不再是页头下面一条带子。
+ *
+ * 之前是「上下两道线 + 44px 间距 + 20px 数字」，数据多时撑得起来；可详情页的
+ * 事实通常只有两三条，用比标题还重的字号报「1 首 / 2021 / 网易云音乐」，等于
+ * 把一句注脚念成结论。现在是标签在前、数值在后的一小排，扫一眼就走。
+ */
 .dp__stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 44px;
-  margin-bottom: 22px;
-  padding: 15px 2px;
-  border-top: var(--line-soft);
-  border-bottom: var(--line-soft);
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: var(--fs-meta);
+  color: var(--text-mid);
 }
-.st b {
-  display: block;
-  font-size: 20px;
-  font-weight: 640;
-  letter-spacing: -0.01em;
-  color: var(--text-hi);
-  font-variant-numeric: tabular-nums;
+.st {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+/*
+ * 三组事实之间放一颗 3px 的点，而不是靠 18px 的空格：空格只说明「隔开了」，
+ * 点说明「这几项是并列的」。标签用 --text-mid 而不是 --text-low —— 壁纸亮
+ * 的时候 low 只剩 4.5:1 上下，读者会看见「1 2021 网易云音乐」却不知道是什么。
+ */
+.st + .st::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  margin: 0 4px;
+  border-radius: 50%;
+  background: rgb(var(--tint-rgb) / 0.3);
+  transform: translateY(-3px);
 }
 .st span {
-  display: block;
-  margin-top: 3px;
-  font-size: 10.5px;
-  color: var(--text-low);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-mid);
+}
+.st b {
+  font-size: var(--fs-body);
+  font-weight: 620;
+  letter-spacing: 0;
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
 }
 .st--hi b {
   color: var(--accent-strong);
@@ -1242,7 +1318,7 @@
     font-size: 26px;
   }
   .dp__stats {
-    gap: 28px;
+    gap: 14px;
   }
 }
 
@@ -1255,7 +1331,7 @@
   min-width: 0;
   padding: 7px 9px;
   border: 0;
-  border-radius: 11px;
+  border-radius: var(--r-art);
   background: none;
   text-align: left;
   transition: background 160ms var(--ease-out);
@@ -1268,7 +1344,7 @@
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   overflow: hidden;
   border: 1px solid rgb(var(--tint-rgb) / 0.06);
   background: linear-gradient(150deg, rgb(var(--tint-rgb) / 0.1), rgb(var(--tint-rgb) / 0.035));
@@ -1325,7 +1401,7 @@
   justify-content: space-between;
   gap: var(--s6);
   padding: var(--s5) var(--s6);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   border: 1px solid rgb(var(--tint-rgb) / 0.085);
   background:
     radial-gradient(120% 140% at 88% 12%, rgb(var(--tint-rgb) / 0.1), transparent 58%),
@@ -1407,7 +1483,7 @@
   width: 22px;
   height: 3px;
   transform: translateX(-50%);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: rgb(var(--accent-rgb) / 0.85);
   box-shadow: 0 0 14px rgb(var(--accent-rgb) / 0.55);
   pointer-events: none;
@@ -1485,7 +1561,7 @@
   align-items: baseline;
   gap: 8px;
   max-width: 90%;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   color: var(--text-mid);
   white-space: nowrap;
   pointer-events: none;
@@ -1493,7 +1569,7 @@
 .rh-disc__pos {
   flex: none;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: rgb(var(--accent-rgb) / 0.9);
   font-weight: 600;
 }
@@ -1613,7 +1689,7 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  border-radius: 18px;
+  border-radius: var(--r-xl);
   background: rgb(var(--tint-rgb) / 0.07);
   box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
   color: var(--text-low);
@@ -1624,7 +1700,7 @@
   font-family: var(--font-display);
   font-size: 19px;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
 
@@ -1686,7 +1762,7 @@
 .rh-now__kicker {
   font-size: var(--fs-micro);
   color: var(--text-low);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
 }
 .rh-now__title {
   font-size: var(--fs-title);
@@ -1784,7 +1860,7 @@
 .np__cover {
   width: min(100%, 340px);
   aspect-ratio: 1;
-  border-radius: 14px;
+  border-radius: var(--r-art);
   overflow: hidden;
   background: rgb(var(--tint-rgb) / 0.04);
   box-shadow:
@@ -1814,7 +1890,7 @@
   white-space: nowrap;
 }
 .np__sub {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--text-mid);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2015,7 +2091,7 @@
  * 音量数字淡到看不见，轨道倒成了一条亮线，已经调出来的那一段反而融进背景。
  */
 .np__vol-val {
-  font-size: 10.5px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: rgb(255 255 255 / 0.78);
   line-height: 1;
@@ -2171,7 +2247,7 @@
   gap: 14px;
   color: var(--text-mid);
   font-size: 14.5px;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   text-align: center;
 }
 
@@ -2184,11 +2260,11 @@
 .np__nolyrics-act {
   margin-top: 4px;
   padding: 6px 14px;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 .np__nolyrics-hint {
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--text-low);
   opacity: 0.75;
 }
@@ -2206,7 +2282,7 @@
 }
 
 .np__time {
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
   min-width: 34px;
@@ -2247,7 +2323,7 @@
   color: var(--text-mid);
 }
 .np__nothing span {
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 @media (max-width: 1080px) {
@@ -2294,7 +2370,7 @@
   border-radius: 999px;
   background: rgb(var(--shade-rgb) / 0.55);
   color: #fff;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   letter-spacing: 0.02em;
   opacity: 0;
   transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
@@ -2357,7 +2433,7 @@
   border-radius: 999px;
   background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-low);
-  font-size: 10.5px;
+  font-size: 10px;
   vertical-align: 1px;
 }
 /* 与列表徽章同一套色点：一看颜色就知道这一首从哪家来。 */
@@ -2579,12 +2655,12 @@
   gap: 9px;
   min-width: 0;
   padding: 0 2px 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 .np__next-k {
   flex: none;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--text-low);
 }
 .np__next-t {
@@ -2623,8 +2699,8 @@
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-body);
+  letter-spacing: 0.02em;
   color: #fff;
   background: rgb(var(--scrim-rgb) / 0.52);
   opacity: 0;
@@ -2656,7 +2732,7 @@
   border: 0;
   background: none;
   text-align: left;
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1.5;
   color: var(--text-mid);
   cursor: pointer;
@@ -2675,7 +2751,7 @@
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 8px 14px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 .tk__facts dt {
   color: var(--text-low);
@@ -2686,7 +2762,7 @@
   word-break: break-all;
 }
 .tk__path {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low) !important;
 }
 
@@ -2729,11 +2805,11 @@
   gap: 1px;
 }
 .tk__main {
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1.5;
 }
 .tk__sub {
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   line-height: 1.45;
   color: var(--text-low);
 }
@@ -2771,7 +2847,7 @@
 /* 歌单页：自己的抽屉，卡片小一档，列间留空气，别再挤成一堆。 */
 
 .pl-head__count {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 
@@ -2794,7 +2870,7 @@
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.02em;
 }
 
 /*
@@ -2836,12 +2912,12 @@
 }
 .pl-card .rh-card__title {
   margin-top: 12px;
-  font-size: 14px;
+  font-size: var(--fs-title);
   line-height: 1.35;
 }
 .pl-card .rh-card__sub {
   margin-top: 5px;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   line-height: 1.4;
 }
 @media (max-width: 1180px) {
@@ -2853,7 +2929,7 @@
 
 /* 搜索页：范围改成一排胶囊，跟别页的 chip 同一手感。 */
 .srch__hint {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 .srch__chips {
@@ -2874,7 +2950,7 @@
   border-radius: 999px;
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
   background: rgb(var(--tint-rgb) / 0.04);
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--text-mid);
   transition: background 140ms var(--ease-out), color 140ms var(--ease-out);
 }
@@ -2889,19 +2965,19 @@
 }
 .srch-chip em {
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   color: var(--text-low);
 }
 /* 搜索页的空态与其它页共用一条规则（见前面的 .pg-empty），这里不再单独覆盖。 */
 .srch__legend {
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 
 /* 音乐文件夹页：来源与本地文件夹分两段，行做成卡片。 */
 .src__hint {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 .src__sp {
@@ -2964,18 +3040,18 @@
   min-width: 0;
 }
 .src-row__name {
-  font-size: 14px;
+  font-size: var(--fs-title);
   color: var(--text-hi);
 }
 .src-row__path {
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--text-mid);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .src-row__note {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 1.45;
   color: var(--text-low);
 }
@@ -3011,7 +3087,7 @@
   transform-origin: 0 0;
   width: min(420px, calc(100vw - 48px));
   padding: 22px 24px 18px;
-  border-radius: 14px;
+  border-radius: var(--r-art);
   border: 1px solid rgb(var(--tint-rgb) / 0.08);
   background: rgb(var(--plane-rgb) / 0.96);
   box-shadow: 0 24px 64px rgb(var(--shade-rgb) / 0.55);
@@ -3025,7 +3101,7 @@
 }
 .nm__label {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 
@@ -3035,11 +3111,11 @@
   margin-top: 8px;
   padding: 9px 11px;
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
   font: inherit;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 .nm__input:focus {
   border-color: var(--accent);
@@ -3047,7 +3123,7 @@
 }
 .nm__note {
   margin: 0 0 4px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text-mid);
 }
@@ -3156,7 +3232,7 @@
   background: none;
   color: var(--text-mid);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-body);
   cursor: pointer;
 }
 .ol-tab:hover {
@@ -3207,14 +3283,14 @@
 .ol-alb__name {
   overflow: hidden;
   color: var(--text-hi);
-  font-size: 13px;
+  font-size: var(--fs-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ol-alb__meta {
   overflow: hidden;
   color: var(--text-low);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3265,7 +3341,7 @@
   border-radius: 999px;
   background: rgb(var(--plane-rgb) / 0.68);
   color: var(--text-hi);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   line-height: 16px;
   letter-spacing: 0.02em;
   pointer-events: none;
@@ -3356,7 +3432,7 @@
   border: 1px solid rgb(255 255 255/.1);
   background: rgb(255 255 255/.04);
   color: var(--text-mid);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   cursor: pointer;
   transition: background .16s, color .16s;
 }
@@ -3416,7 +3492,7 @@
 .lm-hint {
   margin: 0 0 14px;
   max-width: 62ch;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   line-height: 1.65;
   color: var(--text-low);
 }
@@ -3482,7 +3558,7 @@
   justify-content: space-between;
   gap: var(--s4);
   padding: var(--s4) var(--s5);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background: rgb(var(--tint-rgb) / 0.05);
   box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
 }
@@ -3737,7 +3813,7 @@
   margin-left: 2px;
   padding: 1px 7px;
   border: 1px solid rgb(var(--tint-rgb) / 0.14);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   /* 原来只是一层几乎看不见的底，和旁边那串灰字糊在一起：看不出它是能点的。 */
   background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-mid);
@@ -4131,7 +4207,7 @@
   min-width: 0;
   height: auto;
   padding: 1px 7px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   border-color: rgb(var(--tint-rgb) / 0.14);
   background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-mid);

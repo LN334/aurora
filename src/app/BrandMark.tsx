@@ -27,17 +27,22 @@ export function BrandMark({ size = 20 }: { size?: number }) {
     >
       <defs>
         {/* Single instance in the app; a duplicate id would resolve to this one. */}
+        {/*
+          * 竖向渐变而不是斜向：极光是自上而下垂落的帘幕，上缘被风磨淡、下端
+          * 落在地平线上最浓。斜向渐变读起来只是「一条彩色线」，竖向才有光在
+          * 落下去的意味。
+          */}
         <linearGradient
           id="aurora-brand"
           gradientUnits="userSpaceOnUse"
-          x1="3.6"
-          y1="2.6"
-          x2="20.4"
-          y2="21.4"
+          x1="12"
+          y1="2.4"
+          x2="12"
+          y2="21.2"
         >
-          <stop offset="0" stopColor="#2ad9c8" />
-          <stop offset="0.42" stopColor="#36aef3" />
-          <stop offset="1" stopColor="#8f5cf0" />
+          <stop offset="0" stopColor="#5ee8d2" stopOpacity="0.58" />
+          <stop offset="0.4" stopColor="#4a9df5" />
+          <stop offset="1" stopColor="#9a6bf5" stopOpacity="0.94" />
         </linearGradient>
       </defs>
       <g stroke="url(#aurora-brand)" strokeWidth={STROKE} strokeLinecap="round">

@@ -21,7 +21,6 @@ export const IDLE_PALETTE: Palette = {
   accentRgb: '125 136 153',
   colors: ['#7d8899', '#5d6774', '#939db0']
 }
-
 function clamp255(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)))
 }
@@ -136,6 +135,7 @@ export async function extractPalette(src: string): Promise<Palette> {
   }
 }
 
+/** 色相角，用来判断两个候选色是不是撞在一起。 */
 function hueOf([r, g, b]: [number, number, number]): number {
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)

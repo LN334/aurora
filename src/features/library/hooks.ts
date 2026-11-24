@@ -41,6 +41,11 @@ export function usePalette(track: Track | null): Palette {
     root.style.setProperty('--accent', palette.accent)
     root.style.setProperty('--accent-rgb', palette.accentRgb)
     root.style.setProperty('--accent-strong', palette.colors[1] ?? palette.accent)
+    /*
+     * 极光帘幕用的三色。与 accent 分开写，是因为它们的用途不同：accent 是
+     * 「按下去、选中」这类**语义**色，必须忠实于封面；帘幕是**光**，要扛住
+     * 玻璃的模糊与提亮，彩度不能跟着封面一起塌下去。详见 palette.ts。
+     */
   }, [palette])
 
   return palette

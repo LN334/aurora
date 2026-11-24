@@ -209,7 +209,7 @@
 }
 .acct2-head h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--fs-title);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-hi);
@@ -234,7 +234,7 @@
   min-width: 0;
   padding: 16px 18px 18px;
   border: 1px solid rgb(var(--tint-rgb) / 0.08);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background: rgb(var(--plane-rgb) / 0.58);
   /* 登录成功后卡片边线变亮，让它淡进来而不是闪一下。 */
   transition: border-color var(--dur-2) var(--ease-out);
@@ -261,7 +261,7 @@
 .acct2-dot--kugou { background: #2f8fe0; }
 .acct2-dot--qishui { background: #8d8fa6; }
 .acct2-pcard__name {
-  font-size: 14px;
+  font-size: var(--fs-title);
   font-weight: 600;
   color: var(--text-hi);
   white-space: nowrap;
@@ -275,7 +275,7 @@
   border-radius: 999px;
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
   color: var(--text-low);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   transition:
     background-color var(--dur-2) var(--ease-out),
     border-color var(--dur-2) var(--ease-out),
@@ -309,7 +309,7 @@
   border-radius: 6px;
   background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-mid);
-  font-size: 11px;
+  font-size: var(--fs-micro);
 }
 .acct2-pacts {
   display: flex;
@@ -365,7 +365,7 @@
   flex: 1 1 auto;
 }
 .acct2-folder__name {
-  font-size: 14px;
+  font-size: var(--fs-title);
   color: var(--text-hi);
 }
 .acct2-folder__path {

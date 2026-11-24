@@ -5,6 +5,7 @@ import { formatSpan } from '../ui/format'
 import { Note, Play, User } from '../ui/icons'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
 import { DetailHero } from './DetailHero'
+import { rememberCover } from '../ui/fly-cover'
 
 /**
  * 一位艺人：头像、两个数字、他唱得最多的那几首、他出过的专辑。
@@ -39,13 +40,9 @@ export function ArtistPage({
       <DetailHero
         art={<Artwork src={artworkFor(portrait)} alt="" fallback={<User size={34} />} />}
         round
+        en="ARTIST"
         kicker="艺人"
         title={artist.name}
-        meta={
-          <span>
-            {artist.albumIds.length} 张专辑 · {artist.trackCount} 首
-          </span>
-        }
         actions={
           <button
             className="dbtn dbtn--main"
@@ -88,7 +85,16 @@ export function ArtistPage({
           </header>
           <div className="rh-row">
             {albums.map((item) => (
-              <button className="rh-card" type="button" key={item.id} onClick={() => onOpenAlbum(item.id)}>
+              <button
+                className="rh-card"
+                type="button"
+                key={item.id}
+                onClick={(event) => {
+                  /* 点进去之前先把这张封面量下来：详情页用它做封面飞行。 */
+                  rememberCover(event.currentTarget.querySelector<HTMLElement>('.rh-card__art'))
+                  onOpenAlbum(item.id)
+                }}
+              >
                 <span className="rh-card__art">
                   <Artwork
                     src={artworkFor(tracks.find((t) => item.trackIds.includes(t.id)) ?? null)}

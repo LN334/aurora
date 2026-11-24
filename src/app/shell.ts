@@ -92,6 +92,43 @@ export const SHELL_TITLES: Record<ShellView, string> = {
 }
 
 /**
+ * 页头的英文眉标。
+ *
+ * 极光的语言是「一行技术感的英文小字压在中文标题上」——莱茵、死亡搁浅、
+ * 尼尔都在用同一个手法：英文给气质，中文给信息，两层字号差三倍以上。
+ * 这里只给通用页；详情页（专辑/歌单/艺人）自己的页头已经带了眉标，返回空串，
+ * 免得同一行出现两个 PLAYLIST。
+ */
+export const SHELL_EYEBROWS: Record<ShellView, string> = {
+  comments: 'COMMENTS',
+  home: 'TODAY',
+  daily: 'DAILY',
+  liked: 'FAVORITES',
+  recent: 'RECENT',
+  collections: 'ALBUMS',
+  followedartists: 'ARTISTS',
+  playlists: 'PLAYLISTS',
+  local: 'LIBRARY',
+  album: 'ALBUM',
+  artist: 'ARTIST',
+  playlist: '',
+  onlinealbum: '',
+  onlineartist: '',
+  onlineplaylist: '',
+  track: '',
+  nowplaying: '',
+  stage: 'STAGE',
+  party: 'PARTY',
+  sakura: 'TUNNEL',
+  settings: 'SETTINGS',
+  me: 'PROFILE',
+  search: 'SEARCH',
+  sources: 'FOLDERS',
+  netease: 'NETEASE',
+  qq: 'QQ MUSIC'
+}
+
+/**
  * 地址栏里的写法。
  *
  * 详情页用 `album/<id>` 而不是 `album?id=`：hash 里带查询串在 Electron 里

@@ -111,9 +111,7 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
   if (groups.length === 0) {
     return (
       <EmptyState
-        icon={<Note size={24} />}
-        title="还没有歌单"
-        hint="歌单都在平台账号里。去「我」登录一个平台，那边的歌单就会出现在这里。"
+        stage
         action={
           <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
             去登录

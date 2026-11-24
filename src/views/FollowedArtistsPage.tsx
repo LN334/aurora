@@ -43,13 +43,7 @@ export function FollowedArtistsPage({ onNavigate }: { onNavigate(route: ShellRou
     const anySigned = anySourceSigned('followedArtists', signed)
     return (
       <EmptyState
-        icon={<User size={24} />}
-        title={anySigned ? '没读到关注的艺人' : '还没有登录'}
-        hint={
-          anySigned
-            ? '如果在平台上关注过艺人，可能是登录过期了，重新登录一次就会回来。'
-            : '关注的艺人存在平台账号里，登录之后这里才有东西可看。'
-        }
+        stage
         action={
           <button className="rh-btn" type="button" onClick={() => onNavigate({ view: 'me' })}>
             {anySigned ? '去重新登录' : '去登录'}

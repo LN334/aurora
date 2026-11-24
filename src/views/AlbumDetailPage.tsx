@@ -42,6 +42,7 @@ export function AlbumDetailPage({
     <div className="col">
       <DetailHero
         art={<Artwork src={artworkFor(first)} alt="" fallback={<Note size={34} />} />}
+        en="ALBUM"
         kicker="专辑"
         title={album.name}
         meta={
@@ -55,8 +56,6 @@ export function AlbumDetailPage({
                 <span>{album.year}</span>
               </>
             ) : null}
-            <span className="sep2">·</span>
-            <span>{tracks.length} 首</span>
           </>
         }
         actions={

@@ -28,9 +28,9 @@
   align-items: center;
   gap: 6px;
   flex: none;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--accent);
 }
 
@@ -55,7 +55,7 @@
 
 .rr__count {
   flex: none;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--text-mid);
   font-variant-numeric: tabular-nums;
 }
@@ -72,7 +72,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--text-mid);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   line-height: 1;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
@@ -85,7 +85,7 @@
 }
 
 .rr__mode-caret {
-  font-size: 9px;
+  font-size: 10px;
   opacity: 0.7;
 }
 
@@ -107,7 +107,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--text-mid);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   line-height: 1;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
@@ -126,7 +126,7 @@
 
 .rr__mode-note {
   color: var(--text-low);
-  font-size: 11px;
+  font-size: var(--fs-micro);
 }
 
 
@@ -142,7 +142,7 @@
   border: 1px solid rgb(var(--accent-rgb) / 0.28);
   border-radius: 999px;
   background: rgb(var(--accent-rgb) / 0.1);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: color-mix(in oklab, var(--accent) 78%, white);
   white-space: nowrap;
 }
@@ -199,7 +199,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--text-mid);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -225,10 +225,10 @@
   gap: 5px;
   padding: 5px 9px;
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-mid);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -249,7 +249,7 @@
   flex-basis: 100%;
   margin: 0;
   color: #e0a06a;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
 }
 
 /* 撤掉之后三秒的撤回条。语气要平：这不是失败，是一次可以反悔的操作。 */
@@ -260,7 +260,7 @@
   gap: 6px;
   margin: 0;
   color: var(--text-mid);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
 }
 
 .rr__undo button {
@@ -268,7 +268,7 @@
   border: 0;
   background: none;
   color: var(--accent);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;

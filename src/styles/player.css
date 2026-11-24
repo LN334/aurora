@@ -26,69 +26,33 @@
    * 底部时，全宽会盖住那三行，所以只能悬浮。那三行已经搬到顶栏，左栏底部空了，
    * 整条铺满才有意义——宽度全给控件，窄窗口也少挤一点。
    */
-  margin: 4px 16px 12px;
-  border-radius: 16px;
   /*
-   * 下内边距从 4px 提到 9px：进度条原来几乎是贴着玻璃下缘画的，
-   * 时间数字被挤在那条弧线上，看起来像被裁掉半截。
+   * 上边距从 4px 收到 0：那 4px 里没有玻璃，只露出窗口底，于是内容区下沿
+   * 与播放条之间永远有一条更亮/更绿的横缝。左右仍留 16px（播放条是浮起的一条），
+   * 上下不再留。
    */
+  /*
+   * 播放条不再是一块浮起的圆角玻璃（2026-11-24）。
+   *
+   * 从前它 margin 左右 16px、圆角 16、自带 0.78 白底与三层 inset 高光，是一块
+   * 压在壁纸上的板。浅色 + 亮壁纸下，这块板比内容区白一档，四周还带圆角——
+   * 读起来就是「播放条上套了一个透明框」；上面的卡片从它两侧穿过去，被这块
+   * 板的边缘切成半截。
+   *
+   * 现在它贴边、无圆角、无自身底色，与内容区共用窗口那一张纸；两者之间只留
+   * 一条发丝线（在 aurora.css 的分区段里分级）。
+   */
+  margin: 0;
+  border-radius: 0;
   padding: 6px var(--s4) 9px;
   display: flex;
   flex-direction: column;
   gap: 5px;
-  /*
-   * 播放条是亚克力的，不是一块实色板：它压在壁纸与内容之上，底下有什么就该
-   * 隐约透出什么。模糊半径给得比侧栏大一点，因为要盖住滚动过去的封面与文字，
-   * 只把颜色漏进来。
-   */
-  /*
-   * 三层背景，叠出一块「有厚度的玻璃」：
-   *   - 底色 0.78 压住下面那排封面，不然高饱和的封面色会直接把播放条染花；
-   *   - 顶部一条极淡的提亮，和下面的 inset 高光接上；
-   *   - 底部一条压暗，让玻璃下缘「沉」下去，不再是一条被截断的横条。
-   */
-  background-color: rgb(var(--plane-rgb) / 0.78);
-  background-image: linear-gradient(
-    180deg,
-    rgb(var(--tint-rgb) / 0.05),
-    transparent 34%,
-    transparent 68%,
-    rgb(var(--shade-rgb) / 0.2)
-  );
-  /*
-   * --refract 是 Refraction 挂上来的位移滤镜（液态玻璃的折射圈）。没有它时
-   * var() 回退成空，这一行就退化成纯模糊，视觉不掉档。
-   *
-   * 模糊半径从 24px 压到 9px：折射和模糊是此消彼长的——位移只有十几个像素，
-   * 24px 的模糊会把边缘那圈弯折整片糊平，玻璃就又变回一块磨砂塑料。压下来的
-   * 清晰度由更深的 tint 和更高的 saturate 补回去，背后滚过去的文字仍然是色块，
-   * 不是能读的字。
-   */
-  backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
-  -webkit-backdrop-filter: var(--glass-refract, var(--refract, )) blur(12px) saturate(1.3);
-  /*
-   * 不画上边线。悬浮的玻璃四周都不该有实线：这条 1px 白线在浅色底上会读成
-   * 「播放条外面还套了一个框」，跟下面那圈 inset 描边一起，就是用户说的
-   * 「一个横框一个内框」。边界交给圆角、模糊与阴影，不交给线。
-   */
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 0;
-  /* One shadow in the whole app: the bar floats above the library. */
-  /*
-   * 三条 inset 是「玻璃厚度」的来源，折射位移在深色氛围背景上其实很难看出来
-   * （位移十几个像素，背景本身就是一团模糊色块），真正让人读出「这是一块玻璃」
-   * 的是这三层：顶缘一道实高光、紧贴其下一条柔和的亮晕（厚度）、再往里一圈
-   * 极细的暗线把玻璃和背后的内容分开。
-   */
-  /*
-   * 悬浮之后阴影的方向也要跟着翻：贴底时用朝上的投影把上面的内容压住，浮起来
-   * 之后得往下落，否则这块玻璃像被吊在半空。四条 inset 里最外一圈从暗线换成
-   * 极淡的白线——贴边时暗线是「和背景分开」，浮起来之后要的是「四边都有一道
-   * 玻璃的倒角」。
-   */
-  box-shadow:
-    0 10px 30px -6px rgb(var(--shade-rgb) / 0.45),
-    inset 0 1px 0 rgb(var(--tint-rgb) / 0.16),
-    inset 0 3px 10px -4px rgb(var(--tint-rgb) / 0.12);
+  box-shadow: none;
 }
 
 /*
@@ -557,7 +521,7 @@
 }
 
 .pb-quality__text {
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -581,7 +545,7 @@
 .pb-quality__title {
   margin: 2px 6px 4px;
   color: var(--text-low);
-  font-size: 11px;
+  font-size: var(--fs-micro);
 }
 
 .pb-quality__item {
@@ -590,7 +554,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--text-mid);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   text-align: left;
   cursor: pointer;
 }
@@ -608,7 +572,7 @@
 .pb-quality__note {
   margin: 4px 6px 2px;
   color: var(--text-low);
-  font-size: 10.5px;
+  font-size: 10px;
 }
 
 /*
@@ -638,11 +602,11 @@
   height: 24px;
   padding: 0 7px;
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(var(--tint-rgb) / 0.06);
   color: var(--text-mid);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);

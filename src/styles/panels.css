@@ -247,7 +247,7 @@
   gap: var(--s2);
   margin: 0 0 8px;
   padding: 0 var(--s2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--text-mid);
@@ -272,7 +272,7 @@
 }
 .queue-played > summary::before {
   content: '▸';
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-low);
 }
 .queue-played[open] > summary::before {
@@ -380,7 +380,7 @@
 }
 .queue-row__title-text {
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
@@ -563,7 +563,7 @@
   width: 15px;
   height: 12px;
   translate: -50% 50%;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   background: var(--text-hi);
   box-shadow: 0 1px 3px rgb(var(--shade-rgb) / 0.55);
 }
@@ -601,7 +601,7 @@
   min-height: 0;
   margin: 6px var(--s4) 0;
   padding: 14px 0 8px;
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background:
     linear-gradient(rgb(var(--tint-rgb) / 0.14), rgb(var(--tint-rgb) / 0.14)) left 50% / 100% 1px no-repeat,
     linear-gradient(rgb(var(--tint-rgb) / 0.06), rgb(var(--tint-rgb) / 0.06)) left top / 100% 1px no-repeat,
@@ -749,7 +749,7 @@
 }
 
 .adebug__hint {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-low);
 }
 
@@ -874,7 +874,7 @@
 
 .party__message-at {
   color: var(--text-low);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-variant-numeric: tabular-nums;
 }
 
@@ -894,7 +894,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1.2;
   cursor: pointer;
 }
@@ -970,7 +970,7 @@
   flex-direction: column;
   overflow: hidden;
   z-index: 40;
-  border-radius: 18px;
+  border-radius: var(--r-xl);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
   background-color: var(--ink-850);
   background-image: linear-gradient(180deg, rgb(var(--tint-rgb) / 0.04), transparent 16%);
@@ -1107,7 +1107,7 @@
   grid-row: span 2;
   align-self: center;
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--fs-title);
   font-weight: 600;
   color: var(--text-hi);
 }
@@ -1175,7 +1175,7 @@
   grid-column: 1 / -1;
   justify-self: start;
   padding: 4px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(224 179 65 / 0.2);
   font-size: var(--fs-micro);
   line-height: 1.55;
@@ -1343,7 +1343,7 @@ body.is-party-window {
   width: 100%;
   max-width: none;
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
-  border-radius: 18px;
+  border-radius: var(--r-xl);
   background: rgb(var(--tint-rgb) / 0.045);
   box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.16);
   overflow: hidden;
@@ -1406,7 +1406,7 @@ body.is-party-window {
 .party-pick__card strong {
   font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .party-pick__icon {
@@ -1454,7 +1454,7 @@ body.is-party-window {
   box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-body);
   outline: none;
   transition:
     background 140ms var(--ease-out),
@@ -1597,14 +1597,14 @@ body.is-party-window {
   flex-wrap: wrap;
   gap: 9px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   color: var(--text-mid);
 }
 
 .party-room__meta b {
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-body);
+  letter-spacing: 0.06em;
   color: var(--text-hi);
 }
 
@@ -1635,8 +1635,8 @@ body.is-party-window {
   color: var(--text-hi);
   font: inherit;
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-body);
+  letter-spacing: 0.06em;
   outline: none;
 }
 
@@ -1697,7 +1697,7 @@ body.is-party-window {
 
 .party-room__guard > b {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--text-hi);
@@ -1714,7 +1714,7 @@ body.is-party-window {
   height: 32px;
   padding: 0 11px;
   border: 1px solid rgb(var(--tint-rgb) / 0.26);
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   background: rgb(var(--tint-rgb) / 0.1);
   color: var(--text-hi);
   font: inherit;
@@ -1736,7 +1736,7 @@ body.is-party-window {
   min-height: 132px;
   padding: var(--s4);
   border: 1px solid rgb(var(--tint-rgb) / 0.07);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background: rgb(var(--tint-rgb) / 0.03);
 }
 
@@ -1764,7 +1764,7 @@ body.is-party-window {
   gap: var(--s3);
   padding: var(--s4);
   border: 1px solid rgb(var(--tint-rgb) / 0.07);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background: rgb(var(--tint-rgb) / 0.02);
 }
 
@@ -1887,7 +1887,7 @@ body.is-party-window {
   height: 34px;
   border: 1px solid rgb(var(--tint-rgb) / 0.26);
   background: rgb(var(--tint-rgb) / 0.1);
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   color: var(--text-hi);
   font: inherit;
   font-size: var(--fs-meta);
@@ -1988,7 +1988,7 @@ body.is-party-window {
 
 .np-party b {
   font-family: var(--font-display);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--text-hi);
 }
 
@@ -2124,7 +2124,7 @@ body.is-party-window {
   flex: 1 1 auto;
   min-width: 0;
   padding: 3px 8px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
@@ -2190,7 +2190,7 @@ body.is-party-window {
   background: rgb(var(--tint-rgb) / 0.14);
   color: var(--text-mid);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 1;
   cursor: pointer;
   transition:
@@ -2238,7 +2238,7 @@ body.is-party-window {
 }
 
 .party-room__song strong {
-  font-size: 15px;
+  font-size: var(--fs-title);
 }
 
 /* 首次配置访问密钥：一行输入 + 两颗键，存完就消失。 */
@@ -2265,7 +2265,7 @@ body.is-party-window {
   box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.05);
   color: var(--text-mid);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-body);
   padding: 0 11px;
   outline: none;
 }
@@ -2298,7 +2298,7 @@ body.is-party-window {
 .sakura-card__id {
   font-family: var(--font-display);
   font-size: var(--fs-micro);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--text-low);
 }
 
@@ -2325,7 +2325,7 @@ body.is-party-window {
   border: 1px solid rgb(var(--tint-rgb) / 0.07);
   color: var(--text-mid);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-body);
   padding: 0 10px;
   outline: none;
 }
@@ -2362,7 +2362,7 @@ body.is-party-window {
   width: 90px;
   height: 28px;
   border: 1px solid rgb(var(--tint-rgb) / 0.16);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(var(--tint-rgb) / 0.08);
   color: var(--text-hi);
   font: inherit;
@@ -2446,7 +2446,7 @@ body.is-party-window {
   gap: 6px;
   padding: var(--s5);
   border: 1px dashed rgb(var(--tint-rgb) / 0.18);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   background: rgb(var(--ink-850-rgb) / 0.28);
 }
 
@@ -2558,7 +2558,7 @@ body.is-party-window {
   -ms-overflow-style: none;
   padding: var(--s3) var(--s4);
   font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 1.75;
   color: var(--text-mid);
   /* 长行折行而不是横向滚：日志里最长的恰好是那句错误说明。 */
@@ -2611,7 +2611,7 @@ body.is-party-window {
   gap: var(--s2);
   padding: 7px 9px;
   border: 1px solid rgb(220 53 80 / 0.28);
-  border-radius: 9px;
+  border-radius: var(--r-panel);
   background: rgb(220 53 80 / 0.08);
 }
 
@@ -2635,7 +2635,7 @@ body.is-party-window {
   padding: var(--s4);
   margin-bottom: var(--s4);
   border: 1px solid rgb(var(--tint-rgb) / 0.12);
-  border-radius: 14px;
+  border-radius: var(--r-art);
   /* 和下面的入口板同一套：一层很薄的 tint 加一道内高光，边界才在亮壁纸上立得住。 */
   background: rgb(var(--tint-rgb) / 0.05);
   box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.16);
@@ -2696,7 +2696,7 @@ body.is-party-window {
   background: rgb(var(--shade-rgb) / 0.18);
   color: var(--text-mid);
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;

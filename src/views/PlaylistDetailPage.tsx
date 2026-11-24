@@ -87,6 +87,7 @@ export function PlaylistDetailPage({
             fallback={<Note size={34} />}
           />
         }
+        en="PLAYLIST"
         kicker="歌单"
         title={
           <input
@@ -104,11 +105,6 @@ export function PlaylistDetailPage({
             aria-label="歌单名字"
             maxLength={80}
           />
-        }
-        meta={
-          <span>
-            {tracks.length} 首{total > 0 ? ' · ' + formatSpan(total) : ''}
-          </span>
         }
         actions={
           <>

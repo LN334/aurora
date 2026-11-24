@@ -16,6 +16,7 @@
  */
 @import './online.css';
 @import './onboarding.css';
+@import './aurora.css';
 
 *,
 *::before,
@@ -283,7 +284,7 @@ input::placeholder {
   left: 50%;
   translate: -50% 4px;
   padding: 4px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: rgb(var(--scrim-rgb) / 0.94);
   box-shadow: 0 8px 20px rgb(var(--shade-rgb) / 0.35);
   color: var(--text-hi);
@@ -318,7 +319,7 @@ input::placeholder {
   border-radius: 999px;
   background: var(--accent);
   color: var(--ink-1000);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -378,7 +379,7 @@ input::placeholder {
 .search input {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   outline: none;
 }
 .search input::placeholder {
@@ -447,7 +448,7 @@ input::placeholder {
   font-family: var(--font-display);
   font-size: 15.5px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
   -webkit-app-region: no-drag;
   transition: background 130ms var(--ease-out);
@@ -473,10 +474,8 @@ input::placeholder {
   /* 品牌搬去顶栏之后顶上不能空得没道理，也不能让第一行贴着窗框：16px 刚好 */
   padding: 16px 12px 12px;
   /*
-   * 左栏这条分割线用 --line-soft（0.07）几乎看不见——宽窗口下内容离栏更远，
-   * 线又被壁纸冲淡，两边像连成一整片。单独提到 0.13，只影响这一条。
-   */
-  border-right: 1px solid rgb(var(--tint-rgb) / 0.13);
+  /* 左栏不画分割线：它和正文共用同一张 background-attachment: fixed 的
+     玻璃，任何一条 1px 的线都会把这张连续的玻璃切成两半。分栏靠留白来读。 */
   overflow: hidden;
 }
 
@@ -494,7 +493,7 @@ input::placeholder {
 .rail__caption {
   max-width: 180px;
   padding: 18px 10px 5px;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--text-low);
@@ -560,7 +559,7 @@ input::placeholder {
 .rail-item__count {
   flex: none;
   max-width: 60px;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--text-low);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -610,7 +609,12 @@ input::placeholder {
    * overflow: hidden 的独立滚动容器——它自己那一列会一直排到第三行上沿，最后
    * 一行卡片就被压在播放条底下。这里补一段内边距，滚到底时内容停在播放条之上。
    */
-  padding-bottom: 8px;
+  /*
+   * 这 8px 原本是给「浮起的播放条」让位的。播放条贴边之后它是白留的一段：
+   * .main 的玻璃只画到内容盒子为止，这 8px 露出的是没有任何内容的一窄条，
+   * 滚到下面时读成一条横贯的亮带。内容自己已经有 --s5 的底部内边距。
+   */
+  padding-bottom: 0;
 }
 
 .main__header {
@@ -618,7 +622,7 @@ input::placeholder {
   align-items: flex-end;
   gap: var(--s4);
   padding: var(--s5) var(--s5) var(--s3);
-  border-bottom: var(--line-soft);
+  /* 页头不画分隔线：留白已经把它们分开了，多一根只会在壁纸上显成脏边。 */
 }
 
 .main__titles {
@@ -629,7 +633,7 @@ input::placeholder {
   font-family: var(--font-display);
   font-size: var(--fs-display);
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
   line-height: 1.1;
 }
 .main__sub {
@@ -728,7 +732,7 @@ input::placeholder {
   font-family: var(--font-display);
   font-size: 19px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 
@@ -1010,7 +1014,7 @@ input::placeholder {
   text-align: left;
   font-size: var(--fs-body);
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
   white-space: nowrap;
   overflow: hidden;
@@ -1202,7 +1206,7 @@ input::placeholder {
   font-size: 30px;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
 
@@ -1282,7 +1286,7 @@ input::placeholder {
   padding: 0 12px;
   border-radius: 10px;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--fs-body);
   color: var(--text-mid);
   /*
    * 行本身透明，只有悬停与当前行才浮起一层底。封面、序号和每行 60px 的
@@ -1321,7 +1325,7 @@ input::placeholder {
   top: 14px;
   bottom: 14px;
   width: 2px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--accent);
 }
 .trk.is-current .trk__title-text {
@@ -1332,7 +1336,7 @@ input::placeholder {
 .trk__idx {
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 .trk__num {
@@ -1386,7 +1390,7 @@ input::placeholder {
 .trk__title-text {
   flex: 0 1 auto;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   font-weight: 500;
   color: var(--text-hi);
   white-space: nowrap;
@@ -1408,7 +1412,7 @@ input::placeholder {
   align-items: center;
   gap: 4px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
   white-space: nowrap;
   overflow: hidden;
@@ -1457,7 +1461,7 @@ input::placeholder {
 }
 .name-ref:focus-visible {
   outline: none;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   box-shadow: 0 0 0 2px rgb(var(--tint-rgb) / 0.2);
 }
 .name-sep {
@@ -1477,7 +1481,7 @@ input::placeholder {
 .trk__album {
   min-width: 0;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
   text-align: left;
 }
@@ -1487,7 +1491,7 @@ input::placeholder {
 
 .tracks__time {
   text-align: right;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-low);
 }
 
@@ -1553,7 +1557,7 @@ input::placeholder {
   height: 24px;
   border-radius: var(--r-control);
   color: var(--text-low);
-  font-size: 15px;
+  font-size: var(--fs-title);
   line-height: 1;
   opacity: 0;
   transition: opacity 120ms var(--ease-out), background 120ms var(--ease-out);
@@ -1572,11 +1576,11 @@ input::placeholder {
   flex: none;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   line-height: 1.5;
   color: var(--text-low);
   border: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   padding: 0 4px;
 }
 
@@ -2050,8 +2054,53 @@ html.is-resizing {
  * 播放条先出来，正文那块黑着，200ms 后才亮」——就是他说的「打开时闪一下」。
  */
 .main__body.is-enter {
-  animation: pageIn 320ms cubic-bezier(0.1, 0.9, 0.2, 1) backwards;
+  animation: pageIn 460ms var(--ease-quint) backwards;
 }
+
+/*
+ * 旧页的退场层。
+ *
+ * 换页靠 key 把整块内容重挂，旧页在同一次提交里就没了——屏幕上只剩新页入场，
+ * 于是「点了没反应」。这一层接住刚被摘下来的节点，交给 page-transition.ts 用
+ * 噪声化的 mask 把它化掉。
+ *
+ * 层本身不做任何动画：mask 是每帧现算的字符串，CSS 里做不到逐帧蠕动。这里只
+ * 管定位、裁剪和收尾。
+ */
+.page-ghost {
+  position: fixed;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: none;
+  /*
+   * 不铺底色。浅色主题下 --ink-1000 是浅灰白，铺上去就是「一张白纸盖住屏幕」；
+   * 透明之后旧页直接叠在新页画面上，靠 filter 压暗退焦，交接处没有色块。
+   */
+  background: transparent;
+  contain: strict;
+}
+/*
+ * 内层做 flex 列：页头按自身高度占位，正文 flex:1 吃掉剩下的。旧页有页头时
+ * 正文的框也和新页一样高，两半在接缝处对得上。
+ */
+.page-ghost__inner {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.page-ghost__head {
+  flex: none;
+}
+.page-ghost__inner > .main__body {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 
 /*
  * root 快照整页透明：换页的位移由 .main__body 上的 pageIn 动画逐帧画，如果 root
@@ -2097,13 +2146,36 @@ html.is-resizing {
  * .main__body 一直留成 fixed 子元素的定位祖先（长列表右下角那两颗按钮会跑）。
  */
 /*
- * 起点不是 0：舞台退场时它是整层淡出（stage.css 的 stageOut），两条动画会在
- * 同一段时间里都半透明，露出的就是 body 的底色 —— 看起来是「退出舞台黑一下」。
- * 从 0.35 起步，交叉那一刻底下始终有东西；位移仍是 28px，翻页感没丢。
+ * 新页：从略低的位置升上来，同时显影。
+ *
+ * 位移只有 10px——换页的方向感来自「旧页往上走、新页从下面补位」，两页朝
+ * 同一个方向错开，而不是两块东西各自表演。再多就成了翻页动画。
+ *
+ * 用 filter 不用 opacity：body 下面是整块壁纸，一旦整体半透明，壁纸会透上来，
+ * 屏幕上就成了「三层」。filter 只改这块内容自己的颜色，底子不动。
  */
 @keyframes pageIn {
-  from { opacity: 0.35; transform: translateY(28px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(8px); filter: brightness(0.7) saturate(0.55) blur(2px); }
+  60% { filter: brightness(0.98) saturate(0.94) blur(0.4px); }
+  to { transform: none; filter: none; }
+}
+
+/*
+ * 页头跟着正文一起入场。
+ *
+ * 页头不在正文节点里——正文的 key 每页重建，页头却是同一个节点被 React 复用，
+ * 所以它不受 .is-enter 影响。旧页的退场层又是透明的（铺白纸会把整屏弄成雾）：
+ * 旧页正文靠自己的卡片底色挡得住，页头只剩文字，于是转场第一帧就透出**新页
+ * 那个已经写完、清清楚楚的标题**。观感正是「页已经切换好了，动画才来」。
+ */
+.main__header.is-enter-head {
+  animation: pageHeadIn 460ms var(--ease-quint) backwards;
+}
+
+@keyframes pageHeadIn {
+  from { opacity: 0; filter: brightness(0.72) blur(3px); }
+  60% { opacity: 1; filter: brightness(0.98) blur(0.3px); }
+  to { opacity: 1; filter: none; }
 }
 
 /*
@@ -2493,6 +2565,13 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
   height: var(--player-h);
   margin: 0;
   border-radius: 0;
+  /*
+   * 与内容区同材质（2026-11-24）。
+   *
+   * 试过把这块玻璃整个去掉、让播放条透明：结果露出的是没被模糊过的壁纸原图，
+   * 成了一口清晰的窗中窗，比白一档更难看。播放条必须和内容区是同一片玻璃，
+   * 只是被一条发丝线分开。
+   */
   background-color: rgb(var(--plane-rgb) / var(--wp-glass));
   background-image: none;
   backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
@@ -2585,3 +2664,4 @@ body.is-tuning-wallpaper .shell.has-wallpaper > .titlebar {
 body:has(.player) .tracks__tools {
   bottom: calc(var(--player-h) + 52px);
 }
+

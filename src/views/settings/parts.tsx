@@ -60,6 +60,14 @@ export function Rows({ children }: { children: ReactNode }) {
 
 interface RowProps {
   label: string
+  /**
+   * 跟在 label 后面的一句状态，比如平台那页的「还没启动」。
+   *
+   * 这类短状态原来和按钮一起挤在最右边：一行里左边一个词、右边一串控件，
+   * 中间一千多像素是空的。状态本来属于 label（「网易云音乐 · 还没启动」），
+   * 挪到 label 边上，右边就只剩真正要点的东西。
+   */
+  aside?: ReactNode
   /** 悬停提示，给放不下的路径一类的长文本。 */
   title?: string
   children: ReactNode
@@ -71,12 +79,13 @@ interface RowProps {
  * 不再带第二行说明。设置页原来每一行底下都跟一句解释，八十几行叠下来，整页
  * 像一份说明书；而大多数那类句子只是在把控件本身再说一遍。
  */
-export function Row({ label, title, children }: RowProps) {
+export function Row({ label, aside, title, children }: RowProps) {
   return (
     <div className="settings__row">
       <div className="settings__text">
         <div className="settings__label" title={title}>
           {label}
+          {aside ? <span className="settings__aside">{aside}</span> : null}
         </div>
       </div>
       <div className="settings__control">{children}</div>

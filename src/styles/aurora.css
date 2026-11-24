@@ -1,0 +1,1234 @@
+/* =============================================================================
+   Aurora skin —— 极光美术层
+
+   全站共用的一层"氛围与材质"。不改布局，只给已有的类加三样东西：
+
+     1. 空气：内容区背后一层极细竖纹 + 一道地平线。竖纹只有 2% 的浓度，走近
+        了才看得见；看不见的时候它负责让一大片浅色不那么平。这是极光帘幕在
+        界面上的静态版本——帘子是竖的，光从下往上。
+     2. 边：封面卡片的边缘不给投影，给一道 9% 的内描边。浅色底上阴影会脏，
+        一道细边反而像印刷品的压痕，卡片才立得住。
+     3. 线：分区之间不用全宽的实线，用一条从左边浓、右边化掉的横线。全宽的
+        线会把页面切成格子，化掉的线只是"这里换了一段"。
+
+   这一层放在 app.css 的 @import 最后，所以它能盖住老规则。
+   ========================================================================== */
+
+/* --- 空气 ----------------------------------------------------------------- */
+
+.main {
+  position: relative;
+  isolation: isolate;
+}
+
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /*
+   * 天光：上沿比下沿亮一档，内容区才有纵深。
+   * 极淡的竖纹试过两版（周期 6px / 9px），在浅色玻璃上一个是噪点、一个像
+   * 纱窗——帘子交给壁纸层那四条宽帘，玻璃上只留光。
+   */
+  background: radial-gradient(
+    132% 46% at 50% -12%,
+    rgb(var(--tint-rgb) / 0.16),
+    transparent 68%
+  );
+}
+
+.main__header,
+.main__body {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- 边 ------------------------------------------------------------------- */
+
+.rh-card__art,
+.rh-fresh__lead-art,
+.rh-fresh__row-art,
+.pl-card__art,
+.tk__art,
+.ol-alb__art,
+.trk__art {
+  position: relative;
+}
+
+/*
+ * 两层边：一层中性内描边保证任何壁纸上都立得住，一层对角极光——左上冷、
+ * 右下暖，跟壁纸底部那条帘同源。四边同色会读成「发光的图标」，对角才像光
+ * 从一个方向擦过去。
+ *
+ * 对角用 1px 的 inset 阴影而不是渐变边框：卡片有圆角，渐变要配 mask 才不出
+ * 硬角，而 1px inset 自己就会跟着圆角弯。
+ */
+.rh-card__art::after,
+.rh-fresh__lead-art::after,
+.rh-fresh__row-art::after,
+.pl-card__art::after,
+.tk__art::after,
+.ol-alb__art::after,
+.trk__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.09),
+    inset 1px 1px 0 rgb(var(--plane-rgb) / 0.2),
+    inset -1px -1px 0 rgb(var(--plane-rgb) / 0.16);
+  transition: box-shadow 220ms var(--ease-out);
+}
+
+/* 悬停：边换成极光本身，并往里渗一层同色晕，卡片像被照亮而不是被托起。 */
+.rh-card:hover .rh-card__art::after,
+.ol-alb:hover .ol-alb__art::after,
+.pl-card:hover .pl-card__art::after {
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--plane-rgb) / 0.22),
+    inset 0 0 22px -8px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* --- 设置页：与页头同一套线 ------------------------------------------------ */
+
+/*
+ * 设置页有自己的 settings.css（组件级导入），注入顺序晚于这一层，所以选择器
+ * 统一加 .main 前缀提一档特异性——设置页永远在 .main 里，这条前提成立。
+ */
+.main .settings__tabs {
+  position: relative;
+  border-bottom-color: transparent;
+}
+
+.main .settings__tabs::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.22) 0%,
+    rgb(var(--plane-rgb) / 0.16) 38%,
+    transparent 76%
+  );
+}
+
+/* 选中的分区标签：一块灰底换成一片极光，底下压一根短线当「这里」。 */
+.main .settings__tab.is-active {
+  background: linear-gradient(
+    128deg,
+    rgb(var(--plane-rgb) / 0.2) 0%,
+    rgb(var(--plane-rgb) / 0.11) 100%
+  );
+  color: var(--text-hi);
+  font-weight: 600;
+  box-shadow: inset 0 -1px 0 rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 音乐文件夹那一列：与歌曲行同一套「左浓右化」的光。 */
+.main .src-row:hover {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.15) 0%,
+    rgb(var(--plane-rgb) / 0.08) 44%,
+    transparent 84%
+  );
+}
+
+/* 歌单详情的曲目行也归到同一套里。 */
+.main .pl-track:hover {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.16) 0%,
+    rgb(var(--plane-rgb) / 0.08) 44%,
+    transparent 84%
+  );
+}
+
+/* --- 极光玻璃：卡片 ------------------------------------------------------- */
+
+/*
+ * 卡片从「白玻璃」变成「极光玻璃」：底色里带一点上冷下暖的色相。
+ *
+ * 这是全站最后一次机会。极光帘幕挂在壁纸上，被 .main 的玻璃稀释一次，再被
+ * 卡片的白底稀释一次，到内容区只剩 2%；试过把帘幕加浓到 0.34，肉眼几乎无差别
+ * ——因为前景的白卡片根本不透。把色相直接做进卡片本身，卡片才成为极光的一部分，
+ * 而不是盖在极光上的一块白板。
+ *
+ * 浓度只给 0.15 左右。再高就变成彩色卡片，而 Aurora 的设计前提是「外壳不持色，
+ * 唯一的颜色来自封面」，这一层只能在光的层面动，不能变成装饰色。
+ */
+.rh-daily,
+.rh-now,
+.rh-sc {
+  background:
+    radial-gradient(120% 150% at 88% 8%, rgb(var(--tint-rgb) / 0.1), transparent 58%),
+    linear-gradient(
+      155deg,
+      rgb(var(--plane-rgb) / 0.15) 0%,
+      rgb(var(--tint-rgb) / 0.045) 46%,
+      rgb(var(--plane-rgb) / 0.13) 100%
+    );
+}
+
+.rh-sc:hover {
+  background:
+    radial-gradient(120% 150% at 88% 8%, rgb(var(--tint-rgb) / 0.1), transparent 58%),
+    linear-gradient(
+      155deg,
+      rgb(var(--plane-rgb) / 0.22) 0%,
+      rgb(var(--tint-rgb) / 0.06) 46%,
+      rgb(var(--plane-rgb) / 0.2) 100%
+    );
+}
+
+/* --- 行 ------------------------------------------------------------------- */
+
+/*
+ * 列表行的三种状态原来是三块不同深浅的灰底。灰底在彩色壁纸上会把那一行读成
+ * 「禁用」，光的做法是让它只亮左半边，右边化掉——跟帘幕一样，浓淡有方向。
+ */
+.trk:hover {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.17) 0%,
+    rgb(var(--plane-rgb) / 0.09) 44%,
+    transparent 84%
+  );
+}
+
+.trk:active {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.22) 0%,
+    rgb(var(--plane-rgb) / 0.14) 44%,
+    transparent 84%
+  );
+}
+
+.trk.is-current {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.16) 0%,
+    rgb(var(--plane-rgb) / 0.07) 52%,
+    transparent 90%
+  );
+}
+
+/* 正在播的竖条也分成两段：上端冷、下端暖，短到 2px 也读得出方向。 */
+.trk.is-current::before {
+  background: var(--accent-ink);
+}
+
+/* --- 线 ------------------------------------------------------------------- */
+
+.rh-sec__head {
+  position: relative;
+}
+
+/*
+ * 页头底下不留线。
+ *
+ * 原来那条 1px 是全宽实线，把窗口切成上下两块；我先把它换成渐隐的极光线，结果更像
+ * 一道水渍——色相取自封面，压在壁纸上就成了脏块。现在线本身在 app.css 里删掉了。
+ *
+ * 注意：这里曾经写过 `.main__header { border-bottom-color: transparent }`，但它不生效。
+ * 本文件由 app.css 第 19 行 @import，而 .main__header 的 border 写在 app.css:617 之后，
+ * 同特异性下 app.css 赢。要覆盖就得提特异性（如 .main .main__header）或直接改源头。
+ */
+
+.rh-sec__head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -9px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--tint-rgb) / 0.13) 0%,
+    rgb(var(--tint-rgb) / 0.05) 46%,
+    transparent 78%
+  );
+}
+
+/* --- 空态：极光从底下升起来 ------------------------------------------------ */
+
+/*
+ * 空态占了实测 13 个页面里的 7 个，是用户最常看见的一屏。
+ * 但这些页原来各写各的：.empty（旧通用，一个 72px 灰方块）、.pg-empty（歌单/
+ * 专辑/艺人/搜索，居中三行字）、.shelf-empty（首页分区里的一行小字）。
+ * 三套类名，三份留白，同一个应用里三种「空」。
+ *
+ * 这里给两种整页空态（.empty / .pg-empty）挂同一个母题：极光从块的下半部升起，
+ * 图标与文字浮在光里。帘不用 repeating-linear-gradient（试过，是纱窗），
+ * 要用宽度不等的显式色标——单条 40~90px，加模糊才看得出是「帘」。
+ *
+ * 伪元素是绝对定位，因此不参与 .pg-empty 的 flex 布局，也不会把居中搅乱。
+ */
+
+.empty,
+.pg-empty {
+  position: relative;
+  isolation: isolate;
+}
+
+.empty::before,
+.pg-empty::before,
+.empty::after,
+.pg-empty::after {
+  content: '';
+  /*
+   * 上下各多伸 60px：伪元素带 blur(12px)，如果盒子正好等于空态块的高度，
+   * 模糊会在盒子顶边被直接裁掉，屏幕上留下一条水平的硬边——而这条边只有
+   * 有空态的页面才有，于是「歌单/艺人/专辑」比首页多一条线。
+   */
+  /*
+   * 钉在窗口底部，而不是钉在空态盒子里。空态本来就在内容区最下面，
+   * 原来这层光到 .main 的下沿就被裁断，于是播放条那一块没有光——
+   * 用户看到的就是「内容区蓝、播放条绿」的一条交界。
+   */
+  position: fixed;
+  inset: auto -12% 0 -12%;
+  height: 62vh;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 主帘：三条很宽的光柱，从块底升到中部 */
+.empty::before,
+.pg-empty::before {
+  background:
+    /*
+     * 浓度从 0.92 一路压到 0.3 上下。
+     *
+     * 这层光只在内容区里，左栏没有——浓度一高，整块内容区就被染成青蓝，
+     * 与左边那条干净的极光板形成一条笔直的色差（x=192 处实测差 55）。
+     * 用户看到的「左栏被截断」有一半是这层光画的。
+     * 光要淡到只是「这块地方更亮一点」，而不是「这块地方换了个颜色」。
+     */
+    radial-gradient(64% 46% at var(--veil-x1, 26%) 106%, rgb(var(--plane-rgb) / 0.22), transparent 84%),
+    radial-gradient(58% 42% at var(--veil-x2, 74%) 110%, rgb(var(--plane-rgb) / 0.22), transparent 86%),
+    linear-gradient(
+      90deg,
+      transparent 6%,
+      rgb(var(--plane-rgb) / 0.22) 20% 32%,
+      transparent 40% 48%,
+      rgb(var(--plane-rgb) / 0.22) 56% 66%,
+      transparent 72% 82%,
+      rgb(var(--plane-rgb) / 0.22) 88% 96%,
+      transparent 100%
+    );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 12%,
+    rgb(0 0 0 / 0.55) 46%,
+    #000 74%,
+    rgb(0 0 0 / 0.5) 100%
+  );
+  /*
+   * 空屏是静止的，光不能也静止。26 秒一次的呼吸比「帘子左右摆」更慢：摆是
+   * 有风的动作，呼吸才是光自己在变。
+   */
+  animation: emptyBreathe 26s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}
+
+@keyframes emptyBreathe {
+  from {
+    opacity: 0.82;
+    transform: scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1.05);
+  }
+}
+
+/* 细帘：五条窄带，压在主帘上，慢速左右摆 */
+.empty::after,
+.pg-empty::after {
+  opacity: 0.72;
+  background: linear-gradient(
+    90deg,
+    transparent 10%,
+    rgb(var(--plane-rgb) / 0.22) 17% 21%,
+    transparent 25% 33%,
+    rgb(var(--plane-rgb) / 0.22) 38% 43%,
+    transparent 47% 54%,
+    rgb(var(--plane-rgb) / 0.22) 58% 62%,
+    transparent 66% 74%,
+    rgb(var(--plane-rgb) / 0.22) 79% 83%,
+    transparent 87% 100%
+  );
+  filter: blur(5px);
+  mask-image: linear-gradient(
+    180deg,
+    transparent 34%,
+    rgb(0 0 0 / 0.5) 58%,
+    #000 82%,
+    transparent 100%
+  );
+  animation: emptyVeil 34s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}
+
+@keyframes emptyVeil {
+  from {
+    transform: translateX(-10px) scaleY(0.94);
+  }
+  to {
+    transform: translateX(10px) scaleY(1.05);
+  }
+}
+
+/* 图标底板改成一块薄玻璃：光从它后面透上来 */
+.empty__art,
+.pg-empty__icon {
+  position: relative;
+  background: rgb(var(--plane-rgb) / 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.12),
+    0 12px 34px -18px rgb(var(--plane-rgb) / 0.22);
+  backdrop-filter: blur(8px);
+}
+
+.empty__art {
+  width: 54px;
+  height: 54px;
+}
+
+/* =============================================================================
+   极光（壁纸层）
+
+   帘幕挂在哪里，决定了它是不是"极光"。上一版挂在内容区上（.main::before），
+   那是"界面上的纹路"——它永远盖在字旁边，只能画得极淡。真正的极光应该站在
+   玻璃底下：.wallpaper 之上、.shell 的四块玻璃之下，于是它穿过 backdrop-filter
+   的 20px 模糊，变成"壁纸后面有光在动"，一个字的可读性都不吃。
+
+   也正因为要过 20px 的模糊，这一层不能画细：周期小于 60px 的条纹在玻璃后面会
+   被彻底抹平。所以这里只有四片很宽很软的帘（各占 20%~36% 视宽），靠位置错开
+   形成节奏，而不是靠纹路。
+
+   还有一条硬条件：极光只在暗处成立。亮蓝天白云上叠任何冷色都是"壁纸脏了"，
+   所以地平线要先压暗——不压整屏（浅色主题不能整屏发黑），只压下半部，帘子
+   从那条暮色里升起来。
+
+   颜色取 --aurora-a/b/c（palette.ts 由封面色相派生、保底饱和），不是 --accent：
+   帘幕是"光"，要扛住玻璃的模糊与提亮，彩度不能跟着封面一起塌成灰。
+   ========================================================================== */
+
+/* --- 地平线：先把下半部交给夜色，帘子才有地方升起 ------------------------- */
+
+:root[data-theme] .window-bg.has-wallpaper .wallpaper__veil {
+  --veil: 0.1;
+  background: linear-gradient(
+    0deg,
+    rgb(4 7 12 / 0.4) 0%,
+    rgb(4 7 12 / 0.24) 26%,
+    rgb(4 7 12 / 0.08) 50%,
+    transparent 68%
+  );
+}
+
+
+/*
+ * 为什么这几条都带 [data-theme]：
+ *
+ * aurora.css 是被 app.css 第 19 行 @import 引进来的，也就是说它先加载；app.css
+ * 2385-2391 的「:root .shell.has-wallpaper > .titlebar/.rail/.main」跟这里原本是
+ * 同一特异性，靠后加载永远赢，这里写的四层极光玻璃从来没上过屏（探针读到的是
+ * background-image: none）。加一个属性选择器把特异性抬到 (0,5,0)，才压得住。
+ * 新增要覆盖 app.css 的规则时，照这个写法来。
+ */
+/* =============================================================================
+   极光玻璃
+
+   壁纸层那四条帘要穿过 backdrop-filter 的 20px 模糊加 0.6 的白色玻璃，到屏幕上
+   已经没剩多少——浅色主题配亮壁纸时实测基本看不见。所以极光还得在玻璃自己
+   身上：让四块玻璃（标题栏 / 左栏 / 正文 / 播放条）各带一段极光色，按"光从
+   左侧地平线升起、横着扫过整条屏幕"的方向排布。
+
+   它们和壁纸帘幕是一回事的两种距离：玻璃里是近景（能看清颜色），壁纸里是
+   远景（只剩一团在动的东西）。近景负责"这是极光"，远景负责"它在动"。
+
+   浓度都压在 0.2 上下：浅色主题的底是白的，彩度再高一档就开始像蒙了层脏玻璃。
+   ========================================================================== */
+
+/*
+ * 四块面共用一张背景，而且这张背景钉在视口上。
+ *
+ * 之前每块面各写各的渐变：左栏 46% 处开始泛青、正文 38% 处开始变透、播放条
+ * 36%→50% 自己一套。它们在分界线上对不上，于是屏幕被切成四块，接缝处能看到
+ * 清清楚楚的一条台阶——实测跨左栏那条竖边、跨播放条那条横边，B 通道都跳 8~10。
+ *
+ * 现在只有一条声明：同一组 radial、同一组色标，加 background-attachment: fixed。
+ * fixed 让四块面都拿「视口坐标系」里的同一张图去裁自己那一格，所以任何一条
+ * 分界线上左右上下都是同一个值，接缝在数学上不存在。
+ */
+/* --- 页头：英文眉标压在中文标题上 ---------------------------------------- */
+
+/*
+ * 极光的语言里最省力也最有效的一条：一行技术感的英文小字，压在三倍大的中文
+ * 标题上。莱茵、死亡搁浅、尼尔都是这个结构——英文给气质，中文给信息。
+ * 用 data-en + attr() 而不是加 DOM：标题由外壳统一打印，任何一页都不该为了
+ * 一行装饰字再改一次结构。
+ */
+.main__title[data-en]::before {
+  content: attr(data-en);
+  display: block;
+  margin-bottom: 5px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.13em;
+  color: var(--text-mid);
+  text-shadow: 0 0 20px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 一条极光色的线：左浓右化，把标题与下面的内容分开 */
+.main__title[data-en]::after {
+  content: '';
+  display: block;
+  height: 1px;
+  margin-top: 12px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.22) 0%,
+    rgb(var(--plane-rgb) / 0.22) 34%,
+    rgb(var(--plane-rgb) / 0.06) 62%,
+    transparent 88%
+  );
+}
+
+/* 首页的问候语也带一行眉标，跟其它页头同一套语言（首页没有 .main__header） */
+.rh__greet[data-en]::before {
+  content: attr(data-en);
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.13em;
+  color: rgb(var(--plane-rgb) / 0.22);
+  text-shadow: 0 0 20px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* --- 未登录的每日推荐：右侧一片极光 + 一个 NO SIGNAL 角标 ---------------- */
+
+.rh-daily--off {
+  position: relative;
+  overflow: hidden;
+}
+
+.rh-daily--off::before {
+  content: '';
+  position: absolute;
+  top: -34%;
+  right: -6%;
+  width: 64%;
+  height: 176%;
+  pointer-events: none;
+  opacity: 0.9;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(var(--plane-rgb) / 0.22) 12% 20%,
+    transparent 26% 34%,
+    rgb(var(--plane-rgb) / 0.22) 41% 49%,
+    transparent 55% 63%,
+    rgb(var(--plane-rgb) / 0.22) 70% 79%,
+    transparent 86% 100%
+  );
+  filter: blur(15px);
+  mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      #000 34%,
+      #000 78%,
+      transparent 100%
+    ),
+    linear-gradient(180deg, transparent 0%, #000 34%, #000 82%, transparent 100%);
+  animation: dailyVeil 41s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}
+
+@keyframes dailyVeil {
+  from {
+    transform: translateX(-12px) scaleY(0.97);
+  }
+  to {
+    transform: translateX(12px) scaleY(1.04);
+  }
+}
+
+.rh-daily__sig {
+  position: absolute;
+  right: var(--s5);
+  bottom: var(--s4);
+  z-index: 1;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  color: var(--text-mid);
+  text-shadow: 0 0 18px rgb(var(--plane-rgb) / 0.22);
+  pointer-events: none;
+}
+
+/* --- 封面飞行：列表里那张图，先落到详情页的大封面上 ---------------------- */
+
+/*
+ * 元素由 src/ui/fly-cover.ts 在导航时临时建出来：位置与尺寸就是目标封面
+ * （.dp__art）的矩形，transform 从源矩形插值到零。因此这里只管「长什么样」：
+ * 裁剪、阴影、盖在转场 ghost 之上、fx 之下。
+ */
+.cover-flight {
+  position: fixed;
+  z-index: 58;
+  pointer-events: none;
+  overflow: hidden;
+  transform-origin: 0 0;
+  box-shadow: 0 34px 80px -34px rgb(0 0 0 / 0.62);
+  will-change: transform;
+}
+
+.cover-flight__inner {
+  position: absolute;
+  inset: 0;
+}
+
+.cover-flight__inner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 飞行期间目标封面让位：它自己带着 dp-rise 入场动画，光改 inline opacity 无效。 */
+.dp__art.is-flying {
+  animation: none;
+  opacity: 0;
+}
+
+
+/*
+ * 换页覆盖层不给底色。
+ *
+ * 试过三版补背景：把 .main 的极光玻璃原样复制过来（实测整屏发白，因为 ghost
+ * 没有 backdrop 模糊，plane 直接压在清晰壁纸上）；四档 alpha 0.3/0.5/0.68/0.9
+ * 逐一对照（肉眼几乎无差别，都是白纸）；带 backdrop-filter 采样下层（叠在新页
+ * 的白玻璃上，只会更白）。结论：旧页既不在原位，就不该假装还在玻璃里——
+ * 透明 + filter 压暗退焦，才让它像沉到新页下面去。
+ */
+/* --- 条：时间与音量也是光 -------------------------------------------------- */
+
+/*
+ * 进度条是每次播放都要看上百次的东西：拖动、扫一眼还剩多久。它原来是
+ * 一条 accent-ink 实色——在浅色主题里压深 34% 才勉强看得出已播的那段，
+ * 结果是「一根深灰条」。
+ *
+ * 这里把它当光的实体：已播段是极光本身（冷到暖的一段），末端带一圈晕。
+ * 晕用 box-shadow 而不是外发光元素，因为进度条宽高都在变，shadow 跟着变不
+ * 需要重排。
+ */
+.bar__track {
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.07);
+}
+
+.bar__fill {
+  background: var(--accent-ink);
+  box-shadow: 0 0 12px -2px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 竖向的音量：光从下往上，不能沿用横向的 90deg。 */
+.bar.is-vertical .bar__fill {
+  background: var(--accent-ink);
+  box-shadow: 0 0 12px -2px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 手柄平时藏着，一出来就该是「光里的一颗亮点」，不是一颗黑球加白圈。 */
+.bar__knob {
+  box-shadow:
+    0 0 0 2px var(--ink-850),
+    0 0 16px 2px rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 底栏唯一一颗实心圆，让它坐进一团光里。 */
+.pb-play {
+  box-shadow:
+    0 8px 24px -10px rgb(var(--plane-rgb) / 0.22),
+    0 0 0 1px rgb(var(--shade-rgb) / 0.08);
+}
+
+/* --- 播放页：歌词与进度 ---------------------------------------------------- */
+
+/*
+ * 正在唱的那一行是整页唯一的焦点，靠字号与字色已经能读出来，但缺一层光。
+ * 用 text-shadow 而不是给行加背景块——背景块会把歌词读成「选中的列表项」。
+ */
+.np__line.is-active {
+  text-shadow: 0 0 26px rgb(var(--plane-rgb) / 0.22);
+}
+
+.np__line-words > span[data-lit] {
+  text-shadow: 0 0 18px rgb(var(--plane-rgb) / 0.22);
+}
+
+.np__track-fill {
+  background: var(--accent-ink);
+  box-shadow: 0 0 14px -2px rgb(var(--plane-rgb) / 0.22);
+}
+
+.np__play {
+  box-shadow:
+    0 10px 28px -12px rgb(var(--plane-rgb) / 0.22),
+    0 0 0 1px rgb(var(--shade-rgb) / 0.08);
+}
+/* --- 播放页：封面坐在光上 ------------------------------------------------ */
+
+/*
+ * 这一页原来只有一层封面主色的光晕（.np::before，用 --accent-rgb）。
+ * 换歌时光跟着换色，但那是「封面的颜色」，不是极光：单色、一个中心、没有方向。
+ * 改成冷暖两层后，左上偏冷、右下偏暖，光就有了来处。
+ */
+.np::before {
+  background:
+    radial-gradient(58% 52% at 32% 46%, rgb(var(--plane-rgb) / 0.22), transparent 72%),
+    radial-gradient(44% 44% at 64% 70%, rgb(var(--plane-rgb) / 0.22), transparent 74%);
+}
+
+/*
+ * 封面自己再带一圈落地光：大图压在白玻璃上像一张贴纸，底下有光才像浮着。
+ * z-index -1 让它退到封面之后、.np 的背景之前（封面与它同在一个层叠上下文里）。
+ */
+.np__cover::after {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -16%;
+  height: 60%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    58% 68% at 44% 62%,
+    rgb(var(--plane-rgb) / 0.22),
+    rgb(var(--plane-rgb) / 0.2) 50%,
+    transparent 78%
+  );
+  filter: blur(30px);
+}
+/* --- 设置页：档案式的抬头 ------------------------------------------------ */
+
+/*
+ * 设置页本来就有全站最接近「档案终端」的排版：编号方块 + 英文 + 中文 + 一条
+ * 收到右侧的发丝线。美术上只剩三处没跟上——
+ *   1. 编号方块是实心灰块，读起来像标签，不像「第几号档案」；
+ *   2. 英文是灰的，与页头眉标（极光青）不是同一支笔；
+ *   3. 发丝线是实线，与页头底下那道渐隐线冲突。
+ *
+ * 选择器都带 .main 前缀：设置页的组件级 settings.css 由面板自己引入，
+ * 注入顺序晚于 aurora.css，同特异性会输给它。
+ */
+/*
+ * 注：settings.css 里还留着 .set-part__num / __en / __rule 一套样式，但
+ * src/views/settings/parts.tsx 的 Part 已经不打区名了（只渲染 section + body），
+ * 所以这一段没有可挂的 DOM，不要照它写。
+ */
+
+/* 分区之间那道线也渐隐：实线会把一页切成几块，光只把它分开。 */
+.main .set-part + .set-part {
+  border-top: 0;
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.2),
+    rgb(var(--plane-rgb) / 0.1) 52%,
+    transparent 92%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: 0 0;
+}
+
+/* 滑杆：轨道本身带一段淡彩，拇指是光里的一颗亮点。 */
+.main .settings__slider input[type='range']::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.22),
+    rgb(var(--plane-rgb) / 0.22) 62%,
+    rgb(var(--tint-rgb) / 0.14)
+  );
+}
+
+.main .settings__slider input[type='range']::-webkit-slider-thumb {
+  border-color: var(--accent);
+  box-shadow:
+    0 1px 4px rgb(var(--shade-rgb) / 0.35),
+    0 0 12px 0 rgb(var(--plane-rgb) / 0.22);
+}
+
+/* 开关：拨到「开」的时候，它自己就是一小块发光体。 */
+.switch.is-on {
+  background: var(--accent-ink);
+  box-shadow: 0 0 14px -3px rgb(var(--plane-rgb) / 0.22);
+}
+/* --- 设置页的行：发丝线也渐隐 -------------------------------------------- */
+
+/*
+ * 设置页的行用 --line-soft 画满整宽的下边线，第一行补上边线：八十几行横线叠
+ * 下来，整页读起来像一张表格。表格没有错，只是与「极光」不是一套笔。
+ *
+ * 换成左浓右化的光，行本身不动，只在悬停时左缘亮起一道 2px 的竖光——
+ * 与列表行的语言一致（.trk 也是左浓右化），但更轻，因为这里每次只点一个开关。
+ */
+.main .settings__row {
+  position: relative;
+  border-bottom: 0;
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--plane-rgb) / 0.16),
+    rgb(var(--plane-rgb) / 0.07) 46%,
+    transparent 90%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: 0 100%;
+  transition: background-color 220ms var(--ease-out);
+}
+
+.main .settings__row:first-child {
+  border-top: 0;
+  background-image:
+    linear-gradient(90deg, rgb(var(--plane-rgb) / 0.16), rgb(var(--plane-rgb) / 0.07) 46%, transparent 90%),
+    linear-gradient(90deg, rgb(var(--plane-rgb) / 0.16), rgb(var(--plane-rgb) / 0.07) 46%, transparent 90%);
+  background-size:
+    100% 1px,
+    100% 1px;
+  background-position:
+    0 100%,
+    0 0;
+}
+
+/*
+ * 悬停指示条挂在行的左外侧。
+ *
+ * 行本身只留 2px 内边距，竖条贴在那个 0..2px 上就等于贴着字起笔——
+ * 指过去的第一眼读成「文字左边有根线」，而不是「这一行被指到了」。
+ * 往外挪 10px，行内排版一点不动。
+ */
+.main .settings__row::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 2px;
+  height: 0;
+  translate: 0 -50%;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.62);
+  opacity: 0;
+  transition:
+    height 220ms var(--ease-quint),
+    opacity 220ms var(--ease-out);
+}
+
+.main .settings__row:hover::before {
+  height: 62%;
+  opacity: 1;
+}
+
+.main .settings__row:hover {
+  background-color: rgb(var(--tint-rgb) / 0.055);
+}
+
+/* 分组标题那截竖线原本是中性灰，跟同一页里的编号方块不是一套色。 */
+.main .set-sub__title::before {
+  background: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
+}
+/* 桌面歌词预览：它模拟的是一扇浮在壁纸上的窗，不是一块板。 */
+.main .settings__preview {
+  border: 0;
+  background:
+    linear-gradient(180deg, rgb(var(--plane-rgb) / 0.14), rgb(var(--plane-rgb) / 0.1)),
+    rgb(var(--plane-rgb) / 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.14),
+    0 14px 34px -22px rgb(var(--plane-rgb) / 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* --- 空态的风向 ----------------------------------------------------------- */
+
+/*
+ * 同一套母题不等于同一张图。7 个空态页原来除了图标以外完全一样，翻页时像没翻。
+ * 这里只改光的重心（两个 radial 落在横向哪个位置），骨架、颜色、呼吸全部共用
+ * ——是「同一个东西放在不同位置」，不是七套设计。
+ */
+
+.main__body[data-view='liked'] .pg-empty,
+.main__body[data-view='liked'] .empty {
+  --veil-x1: 38%;
+  --veil-x2: 64%;
+}
+
+.main__body[data-view='playlists'] .pg-empty,
+.main__body[data-view='playlists'] .empty {
+  --veil-x1: 0%;
+  --veil-x2: 42%;
+}
+
+.main__body[data-view='collections'] .pg-empty,
+.main__body[data-view='collections'] .empty {
+  --veil-x1: 100%;
+  --veil-x2: 56%;
+}
+
+/* 每日推荐：一束正中偏下的光，像日出，不是帘。 */
+.main__body[data-view='daily'] .pg-empty::before,
+.main__body[data-view='daily'] .empty::before {
+  background:
+    radial-gradient(46% 64% at 50% 124%, rgb(var(--plane-rgb) / 0.22), transparent 66%),
+    radial-gradient(30% 40% at 50% 132%, rgb(var(--plane-rgb) / 0.22), transparent 72%);
+  mask-image: linear-gradient(180deg, transparent 26%, rgb(0 0 0 / 0.6) 56%, #000 92%);
+}
+
+/* 本机音乐：光最平，几乎是一条地平线。 */
+.main__body[data-view='local'] .pg-empty::before,
+.main__body[data-view='local'] .empty::before {
+  background:
+    linear-gradient(180deg, transparent 58%, rgb(var(--plane-rgb) / 0.22) 84%, rgb(var(--plane-rgb) / 0.22) 100%);
+  mask-image: linear-gradient(180deg, transparent 46%, #000 94%);
+  filter: blur(16px);
+}
+
+/* 音乐文件夹：从左上角泄下来的一束，方向感最强。 */
+.main__body[data-view='sources'] .pg-empty::before,
+.main__body[data-view='sources'] .empty::before {
+  background: radial-gradient(70% 82% at 2% -12%, rgb(var(--plane-rgb) / 0.22), transparent 70%);
+  mask-image: linear-gradient(155deg, #000 6%, rgb(0 0 0 / 0.55) 42%, transparent 80%);
+}
+
+/* --- 章节记号：每个分区标题左边一条极光竖条 -------------------------------- */
+
+/*
+ * 全站的「分区标题」散在首页、歌单、专辑、艺人、搜索结果里，原来只有字号和
+ * 字重这一层约定，没有任何形状上的记号。给它一条 2px 的竖光，页面读起来就
+ * 有了「这一页被切成几段」的节奏，而且和设置页里分组标题的竖线是同一个语汇。
+ *
+ * 必须带 :root[data-theme] 提特异性：aurora.css 由 app.css 第 19 行 @import，
+ * 先加载，同特异性的规则会被 app.css / shell.css 后面的写法压掉。
+ */
+
+:root[data-theme] .rh-sec__head h3,
+:root[data-theme] .set-part__body > .rh-sec__head h3 {
+  padding-left: 11px;
+  background-image: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
+  background-size: 2px 11px;
+  background-repeat: no-repeat;
+  background-position: 0 56%;
+}
+
+/* 详情页里的小标题（曲目列表上方那类）跟着走同一套。 */
+:root[data-theme] .dp__sec h3,
+:root[data-theme] .sec-title {
+  padding-left: 11px;
+  background-image: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
+  background-size: 2px 11px;
+  background-repeat: no-repeat;
+  background-position: 0 56%;
+}
+
+/*
+ * 播放条那一行的底（app.css:1915）改成一条整宽的淡提亮带。
+ *
+ * 它原本是深色的 scrim，上边缘正好压在播放条顶边，于是那道横线从壁纸变成
+ * 一条亮度台阶——这就是被反复指的那条线。现在它只负责一件事：把窗口最下面
+ * 112px 整体提亮 0.06，让播放条那 16px 的左右留白里透出来的也是同一个颜色。
+ *
+ * 高度比播放条多 12px，是为了盖住它下方那条 margin；再往下就是窗口边了。
+ */
+
+/*
+ * 空态自己那层帘关掉。
+ *
+ * 它原本是 position: fixed（为了让光跨到播放条），但 ghost 转场层上挂了
+ * filter 动画——filter 会给 fixed 子元素建新的包含块，那层光于是跑进 ghost、
+ * 跟着旧页一起变形，切页时能看到一块错位的光斑。
+ *
+ * 现在地平线光已经画在四块面共用的那张背景里（见上面的 background-image），
+ * 空态不需要自己再画一遍。
+ */
+.empty::before,
+.pg-empty::before,
+.empty::after,
+.pg-empty::after {
+  display: none;
+}
+
+/*
+ * 空态的光回来，但这次它自己在块底收干净。
+ *
+ * 前两版都不对：absolute + 贴底时，光到 .main 的下沿被硬切一刀；fixed 跨到
+ * 播放条时，ghost 转场层上的 filter 会给它建新的包含块，切页时那团光跟着
+ * 旧页变形。
+ *
+ * 现在把光的中心抬到块内 96%（不到边界），再让 mask 在 100% 处归零：
+ * 光在内容区里最浓，走到边界时已经淡成 0，所以既没有切边，也不用跨出 .main。
+ */
+.empty::before,
+.pg-empty::before {
+  display: block;
+  position: absolute;
+  inset: 0 -12%;
+  background:
+    radial-gradient(64% 46% at var(--veil-x1, 26%) 96%, rgb(var(--plane-rgb) / 0.22), transparent 84%),
+    radial-gradient(58% 42% at var(--veil-x2, 74%) 100%, rgb(var(--plane-rgb) / 0.22), transparent 86%),
+    linear-gradient(
+      90deg,
+      transparent 6%,
+      rgb(var(--plane-rgb) / 0.22) 20% 32%,
+      transparent 40% 48%,
+      rgb(var(--plane-rgb) / 0.22) 56% 66%,
+      transparent 72% 82%,
+      rgb(var(--plane-rgb) / 0.22) 88% 96%,
+      transparent 100%
+    );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 16%,
+    rgb(0 0 0 / 0.35) 44%,
+    rgb(0 0 0 / 0.8) 66%,
+    #000 84%,
+    transparent 100%
+  );
+}
+
+.empty::after,
+.pg-empty::after {
+  display: block;
+  position: absolute;
+  inset: 0 -12%;
+  mask-image: linear-gradient(180deg, transparent 40%, rgb(0 0 0 / 0.7) 68%, transparent 100%);
+}
+
+/* --- 品牌标：让它和页头那条眉标线是一套 ------------------------------- */
+
+/*
+ * 原来这个标是「一条青蓝紫硬渐变 + 一圈淡蓝光晕」，和现在满屏的极光玻璃
+ * 不是一套语言：光只有一种色，渐变是三条色标硬拼的。
+ *
+ * 改成两层不同色的 dropout：青绿在外、紫在内，边缘就有一圈极光式的色散；
+ * 字标下面再补一条和 .main__title 同款的渐隐线——顶栏与页头于是共用同一个
+ * 记号，品牌不是贴上去的一块图。
+ */
+:root[data-theme] .brand-mark {
+  filter:
+    drop-shadow(0 0 6px rgb(var(--plane-rgb) / 0.22))
+    drop-shadow(0 0 15px rgb(var(--plane-rgb) / 0.22));
+  transition: filter 220ms var(--ease-out);
+}
+
+:root[data-theme] .titlebar__brand span {
+  position: relative;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * 这里原本给字标画了一条渐隐线，试下来在 15px 的字下面读起来就是超链接的
+ * 下划线，不像装饰。删掉——品牌靠那两条撇和它的光说事就够了。
+ */
+
+:root[data-theme] .titlebar__brand:hover {
+  background: linear-gradient(100deg, rgb(var(--plane-rgb) / 0.12), rgb(var(--plane-rgb) / 0.08));
+}
+
+:root[data-theme] .titlebar__brand:hover .brand-mark {
+  filter:
+    drop-shadow(0 0 8px rgb(var(--plane-rgb) / 0.22))
+    drop-shadow(0 0 20px rgb(var(--plane-rgb) / 0.22));
+}
+
+/* =============================================================================
+   空态：把这块地铺成一幕
+
+   歌单 / 收藏专辑 / 关注艺人这三页没登录时是空的。以前它们各挂一句话——
+   「还没有歌单」「收藏的专辑存在平台账号里……」——内容区大半是空白，读者看见
+   的是「加载失败」的样子，而不是「这里还没东西」。
+
+   现在内容区本身就是画面：三条旋转过的长光带在模糊里慢慢横移，底部一道地平
+   线，中间只浮一个出口。不写标题，不写说明——页头已经说了这是哪一页，再写一
+   遍只是把「空」念出来。
+
+   周期 23 / 31 / 43 秒，互质，所以三层光的相位不会同时回到原点，看着一直在
+   变又看不出规律的重复。
+   ========================================================================== */
+
+.pg-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.pg-stage__field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pg-stage__band {
+  position: absolute;
+  top: -42%;
+  height: 184%;
+  filter: blur(34px);
+  opacity: 0.62;
+  transform-origin: 50% 50%;
+}
+
+.pg-stage__band--a {
+  left: 1%;
+  width: 26%;
+  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.1) 48%, transparent);
+  transform: rotate(9deg);
+  animation: stageDrift 23s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}
+
+.pg-stage__band--b {
+  left: 37%;
+  width: 20%;
+  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.07) 54%, transparent);
+  transform: rotate(-8deg);
+  animation: stageDrift 31s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate-reverse;
+}
+
+.pg-stage__band--c {
+  left: 69%;
+  width: 24%;
+  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.09) 46%, transparent);
+  transform: rotate(5deg);
+  animation: stageDrift 43s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}
+
+@keyframes stageDrift {
+  from {
+    margin-left: -46px;
+  }
+  to {
+    margin-left: 54px;
+  }
+}
+
+.pg-stage__horizon {
+  position: absolute;
+  left: -24%;
+  right: -24%;
+  bottom: -28%;
+  height: 70%;
+  background: radial-gradient(58% 100% at 50% 100%, rgb(var(--tint-rgb) / 0.16), transparent 74%);
+  filter: blur(42px);
+}
+
+.pg-stage__act {
+  position: relative;
+  z-index: 1;
+}
+
+.pg-stage__act .rh-btn {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: rgb(var(--plane-rgb) / 0.4);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.2),
+    0 18px 40px -22px rgb(var(--shade-rgb) / 0.3);
+  backdrop-filter: blur(10px);
+  transition: background-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+
+.pg-stage__act .rh-btn:hover {
+  background: rgb(var(--plane-rgb) / 0.58);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.28),
+    0 20px 46px -20px rgb(var(--shade-rgb) / 0.36);
+}
+
+/* --- 分区：一条线，不是一块框 ---------------------------------------------- */
+
+/*
+ * 四块面共用一张纸之后，左栏和内容区、内容区和播放条之间就没有任何东西了——
+ * 全窗一片，读不出「这边是导航、那边是内容」。旧 UI 是靠两条发丝线分的：左栏
+ * 右缘一条竖线、播放条上缘一条横线。这两条线不该有颜色，只该有「这里断开」
+ * 这件事，所以取 tint 的 0.07——比纸白一丁点，凑近才看得见。
+ *
+ * 页头不加线：标题下面的留白已经够分了，再加一条只会在壁纸上显成脏边。
+ */
+:root[data-theme] .shell.has-wallpaper > .rail {
+  border-right: 1px solid rgb(var(--tint-rgb) / 0.07);
+}
+
+:root[data-theme] .shell.has-wallpaper > .player {
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
+}
+
+/* --- 纸：整个窗口只有一层玻璃 ---------------------------------------------- */
+
+/*
+ * 之前四块面各自 plane/--wp-glass + backdrop-filter，数学上同色，实际上每块
+ * 单独采样、单独裁边：播放条那一块永远比内容区亮一档，两者之间一条横贯全窗
+ * 的亮带——用户指着它说了三次「播放条上面那块透明框」。
+ *
+ * 现在整窗只做一次玻璃，四块面全部透明。分块靠 aurora.css 末尾的分区线，
+ * 不靠底色差。
+ */
+:root[data-theme] .shell.has-wallpaper {
+  background-color: rgb(var(--plane-rgb) / var(--wp-glass));
+  backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+  -webkit-backdrop-filter: blur(var(--wp-blur)) saturate(1.25);
+}
+
+:root[data-theme] .shell.has-wallpaper > .titlebar,
+:root[data-theme] .shell.has-wallpaper > .rail,
+:root[data-theme] .shell.has-wallpaper > .main,
+:root[data-theme] .shell.has-wallpaper > .player {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/*
+ * 未登录的「今日推荐」收成一条横条。
+ *
+ * 它和数据态共用 .rh-daily，于是空着的时候也是 165px 高：1300px 宽的白卡里
+ * 只有日期、标题、一颗按钮。首屏两成面积交给一块空壳，下面的内容全被推下去。
+ * 这里只压高度，不复用数据态的任何内边距。
+ */
+:root[data-theme] .rh-daily--off {
+  min-height: 0;
+  padding: 15px var(--s5);
+}
+:root[data-theme] .rh-daily--off .rh-daily__kicker {
+  margin-bottom: 5px;
+}
+:root[data-theme] .rh-daily--off .rh-daily__text h2 {
+  margin: 0;
+  font-size: 21px;
+}
+:root[data-theme] .rh-daily--off .rh-daily__acts {
+  margin-left: auto;
+}
+/* 横条里不放角标：它原本是给大卡填空的，现在没空可填，压到按钮上了。 */
+:root[data-theme] .rh-daily--off .rh-daily__sig {
+  display: none;
+}

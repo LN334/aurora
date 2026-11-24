@@ -282,6 +282,16 @@ export function Backdrop({ entry }: { entry: WallpaperEntry | null }) {
       ) : null}
 
       <div className="wallpaper__veil" />
+
+      {/*
+        极光层。
+        壁纸是被玻璃盖住的一层，玻璃上的 backdrop-filter 会把"紧贴它下面"的
+        东西糊成一片色再透出来——所以真正能穿过玻璃的，只有尺寸远大于模糊半径
+        的色块。这里刻意画得很宽很软（十几条几十像素宽的帘），糊完之后剩下的是
+        "壁纸底下有光在动"，而不是一张贴图。
+        层在 veil 之上、玻璃之下，因此永远不压住任何文字。
+      */}
+
     </div>
   )
 }
