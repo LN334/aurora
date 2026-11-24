@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aurora · 动效实验室</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="">
+
+<div class="grain" aria-hidden="true"><div class="grain__tiles"></div><div class="grain__vignette"></div></div>
+
+<div class="app">
+
+  <header class="titlebar">
+    <div class="brand">
+      <span class="brand__mark">A</span>
+      <span class="brand__name">AURORA</span>
+      <span class="brand__sub">// 动效实验室</span>
+    </div>
+    <div class="titlebar__hint">滚轮转轨道 · 点卡片 · 空格播放 · 1–4 切页</div>
+    <button class="ctl" id="openPanel" type="button">动效 <span class="ctl__dot"></span></button>
+  </header>
+
+  <nav class="rail" aria-label="主导航">
+    <button class="rail__item is-active" data-go="discover" type="button"><i>01</i><b>现在</b></button>
+    <button class="rail__item" data-go="playlists" type="button"><i>02</i><b>歌单</b></button>
+    <button class="rail__item" data-go="stage" type="button"><i>03</i><b>舞台</b></button>
+    <button class="rail__item" data-go="detail" type="button"><i>04</i><b>详情</b></button>
+  </nav>
+
+  <main class="stage-area" id="stageArea">
+
+    <!-- 01 现在 -->
+    <section class="view is-active" data-view="discover">
+      <div class="view__inner">
+        <section class="hero">
+          <div class="hero__copy">
+            <span class="kicker">每日推荐 · <span id="dailyDate">11 月 24 日</span></span>
+            <h1>今天听什么</h1>
+            <div class="hero__acts">
+              <button class="btn-play" id="heroPlay" type="button">
+                <svg viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0l9 5-9 5z" fill="currentColor"/></svg>
+                <span>开始播放</span>
+              </button>
+              <button class="link" type="button">全部 30 首 →</button>
+            </div>
+          </div>
+          <div class="fan" id="fan">
+            <div class="fan__stage" id="fanStage"></div>
+          </div>
+          <div class="hero__now">
+            <span class="hero__count" id="fanIdx">1 / 8</span>
+            <span class="hero__t" id="fanTitle">—</span>
+          </div>
+        </section>
+
+        <div class="works">
+          <div class="works__main">
+          <section class="sec">
+            <header class="sec__head">
+              <h3>推荐歌单</h3>
+              <div class="sec__acts"><button class="link" data-go="playlists" type="button">换一批</button></div>
+            </header>
+            <div class="row" id="rowPlaylists"></div>
+          </section>
+
+          <section class="sec">
+            <header class="sec__head">
+              <h3>推荐专辑</h3>
+              <div class="sec__acts">
+                <button class="nav-btn" type="button" aria-label="往前">‹</button>
+                <button class="nav-btn" type="button" aria-label="往后">›</button>
+                <button class="link" type="button">换一批</button>
+              </div>
+            </header>
+            <div class="row" id="rowAlbums"></div>
+          </section>
+
+          <section class="sec">
+            <header class="sec__head">
+              <h3>最近听过</h3>
+              <div class="sec__acts"><button class="link" type="button">全部 →</button></div>
+            </header>
+            <div class="row row--tight" id="rowRecent"></div>
+          </section>
+          </div>
+
+          <aside class="picks">
+            <div class="picks__head">
+              <span class="kicker">PICKS // 精选</span>
+              <span class="picks__n" id="picksN">05</span>
+            </div>
+            <ol class="picks__list" id="picks"></ol>
+            <div class="picks__foot">
+              <span class="kicker">THIS WEEK</span>
+              <b>24 小时 12 分</b>
+              <i>比上周多 3 小时</i>
+              <button class="link" type="button">全部歌单 →</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 歌单 -->
+    <section class="view" data-view="playlists">
+      <div class="view__inner">
+        <div class="view__head">
+          <span class="kicker">COLLECTION // 收藏</span>
+          <h1>歌单</h1>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </section>
+
+    <!-- 03 舞台 -->
+    <section class="view" data-view="stage">
+      <div class="stage">
+        <canvas id="viz" class="stage__viz"></canvas>
+        <div class="stage__disc" id="disc">
+          <div class="disc__plate"><div class="disc__art" id="discArt"></div></div>
+          <div class="disc__grooves"></div>
+        </div>
+        <div class="stage__lyric" id="lyrics">
+          <p>把动效当成一段剪辑</p>
+          <p class="is-now">而不是一个属性变化</p>
+          <p>五档距离，一条时间线</p>
+        </div>
+        <div class="stage__meta">
+          <span class="kicker">STAGE // 舞台</span>
+          <span id="stageTitle">—</span>
+        </div>
+
+        <div class="stage__now">
+          <span class="kicker">NOW PLAYING</span>
+          <h2 id="stageTrack">低空飞行</h2>
+          <p id="stageArtist">沈以诚 · 夜航</p>
+          <div class="stage__bars" id="stageBars"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 详情 -->
+    <section class="view" data-view="detail">
+      <div class="view__inner">
+        <div class="detail">
+          <div class="detail__cover" id="detailCover"></div>
+          <div class="detail__body">
+            <span class="kicker">PLAYLIST // 歌单</span>
+            <h1 id="detailTitle">—</h1>
+            <dl class="meta">
+              <div><dt>曲目</dt><dd id="detailCount">—</dd></div>
+              <div><dt>时长</dt><dd id="detailDur">—</dd></div>
+              <div><dt>来源</dt><dd>本机</dd></div>
+            </dl>
+            <div class="detail__acts">
+              <button class="act" type="button" id="playAll">◆ PLAY // 播放</button>
+              <button class="act act--quiet" type="button" data-go="playlists">← RETURN // 返回</button>
+            </div>
+          </div>
+        </div>
+        <ol class="tracks" id="tracks"></ol>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="playerbar">
+    <div class="playerbar__left">
+      <div class="pb-art" id="pbArt"></div>
+      <div class="pb-text"><b id="pbTitle">—</b><span id="pbArtist">—</span></div>
+    </div>
+    <div class="playerbar__mid">
+      <button class="pb-btn" id="pbPlay" type="button" aria-label="播放">▶</button>
+      <div class="pb-progress"><div class="pb-progress__fill" id="pbFill"></div><div class="pb-progress__dot"></div></div>
+      <span class="pb-time" id="pbTime">0:00</span>
+    </div>
+    <div class="playerbar__right">
+      <div class="pb-bars" id="pbBars"></div>
+      <button class="ctl" id="openPanel2" type="button">动效</button>
+    </div>
+  </footer>
+
+</div>
+
+<aside class="panel" id="panel" aria-hidden="true">
+  <div class="panel__head">
+    <span class="kicker">MOTION // 动效</span>
+    <button class="panel__close" id="closePanel" type="button">✕</button>
+  </div>
+  <div class="panel__body">
+    <label class="sw"><input type="checkbox" data-flag="no-pagefx" /><span></span><b>切页交叉</b><i>关闭后只剩淡入</i></label>
+    <label class="sw"><input type="checkbox" data-flag="no-tilt" /><span></span><b>卡片倾斜</b><i>指针跟随的 3D 浮起</i></label>
+    <label class="sw"><input type="checkbox" data-flag="no-hand" /><span></span><b>手绘层</b><i>下划线 / 圈选 / 碎屑</i></label>
+    <label class="sw"><input type="checkbox" data-flag="no-grain" /><span></span><b>质感层</b><i>颗粒 + 暗角</i></label>
+    <label class="sw"><input type="checkbox" data-flag="no-beat" /><span></span><b>节拍</b><i>唱片脉动 / 电平</i></label>
+    <label class="sw sw--slow"><input type="checkbox" data-flag="slowmo" /><span></span><b>慢放 ×4</b><i>看清每一帧</i></label>
+  </div>
+  <p class="panel__foot">五档距离：90 / 120 / 200–260 / 320–420 / 460–620 ms</p>
+</aside>
+
+<script src="app.js"></script>
+</body>
+</html>
