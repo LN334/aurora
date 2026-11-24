@@ -47,6 +47,13 @@ export interface OverlayState {
   position: number
   /** Track length in seconds; 0 when unknown. */
   duration: number
+  /**
+   * 当前行的逐字时间（秒，绝对时间）。
+   *
+   * 有它时桌面歌词按「唱到第几个字」推进，而不是把整句均摊给时间——后者在长音
+   * 与快字上都错得很明显。空数组与缺省同义，退回行级匀速。
+   */
+  words: { at: number; text: string }[]
   /** Artwork accent colour, so the sung part matches what is playing. */
   accent: string
 }

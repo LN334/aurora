@@ -174,7 +174,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
         button.removeAttribute('title')
         continue
       }
-      const parts = splitLyricLine(line.text || '·')
+      const parts = splitLyricLine(line.text)
       const words = line.words
       button.dataset.index = String(index)
       /* 终端样式的行号：两位、补齐，空行留空。 */
@@ -275,7 +275,9 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
       return
     }
     if (!typingRef.current) return
-    const parts = splitLyricLine(line.text || '·')
+    const parts = splitLyricLine(line.text)
+    /* 空行与间隔记号不敲字：它们只在时间轴上占位。 */
+    if (!parts.main) return
     const next = lines[active + 1]
     const span = Math.min(1.6, Math.max(0.45, (next ? next.time : line.time + 2.4) - line.time))
     const position = usePlayer.getState().position

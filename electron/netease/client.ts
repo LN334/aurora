@@ -14,6 +14,7 @@ import { clearCookie, hasCookie, readCookie, writeCookie } from './session'
 import { write } from '../startup-log'
 import type { CommentPage, CommentWriteResult, OnlineComment } from '../comments'
 import { isUsableId } from './types'
+import { yrcToEnhancedLrc } from '../pure/yrc'
 import type {
   NeteaseAccount,
   NeteaseAlbum,
@@ -91,6 +92,7 @@ const RETRYABLE = new Set<string>([
   'artist_songs',
   'artist_album',
   'lyric',
+  'lyric_v1',
   'comment_music',
   'song_url_v1',
   'login_status',
@@ -143,6 +145,11 @@ interface Upstream {
   song_url_v1: UpstreamCall
   song_detail: UpstreamCall
   lyric: UpstreamCall
+  /**
+   * 新版歌词：带逐字时间（yrc）。包里自带的 `lyric_new` 把 `yv` 写死成 0，逐字
+   * 永远取不回来，所以这一条是我们在 `loadUpstream` 里自己补的直通。
+   */
+  lyric_v1: UpstreamCall
   /** 读评论：公开端点，未登录也能取（拿不到「我赞过」的状态，那个状态不画）。 */
   comment_music: UpstreamCall
   /** 写评论：发一条（comment_add）、赞/取消赞一条（comment_like）。都要真登录。 */
@@ -231,7 +238,33 @@ function loadUpstream(): Upstream {
   if (!fs.existsSync(TOKEN_PATH)) fs.writeFileSync(TOKEN_PATH, '', 'utf-8')
   muteNestedDotenv()
   upstream = require(API_PACKAGE) as Upstream
-  /* 这一行是「后端被拉起来了」的硬证据，探针靠它判断懒加载有没有漏。 */
+
+  /*
+   * 逐字歌词那条补丁。
+   *
+   * 包里 `lyric_new` 的 `data` 把 `yv/ytv` 写成 0，等于告诉上游「不要逐字」，
+   * 于是拿回来的永远只有行级 LRC——高光和打字就只能按字数匀速推进，听着不跟人。
+   * 这里借它的 request 层（签名、匿名 token、代理都在里面）发同一个路径，只把
+   * 版本位翻成 -1（都要）。挂在同一个 api 对象上，`call()` 的超时与重试照旧生效。
+   */
+  try {
+    const root = apiRoot()
+    const send = require(path.join(root, 'util', 'request')) as (
+      endpoint: string,
+      data: Record<string, unknown>,
+      option: Record<string, unknown>
+    ) => Promise<Envelope>
+    const createOption = require(path.join(root, 'util', 'option')) as (
+      query: Record<string, unknown>
+    ) => Record<string, unknown>
+    upstream.lyric_v1 = (params) => {
+      const { cookie, timeout, ...rest } = params
+      return send('/api/song/lyric/v1', rest, createOption({ cookie, timeout }))
+    }
+  } catch (error) {
+    /* 拿不到 request 层就当没有这条接口：歌词仍然走行级那份，不影响开屏。 */
+    write('netease: lyric_v1 unavailable ' + (error instanceof Error ? error.message : String(error)))
+  }  /* 这一行是「后端被拉起来了」的硬证据，探针靠它判断懒加载有没有漏。 */
   write('netease: upstream loaded')
   return upstream
 }
@@ -692,10 +725,34 @@ export async function neteaseArtistAlbums(
 
 export async function neteaseLyrics(songId: number): Promise<NeteaseLyricsResult | null> {
   if (!isUsableId(songId)) return null
-  const res = await call('lyric', { id: songId })
+  /*
+   * 一次问齐四份：行级歌词与译文、逐字歌词与逐字译文。
+   *
+   * 以前只调 `lyric`，拿到的是行级 LRC——一句只有一个时间点，高光和打字只能按
+   * 字数匀速往前推，听起来就是「按固定时间走」而不是跟着人唱。`yv/ytv` 是逐字
+   * 版本的开关，翻成 -1 之后上游才会把 yrc 一起塞回来。
+   */
+  const res = await call('lyric_v1', {
+    id: songId,
+    cp: false,
+    lv: -1,
+    tv: -1,
+    rv: -1,
+    kv: -1,
+    yv: -1,
+    ytv: -1,
+    yrv: -1
+  })
   const body = asRecord(res.body)
-  const lrc = asNullableString(asRecord(body.lrc).lyric)
+  const plain = asNullableString(asRecord(body.lrc).lyric)
   const translation = asNullableString(asRecord(body.tlyric).lyric)
+  const worded = asNullableString(asRecord(body.yrc).lyric)
+  /*
+   * 逐字那份优先：它自带每句的唱点，文本也逐字拼得出整行。行级那份留在兜底，
+   * 有些歌（老歌、纯音乐、版权受限）上游只给行级。
+   */
+  const converted = worded ? yrcToEnhancedLrc(worded) : ''
+  const lrc = converted || plain
   // Instrumentals are a real answer, not an error: no lyric at all is `null`,
   // and a lyric with no translation is a lyric.
   if (!lrc && !translation) return null

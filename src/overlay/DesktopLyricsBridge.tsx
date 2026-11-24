@@ -83,6 +83,9 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
       to: lyrics.empty || !following ? null : following.time,
       position,
       duration,
+      // 逐字时间跟着行走：桌面歌词按「唱到第几个字」推进，而不是把整句均摊。
+      // 没有逐字时是空数组，那一侧退回行级匀速。
+      words: current?.words?.map((word) => ({ at: word.time, text: word.text })) ?? [],
       accent: accent || '#7d8899'
     }
 
@@ -110,6 +113,7 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
       payload.at,
       payload.to,
       payload.duration,
+      payload.words.length,
       payload.accent,
       // The anchor itself is part of the identity: a seek that lands inside the
       // same line must still reach the strip.

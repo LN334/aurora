@@ -258,7 +258,7 @@ body.overlay-body {
   color: rgb(255 255 255 / 0.72);
   font-size: calc(var(--size, 34px) * 0.5);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   line-height: 1.25;
   text-overflow: ellipsis;
   text-shadow:
@@ -274,7 +274,7 @@ body.overlay-body {
   color: rgb(255 255 255 / 0.52);
   font-size: calc(var(--size, 34px) * 0.54);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   line-height: 1.3;
   text-overflow: ellipsis;
   text-shadow:

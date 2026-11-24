@@ -280,7 +280,7 @@ function LyricRoll({
     >
       <div className="np__lyr" ref={strip}>
         {lines.map((line, index) => {
-          const { main, sub } = splitLyricLine(line.text || '·')
+          const { main, sub } = splitLyricLine(line.text)
           return (
             <button
               key={index}

@@ -79,6 +79,17 @@ export function registerOverlayIpc(sendCommand: (command: MediaCommand) => void)
       to: optionalSeconds(candidate.to),
       position: seconds(candidate.position),
       duration: seconds(candidate.duration),
+      // 逐字时间来自渲染进程，同样重建一遍。上限 400 段：最长的歌词行也到不了，
+      // 但这条 IPC 是信任边界，不能让一个畸形数组把桌面窗撑住。
+      words: Array.isArray(candidate.words)
+        ? candidate.words
+            .filter(
+              (word): word is { at: number; text: string } =>
+                Boolean(word) && typeof word.at === 'number' && typeof word.text === 'string'
+            )
+            .slice(0, 400)
+            .map((word) => ({ at: Math.max(0, seconds(word.at)), text: word.text.slice(0, 64) }))
+        : [],
       accent: typeof candidate.accent === 'string' ? candidate.accent : ''
     })
     return true

@@ -35,6 +35,7 @@ const WORD_TAG = /<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g
 /** 同一段时长写法在方括号与尖括号里都出现过，取值口径一致。 */
 const TAG_PARTS = /(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?/
 
+
 function tagSeconds(minutes: string, seconds: string, fractionRaw: string): number {
   // `.5` means 500ms, `.05` means 50ms, `.005` means 5ms.
   const fraction = fractionRaw ? Number.parseInt(fractionRaw, 10) / 10 ** fractionRaw.length : 0
@@ -76,7 +77,11 @@ function wordTimings(rest: string, lineTime: number): LyricWord[] {
       words[words.length - 1].text += piece.text
     }
   }
-  const kept = words.filter((word) => word.text.trim().length > 0)
+  /*
+   * 只丢「没有文字」的空段，不丢纯空格段：行里若有词是空格，它占着文本里的一个
+   * 位置，丢了之后 words 拼起来就与整行少一个字——逐字高亮的边界会整体错位。
+   */
+  const kept = words.filter((word) => word.text.length > 0)
   return kept.length >= 2 ? kept : []
 }
 
@@ -127,7 +132,12 @@ export function parseLrc(raw: string): Lyrics {
 
     const rest = line.replace(TIME_TAG, '')
     const text = rest.replace(WORD_TAG, '').trim()
-    const words = wordTimings(rest, stamps[0])
+    /*
+     * 用 trim 过的 rest：text 也 trim 了首尾空格。不 trim 的话首词的文本比整行多
+     * 一个前导空格，逐字按词框推进时会整体偏一格。
+     */
+    const words = wordTimings(rest.trim(), stamps[0])
+
     for (const time of stamps) {
       // 一行挂多个时间戳时，词的时间是同一份相对时间，各自复制一份。
       lines.push(words.length > 0 ? { time, text, words: words.map((word) => ({ ...word })) } : { time, text })

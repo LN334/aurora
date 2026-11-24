@@ -173,7 +173,7 @@
 /* 小字在上、歌名在中、艺术家与专辑在下：一屏之内先认出歌，再认出人。 */
 .stage__kicker {
   display: block;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.34em;
   /* 字距是加在每个字之后的，末尾那一份会把这行整体带偏半个字 */
@@ -195,7 +195,7 @@
 }
 .stage__sub {
   margin: 8px 0 0;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   color: rgb(255 255 255 / 0.62);
   white-space: nowrap;
   overflow: hidden;
@@ -241,7 +241,12 @@
    * 一条轨道九个槽，整条在 JS 里逐帧上移，而不是「换一格重排一次」。
    * 槽高写死成变量：位移按它算，量到的和算的必须是同一个数。
    */
-  --lyr-h: clamp(84px, 11.5vh, 112px);
+  /*
+   * 槽高按「最挤的那一句」定：正在唱的一句折成两行（44px × 1.14 × 2 ≈ 100px）
+   * 再加上一行译文（≈ 24px），一共 127px。旧值 112px 装不下，而槽是居中裁切，
+   * 主文和译文一边少半行，看着就像两句叠在一起。
+   */
+  --lyr-h: clamp(140px, 15vh, 152px);
   position: relative;
   display: block;
   height: 100%;
@@ -293,7 +298,7 @@
   font-family: var(--font-display);
   font-size: clamp(22px, 3.1vw, 44px);
   font-weight: 600;
-  letter-spacing: -0.014em;
+  letter-spacing: -0.02em;
   line-height: 1.2;
   max-width: min(1100px, 82vw);
   display: flex;
@@ -312,13 +317,24 @@
 
 .lyr.is-active .lyr__text {
   transform: scale(1);
+  /*
+   * 行距 1.2，不能再紧：这一块同时是 `overflow: hidden` 的裁切盒，行距比 em 盒
+   * 还窄时半行距是负的，第二行的下伸部（g、y、汉字底横）会被齐根削掉。Folia 在
+   * 海报式 1.06 行距下是给盒子补 padding 才解决的，这里行距松一档就不必补。
+   */
+  line-height: 1.2;
   opacity: 1;
   /*
    * 当前行允许折行：整句 44px 大字在 82vw 里放不下，旧版直接截断（"…now rela"）。
    * 最多两行，超出的交给槽高裁掉。
    */
   white-space: normal;
-  max-height: 2.4em;
+  /*
+   * 不在这里卡高度：2.4em 是「两行大字」的量，可两行大字下面还有一行译文，
+   * 总量 2.8em 就被 max-height 压扁，flex 先把主文挤小，第二行被切一半——
+   * 看起来就像两句叠在一起。高度交给槽，槽高按最挤的一句算好了。
+   */
+  max-height: none;
   /* The playing line is lit by the album's own colour. */
   text-shadow: 0 0 42px rgb(var(--accent-rgb) / 0.5), 0 2px 20px rgb(var(--shade-rgb) / 0.55);
 }
@@ -392,7 +408,7 @@
   color: var(--text-mid);
   background: rgb(var(--tint-rgb) / 0.06);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
 }
 
 .stage__nolyrics-action {
@@ -542,7 +558,7 @@
   transform: translateX(-50%);
   background: var(--text-hi);
   color: var(--ink-1000);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -676,6 +692,8 @@
  */
 .lyr__main {
   display: block;
+  /* 主文与译文都不许被 flex 压缩：压缩出来的半行比裁掉更糟。 */
+  flex: 0 0 auto;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -689,6 +707,14 @@
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: center;
+  /*
+   * clamp 必须带 overflow: hidden，而裁切盒就是 padding box：字形上下的伸部
+   * 一旦超出 em 盒就被削平。上下各留一点，再用负 margin 把视觉位置拉回去，
+   * 排版不动、笔画完整。
+   */
+  padding-block: 0.12em;
+  /* 底部不留负 margin：那点空隙是主文与译文之间唯一的呼吸。 */
+  margin-block: -0.12em 0;
 }
 
 /* 面板要能点：三块主区（顶栏 / 歌词 / 底栏）同属 z-index:1 的层，谁在后面谁
@@ -701,10 +727,11 @@
 /* --- 翻译分行：原文一行，译文一行小字 --- */
 .lyr__sub {
   display: block;
+  flex: 0 0 auto;
   margin-top: 0.3em;
   font-size: 0.56em;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   opacity: 0.6;
   /* 译文只占一行：跨行的长注释会把当前行总高顶出槽外，压到下一句。 */
   white-space: nowrap;
@@ -719,6 +746,15 @@
  */
 .lyr:not(.is-active) .lyr__sub { opacity: 0.5; }
 .lyr.is-active .lyr__sub { opacity: 0.82; }
+/* 当前句的译文压小一档：它得和两行大字一起待在一个槽里。 */
+/*
+ * 译文：字号取主文一半，间距取自身 0.45em（≈ 主文的 0.23em）。
+ * 0.22em 时两行字的视觉重心只差 3px，读起来像被压在下一行上。
+ */
+.lyr.is-active .lyr__sub {
+  margin-top: 0.45em;
+  font-size: 0.5em;
+}
 
 /* =============================================================================
    样式：流光 / 终端
@@ -747,7 +783,7 @@
   height: 24px;
   padding: 0 11px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--text-mid);
   background: transparent;
   white-space: nowrap;
@@ -801,20 +837,20 @@
 .stage.is-terminal .stage__back {
   height: 26px;
   padding: 0 10px 0 8px;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   background: transparent;
   box-shadow: inset 0 0 0 1px rgb(242 232 220 / 0.24);
   color: var(--t-paper);
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
 }
 .stage.is-terminal .stage__back:hover {
   background: rgb(242 232 220 / 0.08);
   color: var(--t-paper);
 }
 .stage.is-terminal .stage__back span {
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.02em;
 }
 
 .stage.is-terminal .stage__top {
@@ -839,12 +875,12 @@
 .stage.is-terminal .stage__title {
   font-size: clamp(17px, 1.6vw, 21px);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   color: var(--t-paper);
   text-shadow: none;
 }
 .stage.is-terminal .stage__sub {
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   color: var(--t-dim);
   letter-spacing: 0.02em;
 }
@@ -864,11 +900,11 @@
 .stage.is-terminal .stage__style {
   height: 22px;
   padding: 0 9px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   border: 1px solid rgb(242 232 220 / 0.22);
   font-family: inherit;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
   color: var(--t-dim);
 }
 .stage.is-terminal .stage__style:hover {
@@ -915,7 +951,7 @@
   font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
   font-size: clamp(16px, 1.6vw, 23px);
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   line-height: 1.35;
   max-width: 100%;
   text-align: left;
@@ -958,6 +994,22 @@
   grid-column: 2;
   grid-row: 1;
 }
+
+/*
+ * 终端是「一个字一个字打出来」，不是「先给一句灰的再逐字擦亮」：未唱到的字
+ * 先不占视觉，唱到才出现。流光那边相反——整句先在，逐字提亮，所以只覆盖终端。
+ */
+/*
+ * 只对当前句生效：还没唱的句子要整句灰着摆在那里，一眼看得见下一句是什么。
+ * 若对全舞台生效，除了正在打的那一句，其他行只剩一行行空序号。
+ */
+.stage.is-terminal .lyr.is-active .lyr__main > span {
+  opacity: 0;
+  transition: none;
+}
+.stage.is-terminal .lyr.is-active .lyr__main > span[data-lit] {
+  opacity: 1;
+}
 .stage.is-terminal .lyr.is-active .lyr__main {
   display: block;
   grid-column: 2;
@@ -991,7 +1043,7 @@
   font-family: inherit;
   font-size: 0.8em;
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   color: var(--t-pink);
   opacity: 0.85;
   margin-top: 0.15em;
@@ -1014,7 +1066,7 @@
   font-family: inherit;
 }
 .stage.is-terminal .stage__nolyrics-action {
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   border: 1px solid rgb(242 232 220 / 0.26);
   background: transparent;
   color: var(--t-paper);
@@ -1023,7 +1075,7 @@
 
 /* 底栏：方角、1px 边、橙色进度。播放键反过来用实心纸。 */
 .stage.is-terminal .stage__ctrl {
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   border: 1px solid rgb(242 232 220 / 0.26);
   background: transparent;
   color: var(--t-paper);
@@ -1066,11 +1118,11 @@
   color: var(--t-dim);
 }
 .stage.is-terminal .stage__back-live {
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   border: 1px solid rgb(242 232 220 / 0.26);
   background: rgb(18 16 14 / 0.86);
   color: var(--t-paper);
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
 }
 

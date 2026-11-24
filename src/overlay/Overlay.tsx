@@ -22,7 +22,60 @@ const IDLE: OverlayState = {
   to: null,
   position: 0,
   duration: 0,
+  words: [],
   accent: ''
+}
+
+/**
+ * 这一句唱到第几个字了，0..1。
+ *
+ * 逐字时间只知道「每个字什么时候开口」，不知道它什么时候收声，所以一个字占的
+ * 时间算到下一个字开口为止；最后一个字用行尾兜住。取不到逐字时退回行级匀速，
+ * 和以前一模一样。
+ *
+ * 横向位置优先用测出的词框（见下面的 useLayoutEffect）：字宽不等，按字数摊
+ * 会把边界画在还没唱的字上。量不到时（字体未就绪、词与行文对不齐）才退回
+ * 整行按时间线性——有时间误差，至少不会指错字。
+ */
+function sungFill(
+  now: number,
+  words: OverlayState['words'],
+  boxes: { left: number; width: number }[],
+  at: number,
+  to: number,
+  width: number
+): number {
+  const parts = words ?? []
+  const span = to - at
+  const fallback = () => (span > 0 ? Math.min(1, Math.max(0, (now - at) / span)) * width : width)
+  if (parts.length === 0 || span <= 0) return fallback()
+  /*
+   * 末词没有「下一个词」当结束时间，而行尾是下一句开口，中间常隔着一整段间奏。
+   * 拿行尾兜底会让末词拖十几秒都唱不完，所以按常规词时估一个收声点。
+   */
+  let typical = span / parts.length
+  if (parts.length > 1) {
+    let sum = 0
+    for (let index = 1; index < parts.length; index += 1) sum += parts[index].at - parts[index - 1].at
+    typical = sum / (parts.length - 1)
+  }
+  const tail = Math.min(to, parts[parts.length - 1].at + Math.max(0.12, typical * 1.5))
+  if (now >= tail) return width
+  if (now <= at) return 0
+  let index = parts.length - 1
+  for (let candidate = 0; candidate < parts.length; candidate += 1) {
+    const edge = candidate + 1 < parts.length ? parts[candidate + 1].at : tail
+    if (now < edge) {
+      index = candidate
+      break
+    }
+  }
+  const start = parts[index].at
+  const edge = index + 1 < parts.length ? parts[index + 1].at : tail
+  const inside = edge > start ? Math.min(1, Math.max(0, (now - start) / (edge - start))) : 1
+  const box = boxes[index]
+  if (!box || boxes.length !== parts.length) return fallback()
+  return box.left + box.width * inside
 }
 
 /**
@@ -65,6 +118,8 @@ export function Overlay() {
   const stack = useRef<HTMLDivElement | null>(null)
   const toolbar = useRef<HTMLDivElement | null>(null)
   const line = useRef<HTMLDivElement | null>(null)
+  /* 每个词在行里的横向位置（px，相对行首）。逐字时间只给「第几个词」，像素得量。 */
+  const boxes = useRef<{ left: number; width: number }[]>([])
 
   useEffect(() => bridge.overlay.onState(setState), [])
 
@@ -175,12 +230,15 @@ export function Overlay() {
      */
     const element = line.current
     if (!element || !state.text) return
-    const { at, to, playing, position } = state
-    const paint = (ratio: number) => {
-      element.style.setProperty(
-        '--progress',
-        ratio <= 0 ? '-6%' : ratio >= 1 ? '140%' : `${(ratio * 100).toFixed(2)}%`
-      )
+    const { at, to, playing, position, words } = state
+    /*
+     * 进度写成 px，不是百分比。
+     *
+     * 百分比是相对整行宽度的，而字宽不等：i 只有 w 的四分之一，英文歌词里按字数
+     * 推进的边界会跑到还没唱的字上。每个词的宽度由量出的词框决定。
+     */
+    const paint = (px: number) => {
+      element.style.setProperty('--progress', px <= 0 ? '-40px' : px.toFixed(2) + 'px')
     }
     if (at === null || to === null || to <= at) {
       // Unsynchronised lyrics: paint the line plainly. Faking a progress that
@@ -188,22 +246,70 @@ export function Overlay() {
       paint(0)
       return
     }
+    const width = element.getBoundingClientRect().width
+    const fill = (now: number) => sungFill(now, words, boxes.current, at, to, width)
     if (!playing) {
-      paint((position - at) / (to - at))
+      paint(fill(position))
       return
     }
     const anchor = performance.now()
     let frame = 0
     const step = () => {
       const now = position + (performance.now() - anchor) / 1000
-      const ratio = (now - at) / (to - at)
-      paint(ratio)
+      const px = fill(now)
+      paint(px)
       // Stop at the end of the line instead of spinning until the next push.
-      if (ratio < 1) frame = requestAnimationFrame(step)
+      if (px < width) frame = requestAnimationFrame(step)
     }
     step()
     return () => cancelAnimationFrame(frame)
   }, [state])
+
+  /*
+   * 每个词在行里的横向位置。
+   *
+   * 不往行里插 span：那会改变字距（inline 元素之间多出空白），而且 fill/lead
+   * 两个副本还得各量一遍。直接用 Range 在文本节点上取矩形，DOM 不动。
+   */
+  useLayoutEffect(() => {
+    const element = line.current
+    const node = element?.querySelector('.lyric-line__base')?.firstChild
+    const words = state.words ?? []
+    /* 先清掉上一行的框：新行量不出来时不能沿用旧边界。 */
+    boxes.current = []
+    if (!element || !node || node.nodeType !== Node.TEXT_NODE || words.length === 0) return
+    const text = node.textContent ?? ''
+    /*
+     * 词拼起来必须与这一行一模一样，否则「第几个词的框」对不上文本位置。
+     * 差一个字就会让 Range 越界抛错——那会卸掉整棵组件树，桌面歌词直接空白。
+     */
+    const total = words.reduce((sum, word) => sum + word.text.length, 0)
+    if (total !== text.length) return
+    const measure = () => {
+      try {
+        const base = element.getBoundingClientRect()
+        const range = document.createRange()
+        const next: { left: number; width: number }[] = []
+        let offset = 0
+        for (const word of words) {
+          const stop = Math.min(text.length, offset + word.text.length)
+          if (stop <= offset) return
+          range.setStart(node, offset)
+          range.setEnd(node, stop)
+          const box = range.getBoundingClientRect()
+          next.push({ left: box.left - base.left, width: box.width })
+          offset = stop
+        }
+        boxes.current = offset === text.length ? next : []
+      } catch {
+        /* 量不到就退回整行比例：边界略偏，总好过整页不显示。 */
+        boxes.current = []
+      }
+    }
+    measure()
+    // 字体是异步换上的：换完字宽会变，不重量一次边界会错半句。
+    void document.fonts.ready.then(measure).catch(() => undefined)
+  }, [state.text, state.words, size, fitSize])
 
   /*
    * Shrink the line to the window.

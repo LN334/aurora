@@ -95,7 +95,8 @@ export function TrackView({
             <span className="tk__art-hint">正在播放</span>
           </button>
         }
-        kicker={origin + ' · 歌曲'}
+        en="TRACK"
+        kicker="歌曲"
         title={track.title}
         meta={
           <>
@@ -173,6 +174,8 @@ export function TrackView({
             <div className="tk__lyrics">
               {lyrics.lines.map((line, index) => {
                 const parts = splitLyricLine(line.text)
+                /* 空行和间隔记号不进列表：这里不是时间轴，空白条目只会碍事。 */
+                if (!parts.main) return null
                 return (
                   <button
                     key={index}
@@ -180,7 +183,7 @@ export function TrackView({
                     className="tk__line"
                     onClick={() => onOpenNow(Math.max(0, line.time))}
                   >
-                    <span className="tk__main">{parts.main || '·'}</span>
+                    <span className="tk__main">{parts.main}</span>
                     {parts.sub ? <span className="tk__sub">{parts.sub}</span> : null}
                   </button>
                 )

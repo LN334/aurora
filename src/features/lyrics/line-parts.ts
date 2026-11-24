@@ -27,8 +27,22 @@ interface LyricLineParts {
   sub: string
 }
 
+/**
+ * 只有标点、没有字的一行：间隔记号，不是歌词。
+ *
+ * 时间戳后面什么都不写（`[00:12.30]`）也是这种行。它们在数据里得留着，因为
+ * 空档本身是时间线索；但一旦被当成歌词渲染，屏幕上就只剩一个孤零零的点——
+ * 那是 `text || '·'` 兜底漏出来的占位，不是任何人写下的字。
+ *
+ * 判据是「正向」的——有没有可读的字，而不是「是不是我列的这几个标点」。同一份
+ * 歌词里出现过的还有 `//`、`●●●`、`－ － －`、`~~~`、括号包裹的纯符号，穷举
+ * 标点表永远漏一个。Folia 用的是同一条判据（`hasReadableText`）：CJK 算字母。
+ */
+const READABLE = /[\p{L}\p{N}]/u
+
 export function splitLyricLine(text: string): LyricLineParts {
   const trimmed = text.trim()
+  if (!trimmed || !READABLE.test(trimmed)) return { main: '', sub: '' }
   const at = trimmed.indexOf(' / ')
   if (at <= 0) return { main: trimmed, sub: '' }
 

@@ -374,6 +374,8 @@ export interface OverlayState {
   position: number
   /** 曲长（秒）；0 表示还不知道。 */
   duration: number
+  /** 当前行的逐字时间（秒）。空数组表示这行没有逐字，退回行级匀速。 */
+  words: { at: number; text: string }[]
   /** 当前封面的主色，用来给已唱部分上色；取不到时为空串。 */
   accent: string
 }
