@@ -110,3 +110,23 @@ test('activeLineAt finds the line in effect', () => {
 test('activeLineAt copes with an empty lyric', () => {
   assert.equal(activeLineAt([], 5), -1)
 })
+
+test(
+  'word segments spell the whole line, even when the line starts with a space',
+  () => {
+    // 逐字高亮按「第几个词的框」推进，词拼起来少一个字符就会整体偏一格。
+    const lyrics = parseLrc('[00:12.30] 前导空格<00:13.00>后半句')
+    const line = lyrics.lines[0]
+    assert.equal(line.text, '前导空格后半句')
+    assert.equal(line.words?.map((word) => word.text).join(''), line.text)
+  }
+)
+
+test(
+  'a word that is only a space still counts as a segment',
+  () => {
+    const lyrics = parseLrc('[00:01.00]甲<00:02.00> <00:03.00>乙')
+    const line = lyrics.lines[0]
+    assert.equal(line.words?.map((word) => word.text).join(''), line.text)
+  }
+)

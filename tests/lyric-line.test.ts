@@ -44,5 +44,15 @@ test('没有分隔符时整句保留', () => {
 
 test('空串与只有分隔符时安全', () => {
   assert.deepEqual(splitLyricLine(''), { main: '', sub: '' })
-  assert.deepEqual(splitLyricLine(' / '), { main: '/', sub: '' })
+  // 只剩一个分隔符的行和空行同义：没有任何可读字，画出来就是一个斜杠。
+  assert.deepEqual(splitLyricLine(' / '), { main: '', sub: '' })
+})
+
+test('只有标点或空白的行当成空行，不显示成点', () => {
+  assert.deepEqual(splitLyricLine('.'), { main: '', sub: '' })
+  assert.deepEqual(splitLyricLine('·'), { main: '', sub: '' })
+  assert.deepEqual(splitLyricLine('……'), { main: '', sub: '' })
+  assert.deepEqual(splitLyricLine('   '), { main: '', sub: '' })
+  // 带字的行不能吃：长音标记里常夹着字。
+  assert.deepEqual(splitLyricLine('— 到了 —'), { main: '— 到了 —', sub: '' })
 })
