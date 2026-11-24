@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
 import { sourceLabelById, getProvider } from '../features/online/registry'
@@ -132,13 +132,9 @@ function PlaylistPage({
             <Note size={34} />
           )
         }
-        kicker={(provider?.displayName ?? providerId) + ' · 歌单'}
+        en="PLAYLIST"
+        kicker="歌单"
         title={shownName}
-        meta={
-          <span>
-            {rows.length} 首{rows.length > 0 ? ' · ' + formatSpan(total) : ''}
-          </span>
-        }
         actions={
           <>
             <button
@@ -278,7 +274,6 @@ function PlaylistPage({
  */
 function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   const [title, setTitle] = useState('')
-  const [meta, setMeta] = useState('读取中…')
   const [cover, setCover] = useState<string | null>(null)
   const [artists, setArtists] = useState<{ id: number; name: string }[]>([])
   const [year, setYear] = useState<number | null>(null)
@@ -294,7 +289,6 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
     let live = true
     setTracks([])
     setError(null)
-    setMeta('读取中…')
 
     const load = async () => {
       /*
@@ -305,7 +299,6 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
       const backend = source?.backend as PlatformBackend | undefined
       if (!source?.catalog?.album || !backend) {
         setError('这个平台还没有专辑页')
-        setMeta('')
         return
       }
       try {
@@ -333,7 +326,6 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         setArtists(credits)
         setYear(album.year ?? null)
         setBrief(album.description ?? '')
-        setMeta([String(rows.length) + ' 首'].filter(Boolean).join(' · '))
       } catch (failure) {
         if (live) setError(failure instanceof Error ? failure.message : String(failure))
       }
@@ -348,7 +340,8 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
     <div className="col ol-page">
       <DetailHero
         art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400), 400)} alt="" /> : <Note size={34} />}
-        kicker={(platform?.displayName ?? '在线') + ' · 专辑'}
+        en="ALBUM"
+        kicker="专辑"
         title={title || ' '}
         meta={
           <>
@@ -366,7 +359,6 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
                 </button>
               </span>
             ))}
-            <span>{meta}</span>
           </>
         }
         actions={
@@ -419,6 +411,8 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
   const [brief, setBrief] = useState('')
   const [cover, setCover] = useState<string | null>(null)
   const [counts, setCounts] = useState<{ albums: number; songs: number } | null>(null)
+  /* 首屏那份热门列表，"全部歌曲"的第一页要拿它兜底，保证全部 ⊇ 热门。 */
+  const hotRef = useRef<Track[]>([])
   const [hot, setHot] = useState<Track[]>([])
   const [all, setAll] = useState<Track[]>([])
   const [allLoading, setAllLoading] = useState(false)
@@ -470,7 +464,6 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
           setName(detail.name)
           setBrief(detail.brief)
           setCover(detail.coverUrl)
-          setCounts({ albums: detail.albumCount, songs: detail.songCount })
         }
         if (songs.length === 0) {
           setError('这位艺人没有取到歌曲')
@@ -489,8 +482,33 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
          */
         const across = await songsAcrossPlatforms(resolvedName, sourceOrder(), providerId)
         if (!live) return
-        const merged = mergeVersions([...seed, ...across], sourceOrder())
-        setHot(merged.length > 0 ? merged : seed)
+        const order = sourceOrder()
+        const hotRows = mergeVersions([...seed, ...across], order)
+        hotRef.current = hotRows.length > 0 ? hotRows : seed
+        setHot(hotRef.current)
+        /*
+         * "全部歌曲"跟着热门一起备好第一页。
+         *
+         * 两个 tab 说的是同一个人，口径必须一样宽：热门是"本平台热门 + 别家搜索"，
+         * 全部若只取本平台分页，就会出现"热门 50 首、全部 3 首"这种自相矛盾的页。
+         * 这里先把热门并进来去重，全部就必然 ⊇ 热门；页头曲目数也因此只有一个来源。
+         * 往后翻页仍只追加本平台（别家没有分页接口）。
+         */
+        let allRows = hotRef.current
+        const listMore = platform?.catalog?.artistSongs
+        if (listMore) {
+          const rest = await listMore.call(platform.catalog, id, 100, 0).catch(() => [])
+          if (!live) return
+          allRows = mergeVersions([...hotRef.current, ...rest.map((song) => toTrackFor(song as never))], order)
+          setAll(allRows)
+        }
+        if (detail) {
+          /*
+           * 上游报的总数有时只覆盖本平台那部分。数字比列表还少，读起来就成了
+           * "热门比全部多"——所以取上游数与合并后列表长度的大者。
+           */
+          setCounts({ albums: detail.albumCount, songs: Math.max(detail.songCount, allRows.length) })
+        }
         if (!detail) {
           const singer = songs[0]?.artists.find((entry) => entry.id === id)
           setName(singer?.name ?? songs[0]?.artists[0]?.name ?? '艺人')
@@ -524,7 +542,15 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
       try {
         const songs = await cat.artistSongs(id, 100, offset)
         const toTrackFor = engine.toTrack as (song: never) => Track
-        const rows = songs.map((song) => toTrackFor(song as never))
+        let rows = songs.map((song) => toTrackFor(song as never))
+        /*
+         * 第一页兜底：首屏那次已经并过热门与别家，这里只补没赶上的人。
+         * 两个 tab 同一个人、同一口径；翻页之后只追加本平台。
+         */
+        if (offset === 0) {
+          const across = name ? await songsAcrossPlatforms(name, sourceOrder(), providerId) : []
+          rows = mergeVersions([...hotRef.current, ...rows, ...across], sourceOrder())
+        }
         setAll((previous) => (offset === 0 ? rows : [...previous, ...rows]))
       } catch {
         /* 取不到就停在已经有的那些，页面上不出现「正在加载」的僵局。 */
@@ -532,7 +558,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
         setAllLoading(false)
       }
     },
-    [id, providerId]
+    [id, providerId, name]
   )
 
   const loadAlbums = useCallback(async () => {
@@ -555,7 +581,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
     } finally {
       setAlbumsLoading(false)
     }
-  }, [id, providerId])
+  }, [id, providerId, name])
 
   useEffect(() => {
     if (tab === 'all' && all.length === 0 && !allLoading) void loadAll(0)
@@ -578,21 +604,9 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
       <DetailHero
         round
         art={cover ? <img src={remoteImageUrl(sizedImage(cover, 400), 400)} alt="" /> : <Note size={34} />}
-        kicker={(platform?.displayName ?? '在线平台') + ' · 艺人'}
+        en="ARTIST"
+        kicker="艺人"
         title={name || ' '}
-        meta={
-          <span>
-            {counts
-              ? [
-                  counts.albums > 0 ? counts.albums + ' 张专辑' : '',
-                  counts.songs > 0 ? counts.songs + ' 首歌' : ''
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : '热门 ' + hot.length + ' 首'}
-            {usedSources.length > 1 ? ` · 跨 ${usedSources.length} 个平台` : ''}
-          </span>
-        }
         actions={
           <button
             className="dbtn dbtn--main"
