@@ -5,6 +5,7 @@ import type {
   JunkId,
   JunkScan,
   MemoryRelease,
+  OverlayAlign,
   StorageUsage,
   TrayClick,
   UpdateInterval,
@@ -32,7 +33,12 @@ const FALLBACK_SETTINGS: AppSettings = {
   openAfterDownload: false,
   trayClick: 'toggle',
   overlayHoverControls: true,
-  mediaCacheLimitMb: 2048
+  mediaCacheLimitMb: 2048,
+  zoomFactor: 1,
+  minimizeToTray: false,
+  overlayNextLine: true,
+  overlayTranslation: true,
+  overlayAlign: 'center'
 }
 
  interface SettingsPage {
@@ -68,6 +74,18 @@ const FALLBACK_SETTINGS: AppSettings = {
   setOverlayHoverControls(enabled: boolean): Promise<void>
   /** 在线音频缓存上限（MB）；0 表示不缓存。 */
   setMediaCacheLimit(megabytes: number): Promise<void>
+  /** 界面缩放，1 = 100%。 */
+  setZoomFactor(factor: number): Promise<void>
+  /** 最小化按钮收进托盘。 */
+  setMinimizeToTray(enabled: boolean): Promise<void>
+  /** 桌面歌词显示下一句。 */
+  setOverlayNextLine(enabled: boolean): Promise<void>
+  /** 桌面歌词显示译文。 */
+  setOverlayTranslation(enabled: boolean): Promise<void>
+  /** 桌面歌词对齐。 */
+  setOverlayAlign(align: OverlayAlign): Promise<void>
+  /** 恢复默认；localStorage 由设置页清。 */
+  resetAll(): Promise<void>
   clearCache(): Promise<void>
   refreshStorage(): Promise<void>
   releaseMemory(): Promise<void>
@@ -215,6 +233,41 @@ export function useSettingsPage(): SettingsPage {
         () => bridge.settings.setMediaCacheLimit(megabytes),
         (next) => setSettings(next)
       ),
+
+    setZoomFactor: (factor) =>
+      write(
+        () => bridge.settings.setZoomFactor(factor),
+        (next) => setSettings(next)
+      ),
+
+    setMinimizeToTray: (enabled) =>
+      write(
+        () => bridge.settings.setMinimizeToTray(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setOverlayNextLine: (enabled) =>
+      write(
+        () => bridge.settings.setOverlayNextLine(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setOverlayTranslation: (enabled) =>
+      write(
+        () => bridge.settings.setOverlayTranslation(enabled),
+        (next) => setSettings(next)
+      ),
+
+    setOverlayAlign: (align) =>
+      write(
+        () => bridge.settings.setOverlayAlign(align),
+        (next) => setSettings(next)
+      ),
+
+    resetAll: () => write(
+      () => bridge.settings.resetAll(),
+      (next) => setSettings(next)
+    ),
 
     async clearCache() {
       setClearing(true)

@@ -104,12 +104,12 @@ Aurora 的设计前提是「the shell carries no colour of its own，唯一的�
 | 示范站里的 | 落到 Aurora 的 |
 |---|---|
 | `styles.css` 的令牌段 | `src/styles/tokens.css:107-115` 旁边加 `--ease-out-quint` / `--ease-spring` / `--ease-dock` / 五档时长 |
-| `fanGeom` + `pos` 惯性 | 新建 `src/ui/page-transition.ts` 的噪声与时间轴（已实现），首页「每日推荐」换成分区组件 |
+| `fanGeom` + `pos` 惯性 | 新建 `src/ui/fly-cover.ts` 的弹簧采样与噪声（已实现），首页「每日推荐」换成分区组件 |
 | `.sweep` 切页扫光 | `src/styles/app.css:2052-2107` 的 `pageIn` 换掉；或 `src/App.tsx:461-474` 的 `is-enter` 逻辑改造 |
 | 双页交叉 | `src/App.tsx:1322` 的 `key` 保留（用于数据隔离），另加一个 `cloneNode` 的 fixed 退场层 180–200 ms |
-| `.fly-ghost` FLIP | 新建 `src/ui/page-transition.ts`（已实现）；接 `PlaylistsPage` → `PlaylistDetailPage` |
+| `.fly-ghost` FLIP | 新建 `src/ui/fly-cover.ts`（已实现）；`LocalPage` / `navigate.ts` 已接，其余入口补 `rememberCover` |
 | `.grid` 透视 | `src/styles/app.css` 歌单网格段；注意别开 `preserve-3d` |
-| 极光 `.sky` | `src/features/wallpaper/Backdrop.tsx` 或新建 `src/ui/page-transition.ts` 的帘幕段（已实现）（写在 `--accent-rgb` 上） |
+| 极光 `.sky` | `src/features/wallpaper/Backdrop.tsx` 或 `src/styles/aurora.css` 的帘幕段（已实现）（写在 `--accent-rgb` 上） |
 | `--beat` | `src/stage/levels.ts:26` 的 `createLevelReader` 已有 112 段电平，把 `levels` 写成 `:root` 变量即可复用 |
 | 手绘层 / 颗粒 | 新建 全局质感层（未做）（一个 `<svg><filter>`） |
 | 6 个开关 | `src/features/settings/motion.ts` 从布尔扩成 `full/reduced/custom` + 逐项 key（参考 RhineLabUI 的 14 个 MotionKey） |

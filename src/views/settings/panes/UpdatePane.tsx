@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { bridge, isNative } from '../../../bridge'
 import { useSettingsPage } from '../../../features/settings/store'
 import { UpdatePanel } from '../../../ui/UpdatePanel'
-import { toast } from '../../../ui/toast'
-import { Row, Rows, Sub, Toggle } from '../parts'
+import { Choice, Note, Row, Rows, SettingsCard, Toggle } from '../parts'
 import {
   ISSUES_URL,
   issueUrl,
@@ -14,31 +13,34 @@ import {
 } from '../../../features/settings/about'
 
 /**
- * 04 更新与关于。
+ * 更新与关于。
  *
  * 自动只做到「替你查一下」：查到新版本弹一张「发现新版本」，下载与安装都得
- * 自己按。这样界面上写着的每一件事都真的会发生，也不会有后台悄悄把 136 MB
+ * 自己按。这样界面上写着的每一件事都真的会发生，也不会有后台悄悄把安装包
  * 拉回来、再找时机换掉进程。
+ *
  * 版本信息与仓库链接留在这一屏：它们回答的是「这个应用现在是什么状态，坏了去哪」。
- * 数据与缓存搬到了 05 清理与维护，因为那里还有释放内存，两件事该放在一起。
+ * 导出日志搬到了维护页——那是诊断动作，不是版本信息。
  */
 export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const { updateInterval } = page.settings
 
   return (
     <>
-      <Sub title="更新">
-        <UpdatePanel />
+      <SettingsCard
+        title="更新"
+        hint="只检查有没有新版本，不会自己下载，也不会自己替换进程。"
+      >
         <Rows>
           {/*
            * 「自动检查」和「检查频率」原来并排两行：频率里又有一个「手动」档，
-           * 跟上面那颗「检查更新」按钮说的是同一件事，读起来像三个开关管一件事
-           * （2026-11-15 用户原话：「更新和自动更已经是一个功能了」）。
-           *
+           * 跟上面那颗「检查更新」按钮说的是同一件事，读起来像三个开关管一件事。
            * 现在合成一个：开关管「要不要自己查」，频率只在开着时出现。
            */}
           <Row
             label="自动检查"
+            desc="开着时按下面频率在启动后查一次；查到会弹提示，你按了才下载。"
+            id="update-auto"
           >
             <Toggle
               checked={updateInterval !== 'manual'}
@@ -48,40 +50,35 @@ export function UpdatePane({ page }: { page: ReturnType<typeof useSettingsPage> 
             />
           </Row>
           {updateInterval !== 'manual' ? (
-            <Row label="检查频率">
-              <div className="seg">
-                {(
-                  [
-                    ['daily', '每天'],
-                    ['weekly', '每周']
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    className={updateInterval === value ? 'is-active' : ''}
-                    disabled={page.busy}
-                    onClick={() => void page.setUpdateInterval(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            <Row label="检查频率" desc="只影响检查，不影响已经下载好的包；手动检查任何时候都能点。">
+              <Choice
+                value={updateInterval}
+                options={[
+                  { id: 'daily', name: '每天' },
+                  { id: 'weekly', name: '每周' }
+                ]}
+                label="更新检查频率"
+                disabled={page.busy}
+                onChange={(next) => void page.setUpdateInterval(next)}
+              />
             </Row>
           ) : null}
         </Rows>
-      </Sub>
+      </SettingsCard>
 
-      <Sub title="关于">
+      <SettingsCard title="当前版本" hint="手动检查、下载进度与安装按钮都在这一块里。">
+        <UpdatePanel />
+      </SettingsCard>
+
+      <SettingsCard title="关于" hint="版本与运行环境对不上时，先确认界面是不是热更过。">
         <About />
-      </Sub>
+      </SettingsCard>
     </>
   )
 }
 
 function About() {
   const [info, setInfo] = useState<Awaited<ReturnType<typeof bridge.info>> | null>(null)
-  /* 导出日志的两态：正在写、以及写到哪儿了（取消时是空串）。 */
-  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -98,23 +95,6 @@ function About() {
 
   const open = (url: string) => {
     void bridge.app.openExternal(url)
-  }
-
-  /*
-   * 导出诊断日志。
-   *
-   * 主进程会先把 token / cookie / 房间令牌替换掉，所以这份文件可以直接发给
-   * 别人；用户取消保存时返回空串，那也算一次正常结束，不提示错误。
-   */
-  const exportLogs = async (): Promise<void> => {
-    setExporting(true)
-    try {
-      const path = await bridge.app.exportLogs()
-      /* 取消保存时拿到空串：不提示，那也是一次正常结束。 */
-      if (path) toast(`日志已导出：${path}`)
-    } finally {
-      setExporting(false)
-    }
   }
 
   /*
@@ -172,36 +152,28 @@ function About() {
         ) : null}
       </dl>
       <Rows>
-        <Row label="项目主页">
+        <Row label="项目主页" desc="源码、更新日志与已知问题都在这里。" id="update-about">
           <button className="btn btn--small" onClick={() => open(REPO_URL)}>
             github.com/LN334/aurora ↗
           </button>
         </Row>
-        <Row
-          label="导出日志"
-        >
-          <button
-            className="btn btn--small"
-            disabled={exporting}
-            onClick={() => void exportLogs()}
-          >
-            {exporting ? '正在导出…' : '导出'}
-          </button>
-        </Row>
-        <Row label="反馈问题">
+        <Row label="反馈问题" desc="会预填版本与运行环境；导出日志在维护页。">
           <button className="btn btn--small" onClick={() => open(issueUrl(facts))}>
             反馈 ↗
           </button>
         </Row>
-        <Row label="开源协议">
+        <Row label="开源协议" desc="MIT，可自行修改与分发。">
           <span className="specs__path">MIT</span>
         </Row>
-        <Row label="已提的问题">
+        <Row label="已提的问题" desc="看看别人遇到过什么，或确认是不是已知问题。">
           <button className="btn btn--small" onClick={() => open(ISSUES_URL)}>
             打开 Issue 列表 ↗
           </button>
         </Row>
       </Rows>
+      <Note>
+        这个版本不会自动安装更新；下载完会提示重启，由你自己点。
+      </Note>
     </>
   )
 }

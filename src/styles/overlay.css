@@ -74,6 +74,19 @@ body.overlay-body {
   -webkit-app-region: no-drag;
 }
 
+/*
+ * 靠左：贴屏幕边的人不希望歌词悬在中间。只改横向起点，字号、行高、阴影都不动，
+ * 换对齐不该顺手改变文字的胖瘦。
+ */
+.lyric-stack.is-left {
+  align-items: flex-start;
+}
+
+.lyric-stack.is-left .lyric-words,
+.lyric-stack.is-left .lyric-current {
+  align-items: flex-start;
+}
+
 .lyric-words {
   position: relative;
   display: flex;

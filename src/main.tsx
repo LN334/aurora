@@ -4,6 +4,7 @@ import './styles/app.css'
 import './styles/player.css'
 import './styles/roam.css'
 import { App } from './App'
+import { BootBoundary } from './ui/BootBoundary'
 import './features/player/actions'
 /*
  * Playback wiring for the online source. Imported for its side effects, exactly
@@ -89,7 +90,11 @@ if (!container) throw new Error('Root container #root is missing from index.html
  * 主进程的 console-message 转发进 startup.log，所以这几行别删。
  */
 console.log('[boot] module evaluated', Math.round(performance.now()))
-createRoot(container).render(<App />)
+createRoot(container).render(
+  <BootBoundary>
+    <App />
+  </BootBoundary>
+)
 console.log('[boot] render dispatched', Math.round(performance.now()))
 // 双 rAF：第一个回调在下一帧绘制前，第二个在那一帧已经上屏之后。
 requestAnimationFrame(() => {

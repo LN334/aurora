@@ -112,6 +112,12 @@ export function Overlay() {
   const [state, setState] = useState<OverlayState>(IDLE)
   const [locked, setLocked] = useState(true)
   const [size, setSize] = useState(DEFAULT_SIZE)
+  /* 显示偏好（下一句 / 译文 / 对齐）由设置页写、主进程推过来。 */
+  const [display, setDisplay] = useState<{
+    showNext: boolean
+    showTranslation: boolean
+    align: 'center' | 'left'
+  }>({ showNext: true, showTranslation: true, align: 'center' })
   const [hovering, setHovering] = useState(false)
   /** Size the current line had to be rendered at to fit the window, or null when it fits. */
   const [fitSize, setFitSize] = useState<number | null>(null)
@@ -127,7 +133,13 @@ export function Overlay() {
     void bridge.overlay.getStatus().then((status) => {
       setLocked(status.locked)
       setSize(status.size)
+      setDisplay({
+        showNext: status.showNext,
+        showTranslation: status.showTranslation,
+        align: status.align
+      })
     })
+    return bridge.overlay.onDisplay(setDisplay)
   }, [])
 
   /*
@@ -375,7 +387,7 @@ export function Overlay() {
         ref={stack}
         className={`lyric-stack${locked ? ' is-locked' : ' is-unlocked'}${active ? ' is-active' : ''}${
           state.playing ? '' : ' is-paused'
-        }`}
+        }${display.align === 'left' ? ' is-left' : ''}`}
         style={{
           ['--size' as string]: `${size}px`,
           ['--accent' as string]: state.accent || '#7d8899',
@@ -396,7 +408,9 @@ export function Overlay() {
                     {lineParts.main}
                   </span>
                 </div>
-                {lineParts.sub ? <div className="lyric-line__sub">{lineParts.sub}</div> : null}
+                {display.showTranslation && lineParts.sub ? (
+                  <div className="lyric-line__sub">{lineParts.sub}</div>
+                ) : null}
               </>
             ) : (
               // Lyrics are not the only useful thing to show: this keeps the strip
@@ -410,7 +424,9 @@ export function Overlay() {
               </div>
             )}
           </div>
-          {state.text && nextParts.main ? <div className="lyric-next">{nextParts.main}</div> : null}
+          {display.showNext && state.text && nextParts.main ? (
+            <div className="lyric-next">{nextParts.main}</div>
+          ) : null}
         </div>
 
         <div className="lyric-toolbar" ref={toolbar}>

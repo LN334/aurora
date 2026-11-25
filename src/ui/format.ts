@@ -41,14 +41,23 @@ export function formatSince(at: number): string {
   return new Date(at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
 }
 
-export function formatSpan(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 1) return '0 秒'
+/** 一段时长的最小单元：数字与单位分开，好让统计卡把数字放大、单位压小。 */
+type SpanPart = { n: number; u: string }
+
+export function spanParts(seconds: number): SpanPart[] {
+  if (!Number.isFinite(seconds) || seconds < 1) return [{ n: 0, u: '秒' }]
   const total = Math.round(seconds)
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
   const s = total % 60
-  if (h > 0) return m > 0 ? `${h} 小时 ${m} 分` : `${h} 小时`
-  if (m >= 10) return `${m} 分钟`
-  if (m > 0) return s > 0 ? `${m} 分 ${s} 秒` : `${m} 分钟`
-  return `${s} 秒`
+  if (h > 0) return m > 0 ? [{ n: h, u: '小时' }, { n: m, u: '分' }] : [{ n: h, u: '小时' }]
+  if (m >= 10) return [{ n: m, u: '分钟' }]
+  if (m > 0) return s > 0 ? [{ n: m, u: '分' }, { n: s, u: '秒' }] : [{ n: m, u: '分钟' }]
+  return [{ n: s, u: '秒' }]
+}
+
+export function formatSpan(seconds: number): string {
+  return spanParts(seconds)
+    .map((part) => `${part.n} ${part.u}`)
+    .join(' ')
 }

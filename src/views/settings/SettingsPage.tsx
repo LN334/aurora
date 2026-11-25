@@ -1,139 +1,271 @@
-import { useState } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useState } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { useSettingsPage } from '../../features/settings/store'
 import { useUpdate } from '../../features/updates/store'
-import { Part } from './parts'
+import {
+  Album,
+  Close,
+  Compass,
+  DesktopLyrics,
+  Download,
+  Folder,
+  Library,
+  List,
+  Lyrics,
+  Play,
+  Refresh,
+  Search,
+  Settings,
+  Sliders,
+  Trash,
+  User,
+  Volume,
+  Wave
+} from '../../ui/icons'
+import {
+  SETTINGS_GROUPS,
+  SETTINGS_PAGES,
+  searchSettings,
+  settingsPage
+} from './schema'
+import type { SettingsIcon, SettingsPageId, SettingsSearchHit } from './schema'
 import { AppearancePane } from './panes/AppearancePane'
 import { HomePane } from './panes/HomePane'
-import { SystemPane } from './panes/SystemPane'
+import { MotionPane } from './panes/MotionPane'
+import { OverlayPane } from './panes/OverlayPane'
 import { PlaybackPane } from './panes/PlaybackPane'
-import { PlatformsPane } from './panes/PlatformsPane'
-import { PartyPane } from './panes/PartyPane'
+import { QualityPane } from './panes/QualityPane'
+import { LyricsPane } from './panes/LyricsPane'
 import { RecommendPane } from './panes/RecommendPane'
-import { DownloadPane } from './panes/DownloadPane'
+import { PartyPane } from './panes/PartyPane'
+import { GeneralPane } from './panes/GeneralPane'
 import { HotkeysPane } from './panes/HotkeysPane'
+import { DownloadPane } from './panes/DownloadPane'
+import { StoragePane } from './panes/StoragePane'
+import { PlatformsPane } from './panes/PlatformsPane'
 import { UpdatePane } from './panes/UpdatePane'
 import { MaintenancePane } from './panes/MaintenancePane'
+import { ResetPane } from './panes/ResetPane'
 import './settings.css'
+
+const ICONS: Record<SettingsIcon, ComponentType<{ size?: number }>> = {
+  sliders: Sliders,
+  library: Library,
+  wave: Wave,
+  desktopLyrics: DesktopLyrics,
+  play: Play,
+  volume: Volume,
+  lyrics: Lyrics,
+  compass: Compass,
+  user: User,
+  settings: Settings,
+  list: List,
+  download: Download,
+  folder: Folder,
+  album: Album,
+  refresh: Refresh,
+  trash: Trash
+}
+
+type PageState = ReturnType<typeof useSettingsPage>
+
+/**
+ * 二级页 → 内容。
+ *
+ * 一张表而不是一长串条件：加页时类型会要求这里补齐，忘了接面板编译就红。
+ */
+const PANES: Record<SettingsPageId, (page: PageState) => ReactNode> = {
+  appearance: () => <AppearancePane />,
+  home: () => <HomePane />,
+  motion: () => <MotionPane />,
+  overlay: (page) => <OverlayPane page={page} />,
+  playback: () => <PlaybackPane />,
+  quality: () => <QualityPane />,
+  lyrics: (page) => <LyricsPane page={page} />,
+  recommend: () => <RecommendPane />,
+  party: () => <PartyPane />,
+  general: (page) => <GeneralPane page={page} />,
+  keys: () => <HotkeysPane />,
+  downloads: (page) => <DownloadPane page={page} />,
+  storage: (page) => <StoragePane page={page} />,
+  platforms: () => <PlatformsPane />,
+  update: (page) => <UpdatePane page={page} />,
+  maintenance: (page) => <MaintenancePane page={page} />,
+  reset: (page) => <ResetPane page={page} />
+}
+
+const ACTIVE_KEY = 'aurora.settings.page'
+
+/** 记住上次看的二级页：从播放页进设置又回到「外观」很烦人。 */
+function initialPage(): SettingsPageId {
+  try {
+    const saved = sessionStorage.getItem(ACTIVE_KEY)
+    if (saved && SETTINGS_PAGES.some((page) => page.id === saved)) {
+      return saved as SettingsPageId
+    }
+  } catch {
+    // 隐私模式不给读，回默认页即可。
+  }
+  return 'appearance'
+}
+
+function rememberPage(id: SettingsPageId): void {
+  try {
+    sessionStorage.setItem(ACTIVE_KEY, id)
+  } catch {
+    // 记不住不影响这一程。
+  }
+}
+
+interface Flash {
+  key: string
+  /** 同一个键连点两次也要能再滚一次，所以带个序号。 */
+  n: number
+}
 
 /**
  * 设置页。
  *
- * 版式：顶上一行分区带，下面只渲染当前这一段。
+ * 结构：左侧固定目录（搜索 + 一级分组 + 二级页），右侧独立滚动的正文。
+ * 一级分组只在目录里出现，页标题上方再标一次组名——不然「通用」和「维护」
+ * 谁是谁的上层，又得靠猜。
  *
- * 上一版是「左目录 + 右内容」，可主窗口左边本来就有一条主导航，设置页再长出
- * 一条次导航，两列竖排并排贴在一起，读起来像栏里套栏。分区带把八件事一次
- * 平铺出来，点哪段就只留哪段——设置里几乎不需要两段对照着改。
- *
- * 这里只放偏好：怎么播、界面长什么样、键位是什么、以及版本与数据。
- * 「我是谁、登了哪些平台」不在这——它是账号页，入口是侧栏最底下那张头像，
- * 理由见 src/views/AccountPage.tsx。
+ * 与主窗口左侧那条图标 Rail 的区别靠材质与位置做：这里是一条窄的实底侧栏，
+ * 有搜索框、有分组标题、宽度只有 Rail 的两倍多，读起来是「面板里面的一层」，
+ * 不是第二条主导航。
  */
-interface SettingsSection {
-  id: string
-  label: string
-}
-
-interface SettingsGroup {
-  id: string
-  sections: SettingsSection[]
-}
-
-const GROUPS: SettingsGroup[] = [
-  {
-    id: 'listen',
-    sections: [
-      { id: 'platforms', label: '在线平台' },
-      { id: 'playback', label: '播放与音质' },
-      { id: 'party', label: '一起听' },
-      { id: 'recommend', label: '推荐来源' }
-    ]
-  },
-  {
-    id: 'look',
-    sections: [
-      { id: 'home', label: '首页' },
-      { id: 'appearance', label: '外观与桌面' },
-      { id: 'keys', label: '快捷键' }
-    ]
-  },
-  {
-    id: 'app',
-    sections: [
-      { id: 'downloads', label: '下载' },
-      { id: 'system', label: '启动与系统' },
-      { id: 'maintenance', label: '清理与维护' },
-      { id: 'update', label: '更新与关于' }
-    ]
-  }
-]
-
-const SECTIONS = GROUPS.flatMap((group) => group.sections)
-
-/**
- * 分段 → 面板。
- *
- * 用一张表而不是一长串三元：加一段要动的地方只有 GROUPS 和这里两处，
- * 也顺手把「哪个 id 忘了接面板」这种漏项变成类型能看出来的空位。
- */
-type PageState = ReturnType<typeof useSettingsPage>
-type PaneFactory = (page: PageState) => ReactNode
-
-const PANES: Record<string, PaneFactory> = {
-  platforms: () => <PlatformsPane />,
-  playback: (page) => <PlaybackPane page={page} />,
-  party: () => <PartyPane />,
-  recommend: () => <RecommendPane />,
-  downloads: (page) => <DownloadPane page={page} />,
-  home: () => <HomePane />,
-  appearance: (page) => <AppearancePane page={page} />,
-  system: (page) => <SystemPane page={page} />,
-  keys: () => <HotkeysPane />,
-  maintenance: (page) => <MaintenancePane page={page} />,
-  update: (page) => <UpdatePane page={page} />
-}
-
 export function SettingsPage() {
-  // 只在这里读一次设置：useSettingsPage 是普通 hook（内部有 IPC 与订阅），
-  // 每个分区各读一次会重复请求，也会让 busy/error 各说各的。
   const page = useSettingsPage()
   const updateReady = useUpdate((state) => state.result?.state === 'available' && !state.noted)
-  const [active, setActive] = useState(SECTIONS[0].id)
-  const section = SECTIONS.find((item) => item.id === active) ?? SECTIONS[0]
-  const render = PANES[section.id]
+  const [active, setActive] = useState<SettingsPageId>(initialPage)
+  const [query, setQuery] = useState('')
+  const [flash, setFlash] = useState<Flash | null>(null)
+  const def = settingsPage(active)
+  const group = SETTINGS_GROUPS.find((item) => item.id === def.group)
+  const hits = searchSettings(query)
+  const render = PANES[active]
+
+  useEffect(() => {
+    rememberPage(active)
+  }, [active])
+
+  /*
+   * 跳到命中行：等这一页渲染完再量位置。高亮用一次性的类，动画结束就摘掉，
+   * 不留「永远是选中态」的假状态。
+   */
+  useEffect(() => {
+    if (!flash) return
+    const target = document.querySelector<HTMLElement>(`[data-set-key="${flash.key}"]`)
+    if (!target) return
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    target.classList.add('is-flash')
+    const timer = window.setTimeout(() => target.classList.remove('is-flash'), 1700)
+    return () => {
+      window.clearTimeout(timer)
+      target.classList.remove('is-flash')
+    }
+  }, [flash, active])
+
+  const jump = (hit: SettingsSearchHit): void => {
+    setQuery('')
+    setActive(hit.page)
+    if (hit.key) setFlash({ key: hit.key, n: Date.now() })
+    if (hit.page === 'update') useUpdate.getState().note()
+  }
 
   return (
     <div className="settings">
-      <div className="settings__tabs" aria-label="设置分区">
-        {GROUPS.map((group) => (
-          <div className="settings__tabgroup" key={group.id}>
-            {group.sections.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`settings__tab${active === item.id ? ' is-active' : ''}`}
-                aria-current={active === item.id ? 'true' : undefined}
-                onClick={() => {
-                  setActive(item.id)
-                  // 打开这一格就等于看到了有新版，左栏那颗点可以收了。
-                  if (item.id === 'update') useUpdate.getState().note()
-                }}
-              >
-                {item.label}
-                {item.id === 'update' && updateReady ? (
-                  <span className="settings__tab__dot" aria-hidden="true" />
-                ) : null}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
+      <aside className="settings__side">
+        <div className="settings__search">
+          <Search size={14} />
+          <input
+            value={query}
+            placeholder="搜索设置"
+            aria-label="搜索设置"
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setQuery('')
+              if (event.key === 'Enter' && hits[0]) jump(hits[0])
+            }}
+          />
+          {query ? (
+            <button
+              className="settings__search-clear"
+              type="button"
+              aria-label="清空搜索"
+              onClick={() => setQuery('')}
+            >
+              <Close size={12} />
+            </button>
+          ) : null}
+        </div>
 
-      <div className="settings__body">
-        {page.error ? <p className="settings__error">{page.error}</p> : null}
-        <Part zh={section.label} id={section.id}>
-          {render ? render(page) : null}
-        </Part>
+        {query ? (
+          <div className="settings__results" role="list">
+            {hits.length === 0 ? (
+              <p className="settings__empty">没有匹配的设置。换个说法试试：字号、托盘、音质、缓存。</p>
+            ) : (
+              hits.map((hit) => (
+                <button
+                  key={hit.page + ':' + (hit.key ?? 'page')}
+                  className="settings__result"
+                  type="button"
+                  role="listitem"
+                  onClick={() => jump(hit)}
+                >
+                  <span className="settings__result-title">{hit.title}</span>
+                  <span className="settings__result-path">{hit.context}</span>
+                </button>
+              ))
+            )}
+          </div>
+        ) : (
+          <nav className="settings__nav" aria-label="设置目录">
+            {SETTINGS_GROUPS.map((item) => (
+              <div className="settings__group" key={item.id}>
+                <p className="settings__group-title">{item.label}</p>
+                {item.pages.map((entry) => {
+                  const Icon = ICONS[entry.icon]
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={'settings__nav-item' + (entry.id === active ? ' is-active' : '')}
+                      data-page={entry.id}
+                      aria-current={entry.id === active ? 'page' : undefined}
+                      onClick={() => {
+                        setActive(entry.id)
+                        if (entry.id === 'update') useUpdate.getState().note()
+                      }}
+                    >
+                      <Icon size={15} />
+                      <span>{entry.label}</span>
+                      {entry.id === 'update' && updateReady ? (
+                        <span className="settings__nav-dot" aria-hidden="true" />
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </nav>
+        )}
+
+        <p className="settings__side-foot">改动即时生效 · 自动保存</p>
+      </aside>
+
+      <div className="settings__scroll">
+        <div className="settings__page">
+          <header className="settings__head">
+            <p className="settings__eyebrow">{group?.label ?? '设置'}</p>
+            <h2 className="settings__title">{def.label}</h2>
+            <p className="settings__blurb">{def.blurb}</p>
+          </header>
+
+          {page.error ? <p className="settings__error">{page.error}</p> : null}
+
+          <div className="settings__cards">{render(page)}</div>
+        </div>
       </div>
     </div>
   )

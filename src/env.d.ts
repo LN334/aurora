@@ -386,6 +386,12 @@ export interface OverlayStatus {
   size: number
   /** 窗口是否真在屏幕上；舞台或主窗全屏时窗口还在，只是被收起来了。 */
   visible: boolean
+  /** 下一句是否显示。 */
+  showNext: boolean
+  /** 译文是否显示。 */
+  showTranslation: boolean
+  /** 文字对齐。 */
+  align: OverlayAlign
 }
 
  interface OverlayApi {
@@ -435,6 +441,15 @@ export interface OverlayStatus {
    * 别的程序全屏这一版不处理，要原生模块，见 docs/roadmap.md 的 P1-3。
    */
   setSuppressed(suppressed: boolean): Promise<OverlayStatus>
+  /** 显示偏好被设置页改动时推给歌词窗口；返回取消订阅。 */
+  onDisplay(handler: (display: OverlayDisplay) => void): () => void
+}
+
+/** 桌面歌词的显示偏好。 */
+export interface OverlayDisplay {
+  showNext: boolean
+  showTranslation: boolean
+  align: OverlayAlign
 }
 
  interface DesktopLyricsSettings {
@@ -451,10 +466,8 @@ export interface OverlayStatus {
  * per-window - the settings page could not see or change what the overlay had
  * written, which is exactly the bug this shape avoids.
  *
- * There is no appearance/theme entry. Aurora has exactly one palette (a cool
- * graphite ramp whose only colour comes from the artwork) and `tokens.css`
- * already declares `color-scheme: dark`, so a theme switch would move nothing a
- * user can see. A setting that does nothing is worse than an absent one.
+ * 外观类偏好（主题、背景、取色、字号、首页分区……）不在这里：它们只被渲染层
+ * 读，存 localStorage 即可当场生效，塞进主进程反而多一次 IPC 与一处分叉。
  */
 export interface AppSettings {
   onlineLyrics: boolean
@@ -480,7 +493,20 @@ export interface AppSettings {
   overlayHoverControls: boolean
   /** 在线音频缓存上限（MB）；0 表示不缓存。 */
   mediaCacheLimitMb: number
+  /** 界面缩放：1 = 100%，范围 0.5–1.5。 */
+  zoomFactor: number
+  /** 点最小化按钮时收进托盘，而不是留在任务栏。 */
+  minimizeToTray: boolean
+  /** 桌面歌词显示下一句。 */
+  overlayNextLine: boolean
+  /** 桌面歌词显示译文。 */
+  overlayTranslation: boolean
+  /** 桌面歌词的文字对齐。 */
+  overlayAlign: OverlayAlign
 }
+
+/** 桌面歌词的对齐方式。 */
+export type OverlayAlign = 'center' | 'left'
 
 /** 在线音频缓存目录的占用与预算。 */
 export interface MediaCacheStats {
@@ -507,6 +533,13 @@ interface MediaCacheApi {
   setTrayClick(mode: TrayClick): Promise<AppSettings>
   setOverlayHoverControls(enabled: boolean): Promise<AppSettings>
   setMediaCacheLimit(megabytes: number): Promise<AppSettings>
+  setZoomFactor(factor: number): Promise<AppSettings>
+  setMinimizeToTray(enabled: boolean): Promise<AppSettings>
+  setOverlayNextLine(enabled: boolean): Promise<AppSettings>
+  setOverlayTranslation(enabled: boolean): Promise<AppSettings>
+  setOverlayAlign(align: OverlayAlign): Promise<AppSettings>
+  /** 主进程设置恢复出厂值；localStorage 由设置页自己清。 */
+  resetAll(): Promise<AppSettings>
   /** Bytes on disk for the cache and data directories; null when unmeasurable. */
   getStorage(): Promise<StorageUsage>
   /**

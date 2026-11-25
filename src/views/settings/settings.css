@@ -1,344 +1,465 @@
 /* 设置页专属样式。
-   复用 tokens.css 的变量与 app.css 既有组件（.btn/.seg/.switch/.icon-btn/.specs），
-   这里只放这一页自己的排版：分区、行、滑块、危险操作区、壁纸库。 */
+   三级层级：左侧一级分组 → 二级页 → 页内小节卡 → 行（名称 + 说明 + 控件）。
+   颜色、字号、间距、圆角全部取自 tokens.css；按钮与开关沿用全局 .btn/.seg/.switch。 */
 
-
-/* 分区带：一路横排，所有相邻分区等距。
-   以前组与组之间隔一条发丝线，结果组内 2px、组间 23px，一眼看过去是「三簇」
-   而不是一排——分组只是渲染顺序，不必在视觉上再断一次。 */
-.settings__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 2px;
-  padding-bottom: var(--s3);
-  border-bottom: var(--line-soft);
+/* 设置页自带两栏与独立滚动，正文不再套 main__body 的内边距。 */
+.main__body[data-view='settings'] {
+  padding: 0;
+  overflow: hidden;
 }
 
-.settings__tabgroup {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.settings {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  /* 整页一块底：壁纸再从两栏的缝里透出来，行与行之间就不再各自挂一块玻璃。 */
+  background: rgb(var(--plane-rgb) / 0.55);
+  backdrop-filter: blur(22px) saturate(1.05);
 }
 
-.settings__tab {
-  padding: 6px 10px;
+/* =============================================================================
+   左栏：搜索 + 分组目录
+   ========================================================================== */
+
+.settings__side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+  padding: 16px 10px 8px 14px;
+  border-right: 1px solid rgb(var(--tint-rgb) / 0.08);
+  background: rgb(var(--tint-rgb) / 0.02);
+}
+
+.settings__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.1);
+  border-radius: 8px;
+  background: rgb(var(--tint-rgb) / 0.04);
+  color: var(--text-low);
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background-color var(--dur-1) var(--ease-out);
+}
+
+.settings__search:focus-within {
+  border-color: rgb(var(--accent-rgb) / 0.5);
+  background: rgb(var(--tint-rgb) / 0.06);
+}
+
+.settings__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  outline: none;
+}
+
+.settings__search input::placeholder {
+  color: var(--text-low);
+}
+
+.settings__search-clear {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-mid);
+  cursor: pointer;
+}
+
+.settings__search-clear:hover {
+  background: rgb(var(--tint-rgb) / 0.14);
+  color: var(--text-hi);
+}
+
+.settings__nav,
+.settings__results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+/*
+ * 窗口矮到放不下整目录时（940x620 就近），最后两组会被截在底部；全局把滚动条
+ * 藏了，看起来就像目录到「存储与清理」为止。这里单独还一条 6px 的细杆，只在这
+ * 两个滚动区出现，且没有溢出时不会占位。
+ *
+ * 不能写 scrollbar-width: thin / scrollbar-color：Chromium 会改用系统滚动条，
+ * 上下各带一个三角按钮。auto 加下面隐藏 button 的规则才是纯滑块。
+ */
+.settings__nav,
+.settings__results {
+  scrollbar-width: auto !important;
+  scrollbar-color: auto !important;
+}
+
+.settings__nav::-webkit-scrollbar,
+.settings__results::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+  height: 0 !important;
+}
+
+.settings__nav::-webkit-scrollbar-button,
+.settings__results::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.settings__nav::-webkit-scrollbar-thumb,
+.settings__results::-webkit-scrollbar-thumb {
+  background: rgb(var(--tint-rgb) / 0.24);
+  border-radius: 99px;
+}
+
+.settings__nav::-webkit-scrollbar-track,
+.settings__results::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings__group + .settings__group {
+  margin-top: 6px;
+}
+
+.settings__group-title {
+  margin: 0 0 2px;
+  padding: 0 9px;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--text-low);
+}
+
+.settings__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 3px 9px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--text-mid);
-  font-family: inherit;
+  font: inherit;
   font-size: var(--fs-body);
-  line-height: 1.45;
+  line-height: 1.4;
+  text-align: left;
   cursor: pointer;
-  /* 悬停是「手指碰到」的回应，用最短那档，缓动走全局的 ease-out。 */
   transition:
     background-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
 
-.settings__tab:hover {
-  /* 不用 color-mix：浅色主题下 --text-hi 是近黑，混出来的底在浅背景上
-     偏重，看起来像「只有这一块还是深色」。墨色 token 深浅各一套，稳。 */
-  background: rgb(var(--tint-rgb) / 0.06);
+.settings__nav-item svg {
+  flex: none;
+  opacity: 0.72;
+}
+
+.settings__nav-item:hover {
+  background: rgb(var(--tint-rgb) / 0.05);
   color: var(--text-hi);
 }
 
-.settings__tab.is-active {
-  background: rgb(var(--tint-rgb) / 0.1);
+.settings__nav-item.is-active {
+  background: rgb(var(--accent-rgb) / 0.14);
   color: var(--text-hi);
   font-weight: 600;
 }
 
-/* 有新版时「更新与关于」后面那颗点：跟左栏是同一颗，只是换了落点。 */
-.settings__tab__dot {
-  display: inline-block;
+.settings__nav-item.is-active svg {
+  opacity: 1;
+  color: var(--accent-strong);
+}
+
+/* 有新版时挂在「更新与关于」右侧，不额外占一行。 */
+.settings__nav-dot {
   width: 5px;
   height: 5px;
-  margin-left: 5px;
+  margin-left: auto;
+  flex: none;
   border-radius: 50%;
   background: #ff6b5e;
   box-shadow: 0 0 0 1.5px rgb(28 18 16 / 0.35);
-  vertical-align: 2px;
   animation: rr-pulse 2.4s ease-in-out infinite;
 }
 
-.settings__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s5);
-  min-width: 0;
-  /*
-   * 铺满内容区：之前 820 居中，两边各空两百多，看着像中间插了一小块。
-   * 宽窗口下行会拉长——值那侧仍是自然宽度靠右，读一行不用来回扫到左端。
-   */
-  width: 100%;
-  max-width: none;
-  margin-inline: 0;
-  /*
-   * 整列一块玻璃。
-   *
-   * 行表本身是透明的（只有发丝线），壁纸一花，标题与说明就直接压在画面上了——
-   * 实测在亮色场景壁纸下几乎读不出来。所以底色挪到这里：整列一层，行与行之间
-   * 不再各包一张卡。
-   */
-  padding: var(--s5) var(--s6) var(--s6);
-  border-radius: var(--r-panel);
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
-  background: rgb(var(--plane-rgb) / 0.58);
-  backdrop-filter: blur(18px) saturate(1.1);
+.settings__side-foot {
+  margin: 2px 8px 0;
+  padding-top: 8px;
+  border-top: var(--line-soft);
+  font-size: var(--fs-micro);
+  color: var(--text-low);
 }
 
+/* 搜索结果：标题一行、所在页一行，比目录项多一行上下文。 */
+.settings__result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
 
+.settings__result:hover {
+  background: rgb(var(--tint-rgb) / 0.06);
+}
 
+.settings__result-title {
+  color: var(--text-hi);
+  font-size: var(--fs-meta);
+}
 
+.settings__result-path {
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}
+
+.settings__empty {
+  margin: 8px 0 0;
+  padding: 0 9px;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  line-height: 1.7;
+}
 
 /* =============================================================================
-   编号分区（01 / 02 / 03 / 04）
-
-   版式借自参考项目的 SYSTEM SETTINGS：编号方块、英文小标、中文名，右边一条发丝线
-   把抬头收住；行内 label 左、控件右。颜色与字号全部来自 tokens。
+   右栏：页标题 + 小节卡
    ========================================================================== */
 
-.set-part {
-  display: flex;
-  flex-direction: column;
+.settings__scroll {
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 30px clamp(22px, 3.2vw, 52px) 64px;
 }
 
-/* 分区之间只用一条发丝线加留白分开：四个分区是同一页的四段，不是四个卡片。 */
-.set-part + .set-part {
-  padding-top: var(--s5);
-  border-top: var(--line-soft);
+.settings__page {
+  width: 100%;
+  max-width: 840px;
+  margin-inline: auto;
 }
 
-.set-part__head {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  margin-bottom: var(--s2);
+.settings__head {
+  margin-bottom: 20px;
 }
 
-/* 编号方块：深色小块 + 浅色数字。18px 高与 11px 字对齐，读起来像一个标签而不是按钮。 */
-.set-part__num {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 18px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  background: var(--ink-700);
-  color: var(--text-hi);
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
-
-.set-part__en {
-  flex-shrink: 0;
+.settings__eyebrow {
+  margin: 0 0 5px;
+  color: var(--text-low);
   font-size: var(--fs-micro);
   font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--text-low);
-  white-space: nowrap;
+  letter-spacing: 0.1em;
 }
 
-.set-part__title {
-  flex-shrink: 0;
+.settings__title {
+  margin: 0;
+  color: var(--text-hi);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.settings__blurb {
+  margin: 6px 0 0;
+  max-width: 66ch;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.7;
+}
+
+.settings__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 小节卡：比整页底再亮一点点，用一圈发丝线收住，不投影。 */
+.set-card {
+  min-width: 0;
+  padding: 16px 20px 8px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border-radius: var(--r-panel);
+  background: rgb(var(--tint-rgb) / 0.035);
+}
+
+.set-card__head {
+  padding-bottom: 4px;
+}
+
+.set-card__title {
+  margin: 0;
+  color: var(--text-hi);
   font-size: var(--fs-title);
   font-weight: 600;
-  color: var(--text-hi);
-  white-space: nowrap;
 }
 
-/* 右侧发丝线：把「编号 + 英文 + 中文」这一行收住，视线自然回到左侧。 */
-.set-part__rule {
-  flex: 1;
-  min-width: var(--s4);
-  border-top: var(--line-soft);
-}
-
-.set-part__body {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 分区小标题：沿用 app 里 .accounts__heading 的做法（11px / 500 / text-low）。 */
-.set-sub {
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--s4);
-}
-
-.set-sub:first-child {
-  padding-top: 0;
-}
-
-.set-sub__head {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 0 2px var(--s3);
-}
-
-.set-sub__title {
-  position: relative;
-  flex-shrink: 0;
-  padding-left: 9px;
-  font-size: var(--fs-meta);
-  font-weight: 600;
-  color: var(--text-mid);
-}
-/* 分组标题左侧一小截竖线：卡是淡底的，标题得比卡更“硬”一点才分得开两层。 */
-.set-sub__title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 2px;
-  height: 11px;
-  border-radius: 1px;
-  background: rgb(var(--tint-rgb) / 0.28);
-  translate: 0 -50%;
-}
-
-.set-sub__body {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 一组的行容器：行自己只画下边线，第一行靠 .settings__row:first-child 补上边线。 */
-.set-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 行下方的一排操作。 */
-.set-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--s3);
-  padding: var(--s3) 2px 0;
-}
-
-/* 空态：一句话，不是一张卡片。 */
-.set-empty {
-  padding: var(--s3) 2px;
-  font-size: var(--fs-meta);
-  line-height: 1.6;
+.set-card__hint {
+  margin: 4px 0 0;
   color: var(--text-low);
+  font-size: var(--fs-meta);
+  line-height: 1.65;
 }
 
-/* 状态徽标（已登录/未登录、在线/本地）：小、方、只用现有色板。 */
-.set-badge,
-.set-state {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 var(--s2);
-  border-radius: 3px;
-  background: var(--ink-700);
+.set-card__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 卡片底部的一句提示；它常在卡外，所以自己带一点上边距。 */
+.set-note {
+  margin: 0 2px;
   color: var(--text-low);
-  font-size: var(--fs-micro);
-  font-weight: 500;
-  white-space: nowrap;
+  font-size: var(--fs-meta);
+  line-height: 1.7;
 }
 
-.set-badge--online {
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--accent-strong);
+.set-note--warn {
+  color: rgb(224 138 96);
 }
 
-.set-state--on {
-  background: rgb(var(--accent-rgb) / 0.16);
-  color: var(--accent-strong);
-}
-
-/* GitHub 这类外链按钮：外观与 .btn 一致，但要去掉链接下划线。 */
-.set-link {
-  text-decoration: none;
-}
-
-/* update 面板自带的上边距与边线是为旧分组写的；放进分区抬头下面时去掉。 */
-.set-part__body .update {
-  padding-top: 0;
-  border-top: 0;
-}
-
-/* 更新结果里那句进度/就绪提示与行之间留一点距离。 */
-.set-part__body .update ~ .settings__danger {
-  margin-top: var(--s3);
+.set-note--danger {
+  color: var(--danger);
 }
 
 /* =============================================================================
    行
    ========================================================================== */
 
-/* 行之间用发丝线分隔：--line-soft 是完整的 border 简写，不是颜色。 */
+.set-rows {
+  display: flex;
+  flex-direction: column;
+}
+
 .settings__row {
   display: flex;
   align-items: center;
   gap: var(--s5);
-  padding: var(--s3) 2px;
+  padding: 13px 0;
   border-bottom: var(--line-soft);
 }
 
-.settings__row:first-child {
-  border-top: var(--line-soft);
+.settings__row:last-child {
+  border-bottom: 0;
 }
 
 .settings__row--stacked {
   flex-direction: column;
   align-items: stretch;
-  gap: var(--s3);
+  gap: 10px;
+}
+
+/* 纵排时 flex-basis 会变成高度：这里必须退回内容高度，否则滑杆上方空一大块。 */
+.settings__row--stacked .settings__text {
+  flex: none;
 }
 
 .settings__text {
-  flex: 1;
+  flex: 1 1 240px;
   min-width: 0;
 }
 
 .settings__label {
-  font-size: var(--fs-body);
   color: var(--text-hi);
+  font-size: var(--fs-body);
+  line-height: 1.45;
 }
-/* label 后面那句状态：和 label 同一行，比它轻一档，读作「名字 · 状态」。 */
+
 .settings__aside {
-  margin-left: 10px;
-}
-.settings__aside-state {
-  font-size: var(--fs-meta);
+  margin-left: 9px;
   color: var(--text-low);
+  font-size: var(--fs-meta);
+  font-weight: 400;
 }
+
+.settings__aside-state {
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+}
+
 .settings__aside-state.is-warn {
   color: rgb(224 138 96);
 }
 
+/* 名称下的一句说明：这是这一版补回来的「这一项到底干嘛」，不是控件复述。 */
+.settings__desc {
+  margin: 3px 0 0;
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+}
+
 .settings__control {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+  max-width: 60%;
+  min-width: 0;
+}
+
+.settings__control--wide {
+  flex: 0 1 380px;
+  max-width: 100%;
+}
+
+.settings__row--stacked .settings__control {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+}
+
+.settings__control-stack {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.set-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--s3);
+  padding: 4px 0 12px;
 }
 
-/* 数值项：滑块 + 数字，滑块占满剩余宽度。 */
-/* 配额行右边那个数：等宽数字，几行竖着对齐。 */
-.set-count {
-  min-width: 2.5em;
-  color: var(--text-hi);
-  font-size: var(--fs-body);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
+/* 滑块 + 数字。滑轨/拇指沿用原生输入，统一成播放条那套观感。 */
 .settings__slider {
   display: flex;
   align-items: center;
   gap: var(--s4);
   width: 100%;
+  max-width: 460px;
 }
 
 .settings__slider input[type='range'] {
@@ -350,17 +471,12 @@
   cursor: pointer;
 }
 
-/* 轨道：一条 4px 的线，厚度与播放条上那两条滑条一致。 */
 .settings__slider input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
   background: rgb(var(--tint-rgb) / 0.18);
 }
 
-/*
- * 拇指：原生那个在浅色主题下和轨道几乎同色，整条看起来就是一根灰线——
- * 用户不知道它可拖。换成实心圆 + 主色描边，和播放条上的滑块同一套观感。
- */
 .settings__slider input[type='range']::-webkit-slider-thumb {
   appearance: none;
   width: 14px;
@@ -377,7 +493,6 @@
   cursor: grabbing;
 }
 
-/* 键盘走到这里时给一圈光环：和输入框聚焦同一个手势。 */
 .settings__slider input[type='range']:focus-visible {
   outline: none;
 }
@@ -388,33 +503,31 @@
 
 .settings__number {
   min-width: 4.5ch;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
   color: var(--text-mid);
   font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
-/*
- * 「连接失败」「网络不通」这类状态词。
- *
- * 平时是灰的（和其它数值一样安静），只有真出问题才染上警示色——不然每个平台
- * 都标一个红字，反而看不出哪个真坏了。
- */
 .settings__number.is-warn {
   color: var(--danger);
 }
 
+.set-count {
+  min-width: 2.5em;
+  color: var(--text-hi);
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* 字号预览：按桌面歌词窗口的宽度收，不铺满整页。 */
 .settings__preview {
   display: flex;
   align-items: center;
   justify-content: center;
-  /*
-   * 预览按桌面歌词窗口那个宽度收：32px 字号铺满整页会变成一行巨字，
-   * 看不出它装进小窗口是什么样。520px 差不多是那扇窗的实际宽度。
-   */
   width: 100%;
   max-width: 440px;
-  margin-inline: auto;
   min-height: 78px;
   padding: var(--s4) var(--s5);
   border: 1px dashed rgb(var(--tint-rgb) / 0.18);
@@ -426,11 +539,45 @@
   overflow: hidden;
 }
 
+/* 路径、端口、密钥这类文本输入。 */
+.settings__input {
+  width: 140px;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--tint-rgb) / 0.04);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+}
+
+select.settings__input {
+  width: 150px;
+  background: var(--ink-700);
+}
+
+.settings__input--wide {
+  width: 320px;
+  max-width: 100%;
+}
+
+.settings__input:focus {
+  outline: none;
+  border-color: rgb(var(--accent-rgb) / 0.5);
+  background: rgb(var(--tint-rgb) / 0.07);
+}
+
+.settings__input::placeholder {
+  color: var(--text-low);
+}
+
 /* 危险操作：只在真正不可恢复时才用 feedback 色。 */
 .settings__danger {
   display: flex;
   align-items: center;
-  gap: var(--s5);
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: 0 0 12px;
 }
 
 .settings__danger .btn--danger {
@@ -443,19 +590,17 @@
 }
 
 .settings__confirm {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  flex-wrap: wrap;
+  margin: 0 0 12px;
   padding: var(--s3);
   border-radius: var(--r-panel);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
-  font-size: var(--fs-meta);
-  line-height: 1.6;
   color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.65;
 }
 
 .settings__error {
+  margin: 0 0 12px;
   padding: var(--s2) var(--s3);
   border-radius: var(--r-panel);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
@@ -463,13 +608,252 @@
   font-size: var(--fs-meta);
 }
 
+/* 搜索命中的那一行：底色闪一下，动画结束回到透明。 */
+.settings__row.is-flash,
+.set-keygroup.is-flash {
+  animation: settings-flash 1.6s var(--ease-out);
+  border-radius: 8px;
+}
+
+@keyframes settings-flash {
+  0% {
+    background: rgb(var(--accent-rgb) / 0.2);
+  }
+  100% {
+    background: transparent;
+  }
+}
 
 /* =============================================================================
-   Wallpaper Engine picker
+   音源优先级
+   ========================================================================== */
+
+.settings__order {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings__order-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.07);
+}
+
+.settings__order-item:last-child {
+  border-bottom: 0;
+}
+
+.settings__order-index {
+  color: var(--text-low);
+  font-size: var(--fs-meta);
+}
+
+.settings__order-name {
+  flex: 1;
+  color: var(--text-hi);
+  font-size: var(--fs-body);
+}
+
+.settings__order-acts {
+  display: flex;
+  gap: 4px;
+}
+
+.settings__order-move {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  border-radius: 7px;
+  background: none;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+}
+
+.settings__order-move:hover:not(:disabled) {
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-hi);
+}
+
+.settings__order-move:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* =============================================================================
+   应用图标
+   ========================================================================== */
+
+.set-icon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.set-icon__prev {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 11px;
+  object-fit: cover;
+  background: rgb(var(--tint-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
+}
+
+.set-icon__notice {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--fs-micro);
+}
+
+/* =============================================================================
+   快捷键
+   ========================================================================== */
+
+.set-keygroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.set-keygroup + .set-keygroup {
+  margin-top: 14px;
+}
+
+.set-keygroup__title {
+  margin: 0 0 2px;
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.set-keyrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 9px 0;
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
+}
+
+.set-keygroup__title + .set-keyrow {
+  border-top: 0;
+}
+
+.set-keyrow > .set-key,
+.set-keyrow > .set-keys {
+  order: 2;
+  flex: none;
+}
+
+.set-keyrow__what {
+  order: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+}
+
+.set-keyrow__reset {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-low);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.set-keyrow__reset:hover {
+  background: rgb(var(--tint-rgb) / 0.07);
+  color: var(--text-hi);
+}
+
+.set-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.set-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid rgb(var(--tint-rgb) / 0.12);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: rgb(var(--tint-rgb) / 0.08);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: var(--fs-meta);
+  line-height: 1;
+}
+
+button.set-key {
+  cursor: pointer;
+}
+
+.set-key.is-empty {
+  border-style: dashed;
+  color: var(--text-low);
+}
+
+.set-key.is-recording {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  animation: rr-pulse 2s ease-in-out infinite;
+}
+
+.set-keys__plus {
+  margin: 0 5px 0 3px;
+  color: var(--text-low);
+  font-size: var(--fs-micro);
+}
+
+.set-keywarn {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+}
+
+.set-keys__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 0 6px;
+}
+
+/* =============================================================================
+   Wallpaper Engine
    ========================================================================== */
 
 .wp-picker {
-  margin-top: var(--s4);
+  margin-top: var(--s3);
 }
 
 .wp-picker__head {
@@ -480,13 +864,6 @@
   margin-bottom: var(--s3);
 }
 
-/*
- * A vertical scroller, not a wrapping wall.
- *
- * The list can be hundreds of entries long (a workshop subscription folder is
- * routinely 100+ projects), so it gets its own bounded viewport instead of
- * pushing the rest of the settings page out of reach.
- */
 .wp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
@@ -512,20 +889,19 @@
   place-items: center;
   aspect-ratio: 16 / 10;
   overflow: hidden;
+  border: 1px solid var(--line-soft);
   border-radius: var(--r-panel);
   background: var(--ink-800);
-  border: 1px solid var(--line-soft);
-  /* 选中态还会加一圈 box-shadow 描边，一起淡进来，否则边框亮了描边是跳出来的。 */
   transition:
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out);
 }
 
 .wp-card__art img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
 
 .wp-card:hover .wp-card__art {
@@ -542,8 +918,8 @@
 }
 
 .wp-card__noart {
-  font-size: var(--fs-micro);
   color: var(--text-low);
+  font-size: var(--fs-micro);
 }
 
 .wp-card__badge {
@@ -552,18 +928,18 @@
   left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10px;
-  line-height: 1.5;
   background: rgb(var(--accent-rgb) / 0.92);
   color: var(--ink-1000);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .wp-card__title {
-  font-size: var(--fs-meta);
-  color: var(--text-hi);
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--text-hi);
+  font-size: var(--fs-meta);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wp-card__kind-badge {
@@ -572,81 +948,14 @@
   right: 6px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 10px;
-  line-height: 1.5;
   background: #080a0cb8;
   color: var(--text-hi);
+  font-size: 10px;
+  line-height: 1.5;
   backdrop-filter: blur(4px);
 }
 
-
-/* ---- 04 快捷键 ----
- * 键帽用中性底 + 一像素高光，颜色全部走 token，壁纸模式下跟着灰阶一起抬亮。
- */
-.set-keygroup {
-  display: flex;
-  flex-direction: column;
-}
-.set-keygroup + .set-keygroup {
-  margin-top: var(--s4);
-}
-.set-keygroup__title {
-  margin: 0 0 var(--s1);
-  font-size: var(--fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--text-low);
-}
-.set-keyrow {
-  display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
-  gap: var(--s3);
-  align-items: center;
-  padding: 8px 0;
-  border-top: 1px solid var(--line-soft);
-}
-.set-keygroup__title + .set-keyrow {
-  border-top: 0;
-}
-.set-keys {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px;
-}
-.set-key {
-  display: inline-grid;
-  place-items: center;
-  min-width: 26px;
-  height: 24px;
-  padding: 0 7px;
-  border-radius: 6px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.12);
-  border-bottom-width: 2px;
-  background: rgb(var(--tint-rgb) / 0.08);
-  font: inherit;
-  font-size: var(--fs-meta);
-  line-height: 1;
-  color: var(--text-hi);
-}
-.set-keys__plus {
-  margin: 0 5px 0 3px;
-  color: var(--text-low);
-  font-size: var(--fs-micro);
-}
-.set-keyrow__what {
-  color: var(--text-mid);
-  font-size: var(--fs-meta);
-  line-height: 1.6;
-}
-.set-keyhint {
-  margin: var(--s4) 0 0;
-  color: var(--text-low);
-  font-size: var(--fs-meta);
-  line-height: 1.6;
-}
-
-/* ---- 壁纸自带的可调项 ---- */
+/* 壁纸自带的可调项 */
 .wp-props {
   display: flex;
   flex-direction: column;
@@ -665,13 +974,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* 有的工程有四十多项开关，整页被它撑开就找不到下面的可见度了。 */
   max-height: 340px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: var(--s2);
-  /* 这里以前写了 scrollbar-width: thin —— 它在 Chromium 里会盖过全局的
-   * 隐藏规则，把那条带上下三角的灰杠画出来。 */
 }
 
 .wp-prop {
@@ -688,9 +994,9 @@
 }
 
 .wp-prop__label {
-  font-size: var(--fs-meta);
-  color: var(--text-mid);
   overflow: hidden;
+  color: var(--text-mid);
+  font-size: var(--fs-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -727,315 +1033,55 @@
   max-width: 100%;
 }
 
-/* 宽屏下小节之间也只用线与留白分开，不再套一层卡片。 */
-@media (min-width: 1080px) {
-  .set-part__body {
-    display: flex;
-    flex-direction: column;
+/* =============================================================================
+   窄窗口
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  .settings {
+    grid-template-columns: 212px minmax(0, 1fr);
+  }
+
+  .settings__scroll {
+    padding: 24px 22px 52px;
+  }
+
+  .settings__side {
+    padding: 12px 8px 10px 10px;
+  }
+
+  .settings__control {
+    max-width: 56%;
+  }
+}
+
+@media (max-width: 1000px) {
+  .settings {
+    grid-template-columns: 196px minmax(0, 1fr);
+  }
+
+  .settings__row {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .settings__text {
+    flex-basis: 200px;
+  }
+
+  .settings__control {
+    max-width: 100%;
+  }
+
+  .settings__control--wide {
+    flex-basis: 100%;
+  }
+
+  .settings__order {
+    width: 100%;
+  }
+
+  .set-keyrow {
     gap: var(--s3);
   }
-
-  .set-sub__head {
-    padding: 0 0 var(--s2);
-  }
-
-  /* 卡片里第一条行不再补上边线：那一圈卡片边框已经把它收住了。 */
-  .settings__row {
-    padding: var(--s3) 0;
-  }
-
-  .settings__row:first-child {
-    border-top: 0;
-  }
-}
-
-@media (min-width: 1080px) {
-}
-
-
-/* =============================================================================
-   与新外壳对齐：分区头交给 .rh-sec，行本身变成一张淡卡
-   ========================================================================== */
-
-.set-part {
-  margin-bottom: 30px;
-}
-
-.set-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.set-rows > .settings__row:first-child {
-  border-top: 1px solid rgb(var(--tint-rgb) / 0.06);
-}
-
-.settings__label {
-  font-size: var(--fs-title);
-}
-
-.set-sub__title {
-  font-size: var(--fs-meta);
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--text-mid);
-}
-
-/* 音源优先级：一行一个平台，序数、名字、上下挪的箭头。 */
-.settings__order {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: min(100%, 640px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.settings__order-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.07);
-  border-radius: 10px;
-  background: rgb(var(--tint-rgb) / 0.03);
-}
-
-.settings__order-index {
-  color: var(--text-low);
-  font-size: var(--fs-meta);
-}
-
-.settings__order-name {
-  flex: 1;
-  color: var(--text-hi);
-  font-size: var(--fs-body);
-}
-
-.settings__order-acts {
-  display: flex;
-  gap: 4px;
-}
-
-.settings__order-move {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
-  border-radius: 7px;
-  background: none;
-  color: var(--text-mid);
-  font-size: var(--fs-meta);
-  cursor: pointer;
-  /* 悬停换底色/字色，禁用时只是变淡：两件事都补过渡。 */
-  transition:
-    background-color var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out),
-    opacity var(--dur-1) var(--ease-out);
-}
-
-.settings__order-move:hover:not(:disabled) {
-  background: rgb(var(--tint-rgb) / 0.08);
-  color: var(--text-hi);
-}
-
-.settings__order-move:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-
-/* 宽窗口不再给正文限宽：分区带占顶部一条，下面这一段的卡片吃满主区。 */
-
-/* ==========================================================================
-   正文宽度
-
-   设置是「标签在左、控件在右」的行表：一行太长，两端隔着半个屏幕，读一行要
-   横扫两次；太窄又会在右边留一条空壁纸。980 是这个窗口里两者都还站得住的位置，
-   再宽的行会把下面的音质分段按钮推到视线之外。
-   窗口再宽时整列居中，左右各留一道等宽的边，而不是全堆在左栏旁边。
-   ========================================================================== */
-
-/* label 与控件之间留一档就够：空到 64px 时中间那截看着像没画完。 */
-.settings__row {
-  gap: var(--s5);
-}
-
-/* 滑块那一行不适合跟着行卡拉满：推子太长反而不好拖。 */
-.settings__slider {
-  max-width: 460px;
-}
-
-/* .rh-sec 是给首页卡片墙用的 flex column + align-items:start：
-   卡片按内容宽度排，不拉伸。设置页的分区要行卡吃满整列，所以这里改回 stretch，
-   否则 .set-part 有 1112 宽、里面每一行却只有 396。 */
-.set-part {
-  align-items: stretch;
-}
-.set-part__body {
-  align-self: stretch;
-  width: 100%;
-}
-
-/* 行卡不用模糊（壁纸一亮，backdrop-filter 会把背后糊成一片白雾），但也不用厚底：
-   整页的大板去掉之后，0.62 的实底会让每一行变成一条悬着的横条。这里只留行表本身，
-   可读性交给 .settings__body 那一块整底的玻璃。 */
-
-/*
- * 分段之内不再各包一张卡：那样一层套一层，像表格叠表格。分段之间只留一条发丝线。
- *
- * 可读性交给外层的 .settings__body：整列一块玻璃，行卡保持通透的行表。
- */
-.set-part__body {
-  padding: 0;
-}
-
-.settings__row {
-  /*
-   * 两侧留白。
-   *
-   * 行表贴着玻璃卡的内边铺到底，悬停时那块淡底就是从最左一条横到最右——
-   * 看起来像一条没做完的表格线，而不是「指到了这一项」。让行本身缩进一点，
-   * 悬停的高亮就成了垫在行下面的一小片，两侧留出底色。
-   */
-  /*
-   * 不给悬停底色。
-   *
-   * 原先那一片淡底是从玻璃卡最左横到最右的一条带，两边没有留白，鼠标扫过去
-   * 像表格没画完；把行缩进来做「有留白的高亮块」，代价是内容和上面的分区标题
-   * 错开十六像素，也不好看。索性不要那块底：行与行之间本来就有发丝线，指到
-   * 哪一行靠按钮与控件自己那点反馈就够了。
-   */
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.1);
-  border-radius: 0;
-  padding: 14px 2px;
-}
-.settings__row:last-child,
-.set-rows > .settings__row:last-child {
-  border-bottom: 0;
-}
-.set-rows > .settings__row:first-child {
-  border-top: 0;
-}
-.set-rows {
-  gap: 0;
-}
-
-/* 分区内的小节之间也只用一条线，不再一层套一层卡片。 */
-.set-sub + .set-sub {
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
-}
-
-/* 快捷键行以前直接压在壁纸上。放进分区卡之后补一条线和内边距，和上面的行同一节奏。 */
-.set-keyrow {
-  display: flex;
-  align-items: center;
-  gap: var(--s4);
-  padding: 9px 2px;
-  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.06);
-}
-.set-keygroup:last-of-type .set-keyrow:last-child {
-  border-bottom: 0;
-}
-.set-keyhint {
-  margin: 10px 2px 6px;
-  color: var(--text-low);
-  font-size: var(--fs-meta);
-}
-
-/* 音源优先级那四行原来自己带边框和底色，落在分区卡里就成了套娃。
-   跟其它行一样，只用一条线分隔。 */
-.settings__order-item {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgb(var(--tint-rgb) / 0.07);
-  border-radius: 0;
-  padding: 10px 2px;
-}
-.settings__order-item:last-child {
-  border-bottom: 0;
-}
-
-
-/* 版式：顶上一条分区带，下面一次只放一段。
-   上一版是左目录 + 右内容：主窗口左边已经有一条主导航，再长出一条次导航，
-   两列竖排并排贴在一起，读起来像「栏里套栏」。分区带把八件事一次全露出来，
-   点哪段就只渲染哪段——设置里几乎不需要两段对照着改。 */
-.settings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  max-width: none;
-  margin-inline: 0;
-  padding-bottom: var(--s7);
-}
-.settings .set-part,
-.settings .set-part__body {
-  min-width: 0;
-}
-.settings__row {
-  flex-wrap: wrap;
-  row-gap: 10px;
-}
-.settings__control {
-  flex-shrink: 1;
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* 应用图标：一张方形预览 + 两个按钮；换失败时下面单独一行说原因。 */
-.set-icon {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s3);
-}
-
-.set-icon__prev {
-  width: 44px;
-  height: 44px;
-  flex: none;
-  border-radius: 11px;
-  object-fit: cover;
-  background: rgb(var(--tint-rgb) / 0.06);
-  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.1);
-}
-
-.set-icon__notice {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: var(--fs-micro);
-  color: var(--danger);
-}
-
-/* 设置页里的文本输入：路径、密钥、端口这类。宽度用 --wide 给需要长文本的。 */
-.settings__input {
-  width: 120px;
-  padding: 6px 10px;
-  border: 1px solid rgb(var(--tint-rgb) / 0.14);
-  border-radius: 8px;
-  background: rgb(var(--tint-rgb) / 0.04);
-  color: var(--text-hi);
-  font: inherit;
-  font-size: var(--fs-meta);
-}
-
-.settings__input--wide {
-  width: 320px;
-}
-
-.settings__input:focus {
-  outline: none;
-  border-color: rgb(var(--accent-rgb) / 0.5);
-  background: rgb(var(--tint-rgb) / 0.07);
-}
-
-.settings__input::placeholder {
-  color: var(--text-low);
 }

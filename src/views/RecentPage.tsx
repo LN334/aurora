@@ -8,7 +8,7 @@ import { hourLabel, summarizeListening } from '../features/player/stats'
 import { shelfMatches } from '../features/library/playlist-filter'
 import { usePlayer } from '../features/player/store'
 import type { Track } from '../types'
-import { formatSpan } from '../ui/format'
+import { spanParts } from '../ui/format'
 import { ShelfSearch } from '../ui/ShelfSearch'
 import { FILTER_EVENT } from '../ui/filter-event'
 import { TrackList, type TrackMenuRequest } from '../ui/TrackList'
@@ -192,14 +192,45 @@ export function RecentPage({
 
       {stats.days > 0 ? (
         <section className="rv-stats" aria-label="这周的收听">
-          <p className="rv-stats__cap">{countText}</p>
+          <div className="rv-stats__head">
+            {/*
+              眉标写死「最近一周」，不跟下面的范围切换走：时长只留 30 天、
+              次数留 180 天，这张卡三个数说的都是这一周，跟着列表切到「全部」
+              就变成一句假话。切成「全部」时变的只有下面那条时间线。
+            */}
+            <p className="rv-stats__cap">
+              <b>LISTENING</b>
+              <i aria-hidden="true">//</i>
+              最近一周 · {weekCount} 次
+            </p>
+            {/*
+              右上角那个位置在原图里放的是「查看偏好」。这一页没有偏好可看，
+              放的是同一件事的另一半：这一周占全部多少。数一样时它不出现，
+              省得把同一句话写两遍。
+            */}
+            {plays.length !== weekCount ? (
+              <span className="rv-stats__aside">全部 {plays.length} 次</span>
+            ) : null}
+          </div>
           <div className="rv-stats__nums">
             <div className="rv-stats__num">
-              <b>{formatSpan(stats.seconds)}</b>
+              <b>
+                {spanParts(stats.seconds).map((part) => (
+                  <span key={part.u + part.n}>
+                    <em>{part.n}</em>
+                    <i>{part.u}</i>
+                  </span>
+                ))}
+              </b>
               <span>这周听了</span>
             </div>
             <div className="rv-stats__num">
-              <b>{stats.tracks} 首</b>
+              <b>
+                <span>
+                  <em>{stats.tracks}</em>
+                  <i>首</i>
+                </span>
+              </b>
               <span>不重复</span>
             </div>
             {/*
@@ -208,7 +239,12 @@ export function RecentPage({
               一个层级；右边只留两句真正是描述的话。
             */}
             <div className="rv-stats__num">
-              <b>{stats.streak} 天</b>
+              <b>
+                <span>
+                  <em>{stats.streak}</em>
+                  <i>天</i>
+                </span>
+              </b>
               <span>连着听</span>
             </div>
           </div>

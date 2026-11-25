@@ -2,12 +2,19 @@ import { ipcMain, shell } from 'electron'
 import {
   LYRIC_SIZE_MAX,
   LYRIC_SIZE_MIN,
+  ZOOM_MAX,
+  ZOOM_MIN,
   appSettings,
   clearCache,
+  resetSettings,
   saveSettings,
   storageUsage
 } from '../settings'
-import { applyOverlayHoverSetting, setLyricSize } from '../lyrics-overlay'
+import {
+  applyOverlayDisplaySetting,
+  applyOverlayHoverSetting,
+  setLyricSize
+} from '../lyrics-overlay'
 import { syncSleepBlocker } from '../power'
 import { applyLoginItem } from '../login-item'
 import { mediaCache } from '../media-cache-instance'
@@ -68,6 +75,55 @@ export function registerSettingsIpc(deps: WindowSource, playing: () => boolean):
     saveSettings({ overlayHoverControls: Boolean(enabled) })
     // 立刻生效：正锁着的时候关掉它，应该当场变成完全穿透，而不是下次开窗才算。
     applyOverlayHoverSetting()
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setZoomFactor', (_event, factor: unknown) => {
+    const value = typeof factor === 'number' && Number.isFinite(factor) ? factor : 1
+    const stepped = Math.round(value * 20) / 20
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, stepped))
+    saveSettings({ zoomFactor: next })
+    const window = deps.window()
+    if (window && !window.isDestroyed()) window.webContents.setZoomFactor(next)
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setMinimizeToTray', (_event, enabled: unknown) => {
+    saveSettings({ minimizeToTray: Boolean(enabled) })
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setOverlayNextLine', (_event, enabled: unknown) => {
+    saveSettings({ overlayNextLine: Boolean(enabled) })
+    applyOverlayDisplaySetting()
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setOverlayTranslation', (_event, enabled: unknown) => {
+    saveSettings({ overlayTranslation: Boolean(enabled) })
+    applyOverlayDisplaySetting()
+    return appSettings()
+  })
+
+  ipcMain.handle('settings:setOverlayAlign', (_event, align: unknown) => {
+    saveSettings({ overlayAlign: align === 'left' ? 'left' : 'center' })
+    applyOverlayDisplaySetting()
+    return appSettings()
+  })
+
+  /*
+   * 一处恢复默认：主进程设置重写、开机项撤掉、缓存回到默认预算、窗口缩放回
+   * 100%、桌面歌词按默认显示。渲染层把 localStorage 清干净后调用，两处都清完
+   * 才算真的「恢复默认」。
+   */
+  ipcMain.handle('settings:resetAll', async () => {
+    const next = resetSettings()
+    applyLoginItem(false)
+    syncSleepBlocker(playing())
+    await mediaCache().setLimit(next.mediaCacheLimitMb)
+    const window = deps.window()
+    if (window && !window.isDestroyed()) window.webContents.setZoomFactor(next.zoomFactor)
+    applyOverlayDisplaySetting()
     return appSettings()
   })
 

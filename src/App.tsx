@@ -22,7 +22,7 @@ import { PlatformLoginDialogs, closePlatformLogins } from './views/settings/pane
 import { useLikeMenu } from './features/favorites/like-menu'
 import { ConfirmModal } from './views/ConfirmModal'
 import { usePresence } from './ui/presence'
-import { retirePage, type PageParts } from './ui/page-transition'
+import { flyToRemembered, watchCoverClicks } from './ui/fly-cover'
 import { addTrackToOnlinePlaylist, removeTrackFromOnlinePlaylist, reportWrite } from './features/online/playlist-write'
 import { getProvider } from './features/online/registry'
 import { useAccountPlaylists } from './features/online/playlist-cards'
@@ -87,6 +87,7 @@ import {
   type ShellRoute,
   type ShellView
 } from './app/shell'
+import { rememberView } from './features/settings/startup-page'
 import { useKeyboardShortcuts } from './app/useKeyboardShortcuts'
 import { useTrackActions } from './app/useTrackActions'
 import { SearchView } from './app/search/SearchView'
@@ -172,6 +173,10 @@ export function App() {  if (!isNative) {
   }, [])
   /** 外壳路由：人在哪一页。左栏高亮、页头标题、地址栏都由它决定。 */
   const shell = stack[cursor] ?? { view: 'home' as ShellView }
+  /* 「上次那页」的启动偏好用得着它：只记稳定页，详情页不记。 */
+  useEffect(() => {
+    rememberView(shell.view)
+  }, [shell.view])
   /** 页面组件仍然只认旧参数；这一层翻译让它们暂时不用改。 */
   const route = useMemo(() => shellToRoute(shell), [shell])
   const view = route.view
@@ -205,7 +210,10 @@ export function App() {  if (!isNative) {
     open: false,
     locked: true,
     size: 34,
-    visible: false
+    visible: false,
+    showNext: true,
+    showTranslation: true,
+    align: 'center'
   })
   /** 漫游需要账号：这不是一句提示，是一件要人当场决定的事，所以摆对话框而不是提示条。 */
   const needSignIn = useRoam((state) => state.needSignIn)
@@ -418,6 +426,11 @@ export function App() {  if (!isNative) {
     bindDownloadEvents()
   }, [])
 
+  // 点任何一张卡都先把封面记下来，真正导航时（App 里那一处）才起飞。
+  useEffect(() => {
+    watchCoverClicks()
+  }, [])
+
   /*
    * 地址栏跟着走。
    *
@@ -461,26 +474,6 @@ export function App() {  if (!isNative) {
    * app.css 里 .main__body 那条注释），位移只能靠这条来做，跳过就等于没有动画。
    */
   const lastRoute = useRef<string | null>(null)
-  const lastParts = useRef<PageParts | null>(null)
-  const leavingParts = useRef<PageParts | null>(null)
-
-  /*
-   * 记下「上一次提交后」的页头与正文节点。
-   *
-   * 换页的 key 会让旧节点在这次提交的 mutation 阶段就被摘掉，等 effect 跑起来
-   * 已经查不到它们了。所以每次提交后都留一份引用：下一次换页时，ref 里那个
-   * 正文的 isConnected 会变成 false，正好用来确认「它确实是刚才被换掉的那一页」。
-   */
-  useLayoutEffect(() => {
-    const body = document.querySelector<HTMLElement>('.main__body')
-    const head = document.querySelector<HTMLElement>('.main__header')
-    const now: PageParts | null = body
-      ? { header: head, body, headH: head?.offsetHeight ?? 0, headHTML: head?.outerHTML }
-      : null
-    const prev = lastParts.current
-    if (prev && now && prev.body !== now.body && !prev.body.isConnected) leavingParts.current = prev
-    lastParts.current = now
-  })
 
   useEffect(() => {
     const key = shell.view + ':' + (shell.id ?? '')
@@ -504,14 +497,8 @@ export function App() {  if (!isNative) {
         head.classList.add('is-enter-head')
         head.addEventListener('animationend', () => head.classList.remove('is-enter-head'), { once: true })
       }
-      /*
-       * 位置取 .main 的：它不参与任何动画，量出来永远是稳定的一屏框。以前取正文
-       * 的，可正文有自己的入场位移，量到的框会跟着动画跑偏。
-       */
-      const main = document.querySelector<HTMLElement>('.main')
-      const gone = leavingParts.current
-      leavingParts.current = null
-      if (gone && main) retirePage(gone, main.getBoundingClientRect())
+      /* 钻详情时封面要接着飞。起飞时机挂在这儿，不再有退场层参与。 */
+      flyToRemembered()
     }
     lastRoute.current = key
   }, [shell])

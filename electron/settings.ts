@@ -37,7 +37,20 @@ export interface AppSettings {
   overlayHoverControls: boolean
   /** 在线音频缓存上限（MB）；0 表示不缓存。 */
   mediaCacheLimitMb: number
+  /** 界面缩放：1 = 100%。范围 0.5–1.5，主进程只接受 5% 的整数档。 */
+  zoomFactor: number
+  /** 点最小化按钮时收进托盘，而不是留在任务栏。默认关。 */
+  minimizeToTray: boolean
+  /** 桌面歌词显示下一句。 */
+  overlayNextLine: boolean
+  /** 桌面歌词显示译文（这一句带翻译时）。 */
+  overlayTranslation: boolean
+  /** 桌面歌词的文字对齐。 */
+  overlayAlign: OverlayAlign
 }
+
+/** 桌面歌词的对齐方式。居中适合悬浮在两行歌词的中间，靠左适合贴在屏幕边上。 */
+export type OverlayAlign = 'center' | 'left'
 
 export interface StorageUsage {
   userData: string
@@ -59,6 +72,10 @@ export type TrayClick = 'toggle' | 'show'
 /** Bounds for the desktop lyric strip. `Overlay.tsx` mirrors these. */
 export const LYRIC_SIZE_MIN = 18
 export const LYRIC_SIZE_MAX = 64
+
+/** 界面缩放的边界。再小字就看不清，再大设置页会挤成一列。 */
+export const ZOOM_MIN = 0.5
+export const ZOOM_MAX = 1.5
 
 export interface Settings {
   /** 旧版字段：只用来把「关掉每天检查」的人迁到 updateInterval 的 manual。 */
@@ -129,6 +146,16 @@ export interface Settings {
    * 关了——窗口消失、声音还在，这是这套默认行为里最容易误解的一步。
    */
   trayHintShown: boolean
+  /** 界面缩放，与 AppSettings.zoomFactor 同值。 */
+  zoomFactor: number
+  /** 最小化到托盘。 */
+  minimizeToTray: boolean
+  /** 桌面歌词是否显示下一句。 */
+  overlayNextLine: boolean
+  /** 桌面歌词是否显示译文。 */
+  overlayTranslation: boolean
+  /** 桌面歌词的对齐。 */
+  overlayAlign: OverlayAlign
   /** Last position and size of the desktop lyric strip. */
   lyricsOverlayBounds?: { x: number; y: number; width: number; height: number }
 }
@@ -150,7 +177,12 @@ const DEFAULTS: Settings = {
   downloadDir: '',
   downloadFormat: 'original',
   downloadBitrate: 256,
-  mediaCacheLimitMb: 2048
+  mediaCacheLimitMb: 2048,
+  zoomFactor: 1,
+  minimizeToTray: false,
+  overlayNextLine: true,
+  overlayTranslation: true,
+  overlayAlign: 'center'
 }
 
 let cache: Settings | null = null
@@ -189,7 +221,12 @@ export function loadSettings(): Settings {
       downloadDir: typeof raw.downloadDir === 'string' ? raw.downloadDir : '',
       downloadFormat: isDownloadFormat(raw.downloadFormat) ? raw.downloadFormat : 'original',
       downloadBitrate: clampBitrate(raw.downloadBitrate),
-      mediaCacheLimitMb: clampMediaCacheLimit(raw.mediaCacheLimitMb)
+      mediaCacheLimitMb: clampMediaCacheLimit(raw.mediaCacheLimitMb),
+      zoomFactor: clampZoom(raw.zoomFactor),
+      minimizeToTray: raw.minimizeToTray === true,
+      overlayNextLine: raw.overlayNextLine !== false,
+      overlayTranslation: raw.overlayTranslation !== false,
+      overlayAlign: raw.overlayAlign === 'left' ? 'left' : 'center'
     }
   } catch {
     // Missing or corrupt settings are not an error worth surfacing; start clean.
@@ -225,6 +262,13 @@ function clampBitrate(value: unknown): number {
   return Math.min(320, Math.max(96, Math.round(value)))
 }
 
+/** 缩放按 5% 一档取整，免得设置里存下 1.037 这种读不出来的数。 */
+function clampZoom(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULTS.zoomFactor
+  const stepped = Math.round(value * 20) / 20
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, stepped))
+}
+
 /** 0 是「不缓存」，所以下限就是 0；上限 10GB，再大不像音乐播放器。 */
 function clampMediaCacheLimit(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULTS.mediaCacheLimitMb
@@ -250,6 +294,11 @@ export function appSettings(): AppSettings {
     trayClick: settings.trayClick === 'show' ? 'show' : 'toggle',
     overlayHoverControls: settings.overlayHoverControls !== false,
     mediaCacheLimitMb: clampMediaCacheLimit(settings.mediaCacheLimitMb),
+    zoomFactor: clampZoom(settings.zoomFactor),
+    minimizeToTray: settings.minimizeToTray === true,
+    overlayNextLine: settings.overlayNextLine !== false,
+    overlayTranslation: settings.overlayTranslation !== false,
+    overlayAlign: settings.overlayAlign === 'left' ? 'left' : 'center',
     desktopLyrics: {
       size: clampLyricSize(settings.desktopLyricsSize),
       min: LYRIC_SIZE_MIN,
@@ -282,17 +331,34 @@ function legacyLibraryKeys(): Record<string, unknown> {
 export function saveSettings(patch: Partial<Settings>): Settings {
   const next: Settings = { ...loadSettings(), ...patch }
   cache = next
+  writeSettingsFile(next)
+  return next
+}
+
+/**
+ * 把设置恢复出厂值。
+ *
+ * 只重写主进程这一份；渲染层的偏好（主题、背景、首页分区等）存在
+ * localStorage 里，由设置页自己清，两处都清完才算「恢复默认」。
+ */
+export function resetSettings(): Settings {
+  const next: Settings = { ...DEFAULTS }
+  cache = next
+  writeSettingsFile(next)
+  return next
+}
+
+function writeSettingsFile(settings: Settings): void {
   try {
     fs.mkdirSync(path.dirname(settingsFile()), { recursive: true })
     fs.writeFileSync(
       settingsFile(),
-      JSON.stringify({ ...legacyLibraryKeys(), ...next }, null, 2),
+      JSON.stringify({ ...legacyLibraryKeys(), ...settings }, null, 2),
       'utf8'
     )
   } catch (error) {
     console.error('[aurora] could not persist settings', error)
   }
-  return next
 }
 
 /**

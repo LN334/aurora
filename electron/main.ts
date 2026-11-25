@@ -423,6 +423,14 @@ function createWindow(): void {
     // 「打开多久才看见东西」就是这一段：ready-to-show 之后才 show。
     write(`ready-to-show +${Date.now() - bootAt}ms`)
     bootRecorder?.mark('ready-to-show')
+    /*
+     * 先套缩放再 show：did-finish-load 里也会套一次（重载后 zoom 会回 1），
+     * 但那时窗口已经可见，125% 进来的第一帧会先按 100% 画一遍再跳大。
+     */
+    const bootZoom = loadSettings().zoomFactor
+    if (Number.isFinite(bootZoom) && bootZoom > 0 && bootZoom !== 1) {
+      window.webContents.setZoomFactor(bootZoom)
+    }
     window.show()
     write(`window shown +${Date.now() - bootAt}ms`)
     installThumbar(window, lastPlaying, sendMediaCommand)
@@ -467,7 +475,22 @@ function createWindow(): void {
   })
   // Minimise and restore are visibility changes too, and they are the states
   // `document.hidden` reports least reliably inside Electron.
-  mainWindow.on('minimize', notifyVisibility)
+  /*
+   * 最小化到托盘：用户选了才藏。藏了之后任务栏里没有它，只能从托盘叫回来，
+   * 所以没托盘的时候（或正在退出）绝不这么做，否则窗口就真的找不着了。
+   */
+  mainWindow.on('minimize', () => {
+    if (loadSettings().minimizeToTray && hasTray() && !isQuitting) {
+      /*
+       * BrowserWindow 的 minimize 事件不能 preventDefault；先让它最小化，
+       * 再 hide。托盘点回来时 showWindow() 会先 restore() 再 show()，所以
+       * 不会出现「窗口在但只有任务栏缩略图」的半状态。
+       */
+      mainWindow?.hide()
+      return
+    }
+    notifyVisibility()
+  })
   mainWindow.on('restore', notifyVisibility)
 
   mainWindow.on('resize', debounce(saveWinState, 400))
@@ -518,6 +541,14 @@ function createWindow(): void {
   })
   mainWindow.webContents.on('did-finish-load', () => {
     write('did-finish-load')
+    /*
+     * 界面缩放。缩放值存在主进程设置里，每次加载完套一次；放在这里而不是
+     * ready-to-show，是因为后者只跑一次，而页面重新加载后 zoom 会回到 1。
+     */
+    const zoom = loadSettings().zoomFactor
+    if (Number.isFinite(zoom) && zoom > 0 && zoom !== 1) {
+      mainWindow?.webContents.setZoomFactor(zoom)
+    }
     /* 冷启动带进来的邀请：页面这时才订阅得上，在这里补一次投递。 */
     if (pendingInvite) {
       const link = pendingInvite

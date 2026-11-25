@@ -247,7 +247,18 @@ const api = {
     getStorage: () => ipcRenderer.invoke('settings:storage') as Promise<StorageUsage>,
     clearCache: () => ipcRenderer.invoke('settings:clearCache') as Promise<StorageUsage>,
     setMediaCacheLimit: (megabytes: number) =>
-      ipcRenderer.invoke('settings:setMediaCacheLimit', megabytes) as Promise<AppSettings>
+      ipcRenderer.invoke('settings:setMediaCacheLimit', megabytes) as Promise<AppSettings>,
+    setZoomFactor: (factor: number) =>
+      ipcRenderer.invoke('settings:setZoomFactor', factor) as Promise<AppSettings>,
+    setMinimizeToTray: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setMinimizeToTray', enabled) as Promise<AppSettings>,
+    setOverlayNextLine: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setOverlayNextLine', enabled) as Promise<AppSettings>,
+    setOverlayTranslation: (enabled: boolean) =>
+      ipcRenderer.invoke('settings:setOverlayTranslation', enabled) as Promise<AppSettings>,
+    setOverlayAlign: (align: 'center' | 'left') =>
+      ipcRenderer.invoke('settings:setOverlayAlign', align) as Promise<AppSettings>,
+    resetAll: () => ipcRenderer.invoke('settings:resetAll') as Promise<AppSettings>
   },
 
   /**
@@ -425,6 +436,23 @@ const api = {
       ipcRenderer.on('overlay:state', listener)
       return () => {
         ipcRenderer.removeListener('overlay:state', listener)
+      }
+    },
+    /** 显示偏好（下一句/译文/对齐）被设置页改动时推给歌词窗口。 */
+    onDisplay: (
+      handler: (display: {
+        showNext: boolean
+        showTranslation: boolean
+        align: 'center' | 'left'
+      }) => void
+    ) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        display: { showNext: boolean; showTranslation: boolean; align: 'center' | 'left' }
+      ): void => handler(display)
+      ipcRenderer.on('overlay:display', listener)
+      return () => {
+        ipcRenderer.removeListener('overlay:display', listener)
       }
     },
     /** Fired in the player window when the overlay opens, closes or locks. */

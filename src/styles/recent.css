@@ -48,13 +48,18 @@
 }
 
 .rv-stats {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--s4);
+  /*
+   * 这张卡原来是 inline-flex：cap 占一整行、三个数字和一句描述并排挤在右边，
+   * 数字只有 15px——比页面里的歌名还小，统计卡读起来像一句注释。
+   *
+   * 现在是纵向三段：眉标一行、数字一行、描述一行。数字 30px、单位压到 13px，
+   * 一眼先看见「20 小时」而不是先读完一句话。
+   */
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
   margin: 0 0 var(--s5);
-  padding: var(--s3) var(--s4);
+  padding: var(--s4) var(--s5);
   /*
    * 材质跟着同一页的搜索框与范围胶囊走：极淡的一层底 + 一圈几乎看不见的边。
    *
@@ -67,53 +72,133 @@
    * 深色主题下是一块黑补丁、浅色主题下是一块白蒙；tint 是「往当前底色上叠的
    * 一层中性色」，深色主题偏白、浅色主题偏黑，两边都是「比背景稍亮/稍暗的薄片」。
    */
-  border: 1px solid rgb(var(--tint-rgb) / 0.08);
+  /*
+   * 这一块原来跟搜索框一样是「薄片」：tint 叠一点点，靠 blur 露壁纸。
+   * 薄片上放三个 30px 的数字读不出来——数被底下的壁纸纹理咬碎，卡也没有
+   * 轮廓。统计卡跟标签不是一类东西，它是一块板：plane 打底（深色主题近黑、
+   * 浅色主题近白），上面再压一层 tint 当受光面。
+   */
+  border: 1px solid rgb(var(--tint-rgb) / 0.14);
   border-radius: var(--r-lg);
-  background: rgb(var(--tint-rgb) / 0.045);
+  background:
+    linear-gradient(180deg, rgb(var(--tint-rgb) / 0.07), transparent 58%),
+    rgb(var(--plane-rgb) / 0.46);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  box-shadow: inset 0 1px 0 rgb(var(--tint-rgb) / 0.06);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--tint-rgb) / 0.1),
+    0 18px 34px -26px rgb(0 0 0 / 0.55);
 }
 
-.rv-stats__nums {
+.rv-stats__head {
   display: flex;
-  align-items: stretch;
-  gap: var(--s4);
+  align-items: baseline;
+  gap: var(--s3);
+}
+
+/*
+ * 眉标右边拉一条极光线，到卡边缘化掉。这是全站页头已有的手法（英文眉标
+ * 下面那道线），统计卡自己用一次，它才不像一张从别处借来的表格。
+ */
+.rv-stats__head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  align-self: center;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--tint-rgb) / 0.3),
+    rgb(var(--aurora-b) / 0.22) 38%,
+    transparent 88%
+  );
+}
+
+/*
+ * 三等分而不是「按内容宽度挤在左边」：三块数字各自等宽，竖线才落在整张卡
+ * 的三分之一处，读起来是三条并排的读数；挤在左边时右边空着一大片，像没填满。
+ */
+.rv-stats__nums {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .rv-stats__num {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding-right: var(--s4);
-  border-right: 1px solid rgb(var(--tint-rgb) / 0.09);
+  gap: 5px;
+  padding: 0 0 0 var(--s5);
+  border-left: 1px solid rgb(var(--tint-rgb) / 0.14);
 }
 
-.rv-stats__num:last-child {
-  padding-right: 0;
-  border-right: 0;
+.rv-stats__num:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
+/*
+ * 数字和单位拆开：数字 30px，单位 13px。「20 小时 4 分」整串用同一个字号会横
+ * 出去半张卡，而且「小时」和「20」读起来一样重，反倒分不清哪个是数。
+ * 段与段之间 10px、数字与自己的单位之间 3px，两级间距说的就是两级关系。
+ */
 .rv-stats__num b {
-  font-size: var(--fs-title);
-  font-weight: 650;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 30px;
+  font-weight: 600;
+  /*
+   * 固定 30px 行高而不是 line-height: 1 —— 第一块里有两个数字段（13 小时 / 7 分），
+   * 第二三块只有一个。行高跟着内容算，三段数字的基线就落不到一条线上，
+   * 下面那排标签也跟着错开几像素。
+   */
+  line-height: 30px;
+  letter-spacing: -0.03em;
   color: var(--text-hi);
   font-variant-numeric: tabular-nums;
 }
 
-.rv-stats__num span {
-  font-size: var(--fs-micro);
-  /* 薄片上的灰字要提一档，否则深色主题下这三个标签等于没写。 */
-  color: var(--text-mid);
+.rv-stats__num b > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
 }
 
+.rv-stats__num b em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+/*
+ * 单位不再压成注释：13px + --text-mid 在这块暗板上几乎读不出来，而且「0 分钟」
+ * 在原图里是一个词，不是「数 + 注」。15px、接近数字的白，读作一个整体。
+ */
+.rv-stats__num b i {
+  font-style: normal;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: rgb(var(--tint-rgb) / 0.78);
+}
+
+.rv-stats__num > span {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--text-low);
+}
+
+/*
+ * 描述挪到最下面单独一行，用一条发丝线跟数字分开：上面是数，下面是话。
+ * 原来它跟数字并排（max-width: 340px），一边是三个大数一边是一句话，
+ * 视线在两块之间来回跳。
+ */
 .rv-stats__note {
   margin: 0;
-  max-width: 340px;
-  font-size: var(--fs-meta);
-  line-height: 1.55;
-  color: var(--text-mid);
+  max-width: none;
+  padding-top: 10px;
+  border-top: 1px solid rgb(var(--tint-rgb) / 0.07);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.04em;
+  color: var(--text-low);
 }
 
 .rv-day {
@@ -147,9 +232,36 @@
   opacity: 0.6;
 }
 
+/*
+ * 眉标：英文在前、中文在后，中间一道斜杠。这是全站现有的写法（详情页头、
+ * 每页的英文眉标都是这个位置），统计卡跟上它，不用另造一套。
+ */
 .rv-stats__cap {
-  flex-basis: 100%;
-  margin: 0 0 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
   font-size: var(--fs-micro);
+  letter-spacing: 0.06em;
   color: var(--text-low);
+  white-space: nowrap;
+}
+
+.rv-stats__cap b {
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  color: var(--accent-strong);
+}
+
+.rv-stats__cap i {
+  font-style: normal;
+  opacity: 0.4;
+}
+
+.rv-stats__aside {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.04em;
+  color: var(--text-low);
+  white-space: nowrap;
 }

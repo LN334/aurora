@@ -1,229 +1,48 @@
-import { useEffect, useState } from 'react'
-import { getProvider, listAvailableProviders, listProviders } from '../../../features/online/registry'
-import { applyQuality } from '../../../features/online/quality'
-import { useOnlineStore } from '../../../features/online/store'
-import { moveSource, useSourceOrder } from '../../../features/settings/source-order'
-import {
-  QUALITY_LABELS as TIER_LABELS,
-  type OnlineMusicProvider,
-  type QualityTier,
-  tierAllowed
-} from '../../../features/online/types'
 import { usePlayer } from '../../../features/player/store'
-import { useSettingsPage } from '../../../features/settings/store'
-import { Row, Rows, Toggle } from '../parts'
+import { Note, Row, Rows, SettingsCard } from '../parts'
 
 /**
- * 02 播放与音质。
+ * 播放控制。
  *
- * 分区的顺序就是一个人真正会先问到的顺序：怎么切歌（交叉淡化）、要不要染色（调音台）、
- * 在线听什么档（各平台自己的音质档）、歌词从哪来（在线歌词）。在线音质仍然由平台注册表
- * 生成，不在这里分支——每个平台自己声明档位。
+ * 这一页只放「播放行为」本身。音源顺序与各平台音质在「音源与音质」，
+ * 歌词来源在「歌词」——同一件事只在一个地方能改。
  */
-export function PlaybackPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
+export function PlaybackPane() {
   const crossfadeSec = usePlayer((state) => state.crossfadeSec)
   const setCrossfade = usePlayer((state) => state.setCrossfade)
-  const eqEnabled = usePlayer((state) => state.eqEnabled)
-  const setEqEnabled = usePlayer((state) => state.setEqEnabled)
-  const { onlineLyrics } = page.settings
-
-  return (
-    <Rows>
-      <div className="settings__row settings__row--stacked">
-        <div className="settings__text">
-          <div className="settings__label">交叉淡化</div>
-        </div>
-        <div className="settings__slider">
-          <input
-            type="range"
-            min={0}
-            max={6}
-            step={1}
-            value={crossfadeSec}
-            aria-label="切歌淡出淡入时长（秒）"
-            onChange={(event) => setCrossfade(Number(event.target.value))}
-          />
-          <span className="settings__number">{crossfadeSec} 秒</span>
-        </div>
-      </div>
-
-      <Row label="调音台">
-        <Toggle
-          checked={eqEnabled}
-          label="均衡"
-          onChange={(next) => setEqEnabled(next)}
-        />
-      </Row>
-
-      <SourceOrderRows />
-
-      <PlatformQualityRows />
-
-      <Row
-        label="在线歌词"
-      >
-        <Toggle
-          checked={onlineLyrics}
-          disabled={page.busy}
-          label="在线歌词查询"
-          onChange={(next) => void page.setOnlineLyrics(next)}
-        />
-      </Row>
-    </Rows>
-  )
-}
-
-/**
- * 一个平台一行音质。
- *
- * 音质是按平台分开的：每个平台存自己那一档（QQ 账号的权限与网易云无关），
- * 不声明档位的平台不占一行。这里没有「是哪个平台」的分支——名字、档位与文案都来自 provider。
- *
- * 用全量 provider 而不是「此刻可用」的那些：后端还没连上时，这一行也该在，
- * 只是按钮按不了。让它整行消失，用户看到的就是「没有地方能调音质」。
- */
-function PlatformQualityRows() {
-  const providers = listProviders().filter(
-    (provider) =>
-      (provider.qualityTiers?.length ?? 0) > 0 && provider.getQuality && provider.setQuality
-  )
-
-  if (providers.length === 0) {
-    return (
-      <Row label="在线音质">
-        <span className="settings__number">—</span>
-      </Row>
-    )
-  }
 
   return (
     <>
-      {providers.map((provider) => (
-        <PlatformQualityRow key={provider.id} provider={provider} />
-      ))}
-    </>
-  )
-}
-
-function PlatformQualityRow({ provider }: { provider: OnlineMusicProvider }) {
-  const [quality, setQuality] = useState<QualityTier | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    void provider
-      .getQuality?.()
-      .then((value) => {
-        if (alive) setQuality(value)
-      })
-      .catch(() => {
-        // 后端答不出来就留空，不要替账号宣称一个未必在的档位。
-        if (alive) setQuality(null)
-      })
-    return () => {
-      alive = false
-    }
-  }, [provider])
-
-  /*
-   * 明确是非会员时，把需要会员的档收起来。判断放在渲染这一层而不是数据层，
-   * 因为「有没有会员」是账号状态，会变；档位表是构建期固定的。
-   *
-   * 这里订阅而不是 getState()：在这一页登录/退出之后，会员档位要马上跟着
-   * 出现或消失。读一次快照的话，用户得切走再切回来才看得到变化。
-   */
-  const account = useOnlineStore(provider.id)((state) => state.account)
-  const tiers = (provider.qualityTiers ?? []).filter((tier) =>
-    tierAllowed(provider, tier, account?.vip ?? null)
-  )
-
-  /*
-   * 改档要同时落到两处：平台后端（主进程存盘、下次启动读它）和平台的播放
-   * store（`ensureStream` 取流时读的就是后者）。只写后端的话，这一局里所有歌
-   * 仍然按旧档取流 —— 用户的感受就是「改了没用」。
-   */
-  const applyTier = (tier: QualityTier) => {
-    setQuality(tier)
-    void applyQuality(provider, tier).then((applied) => {
-      if (applied) setQuality(applied)
-    })
-  }
-
-  return (
-    <Row
-      label={`${provider.displayName}音质`}
-    >
-      <div className="seg">
-        {tiers.map((tier) => (
-          <button
-            key={tier}
-            className={quality === tier ? 'is-active' : ''}
-            onClick={() => applyTier(tier)}
+      <SettingsCard
+        title="切歌"
+        hint="只影响本机播放；在线音源切歌时仍要先把这个流切断，交叉淡化只处理前后两首的重叠。"
+      >
+        <Rows>
+          <Row
+            label="交叉淡化"
+            desc="上一首淡出、下一首淡入的重叠时长。0 秒表示硬切；听整张专辑时通常留 0 更干净。"
+            id="playback-crossfade"
+            stack
           >
-            {TIER_LABELS[tier].split(' ')[0]}
-          </button>
-        ))}
-      </div>
-    </Row>
-  )
-}
+            <div className="settings__slider">
+              <input
+                type="range"
+                min={0}
+                max={6}
+                step={0.5}
+                value={crossfadeSec}
+                aria-label="交叉淡化时长"
+                onChange={(event) => setCrossfade(Number(event.target.value))}
+              />
+              <span className="settings__number">{crossfadeSec} 秒</span>
+            </div>
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-/**
- * 音源优先级：同一首歌有几家都有时，先问谁。
- *
- * 这是「多平台统一」唯一的开关。列表把重复的合成一行，但一行里到底用谁的声音，
- * 得有一个用户能改的答案——默认平台在前、本机最后（这产品是各平台的客户端，
- * 本机只是其中一个来源）。往上挪一位就到列表前面，播放与主版本一起跟着换。
- *
- * 只列这个构建真能用的平台：装了没登录也算可用（它仍能出流），没接入的不占位。
- */
-function SourceOrderRows() {
-  const order = useSourceOrder()
-  const usable = new Set(['local', ...listAvailableProviders().map((provider) => provider.id)])
-  const shown = order.filter((id) => usable.has(id))
-
-  if (shown.length < 2) {
-    return (
-      <Row label="音源优先级">
-        <span className="settings__number">—</span>
-      </Row>
-    )
-  }
-
-  return (
-    <div className="settings__row settings__row--stacked">
-      <div className="settings__text">
-        <div className="settings__label">音源优先级</div>
-      </div>
-      <ol className="settings__order">
-        {shown.map((id, index) => (
-          <li key={id} className="settings__order-item">
-            <span className="settings__order-index tnum">{index + 1}</span>
-            <span className="settings__order-name">
-              {id === 'local' ? '本机音乐' : (getProvider(id)?.displayName ?? id)}
-            </span>
-            <span className="settings__order-acts">
-              <button
-                type="button"
-                className="settings__order-move"
-                disabled={index === 0}
-                onClick={() => moveSource(id, -1)}
-                aria-label={`把${id}提前一位`}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                className="settings__order-move"
-                disabled={index === shown.length - 1}
-                onClick={() => moveSource(id, 1)}
-                aria-label={`把${id}退后一位`}
-              >
-                ↓
-              </button>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
+      <Note>
+        均衡器与声道在播放页的调音台里调——它们要边听边看频谱，不放在设置页。桌面歌词与播放页歌词的字号分别在「桌面歌词」「歌词」。
+      </Note>
+    </>
   )
 }

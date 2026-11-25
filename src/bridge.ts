@@ -1,4 +1,4 @@
-import type { AppSettings, AuroraApi, DownloadPrefs, UpdatePrefs } from './env'
+import type { AppSettings, AuroraApi, DownloadPrefs, OverlayStatus, UpdatePrefs } from './env'
 import { demoLibrary } from './features/library/demo'
 
 /**
@@ -53,7 +53,7 @@ const emptyIndex = () => ({
  * Held outside the fallback object so a setter can return the new state the way
  * the native implementation does, without the caller having to re-read.
  */
-let previewSettings: AppSettings = {
+const basePreviewSettings: AppSettings = {
   onlineLyrics: false,
   updateInterval: 'manual',
   updateLastCheck: 0,
@@ -64,7 +64,17 @@ let previewSettings: AppSettings = {
   openAfterDownload: false,
   trayClick: 'toggle',
   overlayHoverControls: true,
-  mediaCacheLimitMb: 2048
+  overlayNextLine: true,
+  overlayTranslation: true,
+  overlayAlign: 'center',
+  minimizeToTray: false,
+  mediaCacheLimitMb: 2048,
+  zoomFactor: 1
+}
+
+let previewSettings: AppSettings = {
+  ...basePreviewSettings,
+  desktopLyrics: { ...basePreviewSettings.desktopLyrics }
 }
 
 /**
@@ -84,6 +94,19 @@ let previewDownloadPrefs: DownloadPrefs = {
 let previewPrefs: UpdatePrefs = {
   interval: 'manual',
   lastCheck: 0
+}
+
+/** 预览里的桌面歌词状态：显示偏好跟着设置走，窗口永远当开着。 */
+function previewOverlayStatus(): OverlayStatus {
+  return {
+    open: true,
+    locked: false,
+    size: previewSettings.desktopLyrics.size,
+    visible: true,
+    showNext: previewSettings.overlayNextLine,
+    showTranslation: previewSettings.overlayTranslation,
+    align: previewSettings.overlayAlign
+  }
 }
 
 const webFallback: AuroraApi = {
@@ -261,6 +284,20 @@ const webFallback: AuroraApi = {
       (previewSettings = { ...previewSettings, overlayHoverControls: enabled }),
     setMediaCacheLimit: async (megabytes) =>
       (previewSettings = { ...previewSettings, mediaCacheLimitMb: megabytes }),
+    setZoomFactor: async (factor) => (previewSettings = { ...previewSettings, zoomFactor: factor }),
+    setMinimizeToTray: async (enabled) =>
+      (previewSettings = { ...previewSettings, minimizeToTray: enabled }),
+    setOverlayNextLine: async (enabled) =>
+      (previewSettings = { ...previewSettings, overlayNextLine: enabled }),
+    setOverlayTranslation: async (enabled) =>
+      (previewSettings = { ...previewSettings, overlayTranslation: enabled }),
+    setOverlayAlign: async (align) => (previewSettings = { ...previewSettings, overlayAlign: align }),
+    /* 浏览器里没有持久化文件，重置就是把这几个字段退回内存里的初值。 */
+    resetAll: async () =>
+      (previewSettings = {
+        ...basePreviewSettings,
+        desktopLyrics: { ...basePreviewSettings.desktopLyrics }
+      }),
     // A browser has no userData directory, so "nothing to measure" is the
     // honest answer rather than a made-up zero.
     getStorage: async () => ({
@@ -321,13 +358,13 @@ const webFallback: AuroraApi = {
      * lyric design would be unreviewable outside Electron, which is the one
      * window that cannot be screenshotted here.
      */
-    toggle: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
-    getStatus: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
+    toggle: async () => previewOverlayStatus(),
+    getStatus: async () => previewOverlayStatus(),
     setLocked: async () => true,
     setHitArea: async () => true,
     setToolbarArea: async () => true,
     onHover: () => () => undefined,
-    close: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
+    close: async () => previewOverlayStatus(),
     command: async () => true,
     push: async () => true,
     setSize: async (size) => {
@@ -339,7 +376,7 @@ const webFallback: AuroraApi = {
     },
     onSize: () => () => undefined,
     // 预览里没有第二个窗口可藏，状态照旧回报，调用方不用分叉。
-    setSuppressed: async () => ({ open: true, locked: false, size: previewSettings.desktopLyrics.size, visible: true }),
+    setSuppressed: async () => previewOverlayStatus(),
     onState: (handler) => {
       /*
        * 预览里没有播放器，也就没有真的时间轴。给一句「正在唱到一半」的假
@@ -381,7 +418,8 @@ const webFallback: AuroraApi = {
       })
       return () => undefined
     },
-    onStatus: () => () => undefined
+    onStatus: () => () => undefined,
+    onDisplay: () => () => undefined
   },
   netease: {
     /*

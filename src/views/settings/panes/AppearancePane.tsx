@@ -1,29 +1,34 @@
 import { useEffect, useState } from 'react'
-import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
-import { readReduceMotion, writeReduceMotion } from '../../../features/settings/motion'
-import { ROW_DENSITIES, useRowDensity, writeRowDensity } from '../../../features/settings/row-density'
-import { THEMES, useTheme, writeTheme } from '../../../features/settings/theme'
-import { applyBackdrop, BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
-import { LYRICS_MAX_SIZE, LYRICS_MIN_SIZE, useLyricSize, writeLyricSize } from '../../../features/settings/lyric-size'
-import { setStageParticles, useStageParticles } from '../../../features/settings/stage-particles'
-import { useSettingsPage } from '../../../features/settings/store'
 import { bridge, isNative } from '../../../bridge'
-import { useOverlayStatus } from '../../../features/overlay/status'
+import { setAccentFromArt, useAccentFromArt } from '../../../features/settings/accent'
+import { applyBackdrop, BLUR_MAX, BLUR_MIN, useBackdrop, writeBackdrop } from '../../../features/settings/backdrop'
+import { THEMES, useTheme, writeTheme } from '../../../features/settings/theme'
 import { useWallpaper } from '../../../features/wallpaper/store'
 import { chooseEntry } from '../../../features/wallpaper/pure'
 import { Refresh } from '../../../ui/icons'
-import { Row, Rows, Sub, Toggle } from '../parts'
+import { Choice, Note, Row, Rows, SettingsCard, Toggle } from '../parts'
 import { WallpaperGrid } from '../WallpaperGrid'
 import { WallpaperProps } from '../WallpaperProps'
 
+const BACKDROPS = [
+  { id: 'frosted', name: '标准亚克力' },
+  { id: 'clear', name: '轻薄亚克力' }
+]
+
 /**
- * 03 外观与桌面。
+ * 外观：主题、背景玻璃、图标、动态壁纸。
  *
- * 两件事都属于「界面之外的那块屏幕」：桌面歌词是独立窗口，动态背景是窗口底下的那层。
- * Wallpaper Engine 的开关、壁纸库与可见度沿用原有 store 与 WallpaperGrid，逻辑一行没改，
- * 只是从原来的「外观」分组搬进了这个编号分区。
+ * 只放「整块界面长什么样」的东西。首页分区与行密度搬到「首页与媒体库」，动效搬到
+ * 「动效」，歌词字号搬到「歌词」与「桌面歌词」——同一件事只留一个入口，省得用户
+ * 在两页里看到同一个开关却不知道哪个算数。
  */
-export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
+export function AppearancePane() {
+  const theme = useTheme()
+  const backdrop = useBackdrop()
+  const accentFromArt = useAccentFromArt()
+  const [blurDraft, setBlurDraft] = useState<number | null>(null)
+  const backdropBlur = blurDraft ?? backdrop.blur
+
   const wallpaperEnabled = useWallpaper((state) => state.enabled)
   const setWallpaperEnabled = useWallpaper((state) => state.setEnabled)
   const wallpaperSelection = useWallpaper((state) => state.selection)
@@ -38,10 +43,6 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const refreshWallpaper = useWallpaper((state) => state.refresh)
   const setWallpaperProperty = useWallpaper((state) => state.setProperty)
   const resetWallpaperProperties = useWallpaper((state) => state.resetProperties)
-  const backdrop = useBackdrop()
-  const [blurDraft, setBlurDraft] = useState<number | null>(null)
-  const backdropBlur = blurDraft ?? backdrop.blur
-  const { desktopLyrics } = page.settings
 
   /*
    * 正在当背景的那一张。可调项跟着它走——切到「跟随当前壁纸」时，
@@ -56,31 +57,9 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   const wallpaperValues = useWallpaper((state) =>
     wallpaperEntry ? state.values[wallpaperEntry.id] : undefined
   )
-
-  /*
-   * 桌面此刻那张。固定了别的壁纸时也要算出来：「跟随当前壁纸」那格画的是
-   * 「跟随会跟到哪一张」，不是「现在画的是哪一张」。
-   */
+  /* 桌面此刻那张：「跟随当前壁纸」那格画的是「跟随会跟到哪一张」。 */
   const followedWallpaper = wallpaperList.find((entry) => entry.current) ?? null
 
-  // 动态效果是纯渲染层的偏好，存 localStorage：改完立刻生效，不必进主进程设置。
-  const [reduceMotion, setReduceMotion] = useState(readReduceMotion)
-  const accentFromArt = useAccentFromArt()
-  const density = useRowDensity()
-  const theme = useTheme()
-  const particles = useStageParticles()
-  /* 三个滑块共用一个草稿：拖动时只改这一份，松手才落盘。 */
-  const [moteDraft, setMoteDraft] = useState<{ density: number; speed: number; size: number } | null>(null)
-  const mote = moteDraft ?? { density: particles.density, speed: particles.speed, size: particles.size }
-  const commitMote = (next: { density: number; speed: number; size: number }): void => {
-    setStageParticles(next)
-    setMoteDraft(null)
-  }
-
-  /*
-   * 应用图标。预览走 data URL：主进程只回一张 256 的 PNG，渲染层不需要知道
-   * 图标存在哪、存了几档尺寸。
-   */
   const [appIcon, setAppIcon] = useState<{ custom: boolean; dataUrl: string }>({
     custom: false,
     dataUrl: ''
@@ -91,6 +70,10 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
   useEffect(() => {
     void bridge.app.getIcon().then(setAppIcon)
   }, [])
+
+  useEffect(() => {
+    if (wallpaperEnabled) void refreshWallpaper()
+  }, [wallpaperEnabled, refreshWallpaper])
 
   async function chooseAppIcon(): Promise<void> {
     setIconBusy(true)
@@ -113,440 +96,234 @@ export function AppearancePane({ page }: { page: ReturnType<typeof useSettingsPa
     setIconNotice('')
   }
 
-  // 滑杆拖动时只改本地值，松手/松开按键才落盘：一次拖动只写一次设置。
-  const [previewSize, setPreviewSize] = useState(desktopLyrics.size)
-  const lyricSizeNow = useLyricSize()
-  const [lyricDraft, setLyricDraft] = useState<number | null>(null)
-  const lyricSize = lyricDraft ?? lyricSizeNow
-  useEffect(() => {
-    setPreviewSize(desktopLyrics.size)
-  }, [desktopLyrics.size])
-
-  /* 别处（或另一个窗口）改了字号时，把草稿让回真值 */
-  useEffect(() => {
-    setLyricDraft(null)
-  }, [lyricSizeNow])
-
-  useEffect(() => {
-    if (wallpaperEnabled) void refreshWallpaper()
-  }, [wallpaperEnabled, refreshWallpaper])
-
   return (
-    <Rows>
-      <Row
-        label="主题"
+    <>
+      <SettingsCard
+        title="主题与背景"
+        hint="颜色全在主题里分两套写死，换主题不会改变布局；背景处理只决定壁纸被玻璃盖住多少。"
       >
-        <div className="seg">
-          {THEMES.map((item) => (
-            <button
-              key={item.id}
-              className={theme.id === item.id ? 'is-active' : ''}
-              onClick={() => writeTheme(item.id)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      </Row>
-
-      <Row label="背景">
-        <div className="seg">
-          <button
-            className={backdrop.mode === 'frosted' ? 'is-active' : ''}
-            onClick={() => writeBackdrop({ ...backdrop, mode: 'frosted' })}
+        <Rows>
+          <Row
+            label="主题"
+            desc="跟随系统会随 Windows 的明暗切换；选深色/浅色则一直保持。"
+            id="appearance-theme"
           >
-            标准亚克力
-          </button>
-          <button
-            className={backdrop.mode === 'clear' ? 'is-active' : ''}
-            onClick={() => writeBackdrop({ ...backdrop, mode: 'clear' })}
+            <Choice
+              value={theme.id}
+              options={THEMES}
+              label="主题"
+              onChange={(next) => writeTheme(next)}
+            />
+          </Row>
+          <Row
+            label="背景"
+            desc="标准亚克力把壁纸糊成一片颜色，字最稳；轻薄亚克力图看得清，适合安静壁纸。"
+            id="appearance-backdrop"
           >
-            轻薄亚克力
-          </button>
-        </div>
-      </Row>
-
-      <Row
-        label="模糊程度"
-      >
-        <div className="settings__slider">
-          <input
-            type="range"
-            min={BLUR_MIN}
-            max={BLUR_MAX}
-            step={1}
-            value={backdropBlur}
-            aria-label="模糊程度"
-            onChange={(event) => {
-              const next = Number(event.target.value)
-              setBlurDraft(next)
-              // 拖动过程中就把变量落下去，界面当场变；写 localStorage 留到松手。
-              applyBackdrop({ ...backdrop, blur: next })
-            }}
-            onPointerUp={() => {
-              writeBackdrop({ ...backdrop, blur: backdropBlur })
-              setBlurDraft(null)
-            }}
-            onKeyUp={() => {
-              writeBackdrop({ ...backdrop, blur: backdropBlur })
-              setBlurDraft(null)
-            }}
-          />
-          <span className="settings__number">{backdropBlur}px</span>
-        </div>
-      </Row>
-
-      <Row
-        label="界面跟着封面取色"
-      >
-        <Toggle
-          checked={accentFromArt}
-          label="界面跟着封面取色"
-          onChange={(next) => setAccentFromArt(next)}
-        />
-      </Row>
-
-      <Sub title="桌面歌词">
-        <DesktopLyricsRows page={page} />
-
-      <div className="settings__row settings__row--stacked">
-        <div className="settings__text">
-          <div className="settings__label">桌面歌词字号</div>
-        </div>
-        <div className="settings__preview" style={{ fontSize: previewSize }}>
-          我把名字写在起雾的玻璃上
-        </div>
-        <div className="settings__slider">
-          <input
-            type="range"
-            min={desktopLyrics.min}
-            max={desktopLyrics.max}
-            step={1}
-            value={previewSize}
-            aria-label="桌面歌词字号"
-            onChange={(event) => setPreviewSize(Number(event.target.value))}
-            onPointerUp={() => void page.setLyricsSize(previewSize)}
-            onKeyUp={() => void page.setLyricsSize(previewSize)}
-          />
-          <span className="settings__number">{previewSize}px</span>
-        </div>
-      </div>
-
-      <div className="settings__row settings__row--stacked">
-        <div className="settings__text">
-          <div className="settings__label">播放页歌词字号</div>
-        </div>
-        <div className="settings__slider">
-          <input
-            type="range"
-            min={LYRICS_MIN_SIZE}
-            max={LYRICS_MAX_SIZE}
-            step={1}
-            value={lyricSize}
-            aria-label="播放页歌词字号"
-            onChange={(event) => setLyricDraft(Number(event.target.value))}
-            onPointerUp={() => {
-              writeLyricSize(lyricSize)
-              setLyricDraft(null)
-            }}
-            onKeyUp={() => {
-              writeLyricSize(lyricSize)
-              setLyricDraft(null)
-            }}
-          />
-          <span className="settings__number">{lyricSize}px</span>
-        </div>
-      </div>
-      </Sub>
-
-      <Row
-        label="窗口显示"
-      >
-        <button className="btn" onClick={() => void bridge.window.toggleFullscreen()}>
-          切换全屏 / F11
-        </button>
-      </Row>
-
-      <Row
-        label="动态效果"
-      >
-        <Toggle
-          checked={reduceMotion}
-          label="动态效果"
-          onChange={(next) => {
-            setReduceMotion(next)
-            writeReduceMotion(next)
-          }}
-        />
-      </Row>
-
-      <Row
-        label="应用图标"
-      >
-        <div className="set-icon">
-          {appIcon.dataUrl ? (
-            <img className="set-icon__prev" src={appIcon.dataUrl} alt="" />
-          ) : (
-            <span className="set-icon__prev" />
-          )}
-          <button
-            className="btn"
-            type="button"
-            disabled={!isNative || iconBusy}
-            onClick={() => void chooseAppIcon()}
+            <Choice
+              value={backdrop.mode}
+              options={BACKDROPS}
+              label="背景处理"
+              onChange={(next) => writeBackdrop({ ...backdrop, mode: next as 'frosted' | 'clear' })}
+            />
+          </Row>
+          <Row
+            label="模糊程度"
+            desc="拖动时界面当场变，松手才保存；0 表示只铺一层淡底、完全不糊。"
+            id="appearance-blur"
+            stack
           >
-            {iconBusy ? '读取中…' : appIcon.custom ? '换一张' : '换个图标'}
-          </button>
-          {appIcon.custom ? (
-            <button
-              className="btn btn--ghost"
-              type="button"
-              disabled={iconBusy}
-              onClick={() => void resetAppIcon()}
-            >
-              恢复默认
-            </button>
-          ) : null}
-          {iconNotice ? <p className="set-icon__notice">{iconNotice}</p> : null}
-        </div>
-      </Row>
-
-      <Sub title="舞台粒子">
-        <Row label="粒子">
-          <Toggle
-            checked={particles.enabled}
-            label="舞台粒子"
-            onChange={(next) => setStageParticles({ enabled: next })}
-          />
-        </Row>
-        {particles.enabled ? (
-          <>
-            <Row label="多少">
-              <div className="settings__slider">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round(mote.density * 100)}
-                  aria-label="粒子数量"
-                  onChange={(event) =>
-                    setMoteDraft({ ...mote, density: Number(event.target.value) / 100 })
-                  }
-                  onPointerUp={() => commitMote(mote)}
-                  onKeyUp={() => commitMote(mote)}
-                />
-                <span className="settings__number">{Math.round(mote.density * 100)}%</span>
-              </div>
-            </Row>
-            <Row label="快慢">
-              <div className="settings__slider">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round(mote.speed * 100)}
-                  aria-label="粒子速度"
-                  onChange={(event) =>
-                    setMoteDraft({ ...mote, speed: Number(event.target.value) / 100 })
-                  }
-                  onPointerUp={() => commitMote(mote)}
-                  onKeyUp={() => commitMote(mote)}
-                />
-                <span className="settings__number">{Math.round(mote.speed * 100)}%</span>
-              </div>
-            </Row>
-            <Row label="大小">
-              <div className="settings__slider">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round(mote.size * 100)}
-                  aria-label="粒子大小"
-                  onChange={(event) =>
-                    setMoteDraft({ ...mote, size: Number(event.target.value) / 100 })
-                  }
-                  onPointerUp={() => commitMote(mote)}
-                  onKeyUp={() => commitMote(mote)}
-                />
-                <span className="settings__number">{Math.round(mote.size * 100)}%</span>
-              </div>
-            </Row>
-          </>
-        ) : null}
-      </Sub>
-      <Row label="列表行密度">
-        <div className="seg">
-          {ROW_DENSITIES.map((item) => (
-            <button
-              key={item.id}
-              className={density.id === item.id ? 'is-active' : ''}
-              onClick={() => writeRowDensity(item.id)}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      </Row>
-
-      <Row label="Wallpaper Engine 动态背景">
-        <Toggle
-          checked={wallpaperEnabled}
-          label="Wallpaper Engine 动态背景"
-          onChange={(next) => setWallpaperEnabled(next)}
-        />
-      </Row>
-
-      {wallpaperEnabled ? (
-        <>
-          <div className="settings__row settings__row--stacked">
-            <div className="wp-picker">
-              <div className="wp-picker__head">
-                <div className="settings__text">
-                  <div className="settings__label">壁纸库</div>
-                </div>
-                <button
-                  className="btn"
-                  onClick={() => void refreshWallpaper(true)}
-                  disabled={wallpaperLoading}
-                >
-                  <Refresh size={14} />
-                  {wallpaperLoading ? '读取中…' : '重新读取'}
-                </button>
-              </div>
-              <WallpaperGrid
-                list={wallpaperList}
-                selection={wallpaperSelection}
-                followPreview={followedWallpaper?.previewUrl ?? null}
-                onSelect={setWallpaperSelection}
-              />
-            </div>
-          </div>
-
-          {/*
-            只有场景壁纸能吃到这些值：视频/网页/图片壁纸是原样播放的文件，
-            没有可以注入属性的渲染器，显示出来只会点了没反应。
-          */}
-          {wallpaperEntry &&
-          wallpaperEntry.kind === 'scene' &&
-          wallpaperEntry.hasPackage &&
-          (wallpaperEntry.properties?.length ?? 0) > 0 ? (
-            <div className="settings__row settings__row--stacked">
-              <WallpaperProps
-                entry={wallpaperEntry}
-                values={wallpaperValues}
-                onChange={(name, value) => setWallpaperProperty(wallpaperEntry.id, name, value)}
-                onReset={() => resetWallpaperProperties(wallpaperEntry.id)}
-              />
-            </div>
-          ) : null}
-
-          {/*
-            只有场景壁纸有帧率与光栅化分辨率可调；视频/网页/图片是原样播放的
-            文件，所以这一行只在选中场景时出现，不给用户一个点了没反应的分区。
-          */}
-          {wallpaperEntry &&
-          wallpaperEntry.kind === 'scene' &&
-          wallpaperEntry.hasPackage ? (
-            <div className="settings__row settings__row--stacked">
-              <div className="settings__text">
-                <div className="settings__label">壁纸画质</div>
-              </div>
-              <div className="seg">
-                {(
-                  [
-                    ['saver', '省电'],
-                    ['balanced', '均衡'],
-                    ['sharp', '清晰']
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    className={wallpaperQuality === value ? 'is-active' : ''}
-                    aria-pressed={wallpaperQuality === value}
-                    onClick={() => setWallpaperQuality(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="settings__row settings__row--stacked">
-            <div className="settings__text">
-              <div className="settings__label">壁纸可见度</div>
-            </div>
             <div className="settings__slider">
               <input
                 type="range"
-                min={0}
-                max={100}
+                min={BLUR_MIN}
+                max={BLUR_MAX}
                 step={1}
-                value={Math.round(wallpaperStrength * 100)}
-                aria-label="壁纸可见度"
-                onChange={(event) => setWallpaperStrength(Number(event.target.value) / 100)}
+                value={backdropBlur}
+                aria-label="背景模糊程度"
+                onChange={(event) => {
+                  const next = Number(event.target.value)
+                  setBlurDraft(next)
+                  applyBackdrop({ ...backdrop, blur: next })
+                }}
+                onPointerUp={() => {
+                  writeBackdrop({ ...backdrop, blur: backdropBlur })
+                  setBlurDraft(null)
+                }}
+                onKeyUp={() => {
+                  writeBackdrop({ ...backdrop, blur: backdropBlur })
+                  setBlurDraft(null)
+                }}
               />
-              <span className="settings__number">{Math.round(wallpaperStrength * 100)}%</span>
+              <span className="settings__number">{backdropBlur}px</span>
             </div>
-          </div>
-        </>
-      ) : null}
-    </Rows>
-  )
-}
+          </Row>
+          <Row
+            label="界面跟着封面取色"
+            desc="关掉后强调色退回固定的冷灰。动态壁纸本身颜色很热闹时，关掉能少一层冲突。"
+            id="appearance-accent"
+          >
+            <Toggle
+              checked={accentFromArt}
+              label="界面跟着封面取色"
+              onChange={(next) => setAccentFromArt(next)}
+            />
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-/**
- * 桌面歌词窗口的两行开关。
- *
- * 状态由主进程回报：窗口可能在别的入口被打开或关掉，这里只负责把当前状态
- * 画出来，不做本地猜测。锁上之后那个窗口对鼠标透明，和 Windows 上的悬浮控件
- * 一样，所以它只在歌词窗口开着的时候才有意义。
- */
-function DesktopLyricsRows({ page }: { page: ReturnType<typeof useSettingsPage> }) {
-  const status = useOverlayStatus()
+      <SettingsCard title="应用图标" hint="只换这台机器上的图标，不改安装包；任务栏与开始菜单会一起变。">
+        <Rows>
+          <Row
+            label="图标"
+            desc="选一张方形图片，应用会缩成系统要的几档尺寸。取消不算失败。"
+            id="appearance-icon"
+          >
+            <div className="set-icon">
+              {appIcon.dataUrl ? (
+                <img className="set-icon__prev" src={appIcon.dataUrl} alt="" />
+              ) : (
+                <span className="set-icon__prev" />
+              )}
+              <button
+                className="btn"
+                type="button"
+                disabled={!isNative || iconBusy}
+                onClick={() => void chooseAppIcon()}
+              >
+                {iconBusy ? '读取中…' : appIcon.custom ? '换一张' : '换个图标'}
+              </button>
+              {appIcon.custom ? (
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  disabled={iconBusy}
+                  onClick={() => void resetAppIcon()}
+                >
+                  恢复默认
+                </button>
+              ) : null}
+              {iconNotice ? <p className="set-icon__notice">{iconNotice}</p> : null}
+            </div>
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-  const open = status?.open ?? false
-  const locked = status?.locked ?? false
-
-  return (
-    <>
-      <Row
-        label="显示桌面歌词"
+      <SettingsCard
+        title="动态背景"
+        hint="接 Wallpaper Engine 的壁纸，窗口后面的桌面层会跟着动；关掉就用静态背景。"
       >
-        {isNative ? (
-          <button className="btn" onClick={() => void bridge.overlay.toggle(!open)}>
-            {open ? '关闭' : '打开'}
-          </button>
-        ) : (
-          <span className="settings__number">仅桌面版</span>
-        )}
-      </Row>
+        <Rows>
+          <Row
+            label="启用动态背景"
+            desc="读取本机 Wallpaper Engine 已安装的壁纸；首次开启会扫一遍壁纸库，需要几秒。"
+            id="appearance-wallpaper"
+          >
+            <Toggle
+              checked={wallpaperEnabled}
+              label="Wallpaper Engine 动态背景"
+              onChange={(next) => setWallpaperEnabled(next)}
+            />
+          </Row>
+        </Rows>
 
-      <Row
-        label="锁住歌词位置"
-      >
-        <Toggle
-          checked={locked}
-          label="锁住歌词位置"
-          disabled={!isNative || !open}
-          onChange={(next) => void bridge.overlay.setLocked(next)}
-        />
-      </Row>
+        {wallpaperEnabled ? (
+          <>
+            <div className="settings__row settings__row--stacked">
+              <div className="wp-picker">
+                <div className="wp-picker__head">
+                  <div className="settings__text">
+                    <div className="settings__label">壁纸库</div>
+                    <p className="settings__desc">
+                      首格「跟随当前壁纸」跟着 Wallpaper Engine 里正在用的那张走。
+                    </p>
+                  </div>
+                  <button
+                    className="btn"
+                    onClick={() => void refreshWallpaper(true)}
+                    disabled={wallpaperLoading}
+                  >
+                    <Refresh size={14} />
+                    {wallpaperLoading ? '读取中…' : '重新读取'}
+                  </button>
+                </div>
+                <WallpaperGrid
+                  list={wallpaperList}
+                  selection={wallpaperSelection}
+                  followPreview={followedWallpaper?.previewUrl ?? null}
+                  onSelect={setWallpaperSelection}
+                />
+              </div>
+            </div>
 
-      <Row
-        label="锁住时也能悬停"
-      >
-        <Toggle
-          checked={page.settings.overlayHoverControls}
-          label="锁住时也能悬停"
-          disabled={page.busy}
-          onChange={(next) => void page.setOverlayHoverControls(next)}
-        />
-      </Row>
+            {/*
+              只有场景壁纸能吃到这些值：视频/网页/图片壁纸是原样播放的文件，
+              没有可以注入属性的渲染器，显示出来只会点了没反应。
+            */}
+            {wallpaperEntry &&
+            wallpaperEntry.kind === 'scene' &&
+            wallpaperEntry.hasPackage &&
+            (wallpaperEntry.properties?.length ?? 0) > 0 ? (
+              <div className="settings__row settings__row--stacked">
+                <WallpaperProps
+                  entry={wallpaperEntry}
+                  values={wallpaperValues}
+                  onChange={(name, value) => setWallpaperProperty(wallpaperEntry.id, name, value)}
+                  onReset={() => resetWallpaperProperties(wallpaperEntry.id)}
+                />
+              </div>
+            ) : null}
+
+            {/*
+              只有场景壁纸有帧率与光栅化分辨率可调；视频/网页/图片是原样播放的
+              文件，所以这一行只在选中场景时出现，不给用户一个点了没反应的分区。
+            */}
+            {wallpaperEntry && wallpaperEntry.kind === 'scene' && wallpaperEntry.hasPackage ? (
+              <div className="settings__row settings__row--stacked">
+                <div className="settings__text">
+                  <div className="settings__label">壁纸画质</div>
+                  <p className="settings__desc">
+                    省电降帧率与分辨率，笔记本电池下更耐用；清晰优先画面质量。
+                  </p>
+                </div>
+                <Choice
+                  value={wallpaperQuality}
+                  options={[
+                    { id: 'saver', name: '省电' },
+                    { id: 'balanced', name: '均衡' },
+                    { id: 'sharp', name: '清晰' }
+                  ]}
+                  label="壁纸画质"
+                  onChange={(next) => setWallpaperQuality(next)}
+                />
+              </div>
+            ) : null}
+
+            <div className="settings__row settings__row--stacked">
+              <div className="settings__text">
+                <div className="settings__label">壁纸可见度</div>
+                <p className="settings__desc">
+                  壁纸在玻璃后面的透明度。调高看得更清楚，文字对比度会下降。
+                </p>
+              </div>
+              <div className="settings__slider">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(wallpaperStrength * 100)}
+                  aria-label="壁纸可见度"
+                  onChange={(event) => setWallpaperStrength(Number(event.target.value) / 100)}
+                />
+                <span className="settings__number">{Math.round(wallpaperStrength * 100)}%</span>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </SettingsCard>
+
+      <Note>列表行密度、首页分区在「首页与媒体库」；舞台粒子与减少动效在「动效」；歌词字号在「歌词」。</Note>
     </>
   )
 }

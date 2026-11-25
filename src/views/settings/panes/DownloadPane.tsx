@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
 import { useDownloads } from '../../../features/downloads/store'
-import { cacheLimitLabel, cacheSizeLabel } from '../../../features/settings/cache-format'
 import type { useSettingsPage } from '../../../features/settings/store'
-import { bridge } from '../../../bridge'
-import type { DownloadFormat, MediaCacheStats } from '../../../env'
-import { Row, Rows, Toggle } from '../parts'
+import type { DownloadFormat } from '../../../env'
+import { Choice, Note, Row, Rows, SettingsCard, Toggle } from '../parts'
 
 const FORMATS: { value: DownloadFormat; label: string; hint: string }[] = [
   { value: 'original', label: '原格式', hint: '平台给什么就存什么，最快，不重新编码。' },
@@ -16,19 +13,13 @@ const FORMATS: { value: DownloadFormat; label: string; hint: string }[] = [
 const BITRATES = [128, 192, 256, 320]
 
 /**
- * 在线缓存的几档上限。
- *
- * 用固定档位而不是滑块：2GB 与 2.1GB 对用户没有区别，但一行按钮比拖动条更好
- * 点，也更好解释「不缓存」这个真实存在的选项。
- */
-const CACHE_LIMITS = [0, 512, 1024, 2048, 5120, 10_240]
-
-/**
- * 09 下载。
+ * 下载。
  *
  * 三件事：存到哪、存成什么、用什么转。后两项对「原格式」无意义——原格式只是
  * 把平台给的字节搬下来，所以选中原格式时码率那行整行禁用，而不是假装它能生效。
  * 转码依赖 ffmpeg；没有就直说，只下原格式不受影响。
+ *
+ * 在线缓存不在这里：它属于「存储与清理」，跟磁盘占用放在一起。
  */
 export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage> }) {
   const prefs = useDownloads((state) => state.prefs)
@@ -37,163 +28,94 @@ export function DownloadPane({ page }: { page: ReturnType<typeof useSettingsPage
   const pickDir = useDownloads((state) => state.pickDir)
   const openFolder = useDownloads((state) => state.openFolder)
 
-  const [cache, setCache] = useState<MediaCacheStats | null>(null)
-  const [cacheBusy, setCacheBusy] = useState(false)
-
-  useEffect(() => {
-    let alive = true
-    void bridge.mediaCache.stats().then((value) => {
-      if (alive) setCache(value)
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
-
-  const changeCacheLimit = async (megabytes: number): Promise<void> => {
-    setCacheBusy(true)
-    try {
-      await page.setMediaCacheLimit(megabytes)
-      setCache(await bridge.mediaCache.stats())
-    } finally {
-      setCacheBusy(false)
-    }
-  }
-
-  const clearAudioCache = async (): Promise<void> => {
-    setCacheBusy(true)
-    try {
-      setCache(await bridge.mediaCache.clear())
-    } finally {
-      setCacheBusy(false)
-    }
-  }
-
   const format = prefs?.format ?? 'original'
   const bitrate = prefs?.bitrate ?? 256
-  const cacheLimit = page.settings.mediaCacheLimitMb
+  const losslessOrOriginal = format === 'original' || format === 'flac'
+  const formatHint = FORMATS.find((item) => item.value === format)?.hint ?? ''
 
   return (
-    <Rows>
-      <Row
-        label="保存到"
-        
-        title={prefs?.effectiveDir}
-      >
-        <div className="dlp__dir">
-          <span className="dlp__path" title={prefs?.effectiveDir}>
-            {prefs?.effectiveDir ?? '读取中…'}
-          </span>
-          <button className="btn" type="button" onClick={() => void pickDir()}>
-            更改
-          </button>
-          <button className="btn btn--ghost" type="button" onClick={() => void openFolder()}>
-            打开
-          </button>
-        </div>
-      </Row>
-
-      <Row
-        label="下完在文件夹里显示"
-      >
-        <Toggle
-          checked={page.settings.openAfterDownload}
-          disabled={page.busy}
-          label="下完在文件夹里显示"
-          onChange={(next) => void page.setOpenAfterDownload(next)}
-        />
-      </Row>
-
-      <Row label="格式">
-        <div className="seg" role="group" aria-label="下载格式">
-          {FORMATS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={item.value === format ? 'is-active' : ''}
-              onClick={() => void setFormat(item.value)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </Row>
-
-      <Row
-        label="码率"
-      >
-        <div className={`seg${format === 'original' || format === 'flac' ? ' is-muted' : ''}`} role="group" aria-label="下载码率">
-          {BITRATES.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={value === bitrate ? 'is-active' : ''}
-              disabled={format === 'original' || format === 'flac'}
-              onClick={() => void setBitrate(value)}
-            >
-              {value}k
-            </button>
-          ))}
-        </div>
-      </Row>
-
-      <Row
-        label="转码器"
-      >
-        <span className={`dlp__badge${prefs?.ffmpeg ? ' is-ok' : ''}`}>
-          {prefs?.ffmpeg ? '可用' : '未安装'}
-        </span>
-      </Row>
-
-      <Row
-        label="在线缓存上限"
-      >
-        <div className="seg" role="group" aria-label="在线缓存上限">
-          {CACHE_LIMITS.map((megabytes) => (
-            <button
-              key={megabytes}
-              type="button"
-              className={megabytes === cacheLimit ? 'is-active' : ''}
-              disabled={cacheBusy || page.busy}
-              onClick={() => void changeCacheLimit(megabytes)}
-            >
-              {cacheLimitLabel(megabytes)}
-            </button>
-          ))}
-        </div>
-      </Row>
-
-      <Row
-        label="缓存占用"
-        
-        title={cache?.directory}
-      >
-        <div className="dlp__dir">
-          <span className="dlp__path" title={cache?.directory}>
-            {cache ? `${cache.entries} 首 · ${cacheSizeLabel(cache.bytes)}` : '读取中…'}
-          </span>
-          <button
-            className="btn btn--ghost"
-            type="button"
-            disabled={cacheBusy || !cache || cache.entries === 0}
-            onClick={() => void clearAudioCache()}
+    <>
+      <SettingsCard title="保存位置" hint="离线下载独立于在线缓存；在线缓存删掉不会影响已下载的歌。">
+        <Rows>
+          <Row
+            label="保存到"
+            desc="每首歌存成一个文件，文件名带歌手与曲名；文件夹可以随时改，已下载的不会搬过去。"
+            id="download-dir"
+            title={prefs?.effectiveDir}
           >
-            清空
-          </button>
-          <button
-            className="btn btn--ghost"
-            type="button"
-            disabled={cacheBusy}
-            onClick={() => void bridge.mediaCache.openFolder()}
+            <div className="dlp__dir">
+              <span className="dlp__path" title={prefs?.effectiveDir}>
+                {prefs?.effectiveDir ?? '读取中…'}
+              </span>
+              <button className="btn" type="button" onClick={() => void pickDir()}>
+                更改
+              </button>
+              <button className="btn btn--ghost" type="button" onClick={() => void openFolder()}>
+                打开
+              </button>
+            </div>
+          </Row>
+          <Row
+            label="下完在文件夹里显示"
+            desc="下载结束后自动打开文件管理器并选中文件；批量下载时可能有点吵，可以关掉。"
           >
-            打开
-          </button>
-        </div>
-      </Row>
+            <Toggle
+              checked={page.settings.openAfterDownload}
+              disabled={page.busy}
+              label="下完在文件夹里显示"
+              onChange={(next) => void page.setOpenAfterDownload(next)}
+            />
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-      <p className="dlp__note">
+      <SettingsCard
+        title="格式"
+        hint="转码会用掉一些时间与 CPU；高码率不会把有损源补回细节，只让它更接近原样。"
+      >
+        <Rows>
+          <Row
+            label="文件格式"
+            desc={formatHint}
+            id="download-format"
+            stack
+          >
+            <Choice
+              value={format}
+              options={FORMATS.map((item) => ({ id: item.value, name: item.label }))}
+              label="下载格式"
+              onChange={(next) => void setFormat(next)}
+            />
+          </Row>
+          <Row
+            label="码率"
+            desc={
+              losslessOrOriginal
+                ? '原格式与 FLAC 不做有损转码，所以码率选项在这里不起作用。'
+                : 'MP3 与 M4A 的编码码率；越高越接近源，文件也越大。'
+            }
+            id="download-bitrate"
+            stack
+          >
+            <Choice
+              value={String(bitrate)}
+              options={BITRATES.map((value) => ({ id: String(value), name: value + 'k' }))}
+              label="下载码率"
+              disabled={losslessOrOriginal}
+              onChange={(next) => void setBitrate(Number(next))}
+            />
+          </Row>
+          <Row label="转码器" desc="非原格式要本机有 ffmpeg；没有时下载会失败，并在下载列表里写明原因。">
+            <span className={'dlp__badge' + (prefs?.ffmpeg ? ' is-ok' : '')}>
+              {prefs?.ffmpeg ? '可用' : '未安装'}
+            </span>
+          </Row>
+        </Rows>
+      </SettingsCard>
+
+      <Note>
         下载的是平台这次给出的音源文件。能不能下到完整一首取决于账号与版权，遇到只能试听的歌会直接标出来。
-      </p>
-    </Rows>
+      </Note>
+    </>
   )
 }

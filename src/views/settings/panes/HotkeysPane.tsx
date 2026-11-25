@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Rows } from '../parts'
+import { Note, SettingsCard } from '../parts'
 import {
   HOTKEYS,
   HOTKEY_BY_ID,
@@ -12,7 +12,7 @@ import {
 } from '../../../features/hotkeys/binding'
 
 /**
- * 04 快捷键（可改）。
+ * 快捷键（可改）。
  *
  * 从前是一张只读清单：键位写死在 useKeyboardShortcuts 的一串 if 里。现在动作表
  * 在 features/hotkeys/binding.ts，这里只负责「显示当前是什么」与「按一下换成什么」。
@@ -137,48 +137,58 @@ export function HotkeysPane() {
   ]
 
   return (
-    <Rows>
-      <div ref={box}>
-        {groups.map((group) => (
-          <div className="set-keygroup" key={group.scope}>
-            <h3 className="set-keygroup__title">{group.title}</h3>
-            {HOTKEYS.filter((item) => item.scope === group.scope).map((item) => (
-              <div className="set-keyrow" key={item.id}>
-                <KeyChip
-                  id={item.id}
-                  recording={recording === item.id}
-                  onStart={() => {
-                    setRecording(item.id)
-                    setWarn(null)
-                  }}
-                />
-                <span className="set-keyrow__what">
-                  {item.label}
-                  {item.id in overrides ? (
-                    <button
-                      type="button"
-                      className="set-keyrow__reset"
-                      onClick={() => resetBinding(item.id)}
-                      title={'恢复默认：' + prettyCombo(item.def).join(' + ')}
-                    >
-                      重置
-                    </button>
-                  ) : null}
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      {warn ? <p className="set-keywarn">{warn}</p> : null}
-      <div className="set-keys__foot">
-        <button type="button" className="btn" onClick={() => useHotkeys.getState().resetAll()}>
-          全部恢复默认
-        </button>
-      </div>
-      <p className="set-keyhint">
+    <>
+      <SettingsCard
+        title="键位"
+        hint="每个动作只绑一个组合；改完立刻生效，不用重启。"
+      >
+        <div ref={box}>
+          {groups.map((group) => (
+            <div
+              className="set-keygroup"
+              key={group.scope}
+              data-set-key={group.scope === 'app' ? 'keys-list' : undefined}
+            >
+              <h3 className="set-keygroup__title">{group.title}</h3>
+              {HOTKEYS.filter((item) => item.scope === group.scope).map((item) => (
+                <div className="set-keyrow" key={item.id}>
+                  <KeyChip
+                    id={item.id}
+                    recording={recording === item.id}
+                    onStart={() => {
+                      setRecording(item.id)
+                      setWarn(null)
+                    }}
+                  />
+                  <span className="set-keyrow__what">
+                    {item.label}
+                    {item.id in overrides ? (
+                      <button
+                        type="button"
+                        className="set-keyrow__reset"
+                        onClick={() => resetBinding(item.id)}
+                        title={'恢复默认：' + prettyCombo(item.def).join(' + ')}
+                      >
+                        重置
+                      </button>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        {warn ? <p className="set-keywarn">{warn}</p> : null}
+        <div className="set-keys__foot">
+          <button type="button" className="btn" onClick={() => useHotkeys.getState().resetAll()}>
+            全部恢复默认
+          </button>
+        </div>
+      </SettingsCard>
+
+      <Note>
         点击任意一个键位开始录制，按 Esc 取消。光标在输入框里时，窗口内的快捷键不生效——打字不会顺带把歌切了。
-      </p>
-    </Rows>
+      </Note>
+    </>
   )
 }

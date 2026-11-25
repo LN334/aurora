@@ -93,45 +93,6 @@
     inset 0 0 22px -8px rgb(var(--plane-rgb) / 0.22);
 }
 
-/* --- 设置页：与页头同一套线 ------------------------------------------------ */
-
-/*
- * 设置页有自己的 settings.css（组件级导入），注入顺序晚于这一层，所以选择器
- * 统一加 .main 前缀提一档特异性——设置页永远在 .main 里，这条前提成立。
- */
-.main .settings__tabs {
-  position: relative;
-  border-bottom-color: transparent;
-}
-
-.main .settings__tabs::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--plane-rgb) / 0.22) 0%,
-    rgb(var(--plane-rgb) / 0.16) 38%,
-    transparent 76%
-  );
-}
-
-/* 选中的分区标签：一块灰底换成一片极光，底下压一根短线当「这里」。 */
-.main .settings__tab.is-active {
-  background: linear-gradient(
-    128deg,
-    rgb(var(--plane-rgb) / 0.2) 0%,
-    rgb(var(--plane-rgb) / 0.11) 100%
-  );
-  color: var(--text-hi);
-  font-weight: 600;
-  box-shadow: inset 0 -1px 0 rgb(var(--plane-rgb) / 0.22);
-}
-
 /* 音乐文件夹那一列：与歌曲行同一套「左浓右化」的光。 */
 .main .src-row:hover {
   background: linear-gradient(
@@ -583,37 +544,81 @@
   pointer-events: none;
 }
 
-/* --- 封面飞行：列表里那张图，先落到详情页的大封面上 ---------------------- */
+/* --- 封面飞行：卡片上那张图飞到详情页的大封面上 ------------------------- */
 
 /*
- * 元素由 src/ui/fly-cover.ts 在导航时临时建出来：位置与尺寸就是目标封面
- * （.dp__art）的矩形，transform 从源矩形插值到零。因此这里只管「长什么样」：
- * 裁剪、阴影、盖在转场 ghost 之上、fx 之下。
+ * 元素由 src/ui/fly-cover.ts 在导航时临时建出来。外壳铺满视口、不带 transform；
+ * 里面的 .cover-flight 按**落点**布局，飞行结束时它的 transform 正好归零，所以
+ * 下面的目标封面可以直接接手，中间没有一帧错位。
+ *
+ * 三块各自动：盒子走位移与缩放、__pic 走图片自己的 cover 补偿、__edge 只改不透明
+ * 度。标题必须是外壳的兄弟而不是盒子的子元素——盒子带 transform，会成为
+ * position: fixed 的包含块，标题的视口定位会失效。
  */
-.cover-flight {
+.cover-flight__root {
   position: fixed;
+  inset: 0;
   z-index: 58;
   pointer-events: none;
-  overflow: hidden;
+}
+
+.cover-flight {
+  position: absolute;
   transform-origin: 0 0;
-  box-shadow: 0 34px 80px -34px rgb(0 0 0 / 0.62);
   will-change: transform;
 }
 
-.cover-flight__inner {
+.cover-flight__pic {
   position: absolute;
-  inset: 0;
+  transform-origin: 0 0;
+  overflow: hidden;
+  will-change: transform;
+  background: var(--ink-900);
 }
 
-.cover-flight__inner img {
+.cover-flight__pic img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* 飞行期间目标封面让位：它自己带着 dp-rise 入场动画，光改 inline opacity 无效。 */
-.dp__art.is-flying {
+/*
+ * 框的边：只在空中亮。
+ *
+ * 两端都归零——那时载具要冒充页面自己画的那张卡，多一道边就是多一层壳。
+ * 颜色取 accent 而不是白：浅色主题下白边贴着白卡片看不出来，accent 是这张封面
+ * 自己的颜色，飞起来像它自己在发光。
+ */
+.cover-flight__edge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 0.52),
+    inset 0 0 0 3px rgb(var(--accent-rgb) / 0.78),
+    0 0 38px rgb(var(--accent-rgb) / 0.5),
+    0 34px 76px -32px rgb(0 0 0 / 0.6);
+}
+
+/* 标题：按起点字号布局，位移与缩放一起做，两轴同一个因子，字形不变形。 */
+.cover-flight__title {
+  position: fixed;
+  left: 0;
+  top: 0;
+  margin: 0;
+  line-height: 1.1;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: 0 0;
+  will-change: transform;
+  color: var(--text-hi);
+  text-shadow: 0 2px 18px rgb(0 0 0 / 0.5);
+}
+
+/* 飞行期间目标让位：它们自己带着 dp-rise 入场动画，光改 inline opacity 无效。 */
+.dp__art.is-flying,
+.dp__t.is-flying {
   animation: none;
   opacity: 0;
 }
@@ -726,146 +731,6 @@
   );
   filter: blur(30px);
 }
-/* --- 设置页：档案式的抬头 ------------------------------------------------ */
-
-/*
- * 设置页本来就有全站最接近「档案终端」的排版：编号方块 + 英文 + 中文 + 一条
- * 收到右侧的发丝线。美术上只剩三处没跟上——
- *   1. 编号方块是实心灰块，读起来像标签，不像「第几号档案」；
- *   2. 英文是灰的，与页头眉标（极光青）不是同一支笔；
- *   3. 发丝线是实线，与页头底下那道渐隐线冲突。
- *
- * 选择器都带 .main 前缀：设置页的组件级 settings.css 由面板自己引入，
- * 注入顺序晚于 aurora.css，同特异性会输给它。
- */
-/*
- * 注：settings.css 里还留着 .set-part__num / __en / __rule 一套样式，但
- * src/views/settings/parts.tsx 的 Part 已经不打区名了（只渲染 section + body），
- * 所以这一段没有可挂的 DOM，不要照它写。
- */
-
-/* 分区之间那道线也渐隐：实线会把一页切成几块，光只把它分开。 */
-.main .set-part + .set-part {
-  border-top: 0;
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--plane-rgb) / 0.2),
-    rgb(var(--plane-rgb) / 0.1) 52%,
-    transparent 92%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  background-position: 0 0;
-}
-
-/* 滑杆：轨道本身带一段淡彩，拇指是光里的一颗亮点。 */
-.main .settings__slider input[type='range']::-webkit-slider-runnable-track {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--plane-rgb) / 0.22),
-    rgb(var(--plane-rgb) / 0.22) 62%,
-    rgb(var(--tint-rgb) / 0.14)
-  );
-}
-
-.main .settings__slider input[type='range']::-webkit-slider-thumb {
-  border-color: var(--accent);
-  box-shadow:
-    0 1px 4px rgb(var(--shade-rgb) / 0.35),
-    0 0 12px 0 rgb(var(--plane-rgb) / 0.22);
-}
-
-/* 开关：拨到「开」的时候，它自己就是一小块发光体。 */
-.switch.is-on {
-  background: var(--accent-ink);
-  box-shadow: 0 0 14px -3px rgb(var(--plane-rgb) / 0.22);
-}
-/* --- 设置页的行：发丝线也渐隐 -------------------------------------------- */
-
-/*
- * 设置页的行用 --line-soft 画满整宽的下边线，第一行补上边线：八十几行横线叠
- * 下来，整页读起来像一张表格。表格没有错，只是与「极光」不是一套笔。
- *
- * 换成左浓右化的光，行本身不动，只在悬停时左缘亮起一道 2px 的竖光——
- * 与列表行的语言一致（.trk 也是左浓右化），但更轻，因为这里每次只点一个开关。
- */
-.main .settings__row {
-  position: relative;
-  border-bottom: 0;
-  background-image: linear-gradient(
-    90deg,
-    rgb(var(--plane-rgb) / 0.16),
-    rgb(var(--plane-rgb) / 0.07) 46%,
-    transparent 90%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  background-position: 0 100%;
-  transition: background-color 220ms var(--ease-out);
-}
-
-.main .settings__row:first-child {
-  border-top: 0;
-  background-image:
-    linear-gradient(90deg, rgb(var(--plane-rgb) / 0.16), rgb(var(--plane-rgb) / 0.07) 46%, transparent 90%),
-    linear-gradient(90deg, rgb(var(--plane-rgb) / 0.16), rgb(var(--plane-rgb) / 0.07) 46%, transparent 90%);
-  background-size:
-    100% 1px,
-    100% 1px;
-  background-position:
-    0 100%,
-    0 0;
-}
-
-/*
- * 悬停指示条挂在行的左外侧。
- *
- * 行本身只留 2px 内边距，竖条贴在那个 0..2px 上就等于贴着字起笔——
- * 指过去的第一眼读成「文字左边有根线」，而不是「这一行被指到了」。
- * 往外挪 10px，行内排版一点不动。
- */
-.main .settings__row::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  width: 2px;
-  height: 0;
-  translate: 0 -50%;
-  border-radius: 999px;
-  background: rgb(var(--accent-rgb) / 0.62);
-  opacity: 0;
-  transition:
-    height 220ms var(--ease-quint),
-    opacity 220ms var(--ease-out);
-}
-
-.main .settings__row:hover::before {
-  height: 62%;
-  opacity: 1;
-}
-
-.main .settings__row:hover {
-  background-color: rgb(var(--tint-rgb) / 0.055);
-}
-
-/* 分组标题那截竖线原本是中性灰，跟同一页里的编号方块不是一套色。 */
-.main .set-sub__title::before {
-  background: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
-}
-/* 桌面歌词预览：它模拟的是一扇浮在壁纸上的窗，不是一块板。 */
-.main .settings__preview {
-  border: 0;
-  background:
-    linear-gradient(180deg, rgb(var(--plane-rgb) / 0.14), rgb(var(--plane-rgb) / 0.1)),
-    rgb(var(--plane-rgb) / 0.42);
-  box-shadow:
-    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.14),
-    0 14px 34px -22px rgb(var(--plane-rgb) / 0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
 /* --- 空态的风向 ----------------------------------------------------------- */
 
 /*
@@ -928,8 +793,7 @@
  * 先加载，同特异性的规则会被 app.css / shell.css 后面的写法压掉。
  */
 
-:root[data-theme] .rh-sec__head h3,
-:root[data-theme] .set-part__body > .rh-sec__head h3 {
+:root[data-theme] .rh-sec__head h3 {
   padding-left: 11px;
   background-image: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
   background-size: 2px 11px;
@@ -938,14 +802,6 @@
 }
 
 /* 详情页里的小标题（曲目列表上方那类）跟着走同一套。 */
-:root[data-theme] .dp__sec h3,
-:root[data-theme] .sec-title {
-  padding-left: 11px;
-  background-image: linear-gradient(180deg, rgb(var(--plane-rgb) / 0.22), rgb(var(--plane-rgb) / 0.22));
-  background-size: 2px 11px;
-  background-repeat: no-repeat;
-  background-position: 0 56%;
-}
 
 /*
  * 播放条那一行的底（app.css:1915）改成一条整宽的淡提亮带。
@@ -1085,65 +941,66 @@
   position: absolute;
   inset: 0;
   z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: 34px 20px;
+  padding: 6px 4px 0;
   overflow: hidden;
   pointer-events: none;
+  /*
+   * 往下渐隐：压痕不是要读的内容，是这块地将来会长成什么样的一层影。
+   * 越往下越淡，视线自然停在中间那个出口上。
+   */
+  mask-image: linear-gradient(180deg, #000 32%, rgb(0 0 0 / 0.5) 64%, transparent 92%);
 }
 
-.pg-stage__band {
-  position: absolute;
-  top: -42%;
-  height: 184%;
-  filter: blur(34px);
-  opacity: 0.62;
-  transform-origin: 50% 50%;
-}
-
-.pg-stage__band--a {
-  left: 1%;
-  width: 26%;
-  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.1) 48%, transparent);
-  transform: rotate(9deg);
-  animation: stageDrift 23s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
-}
-
-.pg-stage__band--b {
-  left: 37%;
-  width: 20%;
-  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.07) 54%, transparent);
-  transform: rotate(-8deg);
-  animation: stageDrift 31s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate-reverse;
-}
-
-.pg-stage__band--c {
-  left: 69%;
-  width: 24%;
-  background: linear-gradient(180deg, transparent, rgb(var(--tint-rgb) / 0.09) 46%, transparent);
-  transform: rotate(5deg);
-  animation: stageDrift 43s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
-}
-
-@keyframes stageDrift {
-  from {
-    margin-left: -46px;
-  }
-  to {
-    margin-left: 54px;
-  }
-}
-
-.pg-stage__horizon {
-  position: absolute;
-  left: -24%;
-  right: -24%;
-  bottom: -28%;
-  height: 70%;
-  background: radial-gradient(58% 100% at 50% 100%, rgb(var(--tint-rgb) / 0.16), transparent 74%);
-  filter: blur(42px);
-}
-
-.pg-stage__act {
+/*
+ * 一个压痕位：一个 4:3 的封面框，下面两条杠。
+ *
+ * 空态以前是三团飘着的光，好看但「空」。改成一个封面网格的轮廓——它说的是
+ * 「这里将来会有十张封面」，不是「这里什么都没有」。
+ */
+.pgmark {
   position: relative;
+  display: block;
+  padding-bottom: 38px;
+}
+
+.pgmark::before {
+  content: '';
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-art);
+  /*
+   * 框里垫一层几乎看不见的填充。只画线的话，线走到亮天空上就没了；有填充
+   * 哪怕再淡，也能在明暗交界处把「这里有个框」读出来。
+   */
+  background: rgb(var(--tint-rgb) / 0.035);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.14),
+    0 1px 0 rgb(var(--shade-rgb) / 0.05);
+}
+
+.pgmark::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  bottom: 20px;
+  width: 62%;
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(var(--tint-rgb) / 0.11);
+  box-shadow: 0 9px 0 0 rgb(var(--tint-rgb) / 0.06);
+}
+
+/* 出口压在压痕网格下面，视线扫完一圈正好落在它身上。 */
+.pg-stage__act {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
   z-index: 1;
+  transform: translateX(-50%);
 }
 
 .pg-stage__act .rh-btn {
@@ -1231,4 +1088,246 @@
 /* 横条里不放角标：它原本是给大卡填空的，现在没空可填，压到按钮上了。 */
 :root[data-theme] .rh-daily--off .rh-daily__sig {
   display: none;
+}
+
+
+/* =============================================================================
+   列表：一条缝，不是一个盒子
+
+   行原来靠悬停变色区分，静止时二十行是二十团同样亮度的字，眼睛找不到断句。
+   加白底最省事，但列表铺在壁纸上，白底就是一块纸——亮处露矩形边，暗处发白。
+
+   改成每一行底部一条从封面右边起、往右渐隐的发丝缝。它在静止时给出「一行
+   = 一条」，又轻到不形成格子。当前行那条缝换成白的并带一点光晕，像这行被
+   灯照到——不用换底色也能一眼认出来。
+   ========================================================================== */
+
+:root[data-theme] .tracks {
+  /* 缝已经在行之间了，再加 gap 会变成两条。 */
+  gap: 0;
+}
+
+:root[data-theme] .trk::after {
+  content: '';
+  position: absolute;
+  /* 120 = 12 内边距 + 32 序号 + 16 间距 + 44 封面 + 16 间距：正好从标题左边起。 */
+  left: 120px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--tint-rgb) / 0.085) 0%,
+    rgb(var(--tint-rgb) / 0.03) 46%,
+    transparent 82%
+  );
+  /*
+   * 壁纸有明有暗，单靠一条提亮的线在亮处会消失。底下压一条同位置的暗线，
+   * 明处读暗的那条、暗处读亮的那条，任何背景上都读得出一行到哪结束。
+   */
+  box-shadow: 0 1px 0 rgb(var(--shade-rgb) / 0.07);
+  pointer-events: none;
+}
+
+:root[data-theme] .trk.is-current {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.16) 0%,
+    rgb(255 255 255 / 0.05) 40%,
+    transparent 88%
+  );
+}
+
+:root[data-theme] .trk.is-current::after {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.6) 0%,
+    rgb(206 228 252 / 0.3) 44%,
+    transparent 86%
+  );
+  box-shadow: 0 0 14px rgb(186 218 255 / 0.42);
+}
+
+/* 专辑名往后退一档：它是并列信息，不是每行都要读的东西。 */
+:root[data-theme] .trk__album {
+  opacity: 0.56;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+:root[data-theme] .trk:hover .trk__album,
+:root[data-theme] .trk.is-current .trk__album {
+  opacity: 0.85;
+}
+
+/* =============================================================================
+   骨架：压痕，不是灰条
+
+   加载占位原来是一条 70% 宽的灰杠，读起来像「这里有一行字，但它坏了」。改成
+   一个空框：1px 的内描边勾出封面该在的位置，顶端一层极淡的渐变说明它是块面
+   （不是透明空洞），标题位置留两截短杠。数据到了只是把框填满，框本身不挪。
+   ========================================================================== */
+
+:root[data-theme] .rh-card.is-sk .rh-card__art,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__art {
+  background: none;
+  box-shadow: inset 0 0 0 1px rgb(var(--tint-rgb) / 0.12);
+}
+
+:root[data-theme] .rh-card.is-sk .rh-card__art::after,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(var(--tint-rgb) / 0.075), transparent 66%);
+}
+
+:root[data-theme] .rh-card.is-sk .rh-card__title,
+:root[data-theme] .rh-card.is-sk .rh-card__sub,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__title,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__sub {
+  color: transparent;
+  background-image: linear-gradient(rgb(var(--tint-rgb) / 0.085), rgb(var(--tint-rgb) / 0.085));
+  background-repeat: no-repeat;
+  background-position: left center;
+}
+
+:root[data-theme] .rh-card.is-sk .rh-card__title,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__title {
+  background-size: 64% 7px;
+}
+
+:root[data-theme] .rh-card.is-sk .rh-card__sub,
+:root[data-theme] .rh-alb-row.is-sk .rh-alb-row__sub {
+  background-size: 40% 5px;
+}
+
+/* ---------------------------------------------------------------------------
+ * 卡片：被光照到
+ *
+ * 卡片墙是内容区里数量最多的一类面。它们此前每一张都是一模一样的灰白渐变，
+ * 六张并排看起来像占位符。补两层：顶上一条薄的散射光——像光从屏幕上方斜进
+ * 画面；悬停时轮廓被 accent 点亮。一屏里只亮一张，眼睛就知道该看哪。
+ * ------------------------------------------------------------------------- */
+:root[data-theme] .rh-card__art,
+:root[data-theme] .rh-alb-row__art {
+  background:
+    linear-gradient(180deg, rgb(var(--tint-rgb) / 0.1), transparent 38%),
+    linear-gradient(150deg, rgb(var(--tint-rgb) / 0.15), rgb(var(--tint-rgb) / 0.055));
+  border-color: rgb(var(--tint-rgb) / 0.1);
+  /*
+   * 投影写死黑色，不走 --shade-rgb：深色主题下 --shade-rgb 就是 0 0 0，
+   * 半透明黑叠在深色玻璃上等于没投；浅色主题同理。卡片要浮起来，得用绝对的黑。
+   */
+  box-shadow:
+    0 10px 24px -8px rgb(0 0 0 / 0.5),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.06);
+}
+
+/*
+ * 亮起来，不是「染上色」。试过用 --aurora-a 描一圈蓝边，蓝天壁纸上一整圈蓝根本
+ * 读不出来——和一条白线走到亮处就消失是同一个病。改成把整块面提亮：亮暗差是任
+ * 何背景上都成立的分界，色相不是。
+ */
+:root[data-theme] .rh-card:hover .rh-card__art,
+:root[data-theme] .rh-alb-row:hover .rh-alb-row__art {
+  background:
+    linear-gradient(180deg, rgb(var(--tint-rgb) / 0.17), transparent 40%),
+    linear-gradient(150deg, rgb(var(--tint-rgb) / 0.21), rgb(var(--tint-rgb) / 0.085));
+  box-shadow:
+    0 14px 30px -8px rgb(0 0 0 / 0.55),
+    inset 0 0 0 1px rgb(255 255 255 / 0.24),
+    0 0 28px rgb(var(--aurora-a) / 0.22);
+}
+
+/* 不可点的卡不跟着亮：亮起来却不响应，像是坏了。 */
+:root[data-theme] .rh-card--still:hover .rh-card__art {
+  box-shadow:
+    0 10px 24px -8px rgb(0 0 0 / 0.5),
+    inset 0 0 0 1px rgb(var(--tint-rgb) / 0.06);
+}
+
+/* ---------------------------------------------------------------------------
+ * 设置页：一张卡是一件事
+ *
+ * 设置页的卡此前只画一圈发丝线、不投影，贴在玻璃上像一张表格。给它和内容区
+ * 卡片同一套光：顶上一条薄光、往下落一层黑影。设置页不该看起来像另一个产品。
+ * ------------------------------------------------------------------------- */
+:root[data-theme] .set-card {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(var(--tint-rgb) / 0.062),
+      rgb(var(--tint-rgb) / 0.022) 54%,
+      rgb(var(--tint-rgb) / 0.03)
+    );
+  border-color: rgb(var(--tint-rgb) / 0.09);
+  box-shadow: 0 16px 34px -20px rgb(0 0 0 / 0.5);
+}
+
+
+/* ---------------------------------------------------------------------------
+ * 启动失败页
+ *
+ * 只在 BootBoundary 接住渲染异常时出现。样式刻意和主界面同一套：这是同一个
+ * 产品的最后一屏，不是一张报错对话框。
+ * ------------------------------------------------------------------------- */
+.boot-fail {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 32px;
+  color: var(--text-hi);
+}
+
+.boot-fail__k {
+  margin: 0;
+  color: rgb(var(--aurora-a) / 0.9);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.2em;
+}
+
+.boot-fail__t {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.boot-fail__d {
+  margin: 2px 0 8px;
+  color: var(--text-mid);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+}
+
+.boot-fail__acts {
+  display: flex;
+  gap: var(--s3);
+}
+
+.boot-fail__go {
+  background: var(--accent-strong);
+  color: rgb(var(--ink-1000-rgb));
+  font-weight: 600;
+}
+
+.boot-fail__msg {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--r-panel);
+  background: rgb(var(--tint-rgb) / 0.05);
+  color: var(--text-low);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-meta);
+  line-height: 1.6;
+  word-break: break-word;
 }

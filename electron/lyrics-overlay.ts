@@ -7,7 +7,8 @@ import {
   LYRIC_SIZE_MAX,
   LYRIC_SIZE_MIN,
   loadSettings,
-  saveSettings
+  saveSettings,
+  type OverlayAlign
 } from './settings'
 
 /**
@@ -70,7 +71,16 @@ export interface OverlayStatus {
    * 原样放回来。设置页与探针都靠这一位区分「关掉了」和「暂时让位」。
    */
   visible: boolean
+  /** 下一句是否显示。渲染层照着画，不在自己的 localStorage 里另存一份。 */
+  showNext: boolean
+  /** 译文是否显示。 */
+  showTranslation: boolean
+  /** 文字对齐。 */
+  align: OverlayAlign
 }
+
+/** 桌面歌词的显示偏好，作为整体推给歌词窗口。 */
+export type OverlayDisplay = Pick<OverlayStatus, 'showNext' | 'showTranslation' | 'align'>
 
 const DEV_URL = 'http://127.0.0.1:5173'
 const isDev = process.argv.includes('--dev')
@@ -296,12 +306,38 @@ function persistBounds(): void {
 }
 
 export function status(): OverlayStatus {
+  const display = overlayDisplay()
   return {
     open: overlay !== null && !overlay.isDestroyed(),
     locked,
     size: lyricSize(),
-    visible: Boolean(overlay && !overlay.isDestroyed() && overlay.isVisible())
+    visible: Boolean(overlay && !overlay.isDestroyed() && overlay.isVisible()),
+    showNext: display.showNext,
+    showTranslation: display.showTranslation,
+    align: display.align
   }
+}
+
+/** 桌面歌词显示偏好的当前值。 */
+function overlayDisplay(): OverlayDisplay {
+  const settings = loadSettings()
+  return {
+    showNext: settings.overlayNextLine !== false,
+    showTranslation: settings.overlayTranslation !== false,
+    align: settings.overlayAlign === 'left' ? 'left' : 'center'
+  }
+}
+
+/**
+ * 设置里改了「下一句 / 译文 / 对齐」之后立刻生效。
+ *
+ * 窗口不重开：把新的偏好推给歌词页，它自己条件渲染；再把状态广播回设置页。
+ */
+export function applyOverlayDisplaySetting(): void {
+  if (overlay && !overlay.isDestroyed()) {
+    overlay.webContents.send('overlay:display', overlayDisplay())
+  }
+  notifyStatus()
 }
 
 /** The size the strip should render at, read from the shared settings. */

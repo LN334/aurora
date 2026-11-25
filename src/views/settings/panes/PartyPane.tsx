@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Row, Rows, Toggle } from '../parts'
+import { Note, Row, Rows, SettingsCard, Toggle } from '../parts'
 
 /**
  * 一起听：房主侧那几项配置。
@@ -34,48 +34,76 @@ export function PartyPane() {
   }
 
   return (
-    <Rows>
-      <Row
-        label="替房间转发音频"
+    <>
+      <SettingsCard
+        title="房间"
+        hint="一起听由房主这一端开房间；访客不用改这里的任何一项。"
       >
-        <Toggle checked={relay !== '0'} label="默认替房间转发音频" onChange={(next) => setRelay(next ? '1' : '0')} />
-      </Row>
+        <Rows>
+          <Row
+            label="替房间转发音频"
+            desc="开着时房主把音频转给访客；关掉则大家各自放自己的。只有房主会用到。"
+            id="party-relay"
+          >
+            <Toggle
+              checked={relay !== '0'}
+              label="默认替房间转发音频"
+              onChange={(next) => setRelay(next ? '1' : '0')}
+            />
+          </Row>
+          <Row
+            label="房间端口"
+            desc="固定端口方便在路由器上放行；留空每次随机，被占用时也会自动退回随机端口。"
+            id="party-port"
+          >
+            <input
+              className="settings__input"
+              value={port}
+              inputMode="numeric"
+              placeholder="留空则随机"
+              aria-label="房间端口"
+              onChange={(event) => setPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+            />
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-      <Row
-        label="房间端口"
-        
-        title="被占用时会自动退回随机端口"
+      <SettingsCard
+        title="隧道"
+        hint="外网一起听要一条隧道；填写入口只在樱花隧道页，这里只读状态，免得两个地方各存一份。"
       >
-        <input
-          className="settings__input"
-          value={port}
-          inputMode="numeric"
-          placeholder="留空则随机"
-          onChange={(event) => setPort(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-        />
-      </Row>
+        <Rows>
+          <Row label="樱花 frpc" desc="程序启动隧道时调用的可执行文件路径。" title={frpc || undefined}>
+            <input
+              className="settings__input settings__input--wide"
+              value={frpc}
+              readOnly
+              placeholder="还没找到"
+              aria-label="frpc 路径"
+            />
+          </Row>
+          <Row
+            label="访问密钥"
+            desc="填过才能开外网房间；密钥只存在本机，不进备份明文。"
+            id="party-token"
+          >
+            <span className="set-count">{token ? '已配置' : '还没填'}</span>
+            <button className="btn btn--small" type="button" onClick={openTunnels}>
+              去樱花隧道页
+            </button>
+          </Row>
+          <Row label="当前隧道" desc="没选隧道时只在局域网内可用。">
+            <span className="set-count">{tunnelId ? '#' + tunnelId : '还没选'}</span>
+            <button className="btn btn--small" type="button" onClick={openTunnels}>
+              挑一条
+            </button>
+          </Row>
+        </Rows>
+      </SettingsCard>
 
-      <Row
-        label="樱花 frpc"
-        
-        title={frpc || undefined}
-      >
-        <input className="settings__input settings__input--wide" value={frpc} readOnly placeholder="还没找到" />
-      </Row>
-
-      <Row label="访问密钥">
-        <span className="set-count">{token ? '已配置' : '还没填'}</span>
-        <button className="rh-btn" type="button" onClick={openTunnels}>
-          去樱花隧道页
-        </button>
-      </Row>
-
-      <Row label="当前隧道">
-        <span className="set-count">{tunnelId ? '#' + tunnelId : '还没选'}</span>
-        <button className="rh-btn" type="button" onClick={openTunnels}>
-          挑一条
-        </button>
-      </Row>
-    </Rows>
+      <Note tone="info">
+        外网房间需要樱花隧道账号；没有也能在同一个局域网里一起听，只是不经过公网。
+      </Note>
+    </>
   )
 }

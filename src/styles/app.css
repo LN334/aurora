@@ -2054,53 +2054,8 @@ html.is-resizing {
  * 播放条先出来，正文那块黑着，200ms 后才亮」——就是他说的「打开时闪一下」。
  */
 .main__body.is-enter {
-  animation: pageIn 460ms var(--ease-quint) backwards;
+  animation: pageIn 320ms var(--ease-quint) backwards;
 }
-
-/*
- * 旧页的退场层。
- *
- * 换页靠 key 把整块内容重挂，旧页在同一次提交里就没了——屏幕上只剩新页入场，
- * 于是「点了没反应」。这一层接住刚被摘下来的节点，交给 page-transition.ts 用
- * 噪声化的 mask 把它化掉。
- *
- * 层本身不做任何动画：mask 是每帧现算的字符串，CSS 里做不到逐帧蠕动。这里只
- * 管定位、裁剪和收尾。
- */
-.page-ghost {
-  position: fixed;
-  z-index: 55;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  pointer-events: none;
-  /*
-   * 不铺底色。浅色主题下 --ink-1000 是浅灰白，铺上去就是「一张白纸盖住屏幕」；
-   * 透明之后旧页直接叠在新页画面上，靠 filter 压暗退焦，交接处没有色块。
-   */
-  background: transparent;
-  contain: strict;
-}
-/*
- * 内层做 flex 列：页头按自身高度占位，正文 flex:1 吃掉剩下的。旧页有页头时
- * 正文的框也和新页一样高，两半在接缝处对得上。
- */
-.page-ghost__inner {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-.page-ghost__head {
-  flex: none;
-}
-.page-ghost__inner > .main__body {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
 
 /*
  * root 快照整页透明：换页的位移由 .main__body 上的 pageIn 动画逐帧画，如果 root
@@ -2155,9 +2110,8 @@ html.is-resizing {
  * 屏幕上就成了「三层」。filter 只改这块内容自己的颜色，底子不动。
  */
 @keyframes pageIn {
-  from { transform: translateY(8px); filter: brightness(0.7) saturate(0.55) blur(2px); }
-  60% { filter: brightness(0.98) saturate(0.94) blur(0.4px); }
-  to { transform: none; filter: none; }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
 
 /*
@@ -2169,13 +2123,12 @@ html.is-resizing {
  * 那个已经写完、清清楚楚的标题**。观感正是「页已经切换好了，动画才来」。
  */
 .main__header.is-enter-head {
-  animation: pageHeadIn 460ms var(--ease-quint) backwards;
+  animation: pageHeadIn 320ms var(--ease-quint) backwards;
 }
 
 @keyframes pageHeadIn {
-  from { opacity: 0; filter: brightness(0.72) blur(3px); }
-  60% { opacity: 1; filter: brightness(0.98) blur(0.3px); }
-  to { opacity: 1; filter: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /*
