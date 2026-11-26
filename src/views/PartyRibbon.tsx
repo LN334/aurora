@@ -12,8 +12,6 @@ import { player } from '../features/player/actions'
 export function PartyRibbon() {
   const state = useParty((store) => store.state)
 
-  if (state.role === 'idle') return null
-
   /*
    * 房主此刻听到第几秒。
    *
@@ -21,8 +19,14 @@ export function PartyRibbon() {
    * 不该往前走；一条放了几十分钟之后的上报，那个差值也不再是「消息在路上」。
    * 于是播放页顶上会冒出一条「差 1812 秒」，还带着一颗按下去会 seek 到歌
    * 外面的「对齐」键——看着像房间坏了。
+   *
+   * 这一行必须在下面那次提前 return 之前：房间从「不在房间里」变成「在」的时候，
+   * 组件会多跑一个 hook，React 数不对就抛 #310（和播放页那次同型）。
    */
   const mine = usePlayer((store) => store.position)
+
+  /* 不在房间里就不画这条带子；钩子已经全部跑完，顺序不再变。 */
+  if (state.role === 'idle') return null
   const now = state.now
   const at = Date.now()
   const hostAt = now ? expectedPosition(now, at) : null

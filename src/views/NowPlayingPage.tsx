@@ -383,30 +383,15 @@ export function NowPlayingPage({
   const queueAt = usePlayer((state) => state.index)
   const rate = usePlayer((state) => state.playbackRate)
 
-  if (!track) {
-    return (
-      <div className="np np--empty">
-        <button type="button" className="np__back" onClick={onBack} aria-label="返回">
-          <ChevronLeft size={19} />
-        </button>
-        <div className="np__nothing">
-          <Note size={30} />
-          <p>还没有在播放</p>
-          <span>从推荐里挑一首，或者去本机音乐里放一张专辑。</span>
-        </div>
-      </div>
-    )
-  }
-
-  /* 这块画到四百多像素；2x 屏按 800 取，原图 3000 是白占内存。 */
-  const art = artworkFor(track, 800)
   /*
-   * 以前这里直接写 source 的 id（netease/qq/…），页面上就是四个英文词。来源标签
-   * 跟列表、搜索页统一成中文名，颜色也统一用那颗小色点。
+   * 这一块的 hook 必须留在下面那个 if (!track) 之前。
+   *
+   * 首帧时队列可能还没恢复，track 是空的；这两个订阅若躲在提前返回后面，等
+   * 一两秒后队列回来、track 有了值，它们才第一次被调用，React 数到的 hook 就比
+   * 上一次多，整棵树直接抛 #310，屏幕上是「界面没能启动」。（dev 下队列恢复得
+   * 更早，首帧就带着歌，所以这个顺序只在打包版上现形。）
    */
-  const originSource = track.source && track.source !== 'local' ? track.source : 'local'
-  const originLabel = originSource === 'local' ? '本机' : sourceLabelById(originSource)
-
+  const originSource = track && track.source && track.source !== 'local' ? track.source : 'local'
   /*
    * 这一首实际到手的是什么档。
    *
@@ -428,7 +413,7 @@ export function NowPlayingPage({
   const delivered = useSyncExternalStore(
     onlineStore?.subscribe ?? NO_STORE_SUBSCRIBE,
     () => {
-      if (!onlineStore) return null
+      if (!onlineStore || !track) return null
       const state = onlineStore.getState()
       return typeof track.onlineId === 'number' && state.deliveredLevelSongId === track.onlineId
         ? state.delivered
@@ -440,6 +425,25 @@ export function NowPlayingPage({
     () => (onlineStore ? onlineStore.getState().deliveredFellBack : false)
   )
 
+  if (!track) {
+    return (
+      <div className="np np--empty">
+        <button type="button" className="np__back" onClick={onBack} aria-label="返回">
+          <ChevronLeft size={19} />
+        </button>
+        <div className="np__nothing">
+          <Note size={30} />
+          <p>还没有在播放</p>
+          <span>从推荐里挑一首，或者去本机音乐里放一张专辑。</span>
+        </div>
+      </div>
+    )
+  }
+
+  /* 这块画到四百多像素；2x 屏按 800 取，原图 3000 是白占内存。 */
+  const art = artworkFor(track, 800)
+  /* 来源标签与列表、搜索页统一成中文名，颜色统一用那颗小色点。 */
+  const originLabel = originSource === 'local' ? '本机' : sourceLabelById(originSource)
   return (
     <div className="np">
 
