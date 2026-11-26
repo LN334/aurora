@@ -31,6 +31,7 @@ import { picksByProvider, useRecommendedPlaylists } from '../features/online/rec
 import { SLOTS } from '../features/online/slots'
 import { useRecommendedAlbums } from '../features/online/recommended-albums'
 import { mergeVersions } from '../features/online/unify'
+import { interleaveBySource, ringSlice } from '../features/online/fresh-window'
 import { useSourceOrder } from '../features/settings/source-order'
 import type { Track } from '../types'
 import { Artwork } from '../ui/Artwork'
@@ -436,29 +437,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    */
   const freshOrder = useMemo(() => {
     const base = newBlock.songs.map((song) => toTrack(song))
-    const merged = mergeVersions([...base, ...platformFresh], order)
-
-    const buckets = new Map<string, Track[]>()
-    for (const track of merged) {
-      const key = track.source ?? 'local'
-      const bucket = buckets.get(key)
-      if (bucket) bucket.push(track)
-      else buckets.set(key, [track])
-    }
-
-    const out: Track[] = []
-    for (let at = 0; at < 60; at += 1) {
-      let added = false
-      for (const bucket of buckets.values()) {
-        const next = bucket[at]
-        if (next) {
-          out.push(next)
-          added = true
-        }
-      }
-      if (!added) break
-    }
-    return out
+    return interleaveBySource(mergeVersions([...base, ...platformFresh], order))
   }, [newBlock.songs, platformFresh, order])
 
   /**
@@ -479,14 +458,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   }, [freshOrder])
   const freshRows = freshOrder.length > 0 ? freshOrder : lastFresh.current
 
-  const freshTracks = useMemo(() => {
-    const size = SLOTS.fresh
-    if (freshRows.length <= size) return freshRows
-    const start = (freshBatch * size) % freshRows.length
-    const out = freshRows.slice(start, start + size)
-    if (out.length < size) out.push(...freshRows.slice(0, size - out.length))
-    return out
-  }, [freshRows, freshBatch])
+  const freshTracks = useMemo(
+    () => ringSlice(freshRows, SLOTS.fresh, freshBatch),
+    [freshRows, freshBatch]
+  )
 
   const leadIndex = freshTracks[freshLead] ? freshLead : 0
   const leadTrack = freshTracks[leadIndex]
