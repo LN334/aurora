@@ -105,3 +105,14 @@ export function parseProviderCall(input: unknown): ProviderCallParse {
 
   return { ok: true, request: { provider: provider as ProviderId, capability, args: record.args } }
 }
+
+/**
+ * 统一入口的入参是 `{ songId }` 这样的命名对象，旧通道一直传裸标量。
+ * 搬家期间两扇门同时开着，这里把两种形状都认下来——对象里有这个字段就取它，
+ * 否则把整个入参当标量。
+ */
+export function namedArgument(args: unknown, field: string): unknown {
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) return args
+  const record = args as Record<string, unknown>
+  return field in record ? record[field] : args
+}

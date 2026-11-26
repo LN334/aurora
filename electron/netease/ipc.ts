@@ -5,6 +5,7 @@ import { loadSettings, saveSettings } from '../settings'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { registerProviderCapability } from '../provider-gateway.ts'
+import { namedArgument } from '../pure/provider-call.ts'
 import { isNeteaseQuality, isUsableId } from './types'
 import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
@@ -204,6 +205,13 @@ function searchNetease(args: unknown): Promise<NeteaseSearchResult> {
   return guard('search', empty, () => client.neteaseSearch(keywords, type, limit))
 }
 
+/** 歌词：旧通道 `netease:lyrics` 与 `provider:call` 共用这一份实现（理由同搜索）。 */
+function lyricsNetease(args: unknown) {
+  const songId = asId(namedArgument(args, 'songId'))
+  if (songId === null) return null
+  return guard('lyrics', null, () => client.neteaseLyrics(songId))
+}
+
 export function registerNeteaseIpc(): void {
   const statusFailure: NeteaseStatusResult = { ready: false, loggedIn: false }
 
@@ -244,11 +252,8 @@ export function registerNeteaseIpc(): void {
     return guard('streamUrl', unknownStream(), () => client.neteaseStreamUrl(songId, quality))
   })
 
-  ipcMain.handle('netease:lyrics', (_event, value: unknown) => {
-    const songId = asId(value)
-    if (songId === null) return null
-    return guard('lyrics', null, () => client.neteaseLyrics(songId))
-  })
+  ipcMain.handle('netease:lyrics', (_event, value: unknown) => lyricsNetease(value))
+  registerProviderCapability('netease', 'lyrics', lyricsNetease)
 
   ipcMain.handle('netease:commentSend', (_event, payload: unknown) => {
     const args = asRecord(payload)

@@ -33,6 +33,7 @@ import {
 } from './client'
 import { isKugouQuality } from './types'
 import { registerProviderCapability } from '../provider-gateway.ts'
+import { namedArgument } from '../pure/provider-call.ts'
 import type { KugouQuality } from './types'
 
 /**
@@ -107,6 +108,12 @@ function searchKugou(input: unknown) {
   })
 }
 
+/** 歌词：旧通道 `kugou:lyrics` 与 `provider:call` 共用这一份实现。 */
+function lyricsKugou(args: unknown) {
+  const songId = asId(namedArgument(args, 'songId'))
+  return guard('lyrics', null, async () => kugouLyrics(songId))
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -145,9 +152,8 @@ export function registerKugouIpc(): void {
     )
   })
 
-  ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) =>
-    guard('lyrics', null, async () => kugouLyrics(asId(songId)))
-  )
+  ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) => lyricsKugou(songId))
+  registerProviderCapability('kugou', 'lyrics', lyricsKugou)
 
   ipcMain.handle('kugou:comments', async (_event, input: unknown) => {
     const params = asRecord(input)

@@ -27,6 +27,7 @@ import {
 } from './client'
 import { isQishuiQuality } from './types'
 import { registerProviderCapability } from '../provider-gateway.ts'
+import { namedArgument } from '../pure/provider-call.ts'
 import type { QishuiQuality } from './types'
 
 /**
@@ -92,6 +93,12 @@ function searchQishui(input: unknown) {
   })
 }
 
+/** 歌词：旧通道 `qishui:lyrics` 与 `provider:call` 共用这一份实现。 */
+function lyricsQishui(args: unknown) {
+  const alias = asAlias(namedArgument(args, 'songId'))
+  return guard('lyrics', null, async () => (alias ? await qishuiLyrics(alias) : null))
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -152,12 +159,8 @@ export function registerQishuiIpc(): void {
     )
   })
 
-  ipcMain.handle('qishui:lyrics', async (_event, id: unknown) =>
-    guard('lyrics', null, async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiLyrics(alias) : null
-    })
-  )
+  ipcMain.handle('qishui:lyrics', async (_event, id: unknown) => lyricsQishui(id))
+  registerProviderCapability('qishui', 'lyrics', lyricsQishui)
 
   ipcMain.handle('qishui:comments', async (_event, input: unknown) => {
     const params = asRecord(input)

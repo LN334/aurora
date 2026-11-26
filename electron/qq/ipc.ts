@@ -3,6 +3,7 @@ import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
 import { registerProviderCapability } from '../provider-gateway.ts'
+import { namedArgument } from '../pure/provider-call.ts'
 import { isQqQuality } from './types'
 import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
@@ -121,6 +122,13 @@ function searchQq(args: unknown): Promise<QqSearchResult> {
   return guard('search', empty, () => client.qqSearch(keywords, type, limit))
 }
 
+/** 歌词：旧通道 `qq:lyrics` 与 `provider:call` 共用这一份实现。 */
+function lyricsQq(args: unknown) {
+  const songId = asSongId(namedArgument(args, 'songId'))
+  if (songId === null) return null
+  return guard('lyrics', null, () => client.qqLyrics(songId))
+}
+
 export function registerQqIpc(): void {
   const statusFailure: QqStatusResult = { ready: false, loggedIn: false }
 
@@ -164,11 +172,8 @@ export function registerQqIpc(): void {
     return guard('streamUrl', unknown, () => client.qqStreamUrl(songId, quality ?? undefined))
   })
 
-  ipcMain.handle('qq:lyrics', (_event, value: unknown) => {
-    const songId = asSongId(value)
-    if (songId === null) return null
-    return guard('lyrics', null, () => client.qqLyrics(songId))
-  })
+  ipcMain.handle('qq:lyrics', (_event, value: unknown) => lyricsQq(value))
+  registerProviderCapability('qq', 'lyrics', lyricsQq)
 
   ipcMain.handle('qq:comments', (_event, payload: unknown) => {
     const args = asRecord(payload)

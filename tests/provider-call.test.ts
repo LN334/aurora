@@ -6,6 +6,7 @@ import {
   PROVIDER_IDS,
   callKey,
   failure,
+  namedArgument,
   parseProviderCall,
   succeed
 } from '../electron/pure/provider-call.ts'
@@ -107,5 +108,18 @@ test('preload 那份白名单是字面量，且与主进程的真源一字不差
   assert.ok(listed, 'preload 的 provider.ids 必须是字面量数组')
   const ids = [...(listed[1] ?? '').matchAll(/'([a-z]+)'/g)].map((match) => match[1])
   assert.deepEqual(ids, [...PROVIDER_IDS])
+})
+
+test('统一入口收命名参数，旧通道的裸标量也认', () => {
+  assert.equal(namedArgument({ songId: '123' }, 'songId'), '123')
+  assert.equal(namedArgument({ songId: 123 }, 'songId'), 123)
+  // 旧通道一直传裸值，搬家期间两扇门要给出同一个答案。
+  assert.equal(namedArgument('123', 'songId'), '123')
+  assert.equal(namedArgument(123, 'songId'), 123)
+  // 字段缺席才把整个入参当标量；字段在、值是 undefined，就是 undefined。
+  assert.deepEqual(namedArgument({ other: 1 }, 'songId'), { other: 1 })
+  assert.equal(namedArgument({ songId: undefined }, 'songId'), undefined)
+  assert.equal(namedArgument(null, 'songId'), null)
+  assert.deepEqual(namedArgument(['123'], 'songId'), ['123'])
 })
 

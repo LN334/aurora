@@ -1,6 +1,6 @@
 import { isNative } from '../../bridge'
 import type { LyricBundle } from '../lyrics/align'
-import { netease, hasNeteaseBackend } from '../netease/api'
+import { hasNeteaseBackend } from '../netease/api'
 import { streamOf } from '../netease/store'
 import { neteaseSongId } from '../netease/track'
 import { artUrl, mediaUrl, remoteImageUrl, remoteStreamUrl } from '../player/urls'
@@ -133,8 +133,7 @@ export interface TrackSource {
   lyrics: async (track) => {
     const songId = neteaseSongId(track)
     if (songId === null || !hasNeteaseBackend) return null
-    const raw = await netease.lyrics(songId)
-    return withParts(raw?.lrc, raw?.translation)
+    return providerLyrics('netease', songId)
   }
 }
 
@@ -193,8 +192,7 @@ export function setMissingStreamHandler(handler: ((songId: number) => void) | nu
     // out the main process returns null, which the lyric view shows as "no
     // lyrics" rather than as an error.
     if (track.onlineId === undefined) return null
-    const raw = await window.aurora?.qq?.lyrics(track.onlineId)
-    return withParts(raw?.lrc, raw?.translation)
+    return providerLyrics('qq', track.onlineId)
   }
 }
 
@@ -223,8 +221,7 @@ const kugouSource: TrackSource = {
     // 酷狗把正文与译文分成两份 LRC 交回（KRC 里的语言轨），两边时间轴常常整体
     // 差一点，对齐交给渲染层。
     if (track.onlineId === undefined) return null
-    const raw = await window.aurora?.kugou?.lyrics(track.onlineId)
-    return withParts(raw?.lrc, raw?.translation)
+    return providerLyrics('kugou', track.onlineId)
   }
 }
 
@@ -250,8 +247,7 @@ const qishuiSource: TrackSource = {
     // 汽水的正文是逐字的私有格式、译文是语言轨，主进程把两边都换成标准 LRC
     // 之后回到这里，与其他平台一样只搬不合并。
     if (track.onlineId === undefined) return null
-    const raw = await window.aurora?.qishui?.lyrics(track.onlineId)
-    return withParts(raw?.lrc, raw?.translation)
+    return providerLyrics('qishui', track.onlineId)
   }
 }
 
@@ -276,6 +272,33 @@ const bilibiliSource: TrackSource = {
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
   lyrics: async () => null
+}
+
+/**
+ * 一家的歌词都要经过同一条通道拿。
+ *
+ * 参数是 `{ songId }` 而不是裸标量：新通道的入参是命名对象，旧通道那扇门由
+ * 主进程的 `namedArgument` 兼容——两扇门给出同一个答案。
+ *
+ * 读失败与「这首歌没有歌词」都返回 null（界面是同一种样子），但失败会留一行
+ * 日志，排查时能分清是哪一种。
+ */
+async function providerLyrics(
+  provider: 'netease' | 'qq' | 'kugou' | 'qishui',
+  songId: string | number
+): Promise<LyricBundle | null> {
+  const api = window.aurora?.provider
+  if (!api) return null
+  const answer = await api.call<{ lrc?: string | null; translation?: string | null } | null>(
+    provider,
+    'lyrics',
+    { songId }
+  )
+  if (!answer.ok) {
+    console.warn(`[aurora] ${provider}.lyrics 未走通：${answer.error.code} ${answer.error.message}`)
+    return null
+  }
+  return withParts(answer.value?.lrc, answer.value?.translation)
 }
 
 /**
