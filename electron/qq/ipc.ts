@@ -168,6 +168,44 @@ function logoutQq(): Promise<boolean> {
   return guard('logout', false, () => client.qqLogout())
 }
 
+function myPlaylistsQq(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 200) : 60
+  return guard<QqPlaylistSummary[]>('myPlaylists', [], () => client.qqMyPlaylists(limit))
+}
+
+function playlistTracksQq(args: unknown) {
+  // Playlist ids are numeric upstream but arrive as either shape.
+  const raw = namedArgument(args, 'playlistId')
+  const id = typeof raw === 'number' ? String(raw) : asText(raw, 32)
+  if (!id) return Promise.resolve<QqSong[]>([])
+  return guard<QqSong[]>('playlistTracks', [], () => client.qqPlaylistTracks(id))
+}
+
+function playlistCreatorQq(args: unknown) {
+  const raw = namedArgument(args, 'playlistId')
+  const numeric = typeof raw === 'number' ? raw : Number(asText(raw, 32))
+  if (!Number.isFinite(numeric) || numeric <= 0) return Promise.resolve('')
+  return guard<string>('playlistCreator', '', () => client.qqPlaylistCreator(numeric))
+}
+
+function recommendPlaylistsQq(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 40) : 12
+  return guard<QqPlaylistSummary[]>('recommendPlaylists', [], () =>
+    client.qqRecommendPlaylists(limit)
+  )
+}
+
+function playlistOwnedQq() {
+  return guard<{ id: number; name: string }[]>('playlistOwned', [], async () => {
+    const rows = await client.qqOwnedPlaylists()
+    return rows
+      .filter((row) => row.dirType === 0 && row.dirId < 200)
+      .map((row) => ({ id: row.tid, name: row.name }))
+  })
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -257,31 +295,18 @@ export function registerQqIpc(): void {
   // A library read is not a failure when it answers nothing: signed out, or an
   // upstream blip, both mean "nothing to list right now", and the interface shows
   // an empty shelf rather than an error it cannot act on.
-  ipcMain.handle('qq:myPlaylists', (_event, value: unknown) => {
-    const limit = typeof value === 'number' && value > 0 ? Math.min(Math.trunc(value), 200) : 60
-    return guard<QqPlaylistSummary[]>('myPlaylists', [], () => client.qqMyPlaylists(limit))
-  })
+  ipcMain.handle('qq:myPlaylists', (_event, value: unknown) => myPlaylistsQq(value))
+  registerProviderCapability('qq', 'myPlaylists', myPlaylistsQq)
 
-  ipcMain.handle('qq:playlistTracks', (_event, value: unknown) => {
-    // Playlist ids are numeric upstream but arrive as either shape.
-    const id = typeof value === 'number' ? String(value) : asText(value, 32)
-    if (!id) return Promise.resolve<QqSong[]>([])
-    return guard<QqSong[]>('playlistTracks', [], () => client.qqPlaylistTracks(id))
-  })
+  ipcMain.handle('qq:playlistTracks', (_event, value: unknown) => playlistTracksQq(value))
+  registerProviderCapability('qq', 'playlistTracks', playlistTracksQq)
 
-  ipcMain.handle('qq:playlistCreator', (_event, value: unknown) => {
-    const numeric = typeof value === 'number' ? value : Number(asText(value, 32))
-    if (!Number.isFinite(numeric) || numeric <= 0) return Promise.resolve('')
-    return guard<string>('playlistCreator', '', () => client.qqPlaylistCreator(numeric))
-  })
+  ipcMain.handle('qq:playlistCreator', (_event, value: unknown) => playlistCreatorQq(value))
+  registerProviderCapability('qq', 'playlistCreator', playlistCreatorQq)
 
   // 公开推荐歌单：不需要账号，首页那片「歌单」在没人登录时也能有 QQ 的份。
-  ipcMain.handle('qq:recommendPlaylists', (_event, value: unknown) => {
-    const limit = typeof value === 'number' && value > 0 ? Math.min(Math.trunc(value), 40) : 12
-    return guard<QqPlaylistSummary[]>('recommendPlaylists', [], () =>
-      client.qqRecommendPlaylists(limit)
-    )
-  })
+  ipcMain.handle('qq:recommendPlaylists', (_event, value: unknown) => recommendPlaylistsQq(value))
+  registerProviderCapability('qq', 'recommendPlaylists', recommendPlaylistsQq)
 
   ipcMain.handle('qq:newSongs', (_event, value: unknown) => {
     const limit = typeof value === 'number' ? Math.min(Math.max(Math.trunc(value), 1), 60) : 20
@@ -309,14 +334,8 @@ export function registerQqIpc(): void {
    * 歌单写。界面的歌单 id 是 tid（dissid），加删改名都要它；上游真正认的是 dirId，
    * 由 client→transport 现读现换，这里不缓存，免得用户刚在 QQ 里改过就写错单。
    */
-  ipcMain.handle('qq:playlistOwned', () =>
-    guard<{ id: number; name: string }[]>('playlistOwned', [], async () => {
-      const rows = await client.qqOwnedPlaylists()
-      return rows
-        .filter((row) => row.dirType === 0 && row.dirId < 200)
-        .map((row) => ({ id: row.tid, name: row.name }))
-    })
-  )
+  ipcMain.handle('qq:playlistOwned', () => playlistOwnedQq())
+  registerProviderCapability('qq', 'playlistOwned', playlistOwnedQq)
 
   ipcMain.handle('qq:playlistCreate', (_event, value: unknown) => {
     const name = typeof value === 'string' ? value.trim().slice(0, 20) : ''

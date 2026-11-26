@@ -271,6 +271,22 @@ function logoutNetease(): Promise<boolean> {
   return guard('logout', false, () => client.neteaseLogout())
 }
 
+function myPlaylistsNetease(): Promise<NeteasePlaylistSummary[]> {
+  return guard<NeteasePlaylistSummary[]>('myPlaylists', [], () => client.neteaseMyPlaylists())
+}
+
+function playlistTracksNetease(args: unknown): Promise<NeteaseSong[]> {
+  const id = asId(namedArgument(args, 'playlistId'))
+  if (id === null) return Promise.resolve([])
+  return guard<NeteaseSong[]>('playlistTracks', [], () => client.neteasePlaylistTracks(id))
+}
+
+function playlistCreatorNetease(args: unknown): Promise<string> {
+  const id = asId(namedArgument(args, 'playlistId'))
+  if (id === null) return Promise.resolve('')
+  return guard<string>('playlistCreator', '', () => client.neteasePlaylistCreator(id))
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -404,9 +420,8 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:logout', () => logoutNetease())
   registerProviderCapability('netease', 'logout', logoutNetease)
 
-  ipcMain.handle('netease:myPlaylists', () =>
-    guard<NeteasePlaylistSummary[]>('myPlaylists', [], () => client.neteaseMyPlaylists())
-  )
+  ipcMain.handle('netease:myPlaylists', () => myPlaylistsNetease())
+  registerProviderCapability('netease', 'myPlaylists', myPlaylistsNetease)
 
   ipcMain.handle('netease:albumSublist', () =>
     guard<NeteaseCollectedAlbum[]>('albumSublist', [], () => client.neteaseAlbumSublist())
@@ -425,17 +440,11 @@ export function registerNeteaseIpc(): void {
     )
   )
 
-  ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => {
-    const id = asId(value)
-    if (id === null) return []
-    return guard<NeteaseSong[]>('playlistTracks', [], () => client.neteasePlaylistTracks(id))
-  })
+  ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => playlistTracksNetease(value))
+  registerProviderCapability('netease', 'playlistTracks', playlistTracksNetease)
 
-  ipcMain.handle('netease:playlistCreator', (_event, value: unknown) => {
-    const id = asId(value)
-    if (id === null) return ''
-    return guard<string>('playlistCreator', '', () => client.neteasePlaylistCreator(id))
-  })
+  ipcMain.handle('netease:playlistCreator', (_event, value: unknown) => playlistCreatorNetease(value))
+  registerProviderCapability('netease', 'playlistCreator', playlistCreatorNetease)
 
   ipcMain.handle('netease:dailySongs', () =>
     guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())

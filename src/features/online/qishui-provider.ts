@@ -3,6 +3,12 @@ import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { registerProvider } from './registry'
 import { providerLoginStatus, providerLogout, providerStatus } from './account-channel.ts'
+import {
+  providerMyPlaylists,
+  providerPlaylistCreator,
+  providerPlaylistOwned,
+  providerPlaylistTracks
+} from './playlist-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -12,6 +18,9 @@ import {
   type ProviderCapabilities
 } from './types'
 import type { Track } from '../../types'
+
+type QishuiPlaylistRow = Awaited<ReturnType<QishuiApi['myPlaylists']>>[number]
+type QishuiTrackRow = Awaited<ReturnType<QishuiApi['playlistTracks']>>[number]
 
 /**
  * 汽水音乐作为第四个平台。
@@ -92,10 +101,10 @@ function accountIdOf(id: string): number {
  * 问 `relation_info.owner.id`。问不出来答 unknown（分不出来），不猜。
  */
 async function myPlaylistRows() {
-  const rows = (await client()?.myPlaylists()) ?? []
+  const rows = await providerMyPlaylists<QishuiPlaylistRow>('qishui')
   return Promise.all(
     rows.map(async (row) => {
-      const owned = (await client()?.playlistOwned(row.id)) ?? null
+      const owned = await providerPlaylistOwned<boolean | null>('qishui', row.id, null)
       return {
         id: row.id,
         name: row.name,
@@ -234,13 +243,13 @@ const qishuiBackend: PlatformBackend = {
   myPlaylists: myPlaylistRows,
 
   async playlistTracks(id) {
-    const rows = (await client()?.playlistTracks(id)) ?? []
+    const rows = await providerPlaylistTracks<QishuiTrackRow>('qishui', id)
     return rows.map((song) => asOnlineSong(song))
   },
 
-  playlistCreator: async (id) => (await client()?.playlistCreator(id)) ?? '',
+  playlistCreator: (id) => providerPlaylistCreator('qishui', id),
 
-  playlistOwned: async (id) => (await client()?.playlistOwned(id)) ?? null,
+  playlistOwned: (id) => providerPlaylistOwned<boolean | null>('qishui', id, null),
 
   async artistTopSongs(id, limit) {
     const rows = (await client()?.artistSongs(id, limit)) ?? []

@@ -8,6 +8,11 @@ import { registerProvider } from '../online/registry'
 import { previewBackendsForced } from '../online/preview-harness'
 import { registerResumeHandler } from '../online/store'
 import { providerAccountFor, providerLoginStatus, providerLogout } from '../online/account-channel.ts'
+import {
+  providerMyPlaylists,
+  providerPlaylistCreator,
+  providerPlaylistTracks
+} from '../online/playlist-channel.ts'
 import type { PlatformBackend } from '../online/store'
 import {
   playable,
@@ -15,6 +20,7 @@ import {
   type OnlineCollection,
   type OnlineMusicProvider,
   type OnlinePlaylistSummary,
+  type OnlineSong,
   type ProviderCapabilities,
   type QualityTier
 } from '../online/types'
@@ -133,9 +139,9 @@ const neteaseBackend: PlatformBackend = {
 
   songIdOf: (track: Track) => neteaseSongId(track),
 
-  myPlaylists: () => netease.myPlaylists() as Promise<OnlinePlaylistSummary[]>,
-  playlistTracks: (id) => netease.playlistTracks(id),
-  playlistCreator: (id) => netease.playlistCreator(id),
+  myPlaylists: () => providerMyPlaylists<OnlinePlaylistSummary>('netease'),
+  playlistTracks: (id) => providerPlaylistTracks<OnlineSong>('netease', id),
+  playlistCreator: (id) => providerPlaylistCreator('netease', id),
   artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
 
   async albumSongs(id) {
@@ -302,8 +308,8 @@ const neteaseBackend: PlatformBackend = {
         songCount: row.songCount
       }))
     },
-    playlistTracks: (id) => netease.playlistTracks(id),
-    myPlaylists: () => netease.myPlaylists() as Promise<OnlinePlaylistSummary[]>
+    playlistTracks: (id) => providerPlaylistTracks<OnlineSong>('netease', id),
+    myPlaylists: () => providerMyPlaylists<OnlinePlaylistSummary>('netease')
   },
 
   recommendations: {

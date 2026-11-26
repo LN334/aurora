@@ -1,4 +1,4 @@
-import type { QqAccount, QqApi, QqSong } from '../../env'
+import type { QqAccount, QqApi, QqPlaylistSummary, QqSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
@@ -9,6 +9,11 @@ import {
   providerLogout,
   providerStatus
 } from './account-channel.ts'
+import {
+  providerMyPlaylists,
+  providerPlaylistOwned,
+  providerPlaylistTracks
+} from './playlist-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -19,6 +24,9 @@ import {
   type ProviderCapabilities
 } from './types'
 import type { Track } from '../../types'
+
+type QqOwnedPlaylist = { id: number; name: string }
+type QqTrackRow = Awaited<ReturnType<QqApi['playlistTracks']>>[number]
 
 /**
  * QQ Music as a provider.
@@ -230,13 +238,13 @@ const qqBackend: PlatformBackend = {
    * screen already explains a signed-out visitor what signing in would add.
    */
   async myPlaylists() {
-    const rows = (await client()?.myPlaylists()) ?? []
+    const rows = await providerMyPlaylists<QqPlaylistSummary>('qq')
     /*
      * 「我的歌单」是混表：自建与收藏混在一起，且接口不标。自建清单另一条命令
      * 读得到（`playlistOwned`，走 GetPlaylistByUin 且只认 dirId<200 的普通目录），
      * 拿它当尺子量一下——量不出来就还是「分不出来」，不替上游猜。
      */
-    const owned = (await client()?.playlistOwned()) ?? []
+    const owned = await providerPlaylistOwned<QqOwnedPlaylist[]>('qq', null, [])
     const mine = new Set(owned.map((row) => row.id))
     return rows.map((row) => ({
       id: row.id,
@@ -258,7 +266,7 @@ const qqBackend: PlatformBackend = {
   },
 
   async playlistTracks(id) {
-    const rows = (await client()?.playlistTracks(id)) ?? []
+    const rows = await providerPlaylistTracks<QqTrackRow>('qq', id)
     return rows.map((song) => normalizeSong(song))
   },
 

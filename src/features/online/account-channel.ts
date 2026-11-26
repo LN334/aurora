@@ -1,4 +1,5 @@
 import type { ProviderId } from './types.ts'
+import { askProvider, warnChannel } from './channel-core.ts'
 
 /**
  * 账号这一组在渲染层的统一入口。
@@ -13,38 +14,20 @@ import type { ProviderId } from './types.ts'
  * 「二维码没拿到」还是「登录失败」。
  */
 
-type Answer<T> = { ok: true; value: T } | { ok: false; why: string }
-
-async function ask<T>(provider: ProviderId, capability: string, args?: unknown): Promise<Answer<T>> {
-  const gateway = typeof window === 'undefined' ? null : window.aurora?.provider
-  if (!gateway) return { ok: false, why: '没有主进程' }
-  try {
-    const answer = await gateway.call<T>(provider, capability, args)
-    return answer.ok
-      ? { ok: true, value: answer.value }
-      : { ok: false, why: `${answer.error.code} ${answer.error.message}` }
-  } catch (error) {
-    return { ok: false, why: error instanceof Error ? error.message : String(error) }
-  }
-}
-
-function warn(provider: ProviderId, capability: string, why: string): void {
-  console.warn(`[aurora] ${provider}.${capability} 未走通：${why}`)
-}
 
 /** 平台是否就绪、是否已登录。失败时 null（「没问到」），调用方按未就绪处理。 */
 export async function providerStatus<T>(provider: ProviderId): Promise<T | null> {
-  const answer = await ask<T>(provider, 'status')
+  const answer = await askProvider<T>(provider, 'status')
   if (answer.ok) return answer.value
-  warn(provider, 'status', answer.why)
+  warnChannel(provider, 'status', answer.why)
   return null
 }
 
 /** 当前登录的账号，没登录就是 null。 */
 export async function providerLoginStatus<T>(provider: ProviderId): Promise<T | null> {
-  const answer = await ask<T>(provider, 'loginStatus')
+  const answer = await askProvider<T>(provider, 'loginStatus')
   if (answer.ok) return answer.value
-  warn(provider, 'loginStatus', answer.why)
+  warnChannel(provider, 'loginStatus', answer.why)
   return null
 }
 
@@ -53,9 +36,9 @@ export async function providerAccountFor<T>(
   provider: ProviderId,
   profileId: string
 ): Promise<T | null> {
-  const answer = await ask<T>(provider, 'accountFor', { profileId })
+  const answer = await askProvider<T>(provider, 'accountFor', { profileId })
   if (answer.ok) return answer.value
-  warn(provider, 'accountFor', answer.why)
+  warnChannel(provider, 'accountFor', answer.why)
   return null
 }
 
@@ -64,17 +47,17 @@ export async function providerLogoutProfile(
   provider: ProviderId,
   profileId: string
 ): Promise<boolean> {
-  const answer = await ask<boolean>(provider, 'logoutProfile', { profileId })
+  const answer = await askProvider<boolean>(provider, 'logoutProfile', { profileId })
   if (answer.ok) return answer.value === true
-  warn(provider, 'logoutProfile', answer.why)
+  warnChannel(provider, 'logoutProfile', answer.why)
   return false
 }
 
 /** 要一张新二维码。`empty` 是拿不到时的形状，与主进程的兜底一致。 */
 export async function providerQrCreate<T>(provider: ProviderId, empty: T): Promise<T> {
-  const answer = await ask<T>(provider, 'qrCreate')
+  const answer = await askProvider<T>(provider, 'qrCreate')
   if (answer.ok) return answer.value
-  warn(provider, 'qrCreate', answer.why)
+  warnChannel(provider, 'qrCreate', answer.why)
   return empty
 }
 
@@ -84,17 +67,17 @@ export async function providerQrCheck<T>(
   key: string,
   failed: T
 ): Promise<T> {
-  const answer = await ask<T>(provider, 'qrCheck', { key })
+  const answer = await askProvider<T>(provider, 'qrCheck', { key })
   if (answer.ok) return answer.value
-  warn(provider, 'qrCheck', answer.why)
+  warnChannel(provider, 'qrCheck', answer.why)
   return failed
 }
 
 /** 退出登录。 */
 export async function providerLogout(provider: ProviderId): Promise<boolean> {
-  const answer = await ask<boolean>(provider, 'logout')
+  const answer = await askProvider<boolean>(provider, 'logout')
   if (answer.ok) return answer.value === true
-  warn(provider, 'logout', answer.why)
+  warnChannel(provider, 'logout', answer.why)
   return false
 }
 
@@ -105,8 +88,8 @@ export async function providerLoginCellphone<T>(
   password: string,
   failed: T
 ): Promise<T> {
-  const answer = await ask<T>(provider, 'loginCellphone', { phone, password })
+  const answer = await askProvider<T>(provider, 'loginCellphone', { phone, password })
   if (answer.ok) return answer.value
-  warn(provider, 'loginCellphone', answer.why)
+  warnChannel(provider, 'loginCellphone', answer.why)
   return failed
 }

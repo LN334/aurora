@@ -128,6 +128,44 @@ function logoutQishui() {
   return guard('logout', false, async () => qishuiLogout())
 }
 
+function searchPlaylistsQishui(args: unknown) {
+  const keywords = asText(namedArgument(args, 'keywords'), MAX_KEYWORDS)
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' ? Math.min(Math.max(Math.trunc(raw), 1), 40) : 12
+  return guard('searchPlaylists', [], async () => {
+    if (!keywords) return []
+    return await qishuiSearchPlaylists(keywords, limit)
+  })
+}
+
+function myPlaylistsQishui(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const count = typeof raw === 'number' ? Math.min(Math.max(Math.trunc(raw), 1), 100) : 60
+  return guard('myPlaylists', [], async () => qishuiMyPlaylists(count))
+}
+
+function playlistTracksQishui(args: unknown) {
+  return guard('playlistTracks', [], async () => {
+    const alias = asAlias(namedArgument(args, 'playlistId'))
+    return alias ? await qishuiPlaylistTracks(alias) : []
+  })
+}
+
+function playlistCreatorQishui(args: unknown) {
+  return guard('playlistCreator', '', async () => {
+    const alias = asAlias(namedArgument(args, 'playlistId'))
+    return alias ? await qishuiPlaylistCreator(alias) : ''
+  })
+}
+
+/* 归属只能在详情里判：列表的 owner_id 与登录态的加密 id 不同域。 */
+function playlistOwnedQishui(args: unknown) {
+  return guard('playlistOwned', null, async () => {
+    const alias = asAlias(namedArgument(args, 'playlistId'))
+    return alias ? await qishuiPlaylistOwned(alias) : null
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -151,16 +189,10 @@ export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:search', (_event, input: unknown) => searchQishui(input))
   registerProviderCapability('qishui', 'search', searchQishui)
 
-  ipcMain.handle('qishui:searchPlaylists', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const keywords = asText(params.keywords, MAX_KEYWORDS)
-    const limit =
-      typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 40) : 12
-    return await guard('searchPlaylists', [], async () => {
-      if (!keywords) return []
-      return await qishuiSearchPlaylists(keywords, limit)
-    })
-  })
+  ipcMain.handle('qishui:searchPlaylists', async (_event, input: unknown) =>
+    searchPlaylistsQishui(input)
+  )
+  registerProviderCapability('qishui', 'searchPlaylists', searchPlaylistsQishui)
 
   ipcMain.handle('qishui:song', async (_event, id: unknown) =>
     guard('song', null, async () => {
@@ -197,31 +229,17 @@ export function registerQishuiIpc(): void {
     )
   })
 
-  ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60
-    return await guard('myPlaylists', [], async () => qishuiMyPlaylists(count))
-  })
+  ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => myPlaylistsQishui(limit))
+  registerProviderCapability('qishui', 'myPlaylists', myPlaylistsQishui)
 
-  ipcMain.handle('qishui:playlistTracks', async (_event, id: unknown) =>
-    guard('playlistTracks', [], async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiPlaylistTracks(alias) : []
-    })
-  )
+  ipcMain.handle('qishui:playlistTracks', async (_event, id: unknown) => playlistTracksQishui(id))
+  registerProviderCapability('qishui', 'playlistTracks', playlistTracksQishui)
 
-  ipcMain.handle('qishui:playlistCreator', async (_event, id: unknown) =>
-    guard('playlistCreator', '', async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiPlaylistCreator(alias) : ''
-    })
-  )
-  /* 归属只能在详情里判：列表的 owner_id 与登录态的加密 id 不同域。 */
-  ipcMain.handle('qishui:playlistOwned', async (_event, id: unknown) =>
-    guard('playlistOwned', null, async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiPlaylistOwned(alias) : null
-    })
-  )
+  ipcMain.handle('qishui:playlistCreator', async (_event, id: unknown) => playlistCreatorQishui(id))
+  registerProviderCapability('qishui', 'playlistCreator', playlistCreatorQishui)
+
+  ipcMain.handle('qishui:playlistOwned', async (_event, id: unknown) => playlistOwnedQishui(id))
+  registerProviderCapability('qishui', 'playlistOwned', playlistOwnedQishui)
 
   ipcMain.handle('qishui:artistProfile', async (_event, id: unknown) =>
     guard('artistProfile', null, async () => {

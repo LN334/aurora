@@ -9,6 +9,11 @@ import {
   providerLogout,
   providerStatus
 } from './account-channel.ts'
+import {
+  providerMyPlaylists,
+  providerPlaylistCreator,
+  providerPlaylistTracks
+} from './playlist-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -19,6 +24,9 @@ import {
   type ProviderCapabilities
 } from './types'
 import type { Track } from '../../types'
+
+type KugouPlaylistRow = Awaited<ReturnType<KugouApi['myPlaylists']>>[number]
+type KugouTrackRow = Awaited<ReturnType<KugouApi['playlistTracks']>>[number]
 
 /**
  * 酷狗作为第三个平台。
@@ -65,7 +73,12 @@ const CAPABILITIES: ProviderCapabilities = {
   // 歌词要 accesskey（实测匿名拿不到），这条通道没有接，界面也就不给入口。
   lyrics: false,
   auth: true,
-  playlists: true,
+  /*
+   * `playlists` 问的是「能不能在账号里新建/改名/删单/增减曲目」，不是「能不能读」
+   * (读走 myPlaylists)。酷狗上游这几支都没接，声明成 true 会让界面留一个按不动的
+   * 新建按钮。读歌单照旧由 PLAYLIST_PROVIDERS 那条线走。
+   */
+  playlists: false,
   albums: true,
   artists: true,
   recommendations: true,
@@ -220,7 +233,7 @@ const kugouBackend: PlatformBackend = {
      */
     const account = await providerLoginStatus<KugouAccount>('kugou')
     const nickname = account?.nickname ?? ''
-    const rows = (await client()?.myPlaylists()) ?? []
+    const rows = await providerMyPlaylists<KugouPlaylistRow>('kugou')
     return rows.map((row) => {
       const mine = Boolean(nickname) && row.creator === nickname
       return {
@@ -238,9 +251,11 @@ const kugouBackend: PlatformBackend = {
   },
 
   async playlistTracks(id) {
-    const rows = (await client()?.playlistTracks(id)) ?? []
+    const rows = await providerPlaylistTracks<KugouTrackRow>('kugou', id)
     return rows.map((song) => normalizeSong(song))
   },
+
+  playlistCreator: (id) => providerPlaylistCreator('kugou', id),
 
     /*
      * 收藏页读「我喜欢的」只认这一条口子。

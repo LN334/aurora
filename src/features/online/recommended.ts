@@ -7,6 +7,7 @@ import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
 import { fillSlots, groupRows, SLOTS } from './slots'
 import { useOnlineStore } from './store'
+import { providerRecommendPlaylists, providerSearchPlaylists } from './playlist-channel.ts'
 
 /**
  * 首页「歌单」这一栏的数据。
@@ -50,12 +51,19 @@ const RECOMMEND_TTL_MS = 5 * 60 * 1000
 let qqCache: { at: number; rows: PlaylistCard[] } | null = null
 let qishuiCache: { at: number; rows: PlaylistCard[] } | null = null
 
+/** 推荐位只需要卡片那五项；两家的列表都带更多字段，这里只取用得到的。 */
+type PlaylistRow = {
+  id: number
+  name: string
+  coverUrl: string | null
+  trackCount: number
+  creator: string
+}
+
 /** QQ 的推荐位：标签歌单接口，不需要账号。 */
 async function loadQqPlaylists(): Promise<PlaylistCard[]> {
   if (qqCache && Date.now() - qqCache.at < RECOMMEND_TTL_MS) return qqCache.rows
-  const api = window.aurora?.qq
-  if (!api?.recommendPlaylists) return []
-  const rows = await api.recommendPlaylists(12).catch(() => [])
+  const rows = await providerRecommendPlaylists<PlaylistRow>('qq', 12)
   const cards = rows.map((row) => ({
     key: 'qq:' + row.id,
     providerId: 'qq' as const,
@@ -74,10 +82,8 @@ async function loadQqPlaylists(): Promise<PlaylistCard[]> {
 /** 汽水的推荐位：公开歌单搜索，三个词各取几张再按 id 去重。 */
 async function loadQishuiPlaylists(): Promise<PlaylistCard[]> {
   if (qishuiCache && Date.now() - qishuiCache.at < RECOMMEND_TTL_MS) return qishuiCache.rows
-  const api = window.aurora?.qishui
-  if (!api?.searchPlaylists) return []
   const batches = await Promise.all(
-    QISHUI_WORDS.map((word) => api.searchPlaylists(word, 6).catch(() => []))
+    QISHUI_WORDS.map((word) => providerSearchPlaylists<PlaylistRow>('qishui', word, 6))
   )
   const seen = new Set<number>()
   const cards = batches

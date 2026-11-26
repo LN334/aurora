@@ -151,6 +151,28 @@ function logoutKugou() {
   return guard('logout', false, async () => kugouLogout())
 }
 
+function myPlaylistsKugou(args: unknown) {
+  const limit = namedArgument(args, 'limit')
+  const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60
+  return guard('myPlaylists', [], async () => kugouMyPlaylists(count))
+}
+
+function playlistTracksKugou(args: unknown) {
+  return guard('playlistTracks', [], async () => {
+    const playlistId = asId(namedArgument(args, 'playlistId'))
+    if (playlistId === '') return []
+    return await kugouPlaylistTracks(playlistId)
+  })
+}
+
+function playlistCreatorKugou(args: unknown) {
+  return guard('playlistCreator', '', async () => {
+    const playlistId = asId(namedArgument(args, 'playlistId'))
+    if (playlistId === '') return ''
+    return await kugouPlaylistCreator(playlistId)
+  })
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -237,26 +259,14 @@ export function registerKugouIpc(): void {
     })
   )
 
-  ipcMain.handle('kugou:myPlaylists', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60
-    return await guard('myPlaylists', [], async () => kugouMyPlaylists(count))
-  })
+  ipcMain.handle('kugou:myPlaylists', async (_event, limit: unknown) => myPlaylistsKugou(limit))
+  registerProviderCapability('kugou', 'myPlaylists', myPlaylistsKugou)
 
-  ipcMain.handle('kugou:playlistTracks', async (_event, id: unknown) =>
-    guard('playlistTracks', [], async () => {
-      const playlistId = asId(id)
-      if (playlistId === '') return []
-      return await kugouPlaylistTracks(playlistId)
-    })
-  )
+  ipcMain.handle('kugou:playlistTracks', async (_event, id: unknown) => playlistTracksKugou(id))
+  registerProviderCapability('kugou', 'playlistTracks', playlistTracksKugou)
 
-  ipcMain.handle('kugou:playlistCreator', async (_event, id: unknown) =>
-    guard('playlistCreator', '', async () => {
-      const playlistId = asId(id)
-      if (playlistId === '') return ''
-      return await kugouPlaylistCreator(playlistId)
-    })
-  )
+  ipcMain.handle('kugou:playlistCreator', async (_event, id: unknown) => playlistCreatorKugou(id))
+  registerProviderCapability('kugou', 'playlistCreator', playlistCreatorKugou)
 
   ipcMain.handle('kugou:likes', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 200
