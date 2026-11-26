@@ -66,9 +66,15 @@ test('全都没问出来：是失败，不是「一首都没有」', () => {
 })
 
 test('失败那份缓存只活三十秒，别把一次 502 冻十分钟', () => {
-  assert.equal(likedCacheTtl(0), LIKED_TTL)
-  assert.equal(likedCacheTtl(1), LIKED_FAIL_TTL)
+  assert.equal(likedCacheTtl(0, 636), LIKED_TTL)
+  assert.equal(likedCacheTtl(1, 636), LIKED_FAIL_TTL)
   assert.ok(LIKED_FAIL_TTL < LIKED_TTL)
+})
+
+test('空结果也短命：上游抖回一个空身子时不该锁十分钟', () => {
+  // 四家都答「成功但零首」，failed 是 0，单看失败数会当成十分钟有效的真结果。
+  assert.equal(likedCacheTtl(0, 0), LIKED_FAIL_TTL)
+  assert.equal(likedCacheTtl(2, 0), LIKED_FAIL_TTL)
 })
 
 test('读完了有歌：卡片印条数', () => {

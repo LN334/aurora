@@ -40,8 +40,17 @@ export const LIKED_TTL = 10 * 60 * 1000
  */
 export const LIKED_FAIL_TTL = 30 * 1000
 
-export function likedCacheTtl(failed: number): number {
-  return failed > 0 ? LIKED_FAIL_TTL : LIKED_TTL
+export function likedCacheTtl(failed: number, count: number): number {
+  /*
+   * 空结果也只信三十秒。
+   *
+   * 「一首都读不到」看起来像「他没有收藏」，但链路抖动时上游同样会答一个空
+   * 身子而不报错，而冷启动那一次读取正撞在四家同时开火、最容易被打回空的时刻。
+   * 十分钟缓存等于把这个假空锁死：用户点进点出都是「还没有喜欢的歌」，只有重启
+   * 或者等缓存过期才恢复。三十秒足够压住翻来覆去地点，又不至于把一次抖动变成
+   * 一个上午的错觉。
+   */
+  return failed > 0 || count === 0 ? LIKED_FAIL_TTL : LIKED_TTL
 }
 
 /** 一条都没有时，到底是「你没有」还是「没读到」。只有后者能怨上游。 */

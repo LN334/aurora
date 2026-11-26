@@ -9,7 +9,7 @@ import {
   saveLibraryPaths,
   setLibraryProfile
 } from '../library-paths'
-import { isInsideRoots } from '../settings'
+import { isInsideRoots, saveSettings } from '../settings'
 import { sendProgress } from '../pure/scan-progress'
 import type { ScanControl, ScanSlot, WindowSource } from './host'
 
@@ -51,7 +51,15 @@ export function registerLibraryIpc(deps: WindowSource & ScanSlot): void {
      * real profile would find the adoption marker already written and start
      * empty.
      */
-    if (typeof profileId === 'string' && profileId) setLibraryProfile(profileId)
+    if (typeof profileId === 'string' && profileId) {
+      setLibraryProfile(profileId)
+      /*
+       * 记住这一次选择：下次启动时 `startup-profile.ts` 先认它，不再靠文件时间
+       * 猜。写在这里而不是各个平台的 setProfile 里，是因为这条通道是渲染层每次
+       * 切档案都会走的那一条（切档案时也会调它）。
+       */
+      if (/^[A-Za-z0-9_-]{1,48}$/.test(profileId)) saveSettings({ lastProfile: profileId })
+    }
     return libraryPaths().roots
   })
 

@@ -60,7 +60,7 @@ async function loadPlatformLiked(
 ): Promise<LikedFold> {
   const key = platforms ? [...platforms].sort().join(',') : '*'
   const hit = cache.get(key)
-  if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
+  if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed, hit.tracks.length)) {
     return { tracks: hit.tracks, failed: hit.failed }
   }
   const wanted = platforms ? new Set(platforms) : null
@@ -200,7 +200,7 @@ export function usePlatformLiked(platforms?: ProviderId[]): PlatformLikedState {
      */
     const read = (keep: boolean): void => {
       const hit = cache.get(key)
-      if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed)) {
+      if (hit && Date.now() - hit.at < likedCacheTtl(hit.failed, hit.tracks.length)) {
         if (alive) setState({ tracks: hit.tracks, loading: false, failed: hit.failed, pending: 0 })
         return
       }

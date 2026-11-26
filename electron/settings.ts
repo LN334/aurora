@@ -156,6 +156,15 @@ export interface Settings {
   overlayTranslation: boolean
   /** 桌面歌词的对齐。 */
   overlayAlign: OverlayAlign
+  /**
+   * 上一次真正在用哪个档案。
+   *
+   * `startup-profile.ts` 原本靠「profiles/ 目录里哪份 json 最新」猜启动档案，
+   * 而新建一个空档案就会把这份「最新」抢走：启动那一刻主进程绑到那个没有会话
+   * 的档案上，四家平台一律「未登录」，收藏与关注列表整片空着，要等渲染层把档案
+   * 重新绑回来才有数据。记下一次真实选择，比文件时间更像答案。
+   */
+  lastProfile?: string
   /** Last position and size of the desktop lyric strip. */
   lyricsOverlayBounds?: { x: number; y: number; width: number; height: number }
 }
