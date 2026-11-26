@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
 import type { Track } from '../../types'
-import { getProvider, listAvailableProviders } from './registry'
-import { useOnlineStore, type PlatformBackend } from './store'
+import { listAvailableProviders } from './registry'
+import { useOnlineStore } from './store'
 import type { ProviderId } from './types'
-import { mergeVersions } from './unify'
+import { collectTracks } from './collect'
 import { sourceOrder } from '../settings/source-order'
 import { usePushPlatforms } from './push-platforms'
 import { DAILY_SIZE, dailyTracks, interleaveBySource, rotateBySeed } from '../library/daily'
@@ -72,30 +72,23 @@ export async function loadPlatformDaily(platforms?: ProviderId[]): Promise<Track
    * 而拿回来的本来就只能是空。这一问只读会话文件，很便宜。
    */
   const signedIn = await bridge.platforms.signedIn().catch(() => ({}) as Record<string, boolean>)
-  const lists = await Promise.all(
-    providers.map(async (provider) => {
-      try {
-        if (provider.recommendations?.dailyNeedsAccount && !signedIn[provider.id]) {
-          return [] as Track[]
-        }
-        // 同上：绑定档案在 init 里，跳过它上游会当游客。
-        await useOnlineStore(provider.id as never).getState().init().catch(() => {})
-        const backend =
-          (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
-        const daily = provider.recommendations?.dailySongs
-        if (!backend || !daily) return [] as Track[]
-        const songs = await daily()
-        return rotateBySeed(
-          songs.map((song) => backend.toTrack(song)),
-          daySeed + provider.id
-        )
-      } catch {
-        return [] as Track[]
-      }
-    })
-  )
-
-  const tracks = mergeVersions(lists.flat(), sourceOrder())
+  const tracks = await collectTracks(providers, sourceOrder(), async (provider, backend) => {
+    if (provider.recommendations?.dailyNeedsAccount && !signedIn[provider.id]) {
+      return []
+    }
+    // 同上：绑定档案在 init 里，跳过它上游会当游客。
+    await useOnlineStore(provider.id as never)
+      .getState()
+      .init()
+      .catch(() => {})
+    const daily = provider.recommendations?.dailySongs
+    if (!daily) return []
+    const songs = await daily()
+    return rotateBySeed(
+      songs.map((song) => backend.toTrack(song)),
+      daySeed + provider.id
+    )
+  })
   caches.set(cacheKey, { day: daySeed, at: Date.now(), tracks })
   return tracks
 }

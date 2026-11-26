@@ -1,4 +1,5 @@
 import { songsAcrossPlatforms } from '../online/artist-merge'
+import { collectTracks } from '../online/collect'
 import { getProvider, listAvailableProviders } from '../online/registry'
 import { useOnlineStore, type PlatformBackend } from '../online/store'
 import type { ProviderId } from '../online/types'
@@ -114,33 +115,25 @@ export async function loadRoamStream(
    * 轮之间没有依赖（每一轮就是「再来几首」），并发发出去，谁先回算谁的。
    */
   const ROUNDS = 3
-  const lists = await Promise.all(
-    providers.map(async (provider) => {
-      await initProvider(provider)
-      if (!(await canStreamNow(provider))) return []
-      const rounds = await Promise.all(
-        Array.from({ length: ROUNDS }, () => fetchStreamOnce(provider, per))
-      )
-      const out: Track[] = []
-      const seen = new Set<string>()
-      for (const chunk of rounds) {
-        for (const track of chunk) {
-          const key = trackKey(track)
-          if (seen.has(key)) continue
-          seen.add(key)
-          out.push(track)
-        }
+  const merged = await collectTracks(providers, sourceOrder(), async (provider) => {
+    await initProvider(provider)
+    if (!(await canStreamNow(provider))) return []
+    const rounds = await Promise.all(
+      Array.from({ length: ROUNDS }, () => fetchStreamOnce(provider, per))
+    )
+    const out: Track[] = []
+    const seen = new Set<string>()
+    for (const chunk of rounds) {
+      for (const track of chunk) {
+        const key = trackKey(track)
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(track)
       }
-      return out.slice(0, per)
-    })
-  )
-
-  /*
-   * 按 total 截住。per 是「每家至少问六首」，摊到十首时四家能回来两倍多（实测要
-   * 十首回来十九首）。补批是按量算时间的，多给的那部分只会堆在队列尾巴上，越堆
-   * 越长——漫游要的是源源不断，不是一份越来越厚的歌单。
-   */
-  return mergeVersions(lists.flat(), sourceOrder()).slice(0, total)
+    }
+    return out.slice(0, per)
+  })
+  return merged.slice(0, total)
 }
 
 /** 够开播就走的那一批：每家只问一轮。 */

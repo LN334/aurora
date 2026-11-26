@@ -1,9 +1,8 @@
 import type { Track } from '../../types'
 import { supportsCapability } from './capability'
-import { getProvider, listAvailableProviders } from './registry'
-import type { PlatformBackend } from './store'
-import type { ProviderId } from './types'
-import { mergeVersions, normalizeName } from './unify'
+import { listAvailableProviders } from './registry'
+import { normalizeName } from './unify'
+import { collectTracks } from './collect'
 
 /**
  * 同一位艺人在别的平台上的歌。
@@ -25,22 +24,14 @@ export async function songsAcrossPlatforms(
     (provider) =>
       provider.id !== exclude && supportsCapability(provider, 'search') && (!only || only.has(provider.id))
   )
-  const rounds = await Promise.all(
-    providers.map(async (provider) => {
-      const backend = (getProvider(provider.id as ProviderId)?.backend as PlatformBackend | undefined) ?? null
-      const search = provider.search
-      if (!backend || !search) return []
-      try {
-        const result = await search.search(name, 'song', 40)
-        const songs = result.songs.filter((song) =>
-          song.artists.some((artist) => normalizeName(artist.name) === target)
-        )
-        const toTrack = backend.toTrack as (song: never) => Track
-        return songs.map((song) => toTrack(song as never))
-      } catch {
-        return []
-      }
-    })
-  )
-  return mergeVersions(rounds.flat(), order)
+  return collectTracks(providers, order, async (provider, backend) => {
+    const search = provider.search
+    if (!search) return []
+    const result = await search.search(name, 'song', 40)
+    const songs = result.songs.filter((song) =>
+      song.artists.some((artist) => normalizeName(artist.name) === target)
+    )
+    const toTrack = backend.toTrack as (song: never) => Track
+    return songs.map((song) => toTrack(song as never))
+  })
 }

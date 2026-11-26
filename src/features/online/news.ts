@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Track } from '../../types'
 import { sourceOrder } from '../settings/source-order'
-import { getProvider } from './registry'
+import { listProviders } from './registry'
 import { usePushPlatforms } from './push-platforms'
-import type { PlatformBackend } from './store'
-import { mergeVersions } from './unify'
+import { collectTracks } from './collect'
 import { providerNewSongs } from './recommend-channel.ts'
 import type { OnlineSong, ProviderId } from './types'
 
@@ -13,36 +12,23 @@ import type { OnlineSong, ProviderId } from './types'
  *
  * 首页那块「新歌」原先只问网易云一家，另外三家其实是有的：QQ 与酷狗的新歌
  * 榜都不需要登录（实测匿名可读）。这里把它们并进来，同一首在两家榜单上都出现
- * 时由 mergeVersions 合成一行、两个平台徽章并排，播的时候仍按设置里的音源
+ * 时由合并管道并成一行、两个平台徽章并排，播的时候仍按设置里的音源
  * 优先级挑一个。
  *
  * 汽水的推荐流要有账号才有内容，先不进来：宁可少一行，不要一行空着。
  */
 const SOURCES: ProviderId[] = ['qq', 'kugou']
 
-async function shelfNewSongs(id: ProviderId, limit: number): Promise<Track[]> {
-  const backend = (getProvider(id)?.backend as PlatformBackend | undefined) ?? null
-  if (!backend) return []
-  // 通道自己折空：一家挂了不该让整块消失，另外还有网易云那一份。
-  const songs = await providerNewSongs<OnlineSong>(id, limit)
-  return songs.map((song) => backend.toTrack(song))
-}
-
-/**
- * 问哪几家跟着「推荐来源」的勾选走。
- *
- * 首页这几块推送位（每日推荐、推荐歌单、推荐专辑、最近新歌）与漫游共用同一个
- * 勾选：用户关掉一家，是「别拿它来推给我」，这几块一起不再问它。
- *
- * 另外还过一道 push-platforms：默认只问登录着的平台（见那里的注释）。网易云与
- * 酷狗的新歌榜游客也能读，但「游客能读的榜单」不等于「给你的推荐」。
- */
 async function loadPlatformNewSongs(limit = 20, platforms?: ProviderId[]): Promise<Track[]> {
   const wanted = platforms === undefined ? null : new Set(platforms)
-  const ids = SOURCES.filter((id) => wanted === null || wanted.has(id))
-  if (ids.length === 0) return []
-  const rounds = await Promise.all(ids.map((id) => shelfNewSongs(id, limit)))
-  return mergeVersions(rounds.flat(), sourceOrder())
+  const providers = listProviders().filter(
+    (provider) => SOURCES.includes(provider.id) && (wanted === null || wanted.has(provider.id))
+  )
+  return collectTracks(providers, sourceOrder(), async (provider, backend) => {
+    // 通道自己折空：一家挂了不该让整块消失，另外还有网易云那一份。
+    const songs = await providerNewSongs<OnlineSong>(provider.id, limit)
+    return songs.map((song) => backend.toTrack(song))
+  })
 }
 
 /**
