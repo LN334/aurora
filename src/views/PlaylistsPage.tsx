@@ -74,7 +74,13 @@ export function PlaylistsPage({ onNavigate }: { onNavigate(route: ShellRoute): v
       ...platform,
       rows: shown.filter((card) => card.providerId === platform.id),
       writable: Boolean(getProvider(platform.id)?.playlists?.create)
-    })).filter((group) => group.rows.length > 0 || signedIn[group.id])
+    })).filter(
+      (group) =>
+        group.rows.length > 0 ||
+        /* 空分组只留一个理由：这里能新建。系统歌单（「我喜欢的音乐」这类）已在上层滤掉，
+         * 登录着但一张普通歌单都没有的平台不该占一节空白。 */
+        (signedIn[group.id] && group.writable)
+    )
   }, [shown, signedIn.netease, signedIn.qq, signedIn.kugou, signedIn.qishui])
 
   const create = async (name: string) => {
