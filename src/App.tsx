@@ -1006,6 +1006,9 @@ export function App() {  if (!isNative) {
         />
       )
     }
+    // 地址里只有 #track、没带 id 时上面那一支不会命中，旧视图表里也没有「歌曲」
+    // 这一页的落点，主区就空着。跟详情页找不到那首歌时一样，送回本机音乐。
+    if (shell.view === 'track') return <LocalPage onNavigate={goShell} onMenu={openTrackMenu} />
     if (shell.view === 'artist' && shell.id) {
       const found = artists.find((item) => item.id === shell.id) ?? null
       if (found) {
