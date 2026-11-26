@@ -420,13 +420,31 @@ export async function kugouMyPlaylists(limit = 60): Promise<KugouPlaylistSummary
       return []
     }
 
+    return kugouPublicPlaylists(limit)
+  } catch (error) {
+    write(`[kugou] playlist list failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+/**
+ * 公开推荐的歌单（`/top/playlist`），登录与否都一样。
+ *
+ * `kugouMyPlaylists` 登录后读的是账号自己的歌单——里面不但有「我喜欢」，还有
+ * 自建与收藏的那些。首页那片推荐位拿它来填，等于把自己的音乐库摆回推荐位：
+ * 用户一眼看到「我喜欢」混在「平台推荐了什么」里。推荐位要的是公开榜单，跟
+ * 登录状态无关，所以单列一支。
+ */
+export async function kugouPublicPlaylists(limit = 24): Promise<KugouPlaylistSummary[]> {
+  if (!(await ensureServer())) return []
+  try {
     const response = await request('/top/playlist', {
       method: 'POST',
       query: { pagesize: limit, page: 1 }
     })
     return summarize(readTopPlaylists(response.body))
   } catch (error) {
-    write(`[kugou] playlist list failed: ${messageOf(error)}`)
+    write(`[kugou] public playlist list failed: ${messageOf(error)}`)
     return []
   }
 }

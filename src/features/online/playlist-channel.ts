@@ -42,7 +42,12 @@ export async function providerPlaylistCreator(
   return ''
 }
 
-/** 公开推荐歌单（QQ 有，别家没有）。 */
+/*
+ * 公开推荐歌单（QQ 走标签歌单接口，酷狗走公开榜单）。
+ *
+ * 注意它跟 `myPlaylists` 是两件事：后者是账号自己的歌单，登录后里面会有
+ * 「我喜欢」「默认收藏」这些；拿它去填首页推荐位，等于把用户收藏摆回推荐位。
+ */
 export async function providerRecommendPlaylists<T>(
   provider: ProviderId,
   limit?: number

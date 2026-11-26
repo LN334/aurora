@@ -23,6 +23,7 @@ import {
   kugouNewSongs,
   kugouPlaylistCreator,
   kugouPlaylistTracks,
+  kugouPublicPlaylists,
   kugouQrCheck,
   kugouQrCreate,
   kugouSearch,
@@ -155,6 +156,13 @@ function myPlaylistsKugou(args: unknown) {
   const limit = namedArgument(args, 'limit')
   const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 60
   return guard('myPlaylists', [], async () => kugouMyPlaylists(count))
+}
+
+/** 公开推荐歌单：首页那片「平台推荐了什么」里的酷狗一格。 */
+function recommendPlaylistsKugou(args: unknown) {
+  const limit = namedArgument(args, 'limit')
+  const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 24
+  return guard('recommendPlaylists', [], async () => kugouPublicPlaylists(count))
 }
 
 function playlistTracksKugou(args: unknown) {
@@ -353,6 +361,11 @@ export function registerKugouIpc(): void {
 
   ipcMain.handle('kugou:myPlaylists', async (_event, limit: unknown) => myPlaylistsKugou(limit))
   registerProviderCapability('kugou', 'myPlaylists', myPlaylistsKugou)
+
+  /*
+   * 只走通道，没有旧 handle：这一支是这次新加的——首页推荐位不再拿账号歌单来填。
+   */
+  registerProviderCapability('kugou', 'recommendPlaylists', recommendPlaylistsKugou)
 
   ipcMain.handle('kugou:playlistTracks', async (_event, id: unknown) => playlistTracksKugou(id))
   registerProviderCapability('kugou', 'playlistTracks', playlistTracksKugou)

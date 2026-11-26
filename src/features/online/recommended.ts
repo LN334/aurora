@@ -6,7 +6,6 @@ import { usePushPlatforms } from './push-platforms'
 import type { PlaylistCard } from './playlist-cards'
 import { shuffleWithSeed } from './shuffle'
 import { fillSlots, groupRows, SLOTS } from './slots'
-import { useOnlineStore } from './store'
 import { providerRecommendPlaylists, providerSearchPlaylists } from './playlist-channel.ts'
 
 /**
@@ -15,8 +14,9 @@ import { providerRecommendPlaylists, providerSearchPlaylists } from './playlist-
  * 这里要的是「平台推荐了什么」，不是「我收藏了什么」——两边是两码事，之前
  * 拿账号歌单来填，于是首屏出现了自己的歌单，看起来像把音乐库搬到了推荐位。
  *
- * 现在只收公开推荐：网易云的推荐歌单走发现接口；酷狗未登录时给的公开榜单
- * 本身就是推荐位；QQ 用标签歌单接口（不需要账号）；汽水用公开歌单搜索的热词。
+ * 现在四家都只收公开推荐：网易云的推荐歌单走发现接口；酷狗走公开榜单
+ * （/top/playlist，与登录无关——以前读的是账号歌单，于是「我喜欢」混了进来）；
+ * QQ 用标签歌单接口（不需要账号）；汽水用公开歌单搜索的热词。
  * 四家各给几张，一条推荐位上四家的东西都能看到。
  *
  * 推荐位的卡片没有归属（`ownership: 'unknown'`）：那是平台推的，不是谁的。
@@ -49,6 +49,7 @@ const READY_TAIL_MS = 120
  */
 const RECOMMEND_TTL_MS = 5 * 60 * 1000
 let qqCache: { at: number; rows: PlaylistCard[] } | null = null
+let kugouCache: { at: number; rows: PlaylistCard[] } | null = null
 let qishuiCache: { at: number; rows: PlaylistCard[] } | null = null
 
 /** 推荐位只需要卡片那五项；两家的列表都带更多字段，这里只取用得到的。 */
@@ -76,6 +77,31 @@ async function loadQqPlaylists(): Promise<PlaylistCard[]> {
     ownership: 'unknown' as const
   }))
   qqCache = { at: Date.now(), rows: cards }
+  return cards
+}
+
+/**
+ * 酷狗的推荐位：公开榜单（/top/playlist），与登录状态无关。
+ *
+ * 这一格以前读的是「我的歌单」——登录之后那是账号自己的列表，「我喜欢」、
+ * 默认收藏、日推全在里面，首页推荐位立刻变成「把自己的收藏摆回来」。
+ * 推荐位要的是「平台推荐了什么」，所以改走公开榜单。
+ */
+async function loadKugouPlaylists(): Promise<PlaylistCard[]> {
+  if (kugouCache && Date.now() - kugouCache.at < RECOMMEND_TTL_MS) return kugouCache.rows
+  const rows = await providerRecommendPlaylists<PlaylistRow>('kugou', 24)
+  const cards = rows.map((row) => ({
+    key: 'kugou:' + row.id,
+    providerId: 'kugou' as const,
+    providerLabel: '酷狗音乐',
+    id: row.id,
+    name: row.name,
+    coverUrl: row.coverUrl,
+    trackCount: row.trackCount,
+    creator: row.creator,
+    ownership: 'unknown' as const
+  }))
+  kugouCache = { at: Date.now(), rows: cards }
   return cards
 }
 
@@ -109,16 +135,17 @@ async function loadQishuiPlaylists(): Promise<PlaylistCard[]> {
 }
 
 /**
- * 开屏期间预热这一排里的 QQ 与汽水。
+ * 开屏期间预热这一排里的三家。
  *
- * 网易云的块在 discover store 里、酷狗的跟着 init 走，都已经在预热范围内；
- * 缺的就是这两家。勾选与登录判断与页面一致：只问勾着且登录着的平台。
+ * 网易云的块在 discover store 里，已经跟着开屏那一段预热；缺的是另外三家。
+ * 勾选与登录判断与页面一致：只问勾着且登录着的平台。
  */
 export async function prewarmRecommendedPlaylists(): Promise<void> {
   const signed = await bridge.platforms.signedIn().catch(() => ({} as Record<string, boolean>))
   const chosen = roamPlatforms().filter((id) => signed[id])
   await Promise.allSettled([
     chosen.includes('qq') ? loadQqPlaylists() : Promise.resolve(),
+    chosen.includes('kugou') ? loadKugouPlaylists() : Promise.resolve(),
     chosen.includes('qishui') ? loadQishuiPlaylists() : Promise.resolve()
   ])
 }
@@ -132,7 +159,7 @@ interface RecommendedPlaylists {
 
 export function useRecommendedPlaylists(): RecommendedPlaylists {
   const block = useDiscover((state) => state.blocks.playlists)
-  const kugou = useOnlineStore('kugou')()
+  const [kugou, setKugou] = useState<PlaylistCard[]>(() => kugouCache?.rows ?? [])
   const [qishui, setQishui] = useState<PlaylistCard[]>(() => qishuiCache?.rows ?? [])
   const [qq, setQq] = useState<PlaylistCard[]>(() => qqCache?.rows ?? [])
   /*
@@ -183,36 +210,34 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
   }, [neteaseDone, markDone])
 
   /*
-   * 酷狗：歌单是 init 里顺手发出去的（未登录走公开榜单），拿不到自己的 promise。
-   * 所以用「init 完成 + 不在加载中」两条件近似落定，中间可能差的一帧由
-   * READY_TAIL_MS 那个收敛窗吃掉。
+   * 酷狗：公开榜单，一次请求就完，不需要先把账号那套 init 拉起来。
    *
-   * 没勾酷狗就别 init：它一 init 就要 spawn 那个本地 Node 服务（`[kugou] starting
-   * api`，几十 MB）。这一块直接算落定，页面照常往下画。
+   * 以前这一格读的是「我的歌单」，登录之后那是账号自己的列表——「我喜欢」、
+   * 默认收藏、日推全在里头，于是推荐位混进了用户自己的收藏。现在只问公开榜单。
+   *
+   * 没勾酷狗就别问：那一问会 spawn 本地 Node 服务（`[kugou] starting api`，
+   * 几十 MB）。这一块直接算落定，页面照常往下画。
    */
-  const wantKugou = list.includes('kugou')
-  const [kugouInit, setKugouInit] = useState(false)
   useEffect(() => {
-    if (!wantKugou) {
-      markDone('kugou')
-      return
-    }
     let alive = true
-    void useOnlineStore('kugou')
-      .getState()
-      .init()
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setKugouInit(true)
-      })
+    void (async () => {
+      try {
+        if (!chosen) return
+        if (!list.includes('kugou')) {
+          setKugou([])
+          return
+        }
+        const rows = await loadKugouPlaylists()
+        if (!alive || rows.length === 0) return
+        setKugou(rows)
+      } finally {
+        if (alive) markDone('kugou')
+      }
+    })()
     return () => {
       alive = false
     }
-  }, [wantKugou, markDone])
-  const kugouLoading = kugou.playlistsLoading
-  useEffect(() => {
-    if (kugouInit && !kugouLoading) markDone('kugou')
-  }, [kugouInit, kugouLoading, markDone])
+  }, [chosenKey, markDone])
 
   useEffect(() => {
     let alive = true
@@ -269,24 +294,12 @@ export function useRecommendedPlaylists(): RecommendedPlaylists {
       creator: playlist.creator,
       ownership: 'unknown' as const
     }))
-    for (const playlist of kugou.playlists) {
-      out.push({
-        key: 'kugou:' + playlist.id,
-        providerId: 'kugou',
-        providerLabel: '酷狗音乐',
-        id: playlist.id,
-        name: playlist.name,
-        coverUrl: playlist.coverUrl,
-        trackCount: playlist.trackCount,
-        creator: playlist.creator,
-        ownership: 'unknown'
-      })
-    }
+    out.push(...kugou)
     out.push(...qq)
     out.push(...qishui)
-    // 最后再按勾选筛一遍：网易云与酷狗的行是上面拼进来的，没经过 effect。
+    // 最后再按勾选筛一遍：网易云的行是上面拼进来的，没经过 effect。
     return out.filter((row) => list.includes(row.providerId as never))
-  }, [block.playlists, kugou.playlists, qq, qishui, chosenKey])
+  }, [block.playlists, kugou, qq, qishui, chosenKey])
 
   /*
    * 要等哪几家，是按勾选算的。关掉的那家连请求都没发，把它算进来就永远等不到。
