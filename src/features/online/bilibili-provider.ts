@@ -1,6 +1,7 @@
-import type { BilibiliQuality, BilibiliVideo } from '../../env'
+import type { BilibiliApi, BilibiliQuality, BilibiliVideo } from '../../env'
 import type { Track } from '../../types'
 import type { QualityTier } from './types'
+import { providerLoginStatus, providerLogout } from './account-channel.ts'
 import { registerProvider } from './registry'
 import type { PlatformBackend } from './store'
 import {
@@ -21,6 +22,9 @@ import {
  */
 
 const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless', 'hires']
+
+/** 主进程回的账号形状（通道与旧桥是同一份实现）。 */
+type BiliAccountRow = NonNullable<Awaited<ReturnType<BilibiliApi['loginStatus']>>>
 
 /** 本次运行选的档位；B 站没有账号，也不存偏好，重启回 exhigh。 */
 let chosenTier: QualityTier = 'exhigh'
@@ -129,7 +133,8 @@ const bilibiliBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    const account = await client()?.loginStatus()
+    // 问后台一条通道，不再直摸 window.aurora：渲染层拿不到桥时也照常答「未登录」。
+    const account = await providerLoginStatus<BiliAccountRow>('bilibili')
     if (!account) return null
     return {
       id: account.mid,
@@ -141,7 +146,7 @@ const bilibiliBackend: PlatformBackend = {
   },
 
   async logout() {
-    await client()?.logout()
+    await providerLogout('bilibili')
   },
 
   async bindProfile(profileId) {
@@ -157,7 +162,7 @@ const bilibiliProvider: OnlineMusicProvider = {
   summary: '把 B 站视频当歌听：搜索、播放它 DASH 里的音频轨，最高 192k',
   disclosure:
     '通过 B 站公开的 web 接口接入（WBI 签名 + playurl），仅供个人学习自用；不提供绕过会员或大会员的能力。',
-  anonymousNote: '无需登录：搜索与播放都走公开接口，匿名即可。',
+  anonymousNote: '登录可选：搜索与播放都走公开接口，登录后换成更高音轨，搜索也更稳。',
   available: () => client() !== null,
   capabilities: {
     search: true,
@@ -165,11 +170,11 @@ const bilibiliProvider: OnlineMusicProvider = {
     // 视频没有结构化歌词，硬凑一份只会是错的。
     lyrics: false,
     /*
-     * 没有登录这回事：搜索与播放都走公开接口（见 anonymousNote），B 站这块
-     * 也没有任何需要 cookie 的通道。曾经在这里写 true，于是界面给了一个点不动
-     * 的登录入口——声明与实现不一致，注册时的 brokenClaims 检查现在会报出来。
+     * 扫码登录是真有的（设置页「登录 B 站」出二维码，主进程存 cookie），只是
+     * 匿名也能搜能播，所以它算加成而不是前提。曾经声明 true 却没有挂 auth
+     * 方法，界面因此给了一个点不动的入口——现在方法补齐了，声明也跟着真。
      */
-    auth: false,
+    auth: true,
     playlists: false,
     albums: false,
     artists: false,
@@ -186,6 +191,10 @@ const bilibiliProvider: OnlineMusicProvider = {
   qualityNeedsVip: ['lossless', 'hires'],
   getQuality: () => bilibiliBackend.getQuality(),
   setQuality: (quality) => bilibiliBackend.setQuality(quality),
+  auth: {
+    loginStatus: () => bilibiliBackend.loginStatus(),
+    logout: () => bilibiliBackend.logout()
+  },
   search: {
     search: (keywords, kind, limit) =>
       bilibiliBackend.search(keywords, kind, limit ?? 30) as Promise<{ songs: OnlineSong[]; albums: never[]; artists: never[] }>

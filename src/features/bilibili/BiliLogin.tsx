@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
+import { providerQrCheck, providerQrCreate } from '../online/account-channel.ts'
 import { useOnlineStore } from '../online/store'
+import type { BilibiliApi } from '../../env'
 import './BiliLogin.css'
 
 /**
@@ -26,6 +28,15 @@ type QrState =
 
 const POLL_MS = 2000
 
+/** 两次调用的形状沿用桥的声明（通道与旧桥是同一份实现）。 */
+type BiliQrSession = Awaited<ReturnType<BilibiliApi['loginQr']>>
+type BiliQrResult = Awaited<ReturnType<BilibiliApi['qrCheck']>>
+
+/** 拿不到码时的形状，与主进程的兜底一致。 */
+const EMPTY_QR: BiliQrSession = { key: '', imageDataUrl: '' }
+/** 问一次没问通时的形状。 */
+const FAILED_QR: BiliQrResult = { status: 'failed', message: '登录失败，稍后再试' }
+
 export function BiliLogin({ onClose }: { onClose(): void }) {
   const [qr, setQr] = useState<QrState>({ kind: 'loading' })
   /** 换一个二维码时自增，让 effect 重跑。 */
@@ -49,18 +60,12 @@ export function BiliLogin({ onClose }: { onClose(): void }) {
   }, [])
 
   useEffect(() => {
-    const bridge = window.aurora?.bilibili
-    if (!bridge) {
-      setQr({ kind: 'failed', message: '浏览器预览模式没有主进程，无法显示二维码' })
-      return
-    }
-
     let alive = true
     let timer = 0
     setQr({ kind: 'loading' })
 
     const poll = async (key: string): Promise<void> => {
-      const result = await bridge.qrCheck(key)
+      const result = await providerQrCheck<BiliQrResult>('bilibili', key, FAILED_QR)
       if (!alive) return
 
       if (result.status === 'confirmed') {
@@ -77,7 +82,7 @@ export function BiliLogin({ onClose }: { onClose(): void }) {
 
     void (async () => {
       try {
-        const created = await bridge.loginQr()
+        const created = await providerQrCreate<BiliQrSession>('bilibili', EMPTY_QR)
         if (!alive) return
         if (!created.imageDataUrl) {
           setQr({ kind: 'failed', message: '没有拿到二维码，请重试' })

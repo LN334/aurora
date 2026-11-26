@@ -262,6 +262,18 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
    * 匿名就能用。文案换成它自己的匿名说明，「未连接」那种待办口吻就没了。
    */
   const needsAuth = supportsCapability(provider, 'auth')
+  /*
+   * 「连接之后能拿到什么」由能力表拼，不再写死一句：B 站能登录，但它没有歌单、
+   * 收藏与推荐，登录只是换成更高音轨——照抄那句「可同步歌单、收藏与推荐」会变成
+   * 一句它兑现不了的承诺。拼不出任何一项时退回平台自己的匿名说明。
+   */
+  const gains = [
+    provider.capabilities.playlists ? '歌单' : null,
+    provider.capabilities.likes ? '收藏' : null,
+    provider.capabilities.recommendations ? '推荐' : null
+  ].filter(Boolean)
+  const connectNote =
+    gains.length > 0 ? '连接后可同步' + gains.join('、') : provider.anonymousNote
   const meta = account
     ? [account.vip ? '会员' : null, account.level ? 'Lv.' + account.level : null]
         .filter(Boolean)
@@ -271,7 +283,7 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
       : blocked
         ? (detail ?? '暂时连不上')
         : ready
-          ? '连接后可同步歌单、收藏与推荐'
+          ? connectNote
           : '正在确认登录状态…'
 
   return (

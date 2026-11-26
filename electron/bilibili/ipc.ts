@@ -30,6 +30,43 @@ function asAid(value: unknown): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 }
 
+/**
+ * 账号那四件事：问状态、出码、问扫了没、退出。
+ *
+ * 与另外四家同一个形状，因此也走同一个网关：`provider:call` 的
+ * qrCreate / qrCheck / loginStatus / logout。旧 handle 保留成薄壳，参数
+ * 判据照旧——失败一律回「没登录」而不是抛，界面据此显示未登录。
+ */
+async function loginStatusBilibili() {
+  try {
+    return await loginStatus()
+  } catch {
+    return null
+  }
+}
+
+async function qrCreateBilibili() {
+  try {
+    return await qrCreate()
+  } catch {
+    return { key: '', imageDataUrl: '' }
+  }
+}
+
+async function qrCheckBilibili(args: unknown) {
+  const key = typeof asRecord(args).key === 'string' ? String(asRecord(args).key) : ''
+  try {
+    return await qrCheck(key)
+  } catch {
+    return { status: 'failed', message: '登录失败，稍后再试' }
+  }
+}
+
+function logoutBilibili(): boolean {
+  logout()
+  return true
+}
+
 /** 搜索：旧通道 `bilibili:search` 与 `provider:call` 共用这一份实现。 */
 async function searchBilibili(args: unknown) {
   const raw = asRecord(args)
@@ -53,35 +90,17 @@ export function registerBilibiliIpc(): void {
     return true
   })
 
-  ipcMain.handle('bilibili:loginQr', async () => {
-    try {
-      return await qrCreate()
-    } catch {
-      return { key: '', imageDataUrl: '' }
-    }
-  })
+  ipcMain.handle('bilibili:loginQr', () => qrCreateBilibili())
+  registerProviderCapability('bilibili', 'qrCreate', qrCreateBilibili)
 
-  ipcMain.handle('bilibili:qrCheck', async (_event, args: unknown) => {
-    const key = typeof asRecord(args).key === 'string' ? String(asRecord(args).key) : ''
-    try {
-      return await qrCheck(key)
-    } catch {
-      return { status: 'failed', message: '登录失败，稍后再试' }
-    }
-  })
+  ipcMain.handle('bilibili:qrCheck', (_event, args: unknown) => qrCheckBilibili(args))
+  registerProviderCapability('bilibili', 'qrCheck', qrCheckBilibili)
 
-  ipcMain.handle('bilibili:loginStatus', async () => {
-    try {
-      return await loginStatus()
-    } catch {
-      return null
-    }
-  })
+  ipcMain.handle('bilibili:loginStatus', () => loginStatusBilibili())
+  registerProviderCapability('bilibili', 'loginStatus', loginStatusBilibili)
 
-  ipcMain.handle('bilibili:logout', () => {
-    logout()
-    return true
-  })
+  ipcMain.handle('bilibili:logout', () => logoutBilibili())
+  registerProviderCapability('bilibili', 'logout', logoutBilibili)
 
   ipcMain.handle('bilibili:search', (_event, args: unknown) => searchBilibili(args))
   registerProviderCapability('bilibili', 'search', searchBilibili)
