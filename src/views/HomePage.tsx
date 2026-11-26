@@ -4,6 +4,7 @@ import type { ShellRoute } from '../app/shell'
 import { useDiscover } from '../features/discover/store'
 import { useTasteProfile } from '../features/library/taste-hooks'
 import { dailyLabel } from '../features/library/daily-day'
+import { isTrackLiked } from '../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { coverFor } from '../features/library/cover'
 import { isLocalArtwork, upstreamOfArtwork } from '../features/library/artwork-url'
@@ -344,7 +345,7 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   const isPlayingFocus = Boolean(current)
 
   const likedIds = useLikedIds()
-  const focusLiked = focus ? likedIds.has(focus.id) : false
+  const focusLiked = isTrackLiked(focus, likedIds)
 
   const recentAll = useMemo(() => {
     const out: Track[] = []

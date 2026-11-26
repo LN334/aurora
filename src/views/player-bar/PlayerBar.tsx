@@ -3,7 +3,7 @@ import type { Track } from '../../types'
 import type { PlayMode } from '../../features/player/mode'
 import { usePlayer } from '../../features/player/store'
 import { useRoam } from '../../features/player/roam-session'
-import { trackKey } from '../../features/online/unify'
+import { isTrackLiked } from '../../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../../features/favorites/likes'
 import { likeTargets } from '../../features/favorites/like-targets'
 import { useLikeMenu } from '../../features/favorites/like-menu'
@@ -97,7 +97,7 @@ export function PlayerBar({
   const rate = usePlayer((state) => state.playbackRate)
   const likedIds = useLikedIds()
   const targets = useMemo(() => (track ? likeTargets(track) : []), [track])
-  const liked = track ? likedIds.has(trackKey(track)) : false
+  const liked = isTrackLiked(track, likedIds)
   /*
    * 点赞要当场有反应。
    *

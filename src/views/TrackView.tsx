@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { isTrackLiked } from '../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLyrics } from '../features/library/hooks'
 import { artworkFor } from '../features/library/source'
@@ -52,7 +53,7 @@ export function TrackView({
   )
   const likedIds = useLikedIds()
   const { lyrics } = useLyrics(track)
-  const liked = track ? likedIds.has(track.id) : false
+  const liked = isTrackLiked(track, likedIds)
 
   if (!track) {
     return (

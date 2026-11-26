@@ -11,6 +11,7 @@ import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
 import { Bar, useProgressPosition } from '../features/player/Bar'
 import { wheelVolume } from '../features/player/volume'
+import { isTrackLiked } from '../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
@@ -376,7 +377,7 @@ export function NowPlayingPage({
   const shuffle = usePlayer((state) => state.shuffle)
   const repeat = usePlayer((state) => state.repeat)
   const mode = modeOf(shuffle, repeat)
-  const liked = track ? likedIds.has(track.id) : false
+  const liked = isTrackLiked(track, likedIds)
   /*
    * 这一首在不在当前这趟漫游里。用 trackKey 对而不是对象引用：队列里可能放的是
    * 合并前的另一份同名曲，引用不同、其实是同一首。

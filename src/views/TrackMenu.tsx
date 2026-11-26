@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isNative } from '../bridge'
+import { isTrackLiked } from '../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { likeTargets } from '../features/favorites/like-targets'
 import { useLikeMenu } from '../features/favorites/like-menu'
@@ -62,8 +63,7 @@ export function TrackMenu({
   const ref = useRef<HTMLDivElement>(null)
   // 整行判定：合并行里喜欢的是另一家的版本时，这一项也得说「取消喜欢」。
   const likedIds = useLikedIds()
-  const liked =
-    likedIds.has(track.id) || (track.versions ?? []).some((version) => likedIds.has(version.id))
+  const liked = isTrackLiked(track, likedIds)
   const [pos, setPos] = useState({ left: x, top: y })
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,

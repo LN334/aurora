@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { isTrackLiked } from '../features/favorites/liked-pure'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useParty } from '../features/party/store'
 import { usePlayer } from '../features/player/store'
@@ -243,7 +244,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                   <QueueRow
                     trackIndex={index}
                     track={queue[index] ?? null}
-                    liked={likedIds.has(queue[index]?.id ?? '')}
+                    liked={isTrackLiked(queue[index], likedIds)}
                     label=""
                     isCurrent
                     playing={playing}
@@ -273,7 +274,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                       key={queueIndex}
                       trackIndex={queueIndex}
                       track={queue[queueIndex] ?? null}
-                      liked={likedIds.has(queue[queueIndex]?.id ?? '')}
+                      liked={isTrackLiked(queue[queueIndex], likedIds)}
                       label={String(position + 1)}
                       isCurrent={false}
                       playing={playing}
@@ -305,7 +306,7 @@ export function QueuePanel({ open, onClose, onOpenLibrary }: QueuePanelProps) {
                       key={queueIndex}
                       trackIndex={queueIndex}
                       track={queue[queueIndex] ?? null}
-                      liked={likedIds.has(queue[queueIndex]?.id ?? '')}
+                      liked={isTrackLiked(queue[queueIndex], likedIds)}
                       label="·"
                       isCurrent={false}
                       playing={false}
