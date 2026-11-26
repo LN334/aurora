@@ -82,3 +82,12 @@ export async function providerArtistAlbums<T>(
   warnChannel(provider, 'artistAlbums', answer.why)
   return []
 }
+
+/** 按 id 取若干首歌的完整记录（列表里没有的歌要靠它补）。 */
+export async function providerSongDetail<T>(provider: ProviderId, ids: number[]): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'songDetail', { ids })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'songDetail', answer.why)
+  return []
+}
+

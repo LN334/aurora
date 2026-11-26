@@ -11,6 +11,7 @@ import {
   providerQrCheck,
   providerQrCreate,
   providerQuality,
+  providerSetProfile,
   providerSetQuality,
   providerStatus
 } from '../src/features/online/account-channel.ts'
@@ -158,4 +159,23 @@ test('关注艺人读不到是空的，音质读不到是 null —— 两者含�
   }
   assert.equal(warnings.lines.length, 3)
   assert.ok(warnings.lines.every((line) => line.includes('handler-failed 炸了')))
+})
+
+/** 切账号档案时把在线会话一并切过去。它不是登录，失败也只是这一次没切动。 */
+test('切档案那条叫 setProfile，参数是 { profileId }', async () => {
+  const calls = install(() => ({ ok: true, value: true }))
+  assert.equal(await providerSetProfile('netease', 'acc_1'), true)
+  assert.equal(calls[0].capability, 'setProfile')
+  assert.deepEqual(calls[0].args, { profileId: 'acc_1' })
+})
+
+test('切档案失败答 false，不折成「切成功了」', async () => {
+  install(() => ({ ok: false, error: { code: 'handler-failed', message: '炸了' } }))
+  const warnings = collectWarnings()
+  try {
+    assert.equal(await providerSetProfile('netease', 'acc_1'), false)
+  } finally {
+    warnings.restore()
+  }
+  assert.ok(warnings.lines[0].includes('netease.setProfile'))
 })

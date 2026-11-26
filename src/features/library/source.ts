@@ -1,10 +1,11 @@
 import { isNative } from '../../bridge'
 import type { LyricBundle } from '../lyrics/align'
-import { hasNeteaseBackend } from '../netease/api'
+import { hasNeteaseBackend } from '../netease/backend'
 import { streamOf } from '../netease/store'
 import { neteaseSongId } from '../netease/track'
 import { artUrl, mediaUrl, remoteImageUrl, remoteStreamUrl } from '../player/urls'
 import { cachedStream } from '../online/streams'
+import { providerLyrics } from '../online/lyrics-channel'
 import type { Track } from '../../types'
 import { demoCoverFor, demoLyricsFor } from './demo'
 
@@ -272,45 +273,6 @@ const bilibiliSource: TrackSource = {
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
   lyrics: async () => null
-}
-
-/**
- * 一家的歌词都要经过同一条通道拿。
- *
- * 参数是 `{ songId }` 而不是裸标量：新通道的入参是命名对象，旧通道那扇门由
- * 主进程的 `namedArgument` 兼容——两扇门给出同一个答案。
- *
- * 读失败与「这首歌没有歌词」都返回 null（界面是同一种样子），但失败会留一行
- * 日志，排查时能分清是哪一种。
- */
-async function providerLyrics(
-  provider: 'netease' | 'qq' | 'kugou' | 'qishui',
-  songId: string | number
-): Promise<LyricBundle | null> {
-  const api = window.aurora?.provider
-  if (!api) return null
-  const answer = await api.call<{ lrc?: string | null; translation?: string | null } | null>(
-    provider,
-    'lyrics',
-    { songId }
-  )
-  if (!answer.ok) {
-    console.warn(`[aurora] ${provider}.lyrics 未走通：${answer.error.code} ${answer.error.message}`)
-    return null
-  }
-  return withParts(answer.value?.lrc, answer.value?.translation)
-}
-
-/**
- * 主进程交回的「正文 + 译文」-> bundle。
- *
- * 两份都空才是「没有歌词」。只有一份时另一份留空，由渲染层决定怎么显示。
- */
-function withParts(lrc: string | null | undefined, translation: string | null | undefined): LyricBundle | null {
-  const body = lrc?.trim()
-  const sub = translation?.trim()
-  if (!body && !sub) return null
-  return { lrc: body || '', translation: sub || null }
 }
 
 export const SOURCES: TrackSource[] = [

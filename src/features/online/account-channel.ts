@@ -120,3 +120,12 @@ export async function providerSetQuality<T>(provider: ProviderId, quality: strin
   warnChannel(provider, 'qualitySet', answer.why)
   return null
 }
+
+/** 切账号档案时把在线会话一并切过去。返回是否切成功。 */
+export async function providerSetProfile(provider: ProviderId, profileId: string): Promise<boolean> {
+  const answer = await askProvider<boolean>(provider, 'setProfile', { profileId })
+  if (answer.ok) return answer.value === true
+  warnChannel(provider, 'setProfile', answer.why)
+  return false
+}
+

@@ -7,7 +7,8 @@ import {
   providerArtistAlbums,
   providerArtistSongs,
   providerArtistTopSongs,
-  providerNewAlbums
+  providerNewAlbums,
+  providerSongDetail
 } from '../src/features/online/catalog-channel.ts'
 
 /**
@@ -144,4 +145,26 @@ test('新碟榜读失败折回空数组，理由写进 warn', async () => {
   }
   assert.equal(warnings.lines.length, 1)
   assert.ok(warnings.lines[0].includes('netease.newAlbums'))
+})
+
+/**
+ * 歌曲详情。恢复出来的队列里可能有一首当前任何列表都没有的歌，只能按 id 补记录，
+ * 否则连取流地址都拼不出来。通道名就叫 songDetail。
+ */
+test('歌曲详情那条叫 songDetail，参数是 { ids }', async () => {
+  const calls = install(() => ({ ok: true, value: [{ id: 9 }] }))
+  assert.deepEqual(await providerSongDetail('netease', [9, 10]), [{ id: 9 }])
+  assert.equal(calls[0].capability, 'songDetail')
+  assert.deepEqual(calls[0].args, { ids: [9, 10] })
+})
+
+test('歌曲详情读失败折回空数组，补不到记录就当没有', async () => {
+  install(() => ({ ok: false, error: { code: 'handler-failed', message: 'boom' } }))
+  const warnings = collectWarnings()
+  try {
+    assert.deepEqual(await providerSongDetail('netease', [9]), [])
+  } finally {
+    warnings.restore()
+  }
+  assert.ok(warnings.lines[0].includes('netease.songDetail'))
 })

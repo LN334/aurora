@@ -2,11 +2,16 @@ import type {
   CommentPage,
   NeteaseAccount,
   NeteaseApi,
+  NeteaseSearchResult,
   NeteaseSong,
   NeteaseStreamResult
 } from '../../env'
 import type { Track } from '../../types'
-import { netease, hasNeteaseBackend } from './api'
+import { hasNeteaseBackend } from './backend'
+import { providerLyrics } from '../online/lyrics-channel'
+import { providerSongDetail } from '../online/catalog-channel'
+import { providerSetProfile } from '../online/account-channel'
+import { providerSearch } from '../online/search-channel'
 import type { LyricBundle } from '../lyrics/align'
 import { neteaseSongId, toTrack as toNeteaseTrack } from './track'
 import { rememberNeteaseCover } from '../library/source'
@@ -82,14 +87,6 @@ import {
  * promises stays `src/env.d.ts`'s business. The optional members are optional
  * there because a browser build has no session to bind and no account to look up.
  */
-type NeteaseExtras = {
-  setProfile?(profileId: string): Promise<boolean>
-  songDetail(ids: number[]): Promise<NeteaseSong[]>
-  accountFor?(profileId: string): Promise<import('../../env').NeteaseAccount | null>
-}
-
-const extras = netease as unknown as NeteaseExtras
-
 /*
  * 通道把答复放宽成 unknown，形状仍只有一处定义：从桥自己的签名反推。
  * 不另抄一份接口——抄了就会在上游加字段时悄悄过期。
@@ -166,7 +163,11 @@ const neteaseBackend: PlatformBackend = {
      * not a parameter of the query - issuing three requests to fill one screen
      * would triple the load for the same bytes.
      */
-    const result = await netease.search(keywords, 'song', limit)
+    const result = await providerSearch<NeteaseSearchResult>('netease', keywords, 'song', limit, {
+      songs: [],
+      albums: [],
+      artists: []
+    })
     return { songs: result.songs, albums: result.albums, artists: result.artists }
   },
 
@@ -182,7 +183,7 @@ const neteaseBackend: PlatformBackend = {
   async songById(songId) {
     // A restored queue can name a track no list on screen holds; this is how its
     // record is recovered so its URL can be resolved at all.
-    const songs = await extras.songDetail([songId]).catch(() => [] as NeteaseSong[])
+    const songs = await providerSongDetail<NeteaseSong>('netease', [songId])
     return songs[0] ?? null
   },
 
@@ -235,7 +236,7 @@ const neteaseBackend: PlatformBackend = {
   async bindProfile(profileId) {
     // Nothing to bind in a build whose bridge has no profile-aware session.
     if (!profileId) return
-    await extras.setProfile?.(profileId)
+    await providerSetProfile('netease', profileId)
   }
 }
 
@@ -268,7 +269,7 @@ const neteaseBackend: PlatformBackend = {
 
   search: {
     search: (keywords, kind, limit) => neteaseBackend.search(keywords, kind, limit ?? 50),
-    songDetail: (ids) => extras.songDetail(ids)
+    songDetail: (ids) => providerSongDetail<NeteaseSong>('netease', ids)
   },
 
   playback: {
@@ -293,11 +294,7 @@ const neteaseBackend: PlatformBackend = {
 
   lyrics: {
     async lyrics(songId): Promise<LyricBundle | null> {
-      const raw = await netease.lyrics(songId)
-      const body = raw?.lrc?.trim() ?? ''
-      const sub = raw?.translation?.trim() ?? ''
-      if (!body && !sub) return null
-      return { lrc: body, translation: sub || null }
+      return providerLyrics('netease', songId)
     }
   },
 

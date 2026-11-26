@@ -374,6 +374,36 @@ function cloudSongsNetease(): Promise<NeteaseSong[]> {
   return guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())
 }
 
+/**
+ * 发现页一个板块的内容。
+ *
+ * 三个板块（推荐歌单 / 新歌 / 榜单）由 kind 区分，形状只差在数组里装的是歌
+ * 还是歌单，所以只有这一条通道。offset 是「换一批」的游标；新歌那一路没有
+ * 第二页，收下但不参与查询（见 client.neteaseDiscover 的注释）。
+ */
+function discoverNetease(args: unknown): Promise<NeteaseDiscoverResult> {
+  const record = asRecord(args)
+  const kind = asDiscoverKind(record.kind)
+  const empty: NeteaseDiscoverResult = { kind: kind ?? 'playlists', songs: [], playlists: [] }
+  if (!kind) return Promise.resolve(empty)
+  return guard<NeteaseDiscoverResult>('discover', empty, () =>
+    client.neteaseDiscover(kind, asDiscoverLimit(record.limit), asDiscoverOffset(record.offset))
+  )
+}
+
+/** 歌曲详情：一首或多首。空清单不发请求，直接答空。 */
+function songDetailNetease(args: unknown): Promise<NeteaseSong[]> {
+  const ids = asIds(namedArgument(args, 'ids'))
+  if (ids.length === 0) return Promise.resolve([])
+  return guard<NeteaseSong[]>('songDetail', [], () => client.neteaseSongDetail(ids))
+}
+
+/** 切账号档案时把在线会话一并切过去。空 id 交给绑定层，它认得什么是空。 */
+function setProfileNetease(args: unknown): boolean {
+  const raw = namedArgument(args, 'profileId')
+  return client.setActiveProfile(typeof raw === 'string' ? raw : '')
+}
+
 /*
  * 评论三件事：读一页、发一条、赞一条。
  *
@@ -529,10 +559,8 @@ export function registerNeteaseIpc(): void {
    * renderer, so the renderer has to say. Registered first because every other
    * handler below depends on it having been called at least once.
    */
-  ipcMain.handle('netease:setProfile', (_event, value: unknown) => {
-    const id = typeof value === 'string' ? value : ''
-    return client.setActiveProfile(id)
-  })
+  ipcMain.handle('netease:setProfile', (_event, value: unknown) => setProfileNetease({ profileId: value }))
+  registerProviderCapability('netease', 'setProfile', setProfileNetease)
 
   ipcMain.handle('netease:accountFor', (_event, value: unknown) => accountForNetease(value))
   registerProviderCapability('netease', 'accountFor', accountForNetease)
@@ -587,11 +615,8 @@ export function registerNeteaseIpc(): void {
   })
   registerProviderCapability('netease', 'artistAlbums', artistAlbumsNetease)
 
-  ipcMain.handle('netease:songDetail', (_event, value: unknown) => {
-    const ids = asIds(value)
-    if (ids.length === 0) return []
-    return guard<NeteaseSong[]>('songDetail', [], () => client.neteaseSongDetail(ids))
-  })
+  ipcMain.handle('netease:songDetail', (_event, value: unknown) => songDetailNetease({ ids: value }))
+  registerProviderCapability('netease', 'songDetail', songDetailNetease)
 
   ipcMain.handle('netease:qrCreate', () => qrCreateNetease())
   registerProviderCapability('netease', 'qrCreate', qrCreateNetease)
@@ -636,19 +661,8 @@ export function registerNeteaseIpc(): void {
   )
   registerProviderCapability('netease', 'personalFm', personalFmNetease)
 
-  ipcMain.handle('netease:discover', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const kind = asDiscoverKind(args.kind)
-    const empty: NeteaseDiscoverResult = {
-      kind: kind ?? 'playlists',
-      songs: [],
-      playlists: []
-    }
-    if (!kind) return empty
-    return guard<NeteaseDiscoverResult>('discover', empty, () =>
-      client.neteaseDiscover(kind, asDiscoverLimit(args.limit), asDiscoverOffset(args.offset))
-    )
-  })
+  ipcMain.handle('netease:discover', (_event, payload: unknown) => discoverNetease(payload))
+  registerProviderCapability('netease', 'discover', discoverNetease)
 
   ipcMain.handle('netease:cloudSongs', () => cloudSongsNetease())
   registerProviderCapability('netease', 'cloudSongs', cloudSongsNetease)

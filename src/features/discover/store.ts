@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { NeteaseDiscoverPlaylist, NeteaseSong } from '../../env'
-import { neteaseDiscover } from '../netease/api'
+import type { NeteaseDiscoverPlaylist, NeteaseDiscoverResult, NeteaseSong } from '../../env'
+import { providerDiscover } from '../online/discover-channel'
 import { normalizePlaylists, normalizeSongs, type DiscoverKind } from './pure'
 
 /**
@@ -102,7 +102,13 @@ export const useDiscover = create<DiscoverStore>((set, get) => ({
 
     const run = (async () => {
       try {
-        const result = await neteaseDiscover(kind, DISCOVER_PAGE, get().offsets[kind])
+        const result = await providerDiscover<NeteaseDiscoverResult>(
+          'netease',
+          kind,
+          DISCOVER_PAGE,
+          get().offsets[kind],
+          { kind, songs: [], playlists: [] }
+        )
         set((state) => ({
           blocks: {
             ...state.blocks,
