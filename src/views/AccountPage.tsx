@@ -257,15 +257,22 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
    * 三遍同义话；现在角标只表态（未连接），大标题给去向，小字说连接之后能拿到
    * 什么——三行各回答一个问题。
    */
+  /*
+   * 没有登录这回事的平台（B 站）不该说「未连接」：它本来就不连接，搜索和播放
+   * 匿名就能用。文案换成它自己的匿名说明，「未连接」那种待办口吻就没了。
+   */
+  const needsAuth = supportsCapability(provider, 'auth')
   const meta = account
     ? [account.vip ? '会员' : null, account.level ? 'Lv.' + account.level : null]
         .filter(Boolean)
         .join(' · ') || '已连接'
-    : blocked
-      ? (detail ?? '暂时连不上')
-      : ready
-        ? '连接后可同步歌单、收藏与推荐'
-        : '正在确认登录状态…'
+    : !needsAuth
+      ? provider.anonymousNote
+      : blocked
+        ? (detail ?? '暂时连不上')
+        : ready
+          ? '连接后可同步歌单、收藏与推荐'
+          : '正在确认登录状态…'
 
   return (
     <div className={'acct2-pcard' + (account ? ' is-on' : '')}>
@@ -273,7 +280,7 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
         <span className={'acct2-dot acct2-dot--' + provider.id} aria-hidden="true" />
         <span className="acct2-pcard__name">{name}</span>
         <span className={'acct2-pill' + (account ? ' is-on' : '')}>
-          {account ? '已连接' : ready ? '未连接' : '连接中'}
+          {account ? '已连接' : !needsAuth ? '免登录' : ready ? '未连接' : '连接中'}
         </span>
       </div>
 
