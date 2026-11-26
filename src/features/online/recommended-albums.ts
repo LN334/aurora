@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
 import { roamPlatforms } from '../player/roam-sources'
 import { usePushPlatforms } from './push-platforms'
+import { providerNewSongs } from './recommend-channel.ts'
 import type { ProviderId } from './types'
 
 /**
@@ -98,17 +99,13 @@ function albumsFromSongs(
 }
 
 const qqAlbums: AlbumSource = async (limit) => {
-  const api = window.aurora?.qq
-  if (!api?.newSongs) return []
   // 一张专辑常对应好几首新歌，多取几首才够去重后的张数；封顶 60 免得一次拉太多。
-  const songs = await api.newSongs(Math.min(limit * 3, 60))
+  const songs = await providerNewSongs<NewSongRow>('qq', Math.min(limit * 3, 60))
   return albumsFromSongs('qq', 'QQ 音乐', songs, limit)
 }
 
 const kugouAlbums: AlbumSource = async (limit) => {
-  const api = window.aurora?.kugou
-  if (!api?.newSongs) return []
-  const songs = await api.newSongs(Math.min(limit * 3, 60))
+  const songs = await providerNewSongs<NewSongRow>('kugou', Math.min(limit * 3, 60))
   return albumsFromSongs('kugou', '酷狗音乐', songs, limit)
 }
 

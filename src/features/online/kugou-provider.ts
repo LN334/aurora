@@ -21,6 +21,7 @@ import {
   providerArtistAlbums,
   providerArtistSongs
 } from './catalog-channel.ts'
+import { providerDailySongs } from './recommend-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -408,7 +409,7 @@ const kugouProvider: OnlineMusicProvider = {
      * 听什么」和漫游池——不需要页面单独再接一根线。
      */
     dailySongs: async () => {
-      const rows = (await client()?.dailyRecommend()) ?? []
+      const rows = await providerDailySongs<KugouSong>('kugou')
       return rows.map((song) => normalizeSong(song))
     }
   },

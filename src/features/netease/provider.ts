@@ -21,6 +21,11 @@ import {
   providerArtistSongs,
   providerArtistTopSongs
 } from '../online/catalog-channel.ts'
+import {
+  providerCloudSongs,
+  providerDailySongs,
+  providerPersonalFm
+} from '../online/recommend-channel.ts'
 import type { PlatformBackend } from '../online/store'
 import {
   playable,
@@ -166,9 +171,9 @@ const neteaseBackend: PlatformBackend = {
   },
 
   async collection(kind) {
-    if (kind === 'daily') return netease.dailySongs()
+    if (kind === 'daily') return providerDailySongs<OnlineSong>('netease')
     if (kind === 'likes') return providerLiked<OnlineSong>('netease')
-    if (kind === 'cloud') return netease.cloudSongs()
+    if (kind === 'cloud') return providerCloudSongs<OnlineSong>('netease')
     // 'playlists' is not a song list: the playlists themselves come from
     // `myPlaylists`, and opening one goes through `playlistTracks`.
     return []
@@ -329,12 +334,12 @@ const neteaseBackend: PlatformBackend = {
   },
 
   recommendations: {
-    dailySongs: () => netease.dailySongs(),
+    dailySongs: () => providerDailySongs<OnlineSong>('netease'),
     // 上游这个接口不给游客，未登录时问了也是空。
     dailyNeedsAccount: true,
-    personalFm: (limit) => netease.personalFm(limit),
+    personalFm: (limit) => providerPersonalFm<OnlineSong>('netease', limit),
     likeList: () => providerLiked<OnlineSong>('netease'),
-    cloudSongs: () => netease.cloudSongs()
+    cloudSongs: () => providerCloudSongs<OnlineSong>('netease')
   },
 
   /*

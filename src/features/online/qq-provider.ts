@@ -16,6 +16,7 @@ import {
 } from './playlist-channel.ts'
 import { providerCollectedAlbums, providerLike, providerLiked } from './likes-channel.ts'
 import { providerAlbum } from './catalog-channel.ts'
+import { providerDailySongs, providerNewSongs } from './recommend-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -279,10 +280,8 @@ const qqBackend: PlatformBackend = {
       const rows = await providerLiked<QqSong>('qq')
       return rows.slice(0, limit).map((song) => normalizeSong(song))
     }
-    const bridge = client()
-    // 桥没起来是「这次没读到」，不是「没有收藏」：见 platform-liked 的三分法。
-    if (!bridge) throw new Error('qq backend is not ready')
-    const rows = kind === 'daily' ? await bridge.daily() : []
+    if (kind !== 'daily') return []
+    const rows = await providerDailySongs<QqSong>('qq')
     return rows.slice(0, limit).map((song) => normalizeSong(song))
   }
 }
@@ -426,7 +425,7 @@ const qqBackend: PlatformBackend = {
       const size = limit ?? 40
       const daily = await qqBackend.collection!('daily', size)
       if (daily.length > 0) return daily
-      const rows = (await client()?.newSongs(size)) ?? []
+      const rows = await providerNewSongs<QqSong>('qq', size)
       return rows.map((song) => normalizeSong(song))
     },
     /*
@@ -436,7 +435,7 @@ const qqBackend: PlatformBackend = {
     dailySongs: async () => {
       const daily = await qqBackend.collection!('daily', 200)
       if (daily.length > 0) return daily
-      const rows = (await client()?.newSongs(60)) ?? []
+      const rows = await providerNewSongs<QqSong>('qq', 60)
       return rows.map((song) => normalizeSong(song))
     },
     likeList: () => qqBackend.collection!('likes', 200)

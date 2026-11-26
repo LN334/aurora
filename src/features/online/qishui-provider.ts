@@ -11,6 +11,7 @@ import {
 } from './playlist-channel.ts'
 import { providerLike, providerLiked } from './likes-channel.ts'
 import { providerArtist, providerArtistSongs } from './catalog-channel.ts'
+import { providerDailySongs, providerPersonalFm } from './recommend-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -298,12 +299,12 @@ const qishuiProvider: OnlineMusicProvider = {
    */
   recommendations: {
     personalFm: async (limit) => {
-      const rows = (await client()?.feed(limit ?? 12)) ?? []
+      const rows = await providerPersonalFm<QishuiSong>('qishui', limit ?? 12)
       return rows.map((song) => asOnlineSong(song))
     },
     /* 每日推荐与漫游同一个 feed：这个平台的一天一批就是它，游客也读得到。 */
     dailySongs: async () => {
-      const rows = (await client()?.feed(30)) ?? []
+      const rows = await providerDailySongs<QishuiSong>('qishui')
       return rows.map((song) => asOnlineSong(song))
     }
   },

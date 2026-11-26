@@ -5,7 +5,8 @@ import { getProvider } from './registry'
 import { usePushPlatforms } from './push-platforms'
 import type { PlatformBackend } from './store'
 import { mergeVersions } from './unify'
-import type { ProviderId } from './types'
+import { providerNewSongs } from './recommend-channel.ts'
+import type { OnlineSong, ProviderId } from './types'
 
 /**
  * 各平台的新歌速递。
@@ -22,17 +23,9 @@ const SOURCES: ProviderId[] = ['qq', 'kugou']
 async function shelfNewSongs(id: ProviderId, limit: number): Promise<Track[]> {
   const backend = (getProvider(id)?.backend as PlatformBackend | undefined) ?? null
   if (!backend) return []
-  const api = window.aurora
-  if (!api) return []
-
-  try {
-    const songs = id === 'qq' ? await api.qq.newSongs(limit) : await api.kugou.newSongs(limit)
-    const toTrack = backend.toTrack as (song: never) => Track
-    return (songs ?? []).map((song) => toTrack(song as never))
-  } catch {
-    // 一家挂了不该让整块消失：另外还有网易云那一份。
-    return []
-  }
+  // 通道自己折空：一家挂了不该让整块消失，另外还有网易云那一份。
+  const songs = await providerNewSongs<OnlineSong>(id, limit)
+  return songs.map((song) => backend.toTrack(song))
 }
 
 /**

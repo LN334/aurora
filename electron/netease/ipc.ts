@@ -353,6 +353,27 @@ function artistAlbumsNetease(args: unknown): Promise<NeteaseAlbumSummary[]> {
   )
 }
 
+/*
+ * 推荐位：每日推荐、私人漫游、云盘。
+ *
+ * 三条都是「平台今天给我的」，但上游分得很开：日推一天一批、漫游一次几首、
+ * 云盘是账号里自己存的。所以各登记一条，而不是塞进一个 kind 参数。
+ */
+function dailySongsNetease(): Promise<NeteaseSong[]> {
+  return guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())
+}
+
+function personalFmNetease(args: unknown): Promise<NeteaseSong[]> {
+  // 旧通道对非有限值退到 3 首，这里保持：漫游的每次取流由调用方定大小。
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && Number.isFinite(raw) ? raw : 3
+  return guard<NeteaseSong[]>('personalFm', [], () => client.neteasePersonalFm(limit))
+}
+
+function cloudSongsNetease(): Promise<NeteaseSong[]> {
+  return guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -500,15 +521,13 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:playlistCreator', (_event, value: unknown) => playlistCreatorNetease(value))
   registerProviderCapability('netease', 'playlistCreator', playlistCreatorNetease)
 
-  ipcMain.handle('netease:dailySongs', () =>
-    guard<NeteaseSong[]>('dailySongs', [], () => client.neteaseDailySongs())
-  )
+  ipcMain.handle('netease:dailySongs', () => dailySongsNetease())
+  registerProviderCapability('netease', 'dailySongs', dailySongsNetease)
 
   ipcMain.handle('netease:personalFm', (_event, limit: unknown) =>
-    guard<NeteaseSong[]>('personalFm', [], () =>
-      client.neteasePersonalFm(typeof limit === 'number' && Number.isFinite(limit) ? limit : 3)
-    )
+    personalFmNetease({ limit })
   )
+  registerProviderCapability('netease', 'personalFm', personalFmNetease)
 
   ipcMain.handle('netease:discover', (_event, payload: unknown) => {
     const args = asRecord(payload)
@@ -524,9 +543,8 @@ export function registerNeteaseIpc(): void {
     )
   })
 
-  ipcMain.handle('netease:cloudSongs', () =>
-    guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())
-  )
+  ipcMain.handle('netease:cloudSongs', () => cloudSongsNetease())
+  registerProviderCapability('netease', 'cloudSongs', cloudSongsNetease)
 
   ipcMain.handle('netease:likeList', () => likedNetease())
   registerProviderCapability('netease', 'liked', likedNetease)

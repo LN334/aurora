@@ -239,6 +239,22 @@ function artistAlbumsKugou(args: unknown) {
   })
 }
 
+/*
+ * 推荐位两条：日推与新歌榜。
+ *
+ * 酷狗没有「私人漫游」这条上游接口：provider 那边用日推当漫游流，所以这里只登记
+ * 日推，不登记一个永远空的 personalFm。
+ */
+function dailySongsKugou() {
+  return guard('dailyRecommend', [], async () => await kugouDailyRecommend())
+}
+
+function newSongsKugou(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' ? Math.min(Math.max(Math.trunc(raw), 1), 60) : 20
+  return guard('newSongs', [], async () => kugouNewSongs(limit))
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -258,10 +274,8 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:search', (_event, input: unknown) => searchKugou(input))
   registerProviderCapability('kugou', 'search', searchKugou)
 
-  ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 60) : 20
-    return await guard('newSongs', [], async () => kugouNewSongs(count))
-  })
+  ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => newSongsKugou({ limit }))
+  registerProviderCapability('kugou', 'newSongs', newSongsKugou)
 
   ipcMain.handle('kugou:followedArtists', async () =>
     await guard('followedArtists', [], async () => kugouFollowedArtists())
@@ -360,7 +374,6 @@ export function registerKugouIpc(): void {
   })
   registerProviderCapability('kugou', 'artistAlbums', artistAlbumsKugou)
 
-  ipcMain.handle('kugou:dailyRecommend', async () =>
-    guard('dailyRecommend', [], async () => await kugouDailyRecommend())
-  )
+  ipcMain.handle('kugou:dailyRecommend', () => dailySongsKugou())
+  registerProviderCapability('kugou', 'dailySongs', dailySongsKugou)
 }

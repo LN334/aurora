@@ -237,6 +237,22 @@ function albumQq(args: unknown): Promise<QqAlbumBundle | null> {
   return guard<QqAlbumBundle | null>('album', null, () => client.qqAlbum(id))
 }
 
+/*
+ * 推荐位两条：日推与公开新歌榜。
+ *
+ * 日推对扫码登录的凭据一律答空（见 qq-provider 里的说明），所以「拿不到就退到
+ * 新歌」这一步留在 provider——那是这一家的兜底策略，不是上游的一条能力。
+ */
+function dailySongsQq(): Promise<QqSong[]> {
+  return guard<QqSong[]>('daily', [], () => client.qqDaily())
+}
+
+function newSongsQq(args: unknown): Promise<QqSong[]> {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' ? Math.min(Math.max(Math.trunc(raw), 1), 60) : 20
+  return guard<QqSong[]>('newSongs', [], () => client.qqNewSongs(limit))
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -339,12 +355,11 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:recommendPlaylists', (_event, value: unknown) => recommendPlaylistsQq(value))
   registerProviderCapability('qq', 'recommendPlaylists', recommendPlaylistsQq)
 
-  ipcMain.handle('qq:newSongs', (_event, value: unknown) => {
-    const limit = typeof value === 'number' ? Math.min(Math.max(Math.trunc(value), 1), 60) : 20
-    return guard<QqSong[]>('newSongs', [], () => client.qqNewSongs(limit))
-  })
+  ipcMain.handle('qq:newSongs', (_event, value: unknown) => newSongsQq({ limit: value }))
+  registerProviderCapability('qq', 'newSongs', newSongsQq)
 
-  ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
+  ipcMain.handle('qq:daily', () => dailySongsQq())
+  registerProviderCapability('qq', 'dailySongs', dailySongsQq)
 
   ipcMain.handle('qq:liked', () => likedQq())
   registerProviderCapability('qq', 'liked', likedQq)

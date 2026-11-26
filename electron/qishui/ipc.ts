@@ -208,6 +208,24 @@ function artistSongsQishui(args: unknown) {
   })
 }
 
+/*
+ * 推荐位两条，同一条上游流。
+ *
+ * 汽水没有「每日 30 首」那种列表接口，feed 就是这个平台的一天一批；它同时是
+ * 漫游的取流。两条通道登记成两件事，是因为调用方的语义不同（一个要整批、一个
+ * 要每次几首），而不是上游有两个接口——别在别处再给它编第三个数。
+ */
+function dailySongsQishui() {
+  // 上游一次只给 30 条，多要也没用。
+  return guard('dailySongs', [], async () => await qishuiFeed(30))
+}
+
+function personalFmQishui(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' ? Math.min(Math.max(Math.trunc(raw), 1), 30) : 12
+  return guard('personalFm', [], async () => await qishuiFeed(limit))
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -297,11 +315,10 @@ export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:liked', async (_event, limit: unknown) => likedQishui({ limit }))
   registerProviderCapability('qishui', 'liked', likedQishui)
 
-  // 上游一次只给 30 条，多要也没用。
-  ipcMain.handle('qishui:feed', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 30) : 12
-    return await guard('feed', [], async () => qishuiFeed(count))
-  })
+  // 上游一次只给 30 条，多要也没用。旧通道的默认值是 12（漫游），不是日推的 30。
+  ipcMain.handle('qishui:feed', async (_event, limit: unknown) => personalFmQishui({ limit }))
+  registerProviderCapability('qishui', 'personalFm', personalFmQishui)
+  registerProviderCapability('qishui', 'dailySongs', dailySongsQishui)
 
   ipcMain.handle('qishui:like', async (_event, alias: unknown, liked: unknown) =>
     likeQishui({ songId: alias, liked })
