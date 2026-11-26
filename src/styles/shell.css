@@ -2214,15 +2214,21 @@
 /*
  * 逐字歌词：整行拆成一段一段的 span，唱到哪亮到哪。
  *
- * 未唱段先淡下去，已唱段回到这一行的字色——只加透明度，不动字号和行高，
- * 否则位移按行高算的那套会整条错位；过渡给得短，跟唱词的步子不拖影。
+ * 每个词带一个 --w-p（唱到几成），字色由一段硬边渐变裁在文字上：唱过的地方
+ * 全亮，没唱的地方是淡的，正在唱的那个词从左往右扫过去。只改字色，不动字号
+ * 和行高，否则位移按行高算的那套会整条错位；也不加 transition——进度每帧都
+ * 在动，过渡只会让高亮慢半拍。
  */
 .np__line-words > span {
-  opacity: 0.26;
-  transition: opacity 140ms linear;
-}
-.np__line-words > span[data-lit] {
-  opacity: 1;
+  --w-p: 0%;
+  background-image: linear-gradient(
+    90deg,
+    currentColor 0 var(--w-p),
+    color-mix(in srgb, currentColor 26%, transparent) var(--w-p) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .np__line:hover {
   color: var(--text-mid);

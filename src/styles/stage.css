@@ -349,14 +349,20 @@
 
 /*
  * 增强 LRC 的逐字：整行拆成词段，唱到哪亮到哪。
- * 只动透明度——字号和行高由槽高决定，改了整列就错位。
+ *
+ * 与播放页同一套做法：每个词段带 --w-p，字色用硬边渐变裁在文字上，正在唱的
+ * 那个词从左往右扫。只动字色——字号和行高由槽高决定，改了整列就错位。
  */
 .lyr__main > span {
-  opacity: 0.3;
-  transition: opacity 180ms linear;
-}
-.lyr__main > span[data-lit] {
-  opacity: 1;
+  --w-p: 0%;
+  background-image: linear-gradient(
+    90deg,
+    currentColor 0 var(--w-p),
+    color-mix(in srgb, currentColor 30%, transparent) var(--w-p) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stage__nolyrics {

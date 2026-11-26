@@ -309,15 +309,27 @@ export function takenDown(label?: string): ProviderSongAvailability {
   songDetail?(ids: number[]): Promise<OnlineSong[]>
 }
 
- interface ProviderPlaybackApi {
+ /** 歌词的两份原始 LRC。时间轴未对齐，对齐在渲染层。 */
+interface OnlineLyricBundle {
+  lrc: string
+  translation?: string | null
+  roman?: string | null
+}
+
+interface ProviderPlaybackApi {
   streamUrl(songId: number, quality?: QualityTier): Promise<OnlineStreamResult>
   /** Proves a song is gone, when the platform can. Absent means "unknown", never "gone". */
   getAvailability?(song: OnlineSong): ProviderSongAvailability
 }
 
  interface ProviderLyricsApi {
-  /** Raw LRC, translation already merged when the platform supplies one. */
-  lyrics(songId: number): Promise<string | null>
+  /**
+   * 正文与译文分开交回，没有就 null。
+   *
+   * 合并留给渲染层：两份时间轴常常差半秒以上，在这里拼字符串只会让下游不得
+   * 不拆。
+   */
+  lyrics(songId: number): Promise<OnlineLyricBundle | null>
 }
 
  interface ProviderAuthApi {

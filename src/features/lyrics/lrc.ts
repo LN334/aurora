@@ -1,7 +1,34 @@
- interface LyricLine {
-  /** Seconds from the start of the track. */
+/**
+ * LRC 解析。文本进，行出来——没有 store，没有 DOM。
+ *
+ * 一份歌词在界面上就是「一行一行、每行一个时间点」。真实世界的文件比这多
+ * 几样东西：一行挂多个时间戳（副歌写一次、唱两遍）、[offset:] 整体平移、
+ * 逐字的 <mm:ss.xx> 标记，以及把译文用「 / 」接在原文后面的旧写法。这里
+ * 把它们一次拆干净：
+ *
+ * - `text` 只放原文；
+ * - 译文进 `translation`，罗马音进 `roman`，渲染层不再靠分隔符猜；
+ * - 有逐字时间时进 `words`，逐字高亮读它。
+ *
+ * 译文与原文通常来自两份时间轴不同的文档，对齐在 align.ts 里做。
+ */
+import { splitLyricLine } from './line-parts.ts'
+
+export interface LyricWord {
+  /** Seconds from the start of the track, offset already folded in. */
   time: number
   text: string
+}
+
+export interface LyricLine {
+  /** Seconds from the start of the track. */
+  time: number
+  /** 原文，不含译文与罗马音。 */
+  text: string
+  /** 译文；没有时 null。 */
+  translation: string | null
+  /** 罗马音；没有时 null。 */
+  roman: string | null
   /**
    * Word-level timings from an enhanced-LRC line, when the file has them.
    *
@@ -9,12 +36,6 @@
    * one tagged segment is not "line sings itself", it is a badly tagged line.
    */
   words?: LyricWord[]
-}
-
-interface LyricWord {
-  /** Seconds from the start of the track, offset already folded in. */
-  time: number
-  text: string
 }
 
 export interface Lyrics {
@@ -27,6 +48,8 @@ export interface Lyrics {
   by: string | null
   /** True when nothing usable was parsed. */
   empty: boolean
+  /** 至少有一行带译文，界面据此决定要不要显示副行。 */
+  hasTranslation: boolean
 }
 
 const TIME_TAG = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g
@@ -34,7 +57,6 @@ const META_TAG = /^\[(ti|ar|al|by|offset):(.*)\]$/i
 const WORD_TAG = /<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g
 /** 同一段时长写法在方括号与尖括号里都出现过，取值口径一致。 */
 const TAG_PARTS = /(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?/
-
 
 function tagSeconds(minutes: string, seconds: string, fractionRaw: string): number {
   // `.5` means 500ms, `.05` means 50ms, `.005` means 5ms.
@@ -88,11 +110,6 @@ function wordTimings(rest: string, lineTime: number): LyricWord[] {
 /**
  * Parse an LRC file.
  *
- * Handles the parts real files actually contain: multiple timestamps on one
- * line (`[00:12.00][01:20.00]same text`), a signed `[offset:]` in milliseconds,
- * metadata tags, and enhanced-LRC word timings (stripped, since we highlight by
- * line rather than by syllable).
- *
  * Malformed timestamps are skipped rather than throwing: a partially broken
  * lyrics file should still show whatever it does have.
  */
@@ -137,10 +154,26 @@ export function parseLrc(raw: string): Lyrics {
      * 一个前导空格，逐字按词框推进时会整体偏一格。
      */
     const words = wordTimings(rest.trim(), stamps[0])
+    /*
+     * 「原文 / 译文」的旧写法：本地 LRC、公共库、以及早先版本合并后落盘的缓存
+     * 都可能长这样。逐字行不拆（拆了与词段对不上），纯文本行在这里拆一次，
+     * 渲染层从此只认字段。
+     */
+    const inline = words.length > 0 ? { main: text, sub: '' } : splitLyricLine(text)
 
     for (const time of stamps) {
       // 一行挂多个时间戳时，词的时间是同一份相对时间，各自复制一份。
-      lines.push(words.length > 0 ? { time, text, words: words.map((word) => ({ ...word })) } : { time, text })
+      lines.push(
+        words.length > 0
+          ? {
+              time,
+              text: inline.main,
+              translation: inline.sub || null,
+              roman: null,
+              words: words.map((word) => ({ ...word }))
+            }
+          : { time, text: inline.main, translation: inline.sub || null, roman: null }
+      )
     }
   }
 
@@ -160,53 +193,20 @@ export function parseLrc(raw: string): Lyrics {
     artist,
     album,
     by,
-    empty: lines.length === 0
+    empty: lines.length === 0,
+    hasTranslation: lines.some((line) => line.translation !== null)
   }
 }
 
 export function emptyLyrics(): Lyrics {
-  return { lines: [], offset: 0, title: null, artist: null, album: null, by: null, empty: true }
-}
-
-/**
- * How many word segments have started at `position`.
- *
- * Same shape as `activeLineAt` and for the same reason: this is asked every
- * animation frame while a word-timed line is on screen.
- */
-export function spokenWords(words: readonly LyricWord[], position: number): number {
-  let low = 0
-  let high = words.length - 1
-  let found = 0
-  while (low <= high) {
-    const mid = (low + high) >> 1
-    if (words[mid].time <= position) {
-      found = mid + 1
-      low = mid + 1
-    } else {
-      high = mid - 1
-    }
+  return {
+    lines: [],
+    offset: 0,
+    title: null,
+    artist: null,
+    album: null,
+    by: null,
+    empty: true,
+    hasTranslation: false
   }
-  return found
-}
-
-/**
- * Index of the line that should be highlighted at `position`, or -1 before the
- * first line begins. Binary search: lyric lookups run on every animation frame.
- */
-export function activeLineAt(lines: LyricLine[], position: number): number {
-  if (lines.length === 0) return -1
-  let low = 0
-  let high = lines.length - 1
-  let found = -1
-  while (low <= high) {
-    const mid = (low + high) >> 1
-    if (lines[mid].time <= position) {
-      found = mid
-      low = mid + 1
-    } else {
-      high = mid - 1
-    }
-  }
-  return found
 }

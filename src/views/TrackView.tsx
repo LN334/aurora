@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { toggleLiked, useLikedIds } from '../features/favorites/likes'
 import { useLyrics } from '../features/library/hooks'
 import { artworkFor } from '../features/library/source'
-import { splitLyricLine } from '../features/lyrics/line-parts'
 import { findSeenTrack } from '../features/library/seen'
 import { useLibrary } from '../features/library/store'
 import { useRecentEntries } from '../features/player/history-store'
@@ -173,9 +172,10 @@ export function TrackView({
           {lyrics.lines.length > 0 ? (
             <div className="tk__lyrics">
               {lyrics.lines.map((line, index) => {
-                const parts = splitLyricLine(line.text)
+                const main = line.text
+                const sub = line.translation
                 /* 空行和间隔记号不进列表：这里不是时间轴，空白条目只会碍事。 */
-                if (!parts.main) return null
+                if (!main) return null
                 return (
                   <button
                     key={index}
@@ -183,8 +183,8 @@ export function TrackView({
                     className="tk__line"
                     onClick={() => onOpenNow(Math.max(0, line.time))}
                   >
-                    <span className="tk__main">{parts.main}</span>
-                    {parts.sub ? <span className="tk__sub">{parts.sub}</span> : null}
+                    <span className="tk__main">{main}</span>
+                    {sub ? <span className="tk__sub">{sub}</span> : null}
                   </button>
                 )
               })}

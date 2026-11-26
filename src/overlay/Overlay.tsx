@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Close, Lock, Next, Pause, Play, Prev, Unlock } from '../ui/icons'
 import { bridge } from '../bridge'
-import { splitLyricLine } from '../features/lyrics/line-parts'
 import { fitLyricSize, sungColor } from './visual'
 import type { OverlayState } from '../env'
 
@@ -23,7 +22,9 @@ const IDLE: OverlayState = {
   position: 0,
   duration: 0,
   words: [],
-  accent: ''
+  accent: '',
+  translation: null,
+  nextTranslation: null
 }
 
 /**
@@ -370,15 +371,13 @@ export function Overlay() {
   const active = !locked || hovering
 
   /*
-   * 译文与原文分开两行，和舞台、播放页用同一个判据。
+  /*
+   * 译文与原文分开两行，和舞台、播放页用同一份数据。
    *
-   * 上游把译文用「 / 」接在原文后面（见 features/netease/lrc.ts 的
-   * mergeTranslation），整条挤在一行时英文占满宽度、中文被折到下一行，看起来像
-   * 两段无关的字。桌面歌词窗口只有一句话的位置，更不能把两种语言叠在同一处：
-   * 原文照常渐亮，译文以小一号的字贴在下面。
+   * 主进程推来的 state 已经把两种语言分好了（`translation` 与 `text`），这里
+   * 不再拆字符串：桌面歌词窗口只有一句话的位置，原文照常渐亮，译文以小一号的
+   * 字贴在下面。
    */
-  const lineParts = splitLyricLine(state.text ?? '')
-  const nextParts = splitLyricLine(state.next ?? '')
   const idleTitle = state.title || 'Aurora 桌面歌词'
 
   return (
@@ -400,16 +399,16 @@ export function Overlay() {
             {state.text ? (
               <>
                 <div className="lyric-line" ref={line} style={{ ['--line-size' as string]: `${fitSize ?? size}px` }}>
-                  <span className="lyric-line__base">{lineParts.main}</span>
+                  <span className="lyric-line__base">{state.text}</span>
                   <span className="lyric-line__fill" aria-hidden="true">
-                    {lineParts.main}
+                    {state.text}
                   </span>
                   <span className="lyric-line__lead" aria-hidden="true">
-                    {lineParts.main}
+                    {state.text}
                   </span>
                 </div>
-                {display.showTranslation && lineParts.sub ? (
-                  <div className="lyric-line__sub">{lineParts.sub}</div>
+                {display.showTranslation && state.translation ? (
+                  <div className="lyric-line__sub">{state.translation}</div>
                 ) : null}
               </>
             ) : (
@@ -424,8 +423,8 @@ export function Overlay() {
               </div>
             )}
           </div>
-          {display.showNext && state.text && nextParts.main ? (
-            <div className="lyric-next">{nextParts.main}</div>
+          {display.showNext && state.text && state.next ? (
+            <div className="lyric-next">{state.next}</div>
           ) : null}
         </div>
 

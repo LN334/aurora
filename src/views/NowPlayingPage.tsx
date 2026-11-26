@@ -6,8 +6,7 @@ import { trackKey } from '../features/online/unify'
 import { RoamRail } from './RoamRail'
 import { PartyRibbon } from './PartyRibbon'
 import type { Lyrics } from '../features/lyrics/lrc'
-import { activeLineAt, spokenWords } from '../features/lyrics/lrc'
-import { splitLyricLine } from '../features/lyrics/line-parts'
+import { activeLineAt, sweepingWord } from '../features/lyrics/timeline'
 import { lineHeightOf, useLyricSize } from '../features/settings/lyric-size'
 import { MODE_TEXT, modeOf } from '../features/player/mode'
 import { Bar, useProgressPosition } from '../features/player/Bar'
@@ -116,6 +115,8 @@ function LyricRoll({
   /* 上一帧点亮到第几段、点亮的是哪一行；值没变就不碰 DOM。 */
   const litRef = useRef(-1)
   const litElRef = useRef<HTMLButtonElement | null>(null)
+  /* 当前行的词段 span。换行时才重取，逐字推进时只碰其中一个。 */
+  const spansRef = useRef<HTMLElement[]>([])
 
   /* 播放换行了：只要用户没在翻，就把目标交还给播放 */
   useEffect(() => {
@@ -191,21 +192,36 @@ function LyricRoll({
         }
       }
       /*
-       * 逐字：只动当前行里那些 span，按播放位置点亮已经唱到的段。
+       * 逐字：只动当前行里那些 span，按播放位置把已经唱到的地方点亮。
        * 跟远近档位同一条原则——算出来才写，值没变不碰 DOM。
+       *
+       * 写的是每个词的 --w-p（唱到几成），不是布尔 data-lit：整段一闪太快，
+       * 看起来就像「一格一格跳」。词内部按上下两词的时间差插值，正在唱的那个
+       * 词从左往右扫过去，这才是逐字歌词该有的样子。
        */
       const rowIndex = activeRef.current
       const rowWords = linesRef.current[rowIndex]?.words
       const rowEl = list[rowIndex] ?? null
       if (rowWords && rowWords.length > 0 && rowEl) {
-        const lit = spokenWords(rowWords, usePlayer.getState().position)
-        if (rowEl !== litElRef.current || lit !== litRef.current) {
-          const spans = rowEl.querySelectorAll<HTMLElement>('[data-w]')
-          for (let i = 0; i < spans.length; i += 1) {
-            spans[i].toggleAttribute('data-lit', i < lit)
-          }
+        if (rowEl !== litElRef.current) {
           litElRef.current = rowEl
-          litRef.current = lit
+          litRef.current = -1
+          spansRef.current = Array.from(rowEl.querySelectorAll<HTMLElement>('[data-w]'))
+        }
+        const sweep = sweepingWord(rowWords, usePlayer.getState().position)
+        /* 0.5% 一档：再细看不出来，却会让每帧都写一次 style。 */
+        const key = sweep.index * 1000 + Math.round(sweep.ratio * 200)
+        if (key !== litRef.current) {
+          litRef.current = key
+          const spans = spansRef.current
+          for (let i = 0; i < spans.length; i += 1) {
+            const p = i < sweep.index ? 100 : i === sweep.index ? sweep.ratio * 100 : 0
+            spans[i].style.setProperty('--w-p', p.toFixed(1) + '%')
+            spans[i].toggleAttribute(
+              'data-lit',
+              i < sweep.index || (i === sweep.index && sweep.ratio >= 1)
+            )
+          }
         }
       }
       rafRef.current = requestAnimationFrame(tick)
@@ -280,7 +296,8 @@ function LyricRoll({
     >
       <div className="np__lyr" ref={strip}>
         {lines.map((line, index) => {
-          const { main, sub } = splitLyricLine(line.text)
+          const main = line.text
+          const sub = line.translation
           return (
             <button
               key={index}

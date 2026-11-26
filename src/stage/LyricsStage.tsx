@@ -1,4 +1,5 @@
-import { activeLineAt, spokenWords, type Lyrics } from '../features/lyrics/lrc'
+import type { Lyrics } from '../features/lyrics/lrc'
+import { activeLineAt, sweepingWord } from '../features/lyrics/timeline'
 import type { Palette } from '../features/library/palette'
 import type { Track } from '../types'
 import { Bar, useProgressPosition } from '../features/player/Bar'
@@ -9,7 +10,6 @@ import { ChevronLeft, Locate, Note, Next, Pause, Play, Prev, Volume, VolumeMute 
 import { Artwork } from '../ui/Artwork'
 import { artworkFor } from '../features/library/source'
 import { usePlayer } from '../features/player/store'
-import { splitLyricLine } from '../features/lyrics/line-parts'
 import { player } from '../features/player/actions'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Visualizer } from './Visualizer'
@@ -174,7 +174,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
         button.removeAttribute('title')
         continue
       }
-      const parts = splitLyricLine(line.text)
+      const subText = line.translation
       const words = line.words
       button.dataset.index = String(index)
       /* 终端样式的行号：两位、补齐，空行留空。 */
@@ -187,6 +187,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
          */
         if (main.dataset.words !== String(index)) {
           main.dataset.words = String(index)
+          main.dataset.sweep = ''
           main.replaceChildren(
             ...words.map((word, wordIndex) => {
               const span = document.createElement('span')
@@ -202,11 +203,11 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
           main.dataset.words = ''
           main.replaceChildren()
         }
-        main.textContent = parts.main
+        main.textContent = line.text
       }
       main.dataset.shown = ''
-      sub.textContent = parts.sub || ''
-      sub.style.display = parts.sub ? '' : 'none'
+      sub.textContent = subText || ''
+      sub.style.display = subText ? '' : 'none'
       button.title = '跳到 ' + formatTime(line.time)
     }
   }
@@ -264,28 +265,36 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
      * 有真实词时间就照它点亮，别等「打字机」开关——逐字是时间数据，不是外观偏好。
      */
     if (line.words && line.words.length > 0) {
-      const lit = spokenWords(line.words, usePlayer.getState().position)
-      if (main.dataset.lit !== String(lit)) {
-        main.dataset.lit = String(lit)
+      /* 与播放页同一个口径：写每个词段的 --w-p，正在唱的那个从左往右扫。 */
+      const sweep = sweepingWord(line.words, usePlayer.getState().position)
+      const key = sweep.index + ':' + Math.round(sweep.ratio * 200)
+      if (main.dataset.sweep !== key) {
+        main.dataset.sweep = key
         const spans = main.children
         for (let i = 0; i < spans.length; i += 1) {
-          spans[i].toggleAttribute('data-lit', i < lit)
+          const el = spans[i] as HTMLElement
+          const p = i < sweep.index ? 100 : i === sweep.index ? sweep.ratio * 100 : 0
+          el.style.setProperty('--w-p', p.toFixed(1) + '%')
+          el.toggleAttribute(
+            'data-lit',
+            i < sweep.index || (i === sweep.index && sweep.ratio >= 1)
+          )
         }
       }
       return
     }
     if (!typingRef.current) return
-    const parts = splitLyricLine(line.text)
+    const text = line.text
     /* 空行与间隔记号不敲字：它们只在时间轴上占位。 */
-    if (!parts.main) return
+    if (!text) return
     const next = lines[active + 1]
     const span = Math.min(1.6, Math.max(0.45, (next ? next.time : line.time + 2.4) - line.time))
     const position = usePlayer.getState().position
     const done = Math.max(0, Math.min(1, (position - line.time) / span))
-    const shown = String(Math.ceil(parts.main.length * done))
+    const shown = String(Math.ceil(text.length * done))
     if (main.dataset.shown === shown) return
     main.dataset.shown = shown
-    main.textContent = parts.main.slice(0, Number(shown)) || '\u00A0'
+    main.textContent = text.slice(0, Number(shown)) || '\u00A0'
   }
 
   /*

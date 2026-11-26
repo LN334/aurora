@@ -3,7 +3,6 @@ import { test } from 'node:test'
 import {
   albumCoverUrl,
   findMembershipFlag,
-  mergeTranslation,
   normalizeLyrics,
   normalizeQr,
   normalizeSearch,
@@ -252,25 +251,6 @@ test('a failed lyric lookup is null, not an empty string', () => {
   assert.equal(normalizeLyrics({ body: { response: { code: 1101, lyric: '' } } }), null)
   assert.equal(normalizeLyrics({ body: { response: { retcode: 0, code: 0 } } }), null)
   assert.equal(normalizeLyrics(null), null)
-})
-
-test('mergeTranslation pairs lines by timestamp and keeps tags', () => {
-  const merged = mergeTranslation('[ti:x]\n[00:01.00]hello\n[00:02.00]bye', '[00:01.00]你好\n[00:03.00]extra')
-  assert.ok(merged)
-  const lines = merged.split('\n')
-  assert.equal(lines[0], '[ti:x]')
-  assert.equal(lines[1], '[00:01.00]hello / 你好')
-  assert.equal(lines[2], '[00:02.00]bye')
-  // A translated line with no original is appended rather than dropped.
-  assert.equal(lines[3], '[00:03.00]extra')
-})
-
-test('mergeTranslation returns the original untouched when there is nothing to merge', () => {
-  assert.equal(mergeTranslation('[00:01.00]a', null), '[00:01.00]a')
-  assert.equal(mergeTranslation(null, '[00:01.00]a'), '[00:01.00]a')
-  assert.equal(mergeTranslation(null, null), null)
-  // An identical translation is not duplicated.
-  assert.equal(mergeTranslation('[00:01.00]a', '[00:01.00]a'), '[00:01.00]a')
 })
 
 // --- login -----------------------------------------------------------------

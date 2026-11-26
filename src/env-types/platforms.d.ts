@@ -417,8 +417,8 @@ export interface QqApi {
 
   streamUrl(songId: string | number, quality?: QqQuality): Promise<QqStreamResult>
 
-  /** 已合并翻译的成品 LRC 文本（渲染层直接用）。 */
-  lyrics(songId: string | number): Promise<string | null>
+  /** 正文与译文各一份 LRC；两份时间轴由渲染层对齐。没有歌词时 null。 */
+  lyrics(songId: string | number): Promise<{ lrc: string | null; translation: string | null } | null>
 
   /** 一页评论。评论区认数字 songid，不是 songmid。 */
   comments(songId: string | number, cursor?: string, limit?: number): Promise<CommentPage | null>

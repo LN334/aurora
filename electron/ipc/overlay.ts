@@ -90,6 +90,11 @@ export function registerOverlayIpc(sendCommand: (command: MediaCommand) => void)
             .slice(0, 400)
             .map((word) => ({ at: Math.max(0, seconds(word.at)), text: word.text.slice(0, 64) }))
         : [],
+      // 译文也重建一遍：桌面窗直接把它画出来，不能让它决定字号或标记。
+      translation:
+        typeof candidate.translation === 'string' ? candidate.translation.slice(0, 400) : null,
+      nextTranslation:
+        typeof candidate.nextTranslation === 'string' ? candidate.nextTranslation.slice(0, 400) : null,
       accent: typeof candidate.accent === 'string' ? candidate.accent : ''
     })
     return true

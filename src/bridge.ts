@@ -414,7 +414,10 @@ const webFallback: AuroraApi = {
           { at: 18.2, text: '上' }
         ],
         // 预览没有封面取色，用 tokens.css 里那支默认 accent。
-        accent: '#7d8899'
+        accent: '#7d8899',
+        // 预览这一句没有译文；真机上译文随状态一起从主进程推来。
+        translation: null,
+        nextTranslation: null
       })
       return () => undefined
     },

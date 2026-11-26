@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { bridge, isNative } from '../bridge'
-import { activeLineAt, type Lyrics } from '../features/lyrics/lrc'
+import type { Lyrics } from '../features/lyrics/lrc'
+import { activeLineAt } from '../features/lyrics/timeline'
 import { usePlayer } from '../features/player/store'
 import type { Track } from '../types'
 
@@ -54,13 +55,10 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
   useEffect(() => {
     if (!isNative) return
 
-    const lineAt = (index: number): string | null => {
-      const text = lyrics.lines[index]?.text?.trim()
-      return text ? text : null
-    }
-
     const current = lyrics.lines[active]
     const following = lyrics.lines[active + 1]
+    const currentText = current?.text?.trim() || null
+    const nextText = following?.text?.trim() || null
     /*
      * Read once per push instead of subscribing: the position changes every frame
      * and this component must not re-render on it. The strip only needs the value
@@ -74,8 +72,11 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
     const payload = {
       // Null while there is no lyric means the overlay falls back to showing the
       // track title, which keeps it useful for instrumentals.
-      text: lyrics.empty ? null : lineAt(active),
-      next: lyrics.empty ? null : lineAt(active + 1),
+      text: lyrics.empty ? null : currentText,
+      // 译文单独一个字段：窗口侧直接显示，不再拆「 / 」。
+      translation: lyrics.empty ? null : current?.translation ?? null,
+      next: lyrics.empty ? null : nextText,
+      nextTranslation: lyrics.empty ? null : following?.translation ?? null,
       title: track?.title ?? '',
       artist: track?.artist ?? '',
       playing,
@@ -106,7 +107,9 @@ export function DesktopLyricsBridge({ lyrics, track, playing, overlayOpen }: Des
 
     const key = JSON.stringify([
       payload.text,
+      payload.translation,
       payload.next,
+      payload.nextTranslation,
       payload.title,
       payload.artist,
       payload.playing,

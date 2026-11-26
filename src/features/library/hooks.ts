@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isNative } from '../../bridge'
-import { emptyLyrics, parseLrc, type Lyrics } from '../lyrics/lrc'
+import { emptyLyrics, type Lyrics } from '../lyrics/lrc'
+import { parseLyricBundle, type LyricBundle } from '../lyrics/align'
 import type { Track } from '../../types'
 import { extractPalette, IDLE_PALETTE, type Palette } from './palette'
 import { artworkFor, sourceFor } from './source'
@@ -69,7 +70,7 @@ export function usePalette(track: Track | null): Palette {
  *
  * 开关由主进程把关：设置里关掉在线歌词时，这个调用会直接返回 null。
  */
-async function lookupSharedLyrics(track: Track): Promise<string | null> {
+async function lookupSharedLyrics(track: Track): Promise<LyricBundle | null> {
   const bridge = typeof window === 'undefined' ? undefined : window.aurora?.lyrics
   if (!bridge) return null
   const hit = await bridge
@@ -80,7 +81,7 @@ async function lookupSharedLyrics(track: Track): Promise<string | null> {
       duration: track.duration
     })
     .catch(() => null)
-  return hit?.text ?? null
+  return hit?.text ? { lrc: hit.text } : null
 }
 
 /**
@@ -94,7 +95,7 @@ async function lookupSharedLyrics(track: Track): Promise<string | null> {
  * 全部都空，才去公共库按歌名找一份：这是只有一首版本、且那一家恰好没有歌词时
  * 唯一的出路。
  */
-async function resolveLyrics(subject: Track): Promise<string | null> {
+async function resolveLyrics(subject: Track): Promise<LyricBundle | null> {
   const own = await sourceFor(subject)
     .lyrics(subject)
     .catch(() => null)
@@ -130,8 +131,8 @@ export function useLyrics(track: Track | null): LyricsState {
 
     let cancelled = false
     void resolveLyrics(subject)
-      .then((raw) => {
-        if (!cancelled) setLyrics(raw ? parseLrc(raw) : emptyLyrics())
+      .then((bundle) => {
+        if (!cancelled) setLyrics(bundle ? parseLyricBundle(bundle) : emptyLyrics())
       })
       .catch(() => {
         if (!cancelled) setLyrics(emptyLyrics())

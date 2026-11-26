@@ -30,8 +30,17 @@ import {
 export interface OverlayState {
   /** Current lyric line, or null when there is nothing to show. */
   text: string | null
+  /**
+   * 当前行的译文，或 null。
+   *
+   * 与 `text` 同一行显示，字号小一号。分开一个字段而不是拼进 `text`：窗口只有
+   * 一条句子高，两种语言叠在一条里既挤又没法分别做渐亮。
+   */
+  translation: string | null
   /** The following line, rendered dimmed underneath. */
   next: string | null
+  /** 下一行的译文，或 null。 */
+  nextTranslation: string | null
   title: string
   artist: string
   playing: boolean

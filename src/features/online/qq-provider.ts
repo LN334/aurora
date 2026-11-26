@@ -333,8 +333,14 @@ const qqBackend: PlatformBackend = {
 
   lyrics: {
     async lyrics(songId) {
-      // The client returns finished LRC text, translation already merged.
-      return (await client()?.lyrics(songId)) ?? null
+      // 正文与译文分开回来，两份时间轴由渲染层对齐。
+      const hit = await client()?.lyrics(songId)
+      if (!hit) return null
+      const lrc = hit.lrc ?? ''
+      const translation = hit.translation?.trim() || null
+      // 两份都空等于没取到，不要让上层画一个空歌词页。
+      if (!lrc.trim() && !translation) return null
+      return { lrc, translation }
     }
   },
 

@@ -378,6 +378,10 @@ export interface OverlayState {
   words: { at: number; text: string }[]
   /** 当前封面的主色，用来给已唱部分上色；取不到时为空串。 */
   accent: string
+  /** 当前行的译文；没有译文时是 null，界面不占位。 */
+  translation: string | null
+  /** 下一行的译文；没有时是 null。 */
+  nextTranslation: string | null
 }
 
 export interface OverlayStatus {

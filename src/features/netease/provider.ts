@@ -1,7 +1,7 @@
 import type { NeteaseQuality, NeteaseSong } from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
-import { mergeTranslation } from './lrc'
+import type { LyricBundle } from '../lyrics/align'
 import { neteaseSongId, toTrack as toNeteaseTrack } from './track'
 import { rememberNeteaseCover } from '../library/source'
 import { registerProvider } from '../online/registry'
@@ -228,9 +228,12 @@ const neteaseBackend: PlatformBackend = {
   },
 
   lyrics: {
-    async lyrics(songId) {
+    async lyrics(songId): Promise<LyricBundle | null> {
       const raw = await netease.lyrics(songId)
-      return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+      const body = raw?.lrc?.trim() ?? ''
+      const sub = raw?.translation?.trim() ?? ''
+      if (!body && !sub) return null
+      return { lrc: body, translation: sub || null }
     }
   },
 

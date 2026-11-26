@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseLrc, spokenWords } from '../src/features/lyrics/lrc.ts'
+import { parseLrc } from '../src/features/lyrics/lrc.ts'
+import { spokenWords, sweepingWord } from '../src/features/lyrics/timeline.ts'
 
 test('增强 LRC 的行内时间标签解析成词级时间', () => {
   const lyrics = parseLrc('[00:10.00]<00:10.00>第一段<00:11.50>第二段<00:13.00>第三段')
@@ -72,4 +73,23 @@ test('spokenWords 按时间数到第几段', () => {
   assert.equal(spokenWords(words, 11), 2)
   assert.equal(spokenWords(words, 99), 3)
   assert.equal(spokenWords([], 5), 0)
+})
+
+test('sweepingWord 把正在唱的词摊成一段进度', () => {
+  const words = [
+    { time: 10, text: 'a' },
+    { time: 12, text: 'b' },
+    { time: 13, text: 'c' }
+  ]
+  /* 开口前没有正在唱的词。 */
+  assert.deepEqual(sweepingWord(words, 9), { index: -1, ratio: 0 })
+  /* 词一开头是 0，唱到一半是 0.5——亮的是「扫过去」的那一格，不是整词。 */
+  assert.deepEqual(sweepingWord(words, 10), { index: 0, ratio: 0 })
+  assert.deepEqual(sweepingWord(words, 11), { index: 0, ratio: 0.5 })
+  assert.deepEqual(sweepingWord(words, 12), { index: 1, ratio: 0 })
+  assert.deepEqual(sweepingWord(words, 12.5), { index: 1, ratio: 0.5 })
+  /* 最后一个词没有下一个词可插值，直接满格。 */
+  assert.deepEqual(sweepingWord(words, 13), { index: 2, ratio: 1 })
+  assert.deepEqual(sweepingWord(words, 99), { index: 2, ratio: 1 })
+  assert.deepEqual(sweepingWord([], 5), { index: -1, ratio: 0 })
 })

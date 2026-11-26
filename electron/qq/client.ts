@@ -1,7 +1,6 @@
 import { errorText } from '../pure/error-text.ts'
 import {
   likedPlaylistId,
-  mergeTranslation,
   normalizeAlbumInfo,
   normalizeAlbumSongs,
   normalizeCollectedAlbums,
@@ -314,14 +313,15 @@ export async function qqStreamUrl(
 // --- lyrics -------------------------------------------------------------
 
 /**
- * Lyrics, with the translation already merged.
+ * Lyrics: the original and the translation as two separate LRC documents.
  *
- * The bridge hands the renderer one string (`src/features/online/qq-provider.ts`
- * says so explicitly: "The client returns finished LRC text, translation already
- * merged"), because the lyric view highlights one line per timestamp and two
- * documents would never line up.
+ * They are not merged here. The two documents routinely start their lines half
+ * a second apart (the original is written per sung syllable), and only the
+ * renderer's align step can pair them without dropping lines.
  */
-export async function qqLyrics(songId: string | number): Promise<string | null> {
+export async function qqLyrics(
+  songId: string | number
+): Promise<{ lrc: string | null; translation: string | null } | null> {
   const state = readState(activeProfileId)
   const songmid = resolveSongmid(songId)
   const numeric = typeof songId === 'number' ? songId : Number(songId)
@@ -333,9 +333,7 @@ export async function qqLyrics(songId: string | number): Promise<string | null> 
       songid: songmid ? '' : Number.isFinite(numeric) ? String(numeric) : '',
       cookie: state.cookie
     })
-    const payload = normalizeLyrics(response)
-    if (!payload) return null
-    return mergeTranslation(payload.lrc, payload.translation)
+    return normalizeLyrics(response)
   } catch (error) {
     console.error('[aurora] qq lyric lookup failed', error instanceof Error ? error.message : error)
     return null

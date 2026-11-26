@@ -1,5 +1,5 @@
 import { isNative } from '../../bridge'
-import { mergeTranslation } from '../netease/lrc'
+import type { LyricBundle } from '../lyrics/align'
 import { netease, hasNeteaseBackend } from '../netease/api'
 import { streamOf } from '../netease/store'
 import { neteaseSongId } from '../netease/track'
@@ -30,8 +30,13 @@ export interface TrackSource {
   streamUrl(track: Track): string | null
   /** Artwork URL, or null. Must stay same-origin or CORS-clean for Web Audio. */
   artUrl(track: Track, px?: number): string | null
-  /** Raw LRC text, or null. */
-  lyrics(track: Track): Promise<string | null>
+  /**
+   * 歌词：正文与译文各交回一份，没有就 null。
+   *
+   * 不合并、不拼接。两份时间轴常常差半秒以上，对齐是渲染层的事
+   * （`features/lyrics/align`），这样主进程与每个 provider 都只管搬运。
+   */
+  lyrics(track: Track): Promise<LyricBundle | null>
 }
 
 /**
@@ -56,12 +61,15 @@ export interface TrackSource {
   },
 
   lyrics: async (track) => {
-    if (!isNative) return demoLyricsFor(track)
+    if (!isNative) {
+      const demo = demoLyricsFor(track)
+      return demo ? { lrc: demo } : null
+    }
 
     // A sidecar file the user placed next to the audio always wins: it is their
     // own file, and it is the one that matches this exact recording.
     const local = (await window.aurora?.library.readLyrics(track.path)) ?? null
-    if (local) return local
+    if (local) return { lrc: local }
 
     // Online lookup is opt-in. The main process refuses when the setting is off,
     // so this call is safe to make unconditionally.
@@ -71,7 +79,7 @@ export interface TrackSource {
       album: track.album,
       duration: track.duration
     })
-    return hit?.text ?? null
+    return hit?.text ? { lrc: hit.text } : null
   }
 }
 
@@ -126,7 +134,7 @@ export interface TrackSource {
     const songId = neteaseSongId(track)
     if (songId === null || !hasNeteaseBackend) return null
     const raw = await netease.lyrics(songId)
-    return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+    return withParts(raw?.lrc, raw?.translation)
   }
 }
 
@@ -181,11 +189,12 @@ export function setMissingStreamHandler(handler: ((songId: number) => void) | nu
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
   lyrics: async (track) => {
-    // QQ answers finished LRC with the translation already merged in, so there
-    // is nothing to combine here. Signed out the main process returns null,
-    // which the lyric view shows as "no lyrics" rather than as an error.
+    // QQ answers the original and the translation as two LRC documents. Signed
+    // out the main process returns null, which the lyric view shows as "no
+    // lyrics" rather than as an error.
     if (track.onlineId === undefined) return null
-    return (await window.aurora?.qq?.lyrics(track.onlineId)) ?? null
+    const raw = await window.aurora?.qq?.lyrics(track.onlineId)
+    return withParts(raw?.lrc, raw?.translation)
   }
 }
 
@@ -211,11 +220,11 @@ const kugouSource: TrackSource = {
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
   lyrics: async (track) => {
-    // 酷狗把正文与译文分成两份 LRC 交回（KRC 里的语言轨），合并这一步和网易云
-    // 走同一个函数——两边都是「同一条时间轴上的两份文档」。
+    // 酷狗把正文与译文分成两份 LRC 交回（KRC 里的语言轨），两边时间轴常常整体
+    // 差一点，对齐交给渲染层。
     if (track.onlineId === undefined) return null
     const raw = await window.aurora?.kugou?.lyrics(track.onlineId)
-    return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+    return withParts(raw?.lrc, raw?.translation)
   }
 }
 
@@ -239,10 +248,10 @@ const qishuiSource: TrackSource = {
 
   lyrics: async (track) => {
     // 汽水的正文是逐字的私有格式、译文是语言轨，主进程把两边都换成标准 LRC
-    // 之后回到这里，与另外三个平台走同一个合并函数。
+    // 之后回到这里，与其他平台一样只搬不合并。
     if (track.onlineId === undefined) return null
     const raw = await window.aurora?.qishui?.lyrics(track.onlineId)
-    return mergeTranslation(raw?.lrc ?? null, raw?.translation ?? null)
+    return withParts(raw?.lrc, raw?.translation)
   }
 }
 
@@ -267,6 +276,18 @@ const bilibiliSource: TrackSource = {
   artUrl: (track) => (track.coverUrl ? remoteImageUrl(track.coverUrl) : null),
 
   lyrics: async () => null
+}
+
+/**
+ * 主进程交回的「正文 + 译文」-> bundle。
+ *
+ * 两份都空才是「没有歌词」。只有一份时另一份留空，由渲染层决定怎么显示。
+ */
+function withParts(lrc: string | null | undefined, translation: string | null | undefined): LyricBundle | null {
+  const body = lrc?.trim()
+  const sub = translation?.trim()
+  if (!body && !sub) return null
+  return { lrc: body || '', translation: sub || null }
 }
 
 export const SOURCES: TrackSource[] = [
