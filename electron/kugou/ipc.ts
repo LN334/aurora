@@ -291,6 +291,19 @@ async function commentSendKugou(args: unknown): Promise<CommentWriteResult> {
   )
 }
 
+/*
+ * 取播放地址。档位缺省时用账号当前存的那一档；失败兜底 old-handle 那个
+ * `service-unavailable`，与旧通道逐字段一致。
+ */
+async function streamUrlKugou(input: unknown) {
+  const params = asRecord(input)
+  const songId = asId(params.songId)
+  const quality = asQuality(params.quality) ?? kugouGetQuality()
+  return await guard('streamUrl', { ok: false, reason: 'service-unavailable' }, async () =>
+    kugouStreamUrl(songId, quality)
+  )
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -317,14 +330,8 @@ export function registerKugouIpc(): void {
     await guard('followedArtists', [], async () => kugouFollowedArtists())
   )
 
-  ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const songId = asId(params.songId)
-    const quality = asQuality(params.quality) ?? kugouGetQuality()
-    return await guard('streamUrl', { ok: false, reason: 'service-unavailable' }, async () =>
-      kugouStreamUrl(songId, quality)
-    )
-  })
+  ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => await streamUrlKugou(input))
+  registerProviderCapability('kugou', 'playback', streamUrlKugou)
 
   ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) => lyricsKugou(songId))
   registerProviderCapability('kugou', 'lyrics', lyricsKugou)

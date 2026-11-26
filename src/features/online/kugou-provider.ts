@@ -1,4 +1,10 @@
-import type { CommentPage, KugouAccount, KugouApi, KugouSong } from '../../env'
+import type {
+  CommentPage,
+  KugouAccount,
+  KugouApi,
+  KugouSong,
+  KugouStreamResult
+} from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
@@ -22,6 +28,7 @@ import {
   providerArtistSongs
 } from './catalog-channel.ts'
 import { providerDailySongs } from './recommend-channel.ts'
+import { providerStreamUrl } from './playback-channel.ts'
 import { providerCommentSend, providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
 import {
@@ -122,8 +129,10 @@ const kugouBackend: PlatformBackend = {
   },
 
   async streamUrl(songId, quality) {
-    const result = await client()?.streamUrl(songId, quality)
-    if (!result) return { ok: false, reason: 'service-unavailable' }
+    const result = await providerStreamUrl<KugouStreamResult>('kugou', songId, quality, {
+      ok: false,
+      reason: 'service-unavailable'
+    })
     if (!result.ok) return { ok: false, reason: result.reason, message: result.message }
 
     return {

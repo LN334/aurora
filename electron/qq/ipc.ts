@@ -276,6 +276,27 @@ async function commentSendQq(args: unknown): Promise<CommentWriteResult> {
   return guard<CommentWriteResult>('commentSend', refused, () => client.qqCommentSend(songId, content))
 }
 
+/*
+ * 取播放地址。QQ 的结果是扁的（url/br 都在顶层），这一层只负责安全地取出
+ * songmid 与档位；质量档留空时客户端会用账号里存的那一档。
+ */
+async function streamUrlQq(args: unknown): Promise<QqStreamResult> {
+  const payload = asRecord(args)
+  const songId = asSongId(payload.songId)
+  if (songId === null) {
+    return { ok: false, reason: 'unknown', message: '歌曲编号无效' }
+  }
+  // The tier is optional: the client falls back to the profile's saved
+  // preference, so a renderer that has not read it yet still gets an answer.
+  const quality = asQuality(payload.quality)
+  const unknown: QqStreamResult = {
+    ok: false,
+    reason: 'unknown',
+    message: describeFailure('unknown')
+  }
+  return guard('streamUrl', unknown, () => client.qqStreamUrl(songId, quality ?? undefined))
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -296,22 +317,8 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:search', (_event, payload: unknown) => searchQq(payload))
   registerProviderCapability('qq', 'search', searchQq)
 
-  ipcMain.handle('qq:streamUrl', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asSongId(args.songId)
-    if (songId === null) {
-      return { ok: false, reason: 'unknown', message: '歌曲编号无效' } satisfies QqStreamResult
-    }
-    // The tier is optional: the client falls back to the profile's saved
-    // preference, so a renderer that has not read it yet still gets an answer.
-    const quality = asQuality(args.quality)
-    const unknown: QqStreamResult = {
-      ok: false,
-      reason: 'unknown',
-      message: describeFailure('unknown')
-    }
-    return guard('streamUrl', unknown, () => client.qqStreamUrl(songId, quality ?? undefined))
-  })
+  ipcMain.handle('qq:streamUrl', (_event, payload: unknown) => streamUrlQq(payload))
+  registerProviderCapability('qq', 'playback', streamUrlQq)
 
   ipcMain.handle('qq:lyrics', (_event, value: unknown) => lyricsQq(value))
   registerProviderCapability('qq', 'lyrics', lyricsQq)

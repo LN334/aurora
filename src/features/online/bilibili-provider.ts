@@ -2,6 +2,7 @@ import type { BilibiliApi, BilibiliQuality, BilibiliVideo } from '../../env'
 import type { Track } from '../../types'
 import type { QualityTier } from './types'
 import { providerLoginStatus, providerLogout } from './account-channel.ts'
+import { providerStreamUrl } from './playback-channel.ts'
 import { registerProvider } from './registry'
 import type { PlatformBackend } from './store'
 import {
@@ -25,6 +26,8 @@ const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless', 'hires
 
 /** 主进程回的账号形状（通道与旧桥是同一份实现）。 */
 type BiliAccountRow = NonNullable<Awaited<ReturnType<BilibiliApi['loginStatus']>>>
+/** 取流结果是嵌套的（stream 里装 url/br），类型在 platforms 里是内联的，从桥签名反推。 */
+type BiliStreamRow = Awaited<ReturnType<BilibiliApi['streamUrl']>>
 
 /** 本次运行选的档位；B 站没有账号，也不存偏好，重启回 exhigh。 */
 let chosenTier: QualityTier = 'exhigh'
@@ -117,8 +120,12 @@ const bilibiliBackend: PlatformBackend = {
   },
 
   async streamUrl(songId, quality) {
-    const result = await client()?.streamUrl(songId, quality as BilibiliQuality)
-    if (!result) return { ok: false, reason: 'service-unavailable' }
+    const result = await providerStreamUrl<BiliStreamRow>(
+      'bilibili',
+      songId,
+      quality as BilibiliQuality,
+      { ok: false, reason: 'service-unavailable' }
+    )
     if (!result.ok) return { ok: false, reason: result.reason, message: result.message }
     return {
       ok: true,

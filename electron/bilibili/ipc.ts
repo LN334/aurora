@@ -79,6 +79,18 @@ async function searchBilibili(args: unknown) {
   }
 }
 
+/** 取播放地址：旧通道 `bilibili:streamUrl` 与 `provider:call` 共用这一份实现。 */
+async function streamUrlBilibili(args: unknown) {
+  const raw = asRecord(args)
+  const aid = asAid(raw.songId)
+  if (!aid) return { ok: false, reason: 'unknown', message: '视频 ID 无效' }
+  try {
+    return await bilibiliStreamUrl(aid, asQuality(raw.quality))
+  } catch {
+    return { ok: false, reason: 'network', message: '取播放地址失败，稍后再试' }
+  }
+}
+
 export function registerBilibiliIpc(): void {
   /*
    * 账号相关的四条通道。B 站匿名也能搜能播，登录换来的是搜索不至于被风控挡下
@@ -105,14 +117,6 @@ export function registerBilibiliIpc(): void {
   ipcMain.handle('bilibili:search', (_event, args: unknown) => searchBilibili(args))
   registerProviderCapability('bilibili', 'search', searchBilibili)
 
-  ipcMain.handle('bilibili:streamUrl', async (_event, args: unknown) => {
-    const raw = asRecord(args)
-    const aid = asAid(raw.songId)
-    if (!aid) return { ok: false, reason: 'unknown', message: '视频 ID 无效' }
-    try {
-      return await bilibiliStreamUrl(aid, asQuality(raw.quality))
-    } catch {
-      return { ok: false, reason: 'network', message: '取播放地址失败，稍后再试' }
-    }
-  })
+  ipcMain.handle('bilibili:streamUrl', async (_event, args: unknown) => await streamUrlBilibili(args))
+  registerProviderCapability('bilibili', 'playback', streamUrlBilibili)
 }

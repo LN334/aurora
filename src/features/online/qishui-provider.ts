@@ -11,6 +11,7 @@ import {
 } from './playlist-channel.ts'
 import { providerLike, providerLiked } from './likes-channel.ts'
 import { providerArtist, providerArtistSongs } from './catalog-channel.ts'
+import { providerStreamUrl } from './playback-channel.ts'
 import { providerDailySongs, providerPersonalFm } from './recommend-channel.ts'
 import { providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
@@ -26,6 +27,8 @@ import type { Track } from '../../types'
 type QishuiPlaylistRow = Awaited<ReturnType<QishuiApi['myPlaylists']>>[number]
 type QishuiTrackRow = Awaited<ReturnType<QishuiApi['playlistTracks']>>[number]
 type QishuiArtistRow = NonNullable<Awaited<ReturnType<QishuiApi['artistProfile']>>>
+/** 取流结果是扁的（url/br 在顶层），类型在 platforms 里没导出，从桥签名反推。 */
+type QishuiStreamRow = Awaited<ReturnType<QishuiApi['streamUrl']>>
 
 /**
  * 汽水音乐作为第四个平台。
@@ -157,8 +160,12 @@ const qishuiBackend: PlatformBackend = {
   },
 
   async streamUrl(songId, quality) {
-    const result = await client()?.streamUrl(songId, upstreamQuality(quality))
-    if (!result) return { ok: false, reason: 'service-unavailable' }
+    const result = await providerStreamUrl<QishuiStreamRow>(
+      'qishui',
+      songId,
+      upstreamQuality(quality),
+      { ok: false, reason: 'service-unavailable' }
+    )
     if (!result.ok) return { ok: false, reason: result.reason, message: result.message }
     return {
       ok: true,

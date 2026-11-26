@@ -3,7 +3,8 @@ import type {
   NeteaseAccount,
   NeteaseApi,
   NeteaseQuality,
-  NeteaseSong
+  NeteaseSong,
+  NeteaseStreamResult
 } from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
@@ -20,6 +21,7 @@ import {
   providerPlaylistTracks
 } from '../online/playlist-channel.ts'
 import { providerLike, providerLiked } from '../online/likes-channel.ts'
+import { providerStreamUrl } from '../online/playback-channel.ts'
 import {
   providerCommentLike,
   providerCommentSend,
@@ -152,7 +154,10 @@ const neteaseBackend: PlatformBackend = {
   },
 
   async streamUrl(songId, quality) {
-    const result = await netease.streamUrl(songId, quality as NeteaseQuality)
+    const result = await providerStreamUrl<NeteaseStreamResult>('netease', songId, quality, {
+      ok: false,
+      reason: 'service-unavailable'
+    })
     if (!result.ok) return { ok: false, reason: result.reason, message: result.message }
     return { ok: true, stream: result.stream }
   },

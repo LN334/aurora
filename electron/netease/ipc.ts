@@ -428,6 +428,20 @@ async function newAlbumsNetease(args: unknown): Promise<NeteaseCollectedAlbum[]>
   return guard<NeteaseCollectedAlbum[]>('topAlbums', [], () => client.neteaseTopAlbums(limit, offset))
 }
 
+/*
+ * 取播放地址。判据逐字照搬旧 handle：id 不合法就是「歌曲 ID 无效」，质量档
+ * 缺省时用账号当前存的那一档。
+ */
+async function streamUrlNetease(args: unknown): Promise<NeteaseStreamResult> {
+  const record = asRecord(args)
+  const songId = asId(record.songId)
+  if (songId === null) {
+    return { ok: false, reason: 'unknown', message: '歌曲 ID 无效' }
+  }
+  const quality = asQuality(record.quality) ?? currentQuality()
+  return guard('streamUrl', unknownStream(), () => client.neteaseStreamUrl(songId, quality))
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -454,15 +468,8 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:search', (_event, payload: unknown) => searchNetease(payload))
   registerProviderCapability('netease', 'search', searchNetease)
 
-  ipcMain.handle('netease:streamUrl', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asId(args.songId)
-    if (songId === null) {
-      return { ok: false, reason: 'unknown', message: '歌曲 ID 无效' } satisfies NeteaseStreamResult
-    }
-    const quality = asQuality(args.quality) ?? currentQuality()
-    return guard('streamUrl', unknownStream(), () => client.neteaseStreamUrl(songId, quality))
-  })
+  ipcMain.handle('netease:streamUrl', (_event, payload: unknown) => streamUrlNetease(payload))
+  registerProviderCapability('netease', 'playback', streamUrlNetease)
 
   ipcMain.handle('netease:lyrics', (_event, value: unknown) => lyricsNetease(value))
   registerProviderCapability('netease', 'lyrics', lyricsNetease)

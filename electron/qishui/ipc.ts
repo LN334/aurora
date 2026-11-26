@@ -242,6 +242,20 @@ async function commentsQishui(args: unknown): Promise<CommentPage | null> {
   )
 }
 
+/*
+ * 取播放地址。汽水的 songId 是 alias 而不是数字 id：空 alias 答「缺少歌曲 id」，
+ * 其余失败兜底 service-unavailable——两句都与旧 handle 一字不差。
+ */
+async function streamUrlQishui(input: unknown) {
+  const params = asRecord(input)
+  const alias = asAlias(params.songId)
+  const quality = asQuality(params.quality)
+  return await guard('streamUrl', { ok: false, reason: 'service-unavailable' }, async () => {
+    if (!alias) return { ok: false, reason: 'unavailable', message: '缺少歌曲 id' }
+    return await qishuiStreamUrl(alias, quality)
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -277,19 +291,8 @@ export function registerQishuiIpc(): void {
     })
   )
 
-  ipcMain.handle('qishui:streamUrl', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const alias = asAlias(params.songId)
-    const quality = asQuality(params.quality)
-    return await guard(
-      'streamUrl',
-      { ok: false, reason: 'service-unavailable' },
-      async () => {
-        if (!alias) return { ok: false, reason: 'unavailable', message: '缺少歌曲 id' }
-        return await qishuiStreamUrl(alias, quality)
-      }
-    )
-  })
+  ipcMain.handle('qishui:streamUrl', async (_event, input: unknown) => await streamUrlQishui(input))
+  registerProviderCapability('qishui', 'playback', streamUrlQishui)
 
   ipcMain.handle('qishui:lyrics', async (_event, id: unknown) => lyricsQishui(id))
   registerProviderCapability('qishui', 'lyrics', lyricsQishui)
