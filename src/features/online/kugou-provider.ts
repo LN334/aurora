@@ -15,6 +15,12 @@ import {
   providerPlaylistTracks
 } from './playlist-channel.ts'
 import { providerLike, providerLiked } from './likes-channel.ts'
+import {
+  providerAlbum,
+  providerArtist,
+  providerArtistAlbums,
+  providerArtistSongs
+} from './catalog-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -28,6 +34,9 @@ import type { Track } from '../../types'
 
 type KugouPlaylistRow = Awaited<ReturnType<KugouApi['myPlaylists']>>[number]
 type KugouTrackRow = Awaited<ReturnType<KugouApi['playlistTracks']>>[number]
+type KugouAlbumBundleRow = NonNullable<Awaited<ReturnType<KugouApi['album']>>>
+type KugouArtistRow = NonNullable<Awaited<ReturnType<KugouApi['artist']>>>
+type KugouAlbumEntryRow = Awaited<ReturnType<KugouApi['artistAlbums']>>[number]
 
 /**
  * 酷狗作为第三个平台。
@@ -330,7 +339,7 @@ const kugouProvider: OnlineMusicProvider = {
 
   catalog: {
     album: async (id) => {
-      const bundle = await client()?.album(id)
+      const bundle = await providerAlbum<KugouAlbumBundleRow>('kugou', id)
       if (!bundle) return null
       return {
         id: bundle.detail.id,
@@ -344,7 +353,7 @@ const kugouProvider: OnlineMusicProvider = {
       }
     },
     artist: async (id) => {
-      const detail = await client()?.artist(id)
+      const detail = await providerArtist<KugouArtistRow>('kugou', id)
       if (!detail) return null
       return {
         id: detail.id,
@@ -355,16 +364,17 @@ const kugouProvider: OnlineMusicProvider = {
         songCount: detail.songCount
       }
     },
+    // 酷狗上游没有单独的「热门」接口：取全量歌曲的第一页就是热门。
     artistTopSongs: async (id, limit) => {
-      const rows = (await client()?.artistSongs(id, limit ?? 50, 0)) ?? []
+      const rows = await providerArtistSongs<KugouSong>('kugou', id, limit ?? 50, 0)
       return rows.map((song) => normalizeSong(song))
     },
     artistSongs: async (id, limit, offset) => {
-      const rows = (await client()?.artistSongs(id, limit, offset)) ?? []
+      const rows = await providerArtistSongs<KugouSong>('kugou', id, limit, offset)
       return rows.map((song) => normalizeSong(song))
     },
     artistAlbums: async (id, limit, offset) => {
-      const rows = (await client()?.artistAlbums(id, limit, offset)) ?? []
+      const rows = await providerArtistAlbums<KugouAlbumEntryRow>('kugou', id, limit, offset)
       return rows.map((row) => ({
         id: row.id,
         name: row.name,

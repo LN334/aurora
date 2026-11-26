@@ -64,6 +64,12 @@ function asId(value: unknown): number | null {
   return typeof value === 'number' && isUsableId(value) ? value : null
 }
 
+/** limit / offset：非要紧的正整数就用 fallback（offset 的 fallback 是 0），上限收紧。 */
+function asCount(value: unknown, fallback: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback
+  return Math.min(Math.trunc(value), max)
+}
+
 function asText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
@@ -304,6 +310,49 @@ function likeNetease(args: unknown): Promise<boolean> {
   return guard<boolean>('like', false, () => client.neteaseLike(id, record.liked === true))
 }
 
+/*
+ * 专辑页与艺人页：一张专辑、一位艺人的资料、热门曲目、全部歌曲、专辑列表。
+ *
+ * 这一批只搬家——失败仍折回 null / 空数组，与旧通道逐字段一致。页面对空结果
+ * 各有各的说法，改语义要把三条页面一起改，留作单独一版。
+ */
+function albumNetease(args: unknown): Promise<NeteaseAlbum | null> {
+  const id = asId(namedArgument(args, 'albumId'))
+  if (id === null) return Promise.resolve(null)
+  return guard<NeteaseAlbum | null>('album', null, () => client.neteaseAlbum(id))
+}
+
+function artistDetailNetease(args: unknown): Promise<NeteaseArtistDetail | null> {
+  const id = asId(namedArgument(args, 'artistId'))
+  if (id === null) return Promise.resolve(null)
+  return guard<NeteaseArtistDetail | null>('artistDetail', null, () => client.neteaseArtistDetail(id))
+}
+
+function artistTopSongsNetease(args: unknown): Promise<NeteaseSong[]> {
+  const id = asId(namedArgument(args, 'artistId'))
+  const limit = asCount(namedArgument(args, 'limit'), 50, 200)
+  if (id === null) return Promise.resolve([])
+  return guard<NeteaseSong[]>('artistTopSongs', [], () => client.neteaseArtistTopSongs(id, limit))
+}
+
+function artistSongsNetease(args: unknown): Promise<NeteaseSong[]> {
+  const id = asId(namedArgument(args, 'artistId'))
+  const limit = asCount(namedArgument(args, 'limit'), 200, 500)
+  const offset = asCount(namedArgument(args, 'offset'), 0, 100000)
+  if (id === null) return Promise.resolve([])
+  return guard<NeteaseSong[]>('artistSongs', [], () => client.neteaseArtistSongs(id, limit, offset))
+}
+
+function artistAlbumsNetease(args: unknown): Promise<NeteaseAlbumSummary[]> {
+  const id = asId(namedArgument(args, 'artistId'))
+  const limit = asCount(namedArgument(args, 'limit'), 60, 200)
+  const offset = asCount(namedArgument(args, 'offset'), 0, 100000)
+  if (id === null) return Promise.resolve([])
+  return guard<NeteaseAlbumSummary[]>('artistAlbums', [], () =>
+    client.neteaseArtistAlbums(id, limit, offset)
+  )
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -378,43 +427,31 @@ export function registerNeteaseIpc(): void {
     )
   })
 
-  ipcMain.handle('netease:album', (_event, value: unknown) => {
-    const id = asId(value)
-    if (id === null) return null
-    return guard<NeteaseAlbum | null>('album', null, () => client.neteaseAlbum(id))
-  })
+  ipcMain.handle('netease:album', (_event, value: unknown) => albumNetease({ albumId: value }))
+  registerProviderCapability('netease', 'album', albumNetease)
 
   ipcMain.handle('netease:artistTopSongs', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const limit = typeof args.limit === 'number' ? args.limit : 50
-    if (id === null) return []
-    return guard<NeteaseSong[]>('artistTopSongs', [], () => client.neteaseArtistTopSongs(id, limit))
+    return artistTopSongsNetease({ artistId: args.id, limit: args.limit })
   })
+  registerProviderCapability('netease', 'artistTopSongs', artistTopSongsNetease)
 
-  ipcMain.handle('netease:artistDetail', (_event, value: unknown) => {
-    const id = asId(value)
-    if (id === null) return null
-    return guard<NeteaseArtistDetail | null>('artistDetail', null, () => client.neteaseArtistDetail(id))
-  })
+  ipcMain.handle('netease:artistDetail', (_event, value: unknown) =>
+    artistDetailNetease({ artistId: value })
+  )
+  registerProviderCapability('netease', 'artistDetail', artistDetailNetease)
 
   ipcMain.handle('netease:artistSongs', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const limit = typeof args.limit === 'number' ? args.limit : 200
-    const offset = typeof args.offset === 'number' ? args.offset : 0
-    if (id === null) return []
-    return guard<NeteaseSong[]>('artistSongs', [], () => client.neteaseArtistSongs(id, limit, offset))
+    return artistSongsNetease({ artistId: args.id, limit: args.limit, offset: args.offset })
   })
+  registerProviderCapability('netease', 'artistSongs', artistSongsNetease)
 
   ipcMain.handle('netease:artistAlbums', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const limit = typeof args.limit === 'number' ? args.limit : 60
-    const offset = typeof args.offset === 'number' ? args.offset : 0
-    if (id === null) return []
-    return guard<NeteaseAlbumSummary[]>('artistAlbums', [], () => client.neteaseArtistAlbums(id, limit, offset))
+    return artistAlbumsNetease({ artistId: args.id, limit: args.limit, offset: args.offset })
   })
+  registerProviderCapability('netease', 'artistAlbums', artistAlbumsNetease)
 
   ipcMain.handle('netease:songDetail', (_event, value: unknown) => {
     const ids = asIds(value)

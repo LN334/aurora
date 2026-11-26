@@ -193,6 +193,52 @@ function likeKugou(args: unknown) {
   })
 }
 
+/*
+ * 专辑页与艺人页：一张专辑、一位艺人的资料、热门曲目、全部歌曲、专辑列表。
+ *
+ * 这一批只搬家——失败仍折回 null / 空数组，与旧通道逐字段一致。页面对空结果
+ * 各有各的说法，改语义要把三条页面一起改，留作单独一版。
+ */
+function albumKugou(args: unknown) {
+  return guard('album', null, async () => {
+    const albumId = asId(namedArgument(args, 'albumId'))
+    if (albumId === '') return null
+    return await kugouAlbum(albumId)
+  })
+}
+
+function artistKugou(args: unknown) {
+  return guard('artist', null, async () => {
+    const artistId = asId(namedArgument(args, 'artistId'))
+    if (artistId === '') return null
+    return await kugouArtist(artistId)
+  })
+}
+
+function artistSongsKugou(args: unknown) {
+  const rawLimit = namedArgument(args, 'limit')
+  const rawOffset = namedArgument(args, 'offset')
+  const limit = typeof rawLimit === 'number' && rawLimit > 0 ? Math.min(Math.trunc(rawLimit), 200) : 100
+  const offset = typeof rawOffset === 'number' && rawOffset > 0 ? Math.trunc(rawOffset) : 0
+  return guard('artistSongs', [], async () => {
+    const artistId = asId(namedArgument(args, 'artistId'))
+    if (artistId === '') return []
+    return await kugouArtistSongs(artistId, limit, offset)
+  })
+}
+
+function artistAlbumsKugou(args: unknown) {
+  const rawLimit = namedArgument(args, 'limit')
+  const rawOffset = namedArgument(args, 'offset')
+  const limit = typeof rawLimit === 'number' && rawLimit > 0 ? Math.min(Math.trunc(rawLimit), 200) : 60
+  const offset = typeof rawOffset === 'number' && rawOffset > 0 ? Math.trunc(rawOffset) : 0
+  return guard('artistAlbums', [], async () => {
+    const artistId = asId(namedArgument(args, 'artistId'))
+    if (artistId === '') return []
+    return await kugouArtistAlbums(artistId, limit, offset)
+  })
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -296,43 +342,23 @@ export function registerKugouIpc(): void {
   )
   registerProviderCapability('kugou', 'like', likeKugou)
 
-  ipcMain.handle('kugou:album', async (_event, id: unknown) =>
-    guard('album', null, async () => {
-      const albumId = asId(id)
-      if (albumId === '') return null
-      return await kugouAlbum(albumId)
-    })
-  )
+  ipcMain.handle('kugou:album', async (_event, id: unknown) => albumKugou({ albumId: id }))
+  registerProviderCapability('kugou', 'album', albumKugou)
 
-  ipcMain.handle('kugou:artist', async (_event, id: unknown) =>
-    guard('artist', null, async () => {
-      const artistId = asId(id)
-      if (artistId === '') return null
-      return await kugouArtist(artistId)
-    })
-  )
+  ipcMain.handle('kugou:artist', async (_event, id: unknown) => artistKugou({ artistId: id }))
+  registerProviderCapability('kugou', 'artistDetail', artistKugou)
 
   ipcMain.handle('kugou:artistSongs', async (_event, input: unknown) => {
     const params = asRecord(input)
-    const artistId = asId(params.id)
-    const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 200) : 100
-    const offset = typeof params.offset === 'number' ? Math.max(Math.trunc(params.offset), 0) : 0
-    return await guard('artistSongs', [], async () => {
-      if (artistId === '') return []
-      return await kugouArtistSongs(artistId, limit, offset)
-    })
+    return artistSongsKugou({ artistId: params.id, limit: params.limit, offset: params.offset })
   })
+  registerProviderCapability('kugou', 'artistSongs', artistSongsKugou)
 
   ipcMain.handle('kugou:artistAlbums', async (_event, input: unknown) => {
     const params = asRecord(input)
-    const artistId = asId(params.id)
-    const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 200) : 60
-    const offset = typeof params.offset === 'number' ? Math.max(Math.trunc(params.offset), 0) : 0
-    return await guard('artistAlbums', [], async () => {
-      if (artistId === '') return []
-      return await kugouArtistAlbums(artistId, limit, offset)
-    })
+    return artistAlbumsKugou({ artistId: params.id, limit: params.limit, offset: params.offset })
   })
+  registerProviderCapability('kugou', 'artistAlbums', artistAlbumsKugou)
 
   ipcMain.handle('kugou:dailyRecommend', async () =>
     guard('dailyRecommend', [], async () => await kugouDailyRecommend())

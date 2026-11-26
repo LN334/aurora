@@ -1,0 +1,64 @@
+import type { ProviderId } from './types.ts'
+import { askProvider, warnChannel } from './channel-core.ts'
+
+/**
+ * 专辑页与艺人页在渲染层的入口。
+ *
+ * 这一批只搬家、不改语义：失败仍折回 null / 空数组，与旧通道逐字段一致。
+ * 「读失败被画成专辑不存在」是既有问题，页面各自有 catch、有各自的说法，
+ * 要改得连页面一起改，留作单独一版。
+ */
+
+/** 一张专辑（曲目在里面）。 */
+export async function providerAlbum<T>(provider: ProviderId, albumId: number): Promise<T | null> {
+  const answer = await askProvider<T | null>(provider, 'album', { albumId })
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'album', answer.why)
+  return null
+}
+
+/** 艺人的简介、头像、作品数。 */
+export async function providerArtist<T>(provider: ProviderId, artistId: number): Promise<T | null> {
+  const answer = await askProvider<T | null>(provider, 'artistDetail', { artistId })
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'artistDetail', answer.why)
+  return null
+}
+
+/** 艺人的热门曲目。 */
+export async function providerArtistTopSongs<T>(
+  provider: ProviderId,
+  artistId: number,
+  limit?: number
+): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'artistTopSongs', { artistId, limit })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'artistTopSongs', answer.why)
+  return []
+}
+
+/** 艺人页「全部歌曲」的一页。 */
+export async function providerArtistSongs<T>(
+  provider: ProviderId,
+  artistId: number,
+  limit?: number,
+  offset?: number
+): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'artistSongs', { artistId, limit, offset })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'artistSongs', answer.why)
+  return []
+}
+
+/** 艺人页「专辑」的一页。 */
+export async function providerArtistAlbums<T>(
+  provider: ProviderId,
+  artistId: number,
+  limit?: number,
+  offset?: number
+): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'artistAlbums', { artistId, limit, offset })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'artistAlbums', answer.why)
+  return []
+}

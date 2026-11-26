@@ -10,6 +10,7 @@ import {
   providerPlaylistTracks
 } from './playlist-channel.ts'
 import { providerLike, providerLiked } from './likes-channel.ts'
+import { providerArtist, providerArtistSongs } from './catalog-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -22,6 +23,7 @@ import type { Track } from '../../types'
 
 type QishuiPlaylistRow = Awaited<ReturnType<QishuiApi['myPlaylists']>>[number]
 type QishuiTrackRow = Awaited<ReturnType<QishuiApi['playlistTracks']>>[number]
+type QishuiArtistRow = NonNullable<Awaited<ReturnType<QishuiApi['artistProfile']>>>
 
 /**
  * 汽水音乐作为第四个平台。
@@ -252,8 +254,12 @@ const qishuiBackend: PlatformBackend = {
 
   playlistOwned: (id) => providerPlaylistOwned<boolean | null>('qishui', id, null),
 
+  /*
+   * 汽水上游没有单独的「热门」接口：取全量歌曲的第一页就是热门。所以这一支走
+   * artistSongs 那条通道，而不是 artistTopSongs——后者汽水没有注册。
+   */
   async artistTopSongs(id, limit) {
-    const rows = (await client()?.artistSongs(id, limit)) ?? []
+    const rows = await providerArtistSongs<QishuiSong>('qishui', id, limit, 0)
     return rows.map((song) => asOnlineSong(song))
   },
 
@@ -348,7 +354,7 @@ const qishuiProvider: OnlineMusicProvider = {
      * 专辑列表」接口），页面会少显示这一段而不是编一个数字。
      */
     artist: async (id) => {
-      const profile = await client()?.artistProfile(id)
+      const profile = await providerArtist<QishuiArtistRow>('qishui', id)
       if (!profile) return null
       return {
         id,

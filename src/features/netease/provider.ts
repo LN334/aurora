@@ -1,4 +1,4 @@
-import type { NeteaseAccount, NeteaseQuality, NeteaseSong } from '../../env'
+import type { NeteaseAccount, NeteaseApi, NeteaseQuality, NeteaseSong } from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
 import type { LyricBundle } from '../lyrics/align'
@@ -14,6 +14,13 @@ import {
   providerPlaylistTracks
 } from '../online/playlist-channel.ts'
 import { providerLike, providerLiked } from '../online/likes-channel.ts'
+import {
+  providerAlbum,
+  providerArtist,
+  providerArtistAlbums,
+  providerArtistSongs,
+  providerArtistTopSongs
+} from '../online/catalog-channel.ts'
 import type { PlatformBackend } from '../online/store'
 import {
   playable,
@@ -53,6 +60,14 @@ type NeteaseExtras = {
 }
 
 const extras = netease as unknown as NeteaseExtras
+
+/*
+ * 通道把答复放宽成 unknown，形状仍只有一处定义：从桥自己的签名反推。
+ * 不另抄一份接口——抄了就会在上游加字段时悄悄过期。
+ */
+type NeteaseAlbumRow = NonNullable<Awaited<ReturnType<NeteaseApi['album']>>>
+type NeteaseArtistRow = NonNullable<Awaited<ReturnType<NeteaseApi['artistDetail']>>>
+type NeteaseAlbumCardRow = Awaited<ReturnType<NeteaseApi['artistAlbums']>>[number]
 
 /**
  * Netease's tiers, worst to best, exactly as the main process accepts them.
@@ -143,10 +158,10 @@ const neteaseBackend: PlatformBackend = {
   myPlaylists: () => providerMyPlaylists<OnlinePlaylistSummary>('netease'),
   playlistTracks: (id) => providerPlaylistTracks<OnlineSong>('netease', id),
   playlistCreator: (id) => providerPlaylistCreator('netease', id),
-  artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
+  artistTopSongs: (id, limit) => providerArtistTopSongs<NeteaseSong>('netease', id, limit),
 
   async albumSongs(id) {
-    const album = await netease.album(id)
+    const album = await providerAlbum<NeteaseAlbumRow>('netease', id)
     return album?.songs ?? []
   },
 
@@ -267,7 +282,7 @@ const neteaseBackend: PlatformBackend = {
 
   catalog: {
     album: async (id) => {
-      const album = await netease.album(id)
+      const album = await providerAlbum<NeteaseAlbumRow>('netease', id)
       if (!album) return null
       return {
         id: album.id,
@@ -280,7 +295,7 @@ const neteaseBackend: PlatformBackend = {
       }
     },
     artist: async (id) => {
-      const detail = await netease.artistDetail(id)
+      const detail = await providerArtist<NeteaseArtistRow>('netease', id)
       if (!detail) return null
       return {
         id,
@@ -291,14 +306,14 @@ const neteaseBackend: PlatformBackend = {
         songCount: detail.songCount
       }
     },
-    artistTopSongs: (id, limit) => netease.artistTopSongs(id, limit),
+    artistTopSongs: (id, limit) => providerArtistTopSongs<NeteaseSong>('netease', id, limit),
     /*
      * 艺人页那两个标签页从前由页面直接调 `bridge.netease`，别的平台就没有。
      * 搬进 catalog 之后四家走同一条路，页面按「有没有这个方法」决定给不给入口。
      */
-    artistSongs: (id, limit, offset) => netease.artistSongs(id, limit, offset),
+    artistSongs: (id, limit, offset) => providerArtistSongs<NeteaseSong>('netease', id, limit, offset),
     async artistAlbums(id, limit, offset) {
-      const rows = await netease.artistAlbums(id, limit, offset)
+      const rows = await providerArtistAlbums<NeteaseAlbumCardRow>('netease', id, limit, offset)
       return rows.map((row) => ({
         id: row.id,
         name: row.name,

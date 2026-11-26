@@ -15,6 +15,7 @@ import {
   providerPlaylistTracks
 } from './playlist-channel.ts'
 import { providerCollectedAlbums, providerLike, providerLiked } from './likes-channel.ts'
+import { providerAlbum } from './catalog-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -29,6 +30,7 @@ import type { Track } from '../../types'
 type QqOwnedPlaylist = { id: number; name: string }
 type QqTrackRow = Awaited<ReturnType<QqApi['playlistTracks']>>[number]
 type QqCollectedAlbumRow = Awaited<ReturnType<QqApi['collectedAlbums']>>[number]
+type QqAlbumBundleRow = NonNullable<Awaited<ReturnType<QqApi['album']>>>
 
 /**
  * QQ Music as a provider.
@@ -366,7 +368,7 @@ const qqBackend: PlatformBackend = {
 
   catalog: {
     async album(id) {
-      const bundle = await client()?.album(id)
+      const bundle = await providerAlbum<QqAlbumBundleRow>('qq', id)
       if (!bundle) return null
       return {
         id: bundle.detail.id,

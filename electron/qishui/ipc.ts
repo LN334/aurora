@@ -186,6 +186,28 @@ function likeQishui(args: unknown) {
   })
 }
 
+/*
+ * 艺人页：资料与全部歌曲。汽水没有专辑页，上游的艺人歌曲也没有分页，offset 忽略。
+ *
+ * 这一批只搬家——失败仍折回 null / 空数组，与旧通道逐字段一致。
+ */
+function artistProfileQishui(args: unknown) {
+  return guard('artistProfile', null, async () => {
+    const alias = asAlias(namedArgument(args, 'artistId'))
+    return alias ? await qishuiArtistProfile(alias) : null
+  })
+}
+
+function artistSongsQishui(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 200) : 100
+  return guard('artistSongs', [], async () => {
+    const alias = asAlias(namedArgument(args, 'artistId'))
+    if (!alias) return []
+    return await qishuiArtistSongs(alias, limit)
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -262,22 +284,15 @@ export function registerQishuiIpc(): void {
   registerProviderCapability('qishui', 'playlistOwned', playlistOwnedQishui)
 
   ipcMain.handle('qishui:artistProfile', async (_event, id: unknown) =>
-    guard('artistProfile', null, async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiArtistProfile(alias) : null
-    })
+    artistProfileQishui({ artistId: id })
   )
+  registerProviderCapability('qishui', 'artistDetail', artistProfileQishui)
 
   ipcMain.handle('qishui:artistSongs', async (_event, input: unknown) => {
     const params = asRecord(input)
-    const alias = asAlias(params.artistId)
-    const limit =
-      typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 200) : 100
-    return await guard('artistSongs', [], async () => {
-      if (!alias) return []
-      return await qishuiArtistSongs(alias, limit)
-    })
+    return artistSongsQishui({ artistId: params.artistId, limit: params.limit })
   })
+  registerProviderCapability('qishui', 'artistSongs', artistSongsQishui)
 
   ipcMain.handle('qishui:liked', async (_event, limit: unknown) => likedQishui({ limit }))
   registerProviderCapability('qishui', 'liked', likedQishui)

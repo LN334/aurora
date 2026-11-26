@@ -229,6 +229,14 @@ function collectedAlbumsQq(args: unknown): Promise<QqCollectedAlbum[]> {
   return guard<QqCollectedAlbum[]>('collectedAlbums', [], () => client.qqCollectedAlbums(limit))
 }
 
+/** 一张专辑（曲目在里面）。QQ 没有艺人页，所以只有这一条。 */
+function albumQq(args: unknown): Promise<QqAlbumBundle | null> {
+  const raw = namedArgument(args, 'albumId')
+  const id = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : 0
+  if (!id) return Promise.resolve<null>(null)
+  return guard<QqAlbumBundle | null>('album', null, () => client.qqAlbum(id))
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -399,10 +407,6 @@ export function registerQqIpc(): void {
     return guard<QqFollowedArtist[]>('followedArtists', [], () => client.qqFollowedArtists(limit))
   })
 
-  ipcMain.handle('qq:album', (_event, value: unknown) => {
-    // Album ids are numeric and only ever come from our own lists.
-    const id = typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0
-    if (!id) return Promise.resolve<null>(null)
-    return guard<QqAlbumBundle | null>('album', null, () => client.qqAlbum(id))
-  })
+  ipcMain.handle('qq:album', (_event, value: unknown) => albumQq({ albumId: value }))
+  registerProviderCapability('qq', 'album', albumQq)
 }
