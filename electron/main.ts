@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import { loadSettings, saveSettings } from './settings'
 import { syncLoginItem } from './login-item'
 import { hideWindowBorder } from './window-border'
+import { markWindowVisible } from './window-visible'
 import { releaseSleepBlocker } from './power'
 import { handleMediaProtocol, registerMediaScheme } from './protocols/media-protocol'
 import { handleRemoteProtocol, registerRemoteScheme } from './protocols/remote-protocol'
@@ -432,6 +433,8 @@ function createWindow(): void {
       window.webContents.setZoomFactor(bootZoom)
     }
     window.show()
+    // 上游首次 require 会占住事件循环一秒多；放行那些 IPC 的人正是这里。
+    markWindowVisible()
     write(`window shown +${Date.now() - bootAt}ms`)
     installThumbar(window, lastPlaying, sendMediaCommand)
   })

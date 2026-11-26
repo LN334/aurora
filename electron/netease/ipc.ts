@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { write } from '../startup-log'
+import { whenWindowVisible } from '../window-visible'
 import { loadSettings, saveSettings } from '../settings'
 import * as client from './client'
 import { describeFailure } from './reasons'
@@ -151,6 +152,12 @@ async function guard<T>(
    */
   strict = false
 ): Promise<T> {
+  /*
+   * 上游包第一次 require 要一秒多，而它是同步的：主进程的事件循环被占住时，
+   * 渲染进程画完的首帧也只能排在后面，窗口跟着一起晚出现（见 window-visible.ts）。
+   * 等窗口露过脸再动手，这几百毫秒就落在页面里，不再是「点了图标愣两秒」。
+   */
+  await whenWindowVisible()
   try {
     const value = await run()
     // 成功路径也记（只记失败看不出是哪一步返回了空结果）。label 不含参数，避免密码进日志。
