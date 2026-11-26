@@ -6,7 +6,8 @@ import {
   providerArtist,
   providerArtistAlbums,
   providerArtistSongs,
-  providerArtistTopSongs
+  providerArtistTopSongs,
+  providerNewAlbums
 } from '../src/features/online/catalog-channel.ts'
 
 /**
@@ -119,4 +120,28 @@ test('答了 ok 但值形状不对时按空处理，不把 undefined 交给页�
 test('答了 ok 但数组位置给的是对象时也算空，页面拿到的一定是数组', async () => {
   install(() => ({ ok: true, value: { id: 3 } }))
   assert.deepEqual(await providerArtistTopSongs('qishui', 1), [])
+})
+
+/**
+ * 新碟榜。它不是某一页的详情，而是首页那排「推荐专辑」的来源；三家里只有网易云
+ * 真有这张榜，另外两家从新歌榜里抽专辑。通道名按动作叫 newAlbums（不是 topAlbums——
+ * 那是旧桥的方法名，混用会得到一个 unsupported-capability）。
+ */
+test('新碟榜那条叫 newAlbums，参数是 { limit, offset }', async () => {
+  const calls = install(() => ({ ok: true, value: [{ id: 7, name: '龙年' }] }))
+  assert.deepEqual(await providerNewAlbums('netease', 24, 48), [{ id: 7, name: '龙年' }])
+  assert.equal(calls[0].capability, 'newAlbums')
+  assert.deepEqual(calls[0].args, { limit: 24, offset: 48 })
+})
+
+test('新碟榜读失败折回空数组，理由写进 warn', async () => {
+  install(() => ({ ok: false, error: { code: 'handler-failed', message: 'boom' } }))
+  const warnings = collectWarnings()
+  try {
+    assert.deepEqual(await providerNewAlbums('netease', 24), [])
+  } finally {
+    warnings.restore()
+  }
+  assert.equal(warnings.lines.length, 1)
+  assert.ok(warnings.lines[0].includes('netease.newAlbums'))
 })

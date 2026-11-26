@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { bridge } from '../../bridge'
 import { roamPlatforms } from '../player/roam-sources'
 import { usePushPlatforms } from './push-platforms'
+import { providerNewAlbums } from './catalog-channel.ts'
 import { providerNewSongs } from './recommend-channel.ts'
 import type { ProviderId } from './types'
 
@@ -23,10 +24,18 @@ import { mergeAlbumCards, type AlbumCard } from './album-merge'
  */
 type AlbumSource = (limit: number, offset?: number) => Promise<AlbumCard[]>
 
+/** 新碟榜一行；字段名沿用主进程的类型声明（不再来自桥上的对象）。 */
+interface NewAlbumRow {
+  id: number
+  name: string
+  coverUrl: string | null
+  artistName: string
+  artistId: number
+  year: number
+}
+
 const neteaseAlbums: AlbumSource = async (limit, offset) => {
-  const api = window.aurora?.netease
-  if (!api?.topAlbums) return []
-  const list = await api.topAlbums(limit, offset)
+  const list = await providerNewAlbums<NewAlbumRow>('netease', limit, offset)
   return (list ?? [])
     .filter((row) => row.id > 0 && row.name)
     .map((row) => ({

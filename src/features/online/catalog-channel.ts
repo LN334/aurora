@@ -50,6 +50,26 @@ export async function providerArtistSongs<T>(
   return []
 }
 
+/**
+ * 平台的新碟榜。
+ *
+ * 与上面几支不同的是：它不是用户数据，也不属于任何一页的详情——首页那排
+ * 推荐专辑要的是「平台在推什么」。目前只有网易云真有这张榜，另外两家是从
+ * 新歌榜里抽专辑（走 newSongs 通道，各自在渲染层拼）。
+ *
+ * limit 是本次要几张，缺了按主进程的 24。
+ */
+export async function providerNewAlbums<T>(
+  provider: ProviderId,
+  limit?: number,
+  offset?: number
+): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'newAlbums', { limit, offset })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'newAlbums', answer.why)
+  return []
+}
+
 /** 艺人页「专辑」的一页。 */
 export async function providerArtistAlbums<T>(
   provider: ProviderId,

@@ -413,6 +413,21 @@ async function commentLikeNetease(args: unknown): Promise<CommentWriteResult> {
   )
 }
 
+/**
+ * 新碟榜：首页「推荐专辑」那排里唯一真·榜单的来源。
+ *
+ * 它不看账号（新碟不是用户数据），所以也不需要 status 那一层。判据逐字照搬
+ * 旧 handle：非有限数就退回 24 / 0，不做上下限收紧——要多少由调用方算。
+ */
+async function newAlbumsNetease(args: unknown): Promise<NeteaseCollectedAlbum[]> {
+  const payload = asRecord(args)
+  const limit =
+    typeof payload.limit === 'number' && Number.isFinite(payload.limit) ? payload.limit : 24
+  const offset =
+    typeof payload.offset === 'number' && Number.isFinite(payload.offset) ? payload.offset : 0
+  return guard<NeteaseCollectedAlbum[]>('topAlbums', [], () => client.neteaseTopAlbums(limit, offset))
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -520,13 +535,9 @@ export function registerNeteaseIpc(): void {
   )
 
   ipcMain.handle('netease:topAlbums', (_event, limit: unknown, offset: unknown) =>
-    guard<NeteaseCollectedAlbum[]>('topAlbums', [], () =>
-      client.neteaseTopAlbums(
-        typeof limit === 'number' && Number.isFinite(limit) ? limit : 24,
-        typeof offset === 'number' && Number.isFinite(offset) ? offset : 0
-      )
-    )
+    newAlbumsNetease({ limit, offset })
   )
+  registerProviderCapability('netease', 'newAlbums', newAlbumsNetease)
 
   ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => playlistTracksNetease(value))
   registerProviderCapability('netease', 'playlistTracks', playlistTracksNetease)
