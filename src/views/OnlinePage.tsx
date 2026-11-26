@@ -3,6 +3,7 @@ import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
 import { sourceLabelById, getProvider } from '../features/online/registry'
 import { songsAcrossPlatforms } from '../features/online/artist-merge'
+import { albumAcrossPlatforms, type AlbumOnPlatform } from '../features/online/album-unify'
 import { mergeVersions, sourcesOf } from '../features/online/unify'
 import { sourceOrder } from '../features/settings/source-order'
 import { useOnlineStore, type PlatformBackend } from '../features/online/store'
@@ -267,10 +268,11 @@ function PlaylistPage({
 }
 
 /**
- * 网易云的专辑页。
+ * 专辑页。
  *
- * 只有网易云有这两类取数接口。别的平台在这一层不装作有：不给入口，也就不存在
- * 点进来一堆空格子的事。
+ * 主平台先画，别家后到：同一张唱片在几家平台上各有一份时，这里的曲目会被合并成
+ * 一行一首、行尾挂各自的来源徽章，页头的「来源」把几家一起列出来。合并只认曲目
+ * 指纹（标题 + 主艺人 + 时长档），名字相同但曲目对不上的是另一张碟，不并。
  */
 function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   const [title, setTitle] = useState('')
@@ -279,15 +281,16 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
   const [year, setYear] = useState<number | null>(null)
   const [brief, setBrief] = useState('')
   const [tracks, setTracks] = useState<Track[]>([])
+  const [others, setOthers] = useState<AlbumOnPlatform[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const currentTrack = usePlayer((s) => (s.index >= 0 ? (s.queue[s.index] ?? null) : null))
   const playing = usePlayer((s) => s.playing)
-  const platform = getProvider(providerId as ProviderId)
 
   useEffect(() => {
     let live = true
     setTracks([])
+    setOthers([])
     setError(null)
 
     const load = async () => {
@@ -326,6 +329,22 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         setArtists(credits)
         setYear(album.year ?? null)
         setBrief(album.description ?? '')
+        /*
+         * 别家的同一张唱片是后找的：首屏不等它。找到了才把列表换掉——换的时候
+         * 主平台的顺序不变，别家独有的曲目接在后面。
+         */
+        const primary: AlbumOnPlatform = {
+          providerId,
+          label: sourceLabelById(providerId),
+          name: album.name,
+          artistName: lead?.albumArtist || lead?.artist || '',
+          tracks: rows
+        }
+        void albumAcrossPlatforms(primary, sourceOrder()).then((across) => {
+          if (!live || across.others.length === 0) return
+          setOthers(across.others)
+          setTracks(across.tracks)
+        })
       } catch (failure) {
         if (live) setError(failure instanceof Error ? failure.message : String(failure))
       }
@@ -375,7 +394,10 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
         stats={[
           { value: tracks.length, label: '曲目' },
           { value: year ? String(year) : '—', label: '发行' },
-          { value: platform?.displayName ?? '在线', label: '平台' }
+          {
+            value: [sourceLabelById(providerId), ...others.map((other) => other.label)].join(' · '),
+            label: '来源'
+          }
         ]}
         brief={brief}
       />

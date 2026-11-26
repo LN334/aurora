@@ -50,6 +50,18 @@ test('时长差 2 秒内合并，差 30 秒不合并', () => {
   assert.notEqual(trackKey(a), trackKey(live))
 })
 
+test('差一秒不会被分档拆开：127 与 128 是同一首', () => {
+  const qq = track({ title: '十男九痔', artist: '华云龙KLE', source: 'qq', duration: 127 })
+  const kugou = track({ title: '十男九痔', artist: '华云龙KLE', source: 'kugou', duration: 128 })
+  assert.equal(mergeVersions([qq, kugou]).length, 1)
+})
+
+test('差三秒就是两个版本，不合并', () => {
+  const a = track({ title: '稻香', source: 'netease', duration: 223 })
+  const b = track({ title: '稻香', source: 'qq', duration: 227 })
+  assert.equal(mergeVersions([a, b]).length, 2)
+})
+
 test('时长 0 不与已知时长合并', () => {
   assert.equal(durationBucket(0), 0)
   assert.notEqual(durationBucket(0), durationBucket(200))

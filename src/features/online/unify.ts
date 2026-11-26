@@ -9,9 +9,10 @@ import type { Track } from '../../types'
  * 1. 标题归一后相等（去掉 feat. 段、大小写、空白、全角差异）；
  * 2. 主艺人归一后相等（只比第一个艺人：合唱曲在两家平台的艺人顺序常常不同，
  *    比全部艺人会把同一首拆成两行）；
- * 3. 时长落在同一档（每 5 秒一档，等价于 ±2 秒容差）。
+ * 3. 时长相差不超过 2.5 秒。
  *
- * 时长未知（0）时只按前两条合并：宁可偶有多版本并一起，也不把同一首拆开。
+ * 第三条曾经是「每 5 秒一档」的桶比较，那样 127 与 128 会落进两档，同一首歌被拆
+ * 成两行。现在先按前两条分组，再在组内按时长分簇。
  */
 
 /** 艺人之间的分隔写法：两家平台都用这些。 */
@@ -45,10 +46,33 @@ export function durationBucket(seconds: number): number {
   return Math.round(seconds / 5)
 }
 
-/** 一首歌的合并键。 */
+/**
+ * 一首歌的合并键（不带时长）。
+ *
+ * 时长不参与分组：上游报的秒数各差一点是常态，127 与 128 在 5 秒一档里会落到
+ * 两档，同一首歌就并成了两行。时长放到桶内比较，见 `versionsMatch`。
+ */
+export function versionKey(track: Track): string {
+  return `${normalizeTitle(track.title)}|${primaryArtist(track.artist)}`
+}
+
+/** 同一首的两个版本，时长最多差这么多秒。 */
+const DURATION_TOLERANCE = 2.5
+
+/**
+ * 两个版本是不是同一首。
+ *
+ * 时长未知（0）只与同为未知的配对：未知与 3 分 20 秒谈不上「差两秒内」，让它们
+ * 合并等于让所有时长缺失的歌互相吞掉。
+ */
+export function versionsMatch(a: Track, b: Track): boolean {
+  if (!a.duration || !b.duration) return !a.duration && !b.duration
+  return Math.abs(a.duration - b.duration) <= DURATION_TOLERANCE
+}
+
+/** 一首歌的合并键，含时长档。给只做「键相等」比较的调用方用。 */
 export function trackKey(track: Track): string {
-  const bucket = durationBucket(track.duration)
-  return `${normalizeTitle(track.title)}|${primaryArtist(track.artist)}|${bucket}`
+  return `${versionKey(track)}|${durationBucket(track.duration)}`
 }
 
 /**
@@ -72,17 +96,20 @@ function rank(source: string | undefined, order: readonly string[]): number {
  * 一模一样的版本。
  */
 export function mergeVersions(tracks: Track[], order: readonly string[] = DEFAULT_SOURCE_ORDER): Track[] {
-  const groups = new Map<string, Track[]>()
+  const buckets = new Map<string, Track[]>()
 
   for (const track of tracks) {
-    const key = trackKey(track)
-    const group = groups.get(key)
-    if (group) group.push(track)
-    else groups.set(key, [track])
+    const key = versionKey(track)
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(track)
+    else buckets.set(key, [track])
   }
 
+  // 同一个「标题 + 艺人」下可能真的有两首（原版与现场），所以再按时长分簇。
+  const groups = [...buckets.values()].flatMap(clusterByDuration)
+
   const merged: Track[] = []
-  for (const group of groups.values()) {
+  for (const group of groups) {
     const seen = new Set<string>()
     const unique = group.filter((track) => {
       const id = `${track.source ?? 'local'}:${track.onlineId ?? track.id}`
@@ -97,6 +124,24 @@ export function mergeVersions(tracks: Track[], order: readonly string[] = DEFAUL
   }
 
   return merged
+}
+
+/** 桶内按时长分簇：第一首当锚，与锚差不超过容差的归同一簇。 */
+function clusterByDuration(bucket: readonly Track[]): Track[][] {
+  const clusters: Track[][] = []
+  for (const track of bucket) {
+    let placed = false
+    for (const cluster of clusters) {
+      const anchor = cluster[0]
+      if (anchor && versionsMatch(anchor, track)) {
+        cluster.push(track)
+        placed = true
+        break
+      }
+    }
+    if (!placed) clusters.push([track])
+  }
+  return clusters
 }
 
 /** 这一行涉及的全部平台（含主行自己），按给定优先级去重。 */
