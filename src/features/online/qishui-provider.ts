@@ -19,6 +19,7 @@ import {
 import { providerLike, providerLiked } from './likes-channel.ts'
 import { providerArtist, providerArtistSongs, providerSongById } from './catalog-channel.ts'
 import { providerSearch } from './search-channel.ts'
+import { providerReady } from './channel-core.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerDailySongs, providerPersonalFm } from './recommend-channel.ts'
 import { providerComments } from './comment-channel.ts'
@@ -45,16 +46,13 @@ type QishuiStreamRow = Awaited<ReturnType<QishuiApi['streamUrl']>>
  * 三处不同值得写下来：
  *
  * 1. 后端是主进程里 require 的一个 npm SDK，没有本地服务、没有端口；
- *    这里同样只问「有没有」，浏览器里 window.aurora.qishui 是 null。
+ *    这里同样只问「有没有」，浏览器里没有主进程，名单为空。
  * 2. 所有 id 都是主进程发的数字别名（上游是 19 位字符串），这里原样传，不猜形状。
  * 3. 上游只有歌曲搜索与艺人歌曲，没有专辑搜索、没有专辑页，所以 albums 声明为
  *    false，界面上也就不会给出一个点进去是空的入口。
  */
 
-function client(): QishuiApi | null {
-  if (typeof window === 'undefined') return null
-  return window.aurora?.qishui ?? null
-}
+/** 判活问通道自己报的名单。 */
 
 /** 主进程报的就绪情况与账号，形状沿用桥的声明。 */
 type QishuiStatus = Awaited<ReturnType<QishuiApi['status']>>
@@ -303,7 +301,7 @@ const qishuiProvider: OnlineMusicProvider = {
   disclosure:
     '通过第三方逆向接口（qishui-music-api）接入，仅供个人学习自用，不是官方客户端，也不提供绕过付费或会员的能力。',
   anonymousNote: '未登录也能搜索并播放免费歌曲（标准音质）；歌单与高音质需要登录。',
-  available: () => previewBackendsForced() || client() !== null,
+  available: () => previewBackendsForced() || providerReady('qishui'),
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
   qualityTiers: TIERS,

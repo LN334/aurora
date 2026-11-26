@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import { whenWindowVisible } from '../window-visible'
 import { loadSettings, saveSettings } from '../settings'
@@ -559,125 +558,43 @@ export function registerNeteaseIpc(): void {
    * renderer, so the renderer has to say. Registered first because every other
    * handler below depends on it having been called at least once.
    */
-  ipcMain.handle('netease:setProfile', (_event, value: unknown) => setProfileNetease({ profileId: value }))
   registerProviderCapability('netease', 'setProfile', setProfileNetease)
-
-  ipcMain.handle('netease:accountFor', (_event, value: unknown) => accountForNetease(value))
   registerProviderCapability('netease', 'accountFor', accountForNetease)
-
-  ipcMain.handle('netease:logoutProfile', (_event, value: unknown) => logoutProfileNetease(value))
   registerProviderCapability('netease', 'logoutProfile', logoutProfileNetease)
-
-  ipcMain.handle('netease:status', () => statusNetease())
   registerProviderCapability('netease', 'status', statusNetease)
-
-  ipcMain.handle('netease:search', (_event, payload: unknown) => searchNetease(payload))
   registerProviderCapability('netease', 'search', searchNetease)
-
-  ipcMain.handle('netease:streamUrl', (_event, payload: unknown) => streamUrlNetease(payload))
   registerProviderCapability('netease', 'playback', streamUrlNetease)
-
-  ipcMain.handle('netease:lyrics', (_event, value: unknown) => lyricsNetease(value))
   registerProviderCapability('netease', 'lyrics', lyricsNetease)
-
-  ipcMain.handle('netease:commentSend', (_event, payload: unknown) => commentSendNetease(payload))
   registerProviderCapability('netease', 'commentSend', commentSendNetease)
-
-  ipcMain.handle('netease:commentLike', (_event, payload: unknown) => commentLikeNetease(payload))
   registerProviderCapability('netease', 'commentLike', commentLikeNetease)
-
-  ipcMain.handle('netease:comments', (_event, payload: unknown) => commentsNetease(payload))
   registerProviderCapability('netease', 'comments', commentsNetease)
-
-  ipcMain.handle('netease:album', (_event, value: unknown) => albumNetease({ albumId: value }))
   registerProviderCapability('netease', 'album', albumNetease)
-
-  ipcMain.handle('netease:artistTopSongs', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return artistTopSongsNetease({ artistId: args.id, limit: args.limit })
-  })
   registerProviderCapability('netease', 'artistTopSongs', artistTopSongsNetease)
-
-  ipcMain.handle('netease:artistDetail', (_event, value: unknown) =>
-    artistDetailNetease({ artistId: value })
-  )
   registerProviderCapability('netease', 'artistDetail', artistDetailNetease)
-
-  ipcMain.handle('netease:artistSongs', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return artistSongsNetease({ artistId: args.id, limit: args.limit, offset: args.offset })
-  })
   registerProviderCapability('netease', 'artistSongs', artistSongsNetease)
-
-  ipcMain.handle('netease:artistAlbums', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return artistAlbumsNetease({ artistId: args.id, limit: args.limit, offset: args.offset })
-  })
   registerProviderCapability('netease', 'artistAlbums', artistAlbumsNetease)
-
-  ipcMain.handle('netease:songDetail', (_event, value: unknown) => songDetailNetease({ ids: value }))
   registerProviderCapability('netease', 'songDetail', songDetailNetease)
-
-  ipcMain.handle('netease:qrCreate', () => qrCreateNetease())
   registerProviderCapability('netease', 'qrCreate', qrCreateNetease)
-
-  ipcMain.handle('netease:qrCheck', (_event, value: unknown) => qrCheckNetease(value))
   registerProviderCapability('netease', 'qrCheck', qrCheckNetease)
-
-  ipcMain.handle('netease:loginCellphone', (_event, payload: unknown) => loginCellphoneNetease(payload))
   registerProviderCapability('netease', 'loginCellphone', loginCellphoneNetease)
-
-  ipcMain.handle('netease:loginStatus', () => loginStatusNetease())
   registerProviderCapability('netease', 'loginStatus', loginStatusNetease)
-
-  ipcMain.handle('netease:logout', () => logoutNetease())
   registerProviderCapability('netease', 'logout', logoutNetease)
-
-  ipcMain.handle('netease:myPlaylists', () => myPlaylistsNetease())
   registerProviderCapability('netease', 'myPlaylists', myPlaylistsNetease)
-
-  ipcMain.handle('netease:albumSublist', () => collectedAlbumsNetease())
   registerProviderCapability('netease', 'collectedAlbums', collectedAlbumsNetease)
-
-  ipcMain.handle('netease:artistSublist', () => followedArtistsNetease())
   registerProviderCapability('netease', 'followedArtists', followedArtistsNetease)
-
-  ipcMain.handle('netease:topAlbums', (_event, limit: unknown, offset: unknown) =>
-    newAlbumsNetease({ limit, offset })
-  )
   registerProviderCapability('netease', 'newAlbums', newAlbumsNetease)
-
-  ipcMain.handle('netease:playlistTracks', (_event, value: unknown) => playlistTracksNetease(value))
   registerProviderCapability('netease', 'playlistTracks', playlistTracksNetease)
-
-  ipcMain.handle('netease:playlistCreator', (_event, value: unknown) => playlistCreatorNetease(value))
   registerProviderCapability('netease', 'playlistCreator', playlistCreatorNetease)
-
-  ipcMain.handle('netease:dailySongs', () => dailySongsNetease())
   registerProviderCapability('netease', 'dailySongs', dailySongsNetease)
-
-  ipcMain.handle('netease:personalFm', (_event, limit: unknown) =>
-    personalFmNetease({ limit })
-  )
   registerProviderCapability('netease', 'personalFm', personalFmNetease)
-
-  ipcMain.handle('netease:discover', (_event, payload: unknown) => discoverNetease(payload))
   registerProviderCapability('netease', 'discover', discoverNetease)
-
-  ipcMain.handle('netease:cloudSongs', () => cloudSongsNetease())
   registerProviderCapability('netease', 'cloudSongs', cloudSongsNetease)
-
-  ipcMain.handle('netease:likeList', () => likedNetease())
   registerProviderCapability('netease', 'liked', likedNetease)
 
   /*
    * 写操作：喜欢/取消喜欢。和其它通道一样不 reject——页面拿到 false 就说明
    * 「这次没改成」，可以提示登录或稍后重试，而不是在播放中途抛一个未处理异常。
    */
-  ipcMain.handle('netease:like', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return likeNetease({ songId: args.id, liked: args.liked })
-  })
   registerProviderCapability('netease', 'like', likeNetease)
 
   /*
@@ -687,41 +604,11 @@ export function registerNeteaseIpc(): void {
    * 这些改动会改到平台账号，所以每一处都先过 asId/asText 的类型闸门——歌单 id
    * 是用户点出来的，但代码路径上它仍然是 unknown。
    */
-  ipcMain.handle('netease:playlistCreate', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return playlistCreateNetease({ name: args.name })
-  })
   registerProviderCapability('netease', 'playlistCreate', playlistCreateNetease)
-
-  ipcMain.handle('netease:playlistAddTracks', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return playlistAddTracksNetease({ playlistId: args.id, songIds: args.trackIds })
-  })
   registerProviderCapability('netease', 'playlistAddTracks', playlistAddTracksNetease)
-
-  ipcMain.handle('netease:playlistRemoveTracks', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return playlistRemoveTracksNetease({ playlistId: args.id, songIds: args.trackIds })
-  })
   registerProviderCapability('netease', 'playlistRemoveTracks', playlistRemoveTracksNetease)
-
-  ipcMain.handle('netease:playlistRename', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return playlistRenameNetease({ playlistId: args.id, name: args.name })
-  })
   registerProviderCapability('netease', 'playlistRename', playlistRenameNetease)
-
-  ipcMain.handle('netease:playlistDelete', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    return playlistDeleteNetease({ playlistId: args.id })
-  })
   registerProviderCapability('netease', 'playlistDelete', playlistDeleteNetease)
-
-  ipcMain.handle('netease:getQuality', () => qualityGetNetease())
   registerProviderCapability('netease', 'qualityGet', qualityGetNetease)
-
-  ipcMain.handle('netease:setQuality', (_event, value: unknown) =>
-    qualitySetNetease({ quality: value })
-  )
   registerProviderCapability('netease', 'qualitySet', qualitySetNetease)
 }

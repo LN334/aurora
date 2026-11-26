@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import type { CommentPage } from '../comments'
 import {
@@ -282,85 +281,30 @@ function playlistTracksEditQishui(args: unknown): Promise<boolean> {
 }
 
 export function registerQishuiIpc(): void {
-  ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
-    await setProfileQishui({ profileId })
-  )
   registerProviderCapability('qishui', 'setProfile', setProfileQishui)
-
-  ipcMain.handle('qishui:status', async () => statusQishui())
   registerProviderCapability('qishui', 'status', statusQishui)
-
-  ipcMain.handle('qishui:loginStatus', async () => loginStatusQishui())
   registerProviderCapability('qishui', 'loginStatus', loginStatusQishui)
-
-  ipcMain.handle('qishui:qrCreate', async () => qrCreateQishui())
   registerProviderCapability('qishui', 'qrCreate', qrCreateQishui)
-
-  ipcMain.handle('qishui:qrCheck', async (_event, key: unknown) => qrCheckQishui(key))
   registerProviderCapability('qishui', 'qrCheck', qrCheckQishui)
-
-  ipcMain.handle('qishui:logout', async () => logoutQishui())
   registerProviderCapability('qishui', 'logout', logoutQishui)
-
-  ipcMain.handle('qishui:search', (_event, input: unknown) => searchQishui(input))
   registerProviderCapability('qishui', 'search', searchQishui)
-
-  ipcMain.handle('qishui:searchPlaylists', async (_event, input: unknown) =>
-    searchPlaylistsQishui(input)
-  )
   registerProviderCapability('qishui', 'searchPlaylists', searchPlaylistsQishui)
-
-  ipcMain.handle('qishui:song', async (_event, id: unknown) => await songQishui({ songId: id }))
   registerProviderCapability('qishui', 'song', songQishui)
-
-  ipcMain.handle('qishui:streamUrl', async (_event, input: unknown) => await streamUrlQishui(input))
   registerProviderCapability('qishui', 'playback', streamUrlQishui)
-
-  ipcMain.handle('qishui:lyrics', async (_event, id: unknown) => lyricsQishui(id))
   registerProviderCapability('qishui', 'lyrics', lyricsQishui)
-
-  ipcMain.handle('qishui:comments', async (_event, input: unknown) => commentsQishui(input))
   registerProviderCapability('qishui', 'comments', commentsQishui)
-
-  ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => myPlaylistsQishui(limit))
   registerProviderCapability('qishui', 'myPlaylists', myPlaylistsQishui)
-
-  ipcMain.handle('qishui:playlistTracks', async (_event, id: unknown) => playlistTracksQishui(id))
   registerProviderCapability('qishui', 'playlistTracks', playlistTracksQishui)
-
-  ipcMain.handle('qishui:playlistCreator', async (_event, id: unknown) => playlistCreatorQishui(id))
   registerProviderCapability('qishui', 'playlistCreator', playlistCreatorQishui)
-
-  ipcMain.handle('qishui:playlistOwned', async (_event, id: unknown) => playlistOwnedQishui(id))
   registerProviderCapability('qishui', 'playlistOwned', playlistOwnedQishui)
-
-  ipcMain.handle('qishui:artistProfile', async (_event, id: unknown) =>
-    artistProfileQishui({ artistId: id })
-  )
   registerProviderCapability('qishui', 'artistDetail', artistProfileQishui)
-
-  ipcMain.handle('qishui:artistSongs', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    return artistSongsQishui({ artistId: params.artistId, limit: params.limit })
-  })
   registerProviderCapability('qishui', 'artistSongs', artistSongsQishui)
-
-  ipcMain.handle('qishui:liked', async (_event, limit: unknown) => likedQishui({ limit }))
   registerProviderCapability('qishui', 'liked', likedQishui)
 
   // 上游一次只给 30 条，多要也没用。旧通道的默认值是 12（漫游），不是日推的 30。
-  ipcMain.handle('qishui:feed', async (_event, limit: unknown) => personalFmQishui({ limit }))
   registerProviderCapability('qishui', 'personalFm', personalFmQishui)
   registerProviderCapability('qishui', 'dailySongs', dailySongsQishui)
-
-  ipcMain.handle('qishui:like', async (_event, alias: unknown, liked: unknown) =>
-    likeQishui({ songId: alias, liked })
-  )
   registerProviderCapability('qishui', 'like', likeQishui)
-
-  ipcMain.handle('qishui:playlistTracksEdit', async (_event, input: unknown) =>
-    await playlistTracksEditQishui(input)
-  )
   registerProviderCapability('qishui', 'playlistAddTracks', (args: unknown) =>
     playlistTracksEditQishui({ ...asRecord(args), add: true })
   )

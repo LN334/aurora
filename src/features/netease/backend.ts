@@ -11,4 +11,6 @@ import { isNative } from '../../bridge'
  * 通道（`provider:call`），这里只剩「有没有主进程」这一句同步判断——它是唯一
  * 必须在模块求值期就知道答案的事实。
  */
-export const hasNeteaseBackend = isNative && Boolean(window.aurora?.netease)
+/** 主进程在不在，问通道自己报的名单——preload 里那一家对象已经拆了。 */
+export const hasNeteaseBackend =
+  isNative && (window.aurora?.provider?.ids?.includes('netease') ?? false)

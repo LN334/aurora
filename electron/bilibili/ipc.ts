@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { bilibiliSearch, bilibiliStreamUrl } from './client'
 import { registerProviderCapability } from '../provider-gateway.ts'
 import { namedArgument } from '../pure/provider-call.ts'
@@ -105,26 +104,11 @@ export function registerBilibiliIpc(): void {
    * 以及更高档的音轨——所以这里的失败一律回「没有登录」，界面显示未登录，
    * 而不是一个点不动却不说原因的按钮。
    */
-  ipcMain.handle('bilibili:setProfile', (_event, profileId: unknown) =>
-    setProfileBilibili({ profileId })
-  )
   registerProviderCapability('bilibili', 'setProfile', setProfileBilibili)
-
-  ipcMain.handle('bilibili:loginQr', () => qrCreateBilibili())
   registerProviderCapability('bilibili', 'qrCreate', qrCreateBilibili)
-
-  ipcMain.handle('bilibili:qrCheck', (_event, args: unknown) => qrCheckBilibili(args))
   registerProviderCapability('bilibili', 'qrCheck', qrCheckBilibili)
-
-  ipcMain.handle('bilibili:loginStatus', () => loginStatusBilibili())
   registerProviderCapability('bilibili', 'loginStatus', loginStatusBilibili)
-
-  ipcMain.handle('bilibili:logout', () => logoutBilibili())
   registerProviderCapability('bilibili', 'logout', logoutBilibili)
-
-  ipcMain.handle('bilibili:search', (_event, args: unknown) => searchBilibili(args))
   registerProviderCapability('bilibili', 'search', searchBilibili)
-
-  ipcMain.handle('bilibili:streamUrl', async (_event, args: unknown) => await streamUrlBilibili(args))
   registerProviderCapability('bilibili', 'playback', streamUrlBilibili)
 }

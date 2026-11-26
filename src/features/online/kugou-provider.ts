@@ -38,6 +38,7 @@ import { providerDailySongs } from './recommend-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerCommentSend, providerComments } from './comment-channel.ts'
 import { providerSearch } from './search-channel.ts'
+import { providerReady } from './channel-core.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -62,7 +63,7 @@ type KugouAlbumEntryRow = Awaited<ReturnType<KugouApi['artistAlbums']>>[number]
  * 两处不同值得写下来：
  *
  * 1. **后端是一个本地服务，不是一个 SDK**。主进程负责把它拉起来，这里只问
- *    「有没有」——和 QQ 一样读 `window.aurora.kugou`，浏览器里是 null。
+ *    「有没有」——问通道自己报的名单，浏览器里没有主进程，名单为空。
  * 2. **歌单 id 是主进程发的数字别名**。共享界面按正整数取歌单，而上游的身份是
  *    `global_collection_id` 字符串；别名由主进程在本次会话里维护，这里只负责
  *    原样传下去，不去猜上游 id 的形状。
@@ -74,10 +75,7 @@ type KugouAlbumEntryRow = Awaited<ReturnType<KugouApi['artistAlbums']>>[number]
  * preload 与主进程独立接线，抓一个 `undefined` 会让一个能用的后端在整个窗口
  * 生命周期里看起来不存在。
  */
-function client(): KugouApi | null {
-  if (typeof window === 'undefined') return null
-  return window.aurora?.kugou ?? null
-}
+/** 判活问通道自己报的名单。 */
 
 /** 主进程报的就绪情况，形状沿用桥的声明。 */
 type KugouStatus = Awaited<ReturnType<KugouApi['status']>>
@@ -315,7 +313,7 @@ const kugouProvider: OnlineMusicProvider = {
   anonymousNote: '未登录也能搜索、浏览公开榜单、看每天 30 首推荐；取播放地址需要登录酷狗账号。',
   // 只有真正带主进程客户端的构建才为 true；浏览器预览与旧构建都是 false，
   // 侧栏因此不会出现一个点不开的入口。
-  available: () => previewBackendsForced() || client() !== null,
+  available: () => previewBackendsForced() || providerReady('kugou'),
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
 

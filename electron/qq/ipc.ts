@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
@@ -109,7 +108,6 @@ async function guard<T>(
     return fallback
   }
 }
-
 
 /** 搜索：旧通道 `qq:search` 与 `provider:call` 共用这一份实现（理由同网易云）。 */
 function searchQq(args: unknown): Promise<QqSearchResult> {
@@ -363,78 +361,37 @@ function playlistTracksEditQq(args: unknown): Promise<boolean> {
 }
 
 export function registerQqIpc(): void {
-
-  ipcMain.handle('qq:setProfile', (_event, value: unknown) => setProfileQq({ profileId: value }))
   registerProviderCapability('qq', 'setProfile', setProfileQq)
-
-  ipcMain.handle('qq:accountFor', (_event, value: unknown) => accountForQq(value))
   registerProviderCapability('qq', 'accountFor', accountForQq)
-
-  ipcMain.handle('qq:logoutProfile', (_event, value: unknown) => logoutProfileQq(value))
   registerProviderCapability('qq', 'logoutProfile', logoutProfileQq)
-
-  ipcMain.handle('qq:status', () => statusQq())
   registerProviderCapability('qq', 'status', statusQq)
-
-  ipcMain.handle('qq:search', (_event, payload: unknown) => searchQq(payload))
   registerProviderCapability('qq', 'search', searchQq)
-
-  ipcMain.handle('qq:streamUrl', (_event, payload: unknown) => streamUrlQq(payload))
   registerProviderCapability('qq', 'playback', streamUrlQq)
-
-  ipcMain.handle('qq:lyrics', (_event, value: unknown) => lyricsQq(value))
   registerProviderCapability('qq', 'lyrics', lyricsQq)
-
-  ipcMain.handle('qq:comments', (_event, payload: unknown) => commentsQq(payload))
   registerProviderCapability('qq', 'comments', commentsQq)
-
-  ipcMain.handle('qq:commentSend', (_event, payload: unknown) => commentSendQq(payload))
   registerProviderCapability('qq', 'commentSend', commentSendQq)
-
-  ipcMain.handle('qq:qrCreate', () => qrCreateQq())
   registerProviderCapability('qq', 'qrCreate', qrCreateQq)
-
-  ipcMain.handle('qq:qrCheck', (_event, value: unknown) => qrCheckQq(value))
   registerProviderCapability('qq', 'qrCheck', qrCheckQq)
-
-  ipcMain.handle('qq:loginStatus', () => loginStatusQq())
   registerProviderCapability('qq', 'loginStatus', loginStatusQq)
-
-  ipcMain.handle('qq:logout', () => logoutQq())
   registerProviderCapability('qq', 'logout', logoutQq)
-
-  ipcMain.handle('qq:getQuality', () => qualityGetQq())
   registerProviderCapability('qq', 'qualityGet', qualityGetQq)
 
   // An unknown tier is not worth an error: the renderer's own list is the only
   // source, so this is a bug or a stale build, and either way keeping the
   // current value beats writing nonsense into the profile.
-  ipcMain.handle('qq:setQuality', (_event, value: unknown) => qualitySetQq({ quality: value }))
   registerProviderCapability('qq', 'qualitySet', qualitySetQq)
 
   // A library read is not a failure when it answers nothing: signed out, or an
   // upstream blip, both mean "nothing to list right now", and the interface shows
   // an empty shelf rather than an error it cannot act on.
-  ipcMain.handle('qq:myPlaylists', (_event, value: unknown) => myPlaylistsQq(value))
   registerProviderCapability('qq', 'myPlaylists', myPlaylistsQq)
-
-  ipcMain.handle('qq:playlistTracks', (_event, value: unknown) => playlistTracksQq(value))
   registerProviderCapability('qq', 'playlistTracks', playlistTracksQq)
-
-  ipcMain.handle('qq:playlistCreator', (_event, value: unknown) => playlistCreatorQq(value))
   registerProviderCapability('qq', 'playlistCreator', playlistCreatorQq)
 
   // 公开推荐歌单：不需要账号，首页那片「歌单」在没人登录时也能有 QQ 的份。
-  ipcMain.handle('qq:recommendPlaylists', (_event, value: unknown) => recommendPlaylistsQq(value))
   registerProviderCapability('qq', 'recommendPlaylists', recommendPlaylistsQq)
-
-  ipcMain.handle('qq:newSongs', (_event, value: unknown) => newSongsQq({ limit: value }))
   registerProviderCapability('qq', 'newSongs', newSongsQq)
-
-  ipcMain.handle('qq:daily', () => dailySongsQq())
   registerProviderCapability('qq', 'dailySongs', dailySongsQq)
-
-  ipcMain.handle('qq:liked', () => likedQq())
   registerProviderCapability('qq', 'liked', likedQq)
 
   /*
@@ -442,49 +399,28 @@ export function registerQqIpc(): void {
    * 这个毛病），所以这里只如实回 true/false：client 先读、再写、再读回来核对，
    * 读不回来就答 false，页面提示「没写成」，不替上游宣称成功。
    */
-  ipcMain.handle('qq:like', (_event, value: unknown, liked: unknown) => likeQq({ songId: value, liked }))
   registerProviderCapability('qq', 'like', likeQq)
 
   /*
    * 歌单写。界面的歌单 id 是 tid（dissid），加删改名都要它；上游真正认的是 dirId，
    * 由 client→transport 现读现换，这里不缓存，免得用户刚在 QQ 里改过就写错单。
    */
-  ipcMain.handle('qq:playlistOwned', () => playlistOwnedQq())
   registerProviderCapability('qq', 'playlistOwned', playlistOwnedQq)
-
-  ipcMain.handle('qq:playlistCreate', (_event, value: unknown) => playlistCreateQq({ name: value }))
   registerProviderCapability('qq', 'playlistCreate', playlistCreateQq)
-
-  ipcMain.handle('qq:playlistDelete', (_event, value: unknown) => playlistDeleteQq({ playlistId: value }))
   registerProviderCapability('qq', 'playlistDelete', playlistDeleteQq)
-
-  ipcMain.handle('qq:playlistRename', (_event, value: unknown, name: unknown) =>
-    playlistRenameQq({ playlistId: value, name })
-  )
   registerProviderCapability('qq', 'playlistRename', playlistRenameQq)
 
   /*
    * 加 / 删歌。songIds 与红心共用一份「见过的歌」缓存（songIndex），列表里没出现
    * 过的 id 会被上游静默丢掉，所以一批最多带 200 首，且只接受正整数。
    */
-  ipcMain.handle('qq:playlistTracksEdit', (_event, value: unknown, ids: unknown, add: unknown) =>
-    playlistTracksEditQq({ playlistId: value, songIds: ids, add })
-  )
   registerProviderCapability('qq', 'playlistAddTracks', (args: unknown) =>
     playlistTracksEditQq({ ...asRecord(args), add: true })
   )
   registerProviderCapability('qq', 'playlistRemoveTracks', (args: unknown) =>
     playlistTracksEditQq({ ...asRecord(args), add: false })
   )
-
-  ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) =>
-    collectedAlbumsQq({ limit: value })
-  )
   registerProviderCapability('qq', 'collectedAlbums', collectedAlbumsQq)
-
-  ipcMain.handle('qq:followedArtists', (_event, value: unknown) => followedArtistsQq({ limit: value }))
   registerProviderCapability('qq', 'followedArtists', followedArtistsQq)
-
-  ipcMain.handle('qq:album', (_event, value: unknown) => albumQq({ albumId: value }))
   registerProviderCapability('qq', 'album', albumQq)
 }

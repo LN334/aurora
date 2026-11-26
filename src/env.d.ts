@@ -1,4 +1,3 @@
-import type { BilibiliApi, KugouApi, NeteaseApi, QishuiApi, QqApi } from './env-types/platforms'
 import type { PartyApi } from './env-types/party'
 /// <reference types="vite/client" />
 
@@ -706,11 +705,6 @@ export interface AuroraApi {
   player: PlayerApi
   lyrics: LyricsApi
   overlay: OverlayApi
-  netease: NeteaseApi
-  qq: QqApi
-  kugou: KugouApi
-  qishui: QishuiApi
-  bilibili: BilibiliApi
   party: PartyApi
   wallpaper: WallpaperApi
   maintenance: MaintenanceApi

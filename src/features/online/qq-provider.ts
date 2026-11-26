@@ -37,6 +37,7 @@ import { providerCollectedAlbums, providerLike, providerLiked } from './likes-ch
 import { providerAlbum } from './catalog-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerSearch } from './search-channel.ts'
+import { providerReady } from './channel-core.ts'
 import { providerLyrics } from './lyrics-channel.ts'
 import { providerDailySongs, providerNewSongs } from './recommend-channel.ts'
 import { providerCommentSend, providerComments } from './comment-channel.ts'
@@ -77,10 +78,7 @@ type QqAlbumBundleRow = NonNullable<Awaited<ReturnType<QqApi['album']>>>
  * the main process finish wiring independently of this bundle, and a captured
  * `undefined` would make a working backend look absent for the life of the window.
  */
-function client(): QqApi | null {
-  if (typeof window === 'undefined') return null
-  return window.aurora?.qq ?? null
-}
+/** 判活问通道自己报的名单，不再摸 preload 里那一家对象。 */
 
 /** 主进程报的就绪情况，形状沿用桥的声明。 */
 type QqStatus = Awaited<ReturnType<QqApi['status']>>
@@ -332,7 +330,7 @@ const qqBackend: PlatformBackend = {
   // True only in a build whose main process exposes the client. A browser preview
   // and any build made before that client landed both answer false, and the rail
   // then shows no entry rather than one that cannot work.
-  available: () => previewBackendsForced() || client() !== null,
+  available: () => previewBackendsForced() || providerReady('qq'),
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
   // 收藏专辑是账号里的关系；没有后端时 client() 是 null，这条如实缺席。

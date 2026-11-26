@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import type { CommentPage, CommentWriteResult } from '../comments'
 import {
@@ -329,103 +328,36 @@ function followedArtistsKugou() {
 }
 
 export function registerKugouIpc(): void {
-  ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
-    setProfileKugou({ profileId })
-  )
   registerProviderCapability('kugou', 'setProfile', setProfileKugou)
-
-  ipcMain.handle('kugou:accountFor', async (_event, profileId: unknown) => accountForKugou(profileId))
   registerProviderCapability('kugou', 'accountFor', accountForKugou)
-
-  ipcMain.handle('kugou:logoutProfile', async (_event, profileId: unknown) =>
-    logoutProfileKugou(profileId)
-  )
   registerProviderCapability('kugou', 'logoutProfile', logoutProfileKugou)
-
-  ipcMain.handle('kugou:status', async () => statusKugou())
   registerProviderCapability('kugou', 'status', statusKugou)
-
-  ipcMain.handle('kugou:search', (_event, input: unknown) => searchKugou(input))
   registerProviderCapability('kugou', 'search', searchKugou)
-
-  ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => newSongsKugou({ limit }))
   registerProviderCapability('kugou', 'newSongs', newSongsKugou)
-
-  ipcMain.handle('kugou:followedArtists', async () => await followedArtistsKugou())
   registerProviderCapability('kugou', 'followedArtists', followedArtistsKugou)
-
-  ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => await streamUrlKugou(input))
   registerProviderCapability('kugou', 'playback', streamUrlKugou)
-
-  ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) => lyricsKugou(songId))
   registerProviderCapability('kugou', 'lyrics', lyricsKugou)
-
-  ipcMain.handle('kugou:comments', async (_event, input: unknown) => commentsKugou(input))
   registerProviderCapability('kugou', 'comments', commentsKugou)
-
-  ipcMain.handle('kugou:commentSend', async (_event, input: unknown) => commentSendKugou(input))
   registerProviderCapability('kugou', 'commentSend', commentSendKugou)
-
-  ipcMain.handle('kugou:qrCreate', async () => qrCreateKugou())
   registerProviderCapability('kugou', 'qrCreate', qrCreateKugou)
-
-  ipcMain.handle('kugou:qrCheck', async (_event, key: unknown) => qrCheckKugou(key))
   registerProviderCapability('kugou', 'qrCheck', qrCheckKugou)
-
-  ipcMain.handle('kugou:loginStatus', async () => loginStatusKugou())
   registerProviderCapability('kugou', 'loginStatus', loginStatusKugou)
-
-  ipcMain.handle('kugou:logout', async () => logoutKugou())
   registerProviderCapability('kugou', 'logout', logoutKugou)
-
-  ipcMain.handle('kugou:getQuality', async () => await qualityGetKugou())
   registerProviderCapability('kugou', 'qualityGet', qualityGetKugou)
-
-  ipcMain.handle('kugou:setQuality', async (_event, quality: unknown) =>
-    await qualitySetKugou({ quality })
-  )
   registerProviderCapability('kugou', 'qualitySet', qualitySetKugou)
-
-  ipcMain.handle('kugou:myPlaylists', async (_event, limit: unknown) => myPlaylistsKugou(limit))
   registerProviderCapability('kugou', 'myPlaylists', myPlaylistsKugou)
 
   /*
    * 只走通道，没有旧 handle：这一支是这次新加的——首页推荐位不再拿账号歌单来填。
    */
   registerProviderCapability('kugou', 'recommendPlaylists', recommendPlaylistsKugou)
-
-  ipcMain.handle('kugou:playlistTracks', async (_event, id: unknown) => playlistTracksKugou(id))
   registerProviderCapability('kugou', 'playlistTracks', playlistTracksKugou)
-
-  ipcMain.handle('kugou:playlistCreator', async (_event, id: unknown) => playlistCreatorKugou(id))
   registerProviderCapability('kugou', 'playlistCreator', playlistCreatorKugou)
-
-  ipcMain.handle('kugou:likes', async (_event, limit: unknown) => likedKugou({ limit }))
   registerProviderCapability('kugou', 'liked', likedKugou)
-
-  ipcMain.handle('kugou:like', async (_event, id: unknown, liked: unknown) =>
-    likeKugou({ songId: id, liked })
-  )
   registerProviderCapability('kugou', 'like', likeKugou)
-
-  ipcMain.handle('kugou:album', async (_event, id: unknown) => albumKugou({ albumId: id }))
   registerProviderCapability('kugou', 'album', albumKugou)
-
-  ipcMain.handle('kugou:artist', async (_event, id: unknown) => artistKugou({ artistId: id }))
   registerProviderCapability('kugou', 'artistDetail', artistKugou)
-
-  ipcMain.handle('kugou:artistSongs', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    return artistSongsKugou({ artistId: params.id, limit: params.limit, offset: params.offset })
-  })
   registerProviderCapability('kugou', 'artistSongs', artistSongsKugou)
-
-  ipcMain.handle('kugou:artistAlbums', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    return artistAlbumsKugou({ artistId: params.id, limit: params.limit, offset: params.offset })
-  })
   registerProviderCapability('kugou', 'artistAlbums', artistAlbumsKugou)
-
-  ipcMain.handle('kugou:dailyRecommend', () => dailySongsKugou())
   registerProviderCapability('kugou', 'dailySongs', dailySongsKugou)
 }

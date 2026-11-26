@@ -4,6 +4,7 @@ import type { QualityTier } from './types'
 import { providerLoginStatus, providerLogout, providerSetProfile } from './account-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerSearch } from './search-channel.ts'
+import { providerReady } from './channel-core.ts'
 import { registerProvider } from './registry'
 import type { PlatformBackend } from './store'
 import {
@@ -33,10 +34,7 @@ type BiliStreamRow = Awaited<ReturnType<BilibiliApi['streamUrl']>>
 /** 本次运行选的档位；B 站没有账号，也不存偏好，重启回 exhigh。 */
 let chosenTier: QualityTier = 'exhigh'
 
-function client() {
-  const bridge = typeof window === 'undefined' ? undefined : window.aurora?.bilibili
-  return bridge ?? null
-}
+/** 判活问通道自己报的名单。 */
 
 /** 视频 -> 共享歌曲形状。作者当艺人，视频标题当歌名，封面取 pic。 */
 function asOnlineSong(video: BilibiliVideo): OnlineSong {
@@ -177,7 +175,7 @@ const bilibiliProvider: OnlineMusicProvider = {
   disclosure:
     '通过 B 站公开的 web 接口接入（WBI 签名 + playurl），仅供个人学习自用；不提供绕过会员或大会员的能力。',
   anonymousNote: '登录可选：搜索与播放都走公开接口，登录后换成更高音轨，搜索也更稳。',
-  available: () => client() !== null,
+  available: () => providerReady('bilibili'),
   capabilities: {
     search: true,
     playback: true,

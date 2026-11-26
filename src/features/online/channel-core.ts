@@ -30,3 +30,15 @@ export async function askProvider<T>(
 export function warnChannel(provider: ProviderId, capability: string, why: string): void {
   console.warn(`[aurora] ${provider}.${capability} 未走通：${why}`)
 }
+
+/**
+ * 这台机器上有没有这一家。
+ *
+ * 过去各家 `available()` 摸的是 preload 里那一家对象，等于用一个「还能不能点」
+ * 的问题去问一个已经没人调用的旧门。名单由主进程在开通道时给出，问它才对。
+ */
+export function providerReady(provider: ProviderId): boolean {
+  if (typeof window === 'undefined') return false
+  const ids: readonly string[] = window.aurora?.provider?.ids ?? []
+  return ids.includes(provider)
+}
