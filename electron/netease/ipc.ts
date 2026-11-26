@@ -287,6 +287,23 @@ function playlistCreatorNetease(args: unknown): Promise<string> {
   return guard<string>('playlistCreator', '', () => client.neteasePlaylistCreator(id))
 }
 
+/*
+ * 喜欢：读整张表（liked）与写一条（like）。
+ *
+ * 读这一支照旧 strict——空数组与没读到是两件事，收藏页靠这个错误把「没读到」
+ * 记进 failed，三十秒后再问一次（见 liked-merge）。写失败只回 false，界面照实提示。
+ */
+function likedNetease(): Promise<NeteaseSong[]> {
+  return guard<NeteaseSong[]>('likeList', [], () => client.neteaseLikeList(), true)
+}
+
+function likeNetease(args: unknown): Promise<boolean> {
+  const record = asRecord(args)
+  const id = asId(record.songId)
+  if (id === null) return Promise.resolve(false)
+  return guard<boolean>('like', false, () => client.neteaseLike(id, record.liked === true))
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -474,9 +491,8 @@ export function registerNeteaseIpc(): void {
     guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())
   )
 
-  ipcMain.handle('netease:likeList', () =>
-    guard<NeteaseSong[]>('likeList', [], () => client.neteaseLikeList(), true)
-  )
+  ipcMain.handle('netease:likeList', () => likedNetease())
+  registerProviderCapability('netease', 'liked', likedNetease)
 
   /*
    * 写操作：喜欢/取消喜欢。和其它通道一样不 reject——页面拿到 false 就说明
@@ -484,11 +500,9 @@ export function registerNeteaseIpc(): void {
    */
   ipcMain.handle('netease:like', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    if (!id) return false
-    const liked = args.liked === true
-    return guard<boolean>('like', false, () => client.neteaseLike(id, liked))
+    return likeNetease({ songId: args.id, liked: args.liked })
   })
+  registerProviderCapability('netease', 'like', likeNetease)
 
   /*
    * 自己建的歌单：建、加歌、删歌、改名、删单。

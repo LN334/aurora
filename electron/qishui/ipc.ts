@@ -166,6 +166,26 @@ function playlistOwnedQishui(args: unknown) {
   })
 }
 
+/*
+ * 喜欢：读整张（liked）与写一条（like）。
+ *
+ * 读这一支照旧 strict——空数组与没读到是两件事，收藏页靠这个错误把「没读到」
+ * 记进 failed、三十秒后再问（见 liked-merge）。写失败只回 false，界面照实提示。
+ */
+function likedQishui(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const count = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 300) : 200
+  return guard('liked', [], async () => qishuiLiked(count), true)
+}
+
+function likeQishui(args: unknown) {
+  return guard('like', false, async () => {
+    const alias = asAlias(namedArgument(args, 'songId'))
+    if (!alias || namedArgument(args, 'liked') === undefined) return false
+    return await qishuiLike(alias, namedArgument(args, 'liked') === true)
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -259,10 +279,8 @@ export function registerQishuiIpc(): void {
     })
   })
 
-  ipcMain.handle('qishui:liked', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 300) : 200
-    return await guard('liked', [], async () => qishuiLiked(count), true)
-  })
+  ipcMain.handle('qishui:liked', async (_event, limit: unknown) => likedQishui({ limit }))
+  registerProviderCapability('qishui', 'liked', likedQishui)
 
   // 上游一次只给 30 条，多要也没用。
   ipcMain.handle('qishui:feed', async (_event, limit: unknown) => {
@@ -270,13 +288,10 @@ export function registerQishuiIpc(): void {
     return await guard('feed', [], async () => qishuiFeed(count))
   })
 
-  ipcMain.handle('qishui:like', async (_event, alias: unknown, liked: unknown) => {
-    const id = asAlias(alias)
-    return await guard('like', false, async () => {
-      if (!id || typeof liked !== 'boolean') return false
-      return await qishuiLike(id, liked)
-    })
-  })
+  ipcMain.handle('qishui:like', async (_event, alias: unknown, liked: unknown) =>
+    likeQishui({ songId: alias, liked })
+  )
+  registerProviderCapability('qishui', 'like', likeQishui)
 
   ipcMain.handle('qishui:playlistTracksEdit', async (_event, input: unknown) => {
     const params = asRecord(input)

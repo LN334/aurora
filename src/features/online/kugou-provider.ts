@@ -1,4 +1,4 @@
-import type { KugouAccount, KugouApi } from '../../env'
+import type { KugouAccount, KugouApi, KugouSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
@@ -14,6 +14,7 @@ import {
   providerPlaylistCreator,
   providerPlaylistTracks
 } from './playlist-channel.ts'
+import { providerLike, providerLiked } from './likes-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -266,10 +267,7 @@ const kugouBackend: PlatformBackend = {
      */
     async collection(kind, limit) {
       if (kind !== 'likes') return []
-      const bridge = client()
-      // 桥没起来是「这次没读到」，不是「没有收藏」。抛出去让收藏页说没读到。
-      if (!bridge) throw new Error('kugou backend is not ready')
-      const rows = await bridge.likes(limit)
+      const rows = await providerLiked<KugouSong>('kugou', limit)
       return rows.map((song) => normalizeSong(song))
     },
 
@@ -387,10 +385,10 @@ const kugouProvider: OnlineMusicProvider = {
    */
   likes: {
     list: async () => {
-      const rows = (await client()?.likes()) ?? []
+      const rows = await providerLiked<KugouSong>('kugou')
       return rows.map((song) => normalizeSong(song))
     },
-    set: async (songId, liked) => (await client()?.like(songId, liked)) ?? false
+    set: async (songId, liked) => providerLike('kugou', songId, liked)
   },
 
   recommendations: {

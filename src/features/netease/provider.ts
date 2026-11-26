@@ -13,6 +13,7 @@ import {
   providerPlaylistCreator,
   providerPlaylistTracks
 } from '../online/playlist-channel.ts'
+import { providerLike, providerLiked } from '../online/likes-channel.ts'
 import type { PlatformBackend } from '../online/store'
 import {
   playable,
@@ -151,7 +152,7 @@ const neteaseBackend: PlatformBackend = {
 
   async collection(kind) {
     if (kind === 'daily') return netease.dailySongs()
-    if (kind === 'likes') return netease.likeList()
+    if (kind === 'likes') return providerLiked<OnlineSong>('netease')
     if (kind === 'cloud') return netease.cloudSongs()
     // 'playlists' is not a song list: the playlists themselves come from
     // `myPlaylists`, and opening one goes through `playlistTracks`.
@@ -317,7 +318,7 @@ const neteaseBackend: PlatformBackend = {
     // 上游这个接口不给游客，未登录时问了也是空。
     dailyNeedsAccount: true,
     personalFm: (limit) => netease.personalFm(limit),
-    likeList: () => netease.likeList(),
+    likeList: () => providerLiked<OnlineSong>('netease'),
     cloudSongs: () => netease.cloudSongs()
   },
 
@@ -326,8 +327,8 @@ const neteaseBackend: PlatformBackend = {
    * 的写会被上游拒绝，提前拦下来可以给界面一句「先登录」。
    */
   likes: {
-    list: () => netease.likeList(),
-    set: (songId, liked) => netease.like(songId, liked)
+    list: () => providerLiked<OnlineSong>('netease'),
+    set: (songId, liked) => providerLike('netease', songId, liked)
   },
 
   /*

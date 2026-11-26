@@ -9,6 +9,7 @@ import {
   providerPlaylistOwned,
   providerPlaylistTracks
 } from './playlist-channel.ts'
+import { providerLike, providerLiked } from './likes-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -262,10 +263,7 @@ const qishuiBackend: PlatformBackend = {
    */
   async collection(kind, limit) {
     if (kind !== 'likes') return []
-    const bridge = client()
-    // 桥没起来是「这次没读到」，不是「没有收藏」。
-    if (!bridge) throw new Error('qishui backend is not ready')
-    const rows = await bridge.liked(limit)
+    const rows = await providerLiked<QishuiSong>('qishui', limit)
     return rows.map((song) => asOnlineSong(song))
   }
 }
@@ -312,10 +310,10 @@ const qishuiProvider: OnlineMusicProvider = {
    */
   likes: {
     list: async () => {
-      const rows = (await client()?.liked(1000)) ?? []
+      const rows = await providerLiked<QishuiSong>('qishui', 300)
       return rows.map((song) => asOnlineSong(song))
     },
-    set: (songId, liked) => client()?.like(songId, liked) ?? Promise.resolve(false)
+    set: (songId, liked) => providerLike('qishui', songId, liked)
   },
 
   /*

@@ -173,6 +173,26 @@ function playlistCreatorKugou(args: unknown) {
   })
 }
 
+/*
+ * 喜欢：读整张（liked）与写一条（like）。
+ *
+ * 读这一支照旧 strict——空数组与没读到是两件事，收藏页靠这个错误把「没读到」
+ * 记进 failed、三十秒后再问（见 liked-merge）。写失败只回 false，界面照实提示。
+ */
+function likedKugou(args: unknown) {
+  const raw = namedArgument(args, 'limit')
+  const count = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 500) : 200
+  return guard('liked', [], async () => kugouLikes(count), true)
+}
+
+function likeKugou(args: unknown) {
+  return guard('like', false, async () => {
+    const songId = Number(asId(namedArgument(args, 'songId')))
+    if (!Number.isSafeInteger(songId) || songId <= 0) return false
+    return await kugouLike(songId, namedArgument(args, 'liked') === true)
+  })
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -268,18 +288,13 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:playlistCreator', async (_event, id: unknown) => playlistCreatorKugou(id))
   registerProviderCapability('kugou', 'playlistCreator', playlistCreatorKugou)
 
-  ipcMain.handle('kugou:likes', async (_event, limit: unknown) => {
-    const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 200
-    return await guard('likes', [], async () => kugouLikes(count), true)
-  })
+  ipcMain.handle('kugou:likes', async (_event, limit: unknown) => likedKugou({ limit }))
+  registerProviderCapability('kugou', 'liked', likedKugou)
 
   ipcMain.handle('kugou:like', async (_event, id: unknown, liked: unknown) =>
-    guard('like', false, async () => {
-      const songId = Number(id)
-      if (!Number.isSafeInteger(songId) || songId <= 0) return false
-      return await kugouLike(songId, liked === true)
-    })
+    likeKugou({ songId: id, liked })
   )
+  registerProviderCapability('kugou', 'like', likeKugou)
 
   ipcMain.handle('kugou:album', async (_event, id: unknown) =>
     guard('album', null, async () => {

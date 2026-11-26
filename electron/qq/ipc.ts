@@ -206,6 +206,29 @@ function playlistOwnedQq() {
   })
 }
 
+/*
+ * 喜欢：读整张（liked）、写一条（like），以及 QQ 独有的「收藏的专辑」。
+ *
+ * 读这一支照旧 strict——空数组与没读到是两件事，收藏页靠这个错误把「没读到」
+ * 记进 failed、三十秒后再问（见 liked-merge）。写失败只回 false，界面照实提示。
+ */
+function likedQq(): Promise<QqSong[]> {
+  return guard<QqSong[]>('liked', [], () => client.qqLiked(), true)
+}
+
+function likeQq(args: unknown): Promise<boolean> {
+  const songId = Number(asSongId(namedArgument(args, 'songId')))
+  if (!Number.isSafeInteger(songId) || songId <= 0) return Promise.resolve(false)
+  const liked = namedArgument(args, 'liked') === true
+  return guard<boolean>('like', false, () => client.qqLike(songId, liked))
+}
+
+function collectedAlbumsQq(args: unknown): Promise<QqCollectedAlbum[]> {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && raw > 0 ? Math.min(Math.trunc(raw), 200) : 200
+  return guard<QqCollectedAlbum[]>('collectedAlbums', [], () => client.qqCollectedAlbums(limit))
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -315,20 +338,16 @@ export function registerQqIpc(): void {
 
   ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
 
-  ipcMain.handle('qq:liked', () =>
-    guard<QqSong[]>('liked', [], () => client.qqLiked(), true)
-  )
+  ipcMain.handle('qq:liked', () => likedQq())
+  registerProviderCapability('qq', 'liked', likedQq)
 
   /*
    * 点红心是写操作。上游对扫码登录的 cookie 认得不稳（每日推荐一律 500003 就是
    * 这个毛病），所以这里只如实回 true/false：client 先读、再写、再读回来核对，
    * 读不回来就答 false，页面提示「没写成」，不替上游宣称成功。
    */
-  ipcMain.handle('qq:like', (_event, value: unknown, liked: unknown) => {
-    const songId = typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0
-    if (!songId) return Promise.resolve(false)
-    return guard<boolean>('like', false, () => client.qqLike(songId, liked === true))
-  })
+  ipcMain.handle('qq:like', (_event, value: unknown, liked: unknown) => likeQq({ songId: value, liked }))
+  registerProviderCapability('qq', 'like', likeQq)
 
   /*
    * 歌单写。界面的歌单 id 是 tid（dissid），加删改名都要它；上游真正认的是 dirId，
@@ -370,10 +389,10 @@ export function registerQqIpc(): void {
     return guard<boolean>('playlistTracks', false, () => client.qqPlaylistTracksEdit(tid, songIds, add === true))
   })
 
-  ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) => {
-    const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 200
-    return guard<QqCollectedAlbum[]>('collectedAlbums', [], () => client.qqCollectedAlbums(limit))
-  })
+  ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) =>
+    collectedAlbumsQq({ limit: value })
+  )
+  registerProviderCapability('qq', 'collectedAlbums', collectedAlbumsQq)
 
   ipcMain.handle('qq:followedArtists', (_event, value: unknown) => {
     const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 100

@@ -14,6 +14,7 @@ import {
   providerPlaylistOwned,
   providerPlaylistTracks
 } from './playlist-channel.ts'
+import { providerCollectedAlbums, providerLike, providerLiked } from './likes-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -27,6 +28,7 @@ import type { Track } from '../../types'
 
 type QqOwnedPlaylist = { id: number; name: string }
 type QqTrackRow = Awaited<ReturnType<QqApi['playlistTracks']>>[number]
+type QqCollectedAlbumRow = Awaited<ReturnType<QqApi['collectedAlbums']>>[number]
 
 /**
  * QQ Music as a provider.
@@ -271,11 +273,14 @@ const qqBackend: PlatformBackend = {
   },
 
   async collection(kind, limit) {
+    if (kind === 'likes') {
+      const rows = await providerLiked<QqSong>('qq')
+      return rows.slice(0, limit).map((song) => normalizeSong(song))
+    }
     const bridge = client()
     // 桥没起来是「这次没读到」，不是「没有收藏」：见 platform-liked 的三分法。
     if (!bridge) throw new Error('qq backend is not ready')
-    const rows =
-      kind === 'likes' ? await bridge.liked() : kind === 'daily' ? await bridge.daily() : []
+    const rows = kind === 'daily' ? await bridge.daily() : []
     return rows.slice(0, limit).map((song) => normalizeSong(song))
   }
 }
@@ -302,9 +307,7 @@ const qqBackend: PlatformBackend = {
   collections: COLLECTIONS,
   // 收藏专辑是账号里的关系；没有后端时 client() 是 null，这条如实缺席。
   collectedAlbums: async () => {
-    const api = client()
-    if (!api) return []
-    const list = await api.collectedAlbums()
+    const list = await providerCollectedAlbums<QqCollectedAlbumRow>('qq')
     // QQ 的年份是「有就带上」，共用形状里按 0 表示不知道。
     return list.map((album) => ({ ...album, year: album.year ?? 0 }))
   },
@@ -391,7 +394,7 @@ const qqBackend: PlatformBackend = {
    */
   likes: {
     list: () => qqBackend.collection!('likes', 200),
-    set: async (songId, liked) => (await client()?.like(songId, liked)) ?? false
+    set: async (songId, liked) => providerLike('qq', songId, liked)
   },
 
   /*
