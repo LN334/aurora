@@ -132,9 +132,42 @@ function artTrackOf(tracks: Track[]): Track | null {
 /** 一排卡最多几张。宽窗口一行放得下六张，再多就要横向滚了。 */
 const ROW = 8
 
-/** Stable for this hour, but different across launches at different times. */
+/**
+ * 进一次首页就换一批。
+ *
+ * 原来这里按小时取整：同一小时内反复进出，三排歌单 / 专辑 / 新歌一模一样，
+ * 用户会以为「换一批」也是坏的。现在每次挂载加一位，小时数打底保证重启之后
+ * 不会正好撞回上一次那一组。
+ */
+let homeVisits = 0
 function homeRotationSeed(): number {
-  return Math.floor(Date.now() / 3_600_000)
+  homeVisits += 1
+  return Math.floor(Date.now() / 3_600_000) + homeVisits
+}
+
+/**
+ * 首页愿意把上游游标往前推一步的间隔。
+ *
+ * 往回切「播放页 → 首页」是最常见的动作。每进一次都去推进网易云歌单广场的
+ * offset，切几十次就翻到尽头，那一排只剩空态。所以新歌与专辑每次进来都换
+ * （本地切片、缓存键变了），歌单广场只在隔了一阵子再进来时前进一页。
+ *
+ * 第一次进来不推：那批是平台按人给的推荐，一上来就跳过它不合适。
+ */
+const ADVANCE_GAP_MS = 3 * 60 * 1000
+let lastAdvanceAt = 0
+let everEntered = false
+
+function shouldAdvanceHome(): boolean {
+  const now = Date.now()
+  if (!everEntered) {
+    everEntered = true
+    lastAdvanceAt = now
+    return false
+  }
+  if (now - lastAdvanceAt < ADVANCE_GAP_MS) return false
+  lastAdvanceAt = now
+  return true
 }
 
 /**
@@ -206,8 +239,11 @@ export function HomePage({ onNavigate }: HomeViewProps) {
    */
   const { rows: recommended, ready: playlistsReady } = useRecommendedPlaylists()
   const [batch, setBatch] = useState(homeRotationSeed)
-  /** 最近新歌：freshTick 驱动重取，freshBatch 驱动换一行看。 */
-  const [freshTick, setFreshTick] = useState(homeRotationSeed)
+  /**
+   * 最近新歌：freshTick 是这一趟的取数批号（只读——「换一批」不再重取），
+   * freshBatch 决定从池子里切哪一屏。
+   */
+  const [freshTick] = useState(homeRotationSeed)
   const [freshBatch, setFreshBatch] = useState(homeRotationSeed)
   /* 鼠标停在哪一行，左边的大卡就换哪一首；移出去回到第一首。 */
   const [freshLead, setFreshLead] = useState(0)
@@ -222,6 +258,17 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   /** 推荐专辑：跟歌单一样有「换一批」，换的是平台那边的下一屏，不是本页重排。 */
   const [albumBatch, setAlbumBatch] = useState(homeRotationSeed)
   const { rows: albumPicks, ready: albumsReady } = useRecommendedAlbums(SLOTS.album, albumBatch)
+  /*
+   * 进这一趟时，顺手把网易云歌单广场往前推一页。
+   *
+   * 推荐位那一批是平台给的编辑推荐，页面自己只在缓存过期时才重取；不推游标的话
+   * 每次进来看到的都是同一批卡片（只是重洗了顺序）。推一页就换成广场上下一个窗口，
+   * 跟新歌、专辑那两排「每次进来都换」对齐。
+   */
+  useEffect(() => {
+    if (!shouldAdvanceHome()) return
+    void useDiscover.getState().next('playlists').catch(() => {})
+  }, [])
   const albumStrip = useRef<HTMLDivElement | null>(null)
   /*
    * 一排横条放得下一屏，剩下的横着藏。翻的是一屏（减去一点，让上一屏最后一张
@@ -270,8 +317,8 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   const cardsReady = (playlistsReady && albumsReady) || cardsLate
 
   /*
-   * 「最近新歌」这一栏是网易云的公开榜单。没勾它就别问——这一问会把那 93 MB
-   * 的上游包拉进主进程。不勾时这一栏留空，下面其它平台的歌照常填。
+   * 「最近新歌」这一栏里有网易云的那一份推荐新歌。没勾它就别问——这一问会把
+   * 那 93 MB 的上游包拉进主进程。不勾时这一栏只留 QQ 与酷狗，照常填满。
    */
   const discoverOn = useRoamPlatforms().includes('netease')
   useEffect(() => {
@@ -374,9 +421,9 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   /**
    * 新歌不再只有网易云一家。
    *
-   * 网易云那份来自发现页的缓存，QQ 与酷狗从各自的新歌榜现取（都不需要登录）；
+   * 网易云那份来自发现页的缓存，QQ 与酷狗各自的新歌流现取（都不需要登录）；
    * 三家合成之后同一个歌名只会占一行，平台徽章并排，点播放仍按音源优先级选。
-   * 一次要六十首/家：池子得够一屏四十首，「换一批」才有地方可换。
+   * 一次要六十首/家：池子要够几屏四十首，「换一批」才有地方可换。
    */
   const { tracks: platformFresh } = usePlatformNewSongs(60, freshTick)
 
@@ -416,13 +463,13 @@ export function HomePage({ onNavigate }: HomeViewProps) {
   /**
    * 一屏四十首，换一批往后挪四十格，到底回到开头。
    *
-   * 只挪切片不重取的话，平台第二次给的还是同一份榜单，用户会看到同一批歌；
-   * 所以按钮同时把 freshTick 加一，让 QQ 与酷狗那边也重新问一次。
+   * 这一屏跟上一屏不一样，靠的是池子在本地轮转：三家各六十首，去掉重名之后够
+   * 三四屏。不再每次重取——它们都是一天一份的流，重取拿回来的还是同一份。
    */
   /**
    * 空回来时沿用上一批。
    *
-   * 上游某张榜单偶尔整个 track 列表都不给，store 会正常返回「零首」。若照它渲染，
+   * 上游偶尔整个 track 列表都不给，store 会正常返回「零首」。若照它渲染，
    * 这块会从页面上消失、按钮也跟着没了。留一份最近的非空顺序顶住。
    */
   const lastFresh = useRef<Track[]>([])
@@ -871,11 +918,10 @@ export function HomePage({ onNavigate }: HomeViewProps) {
               type="button"
               onClick={() => {
                 setFreshBatch((n) => n + 1)
-                setFreshTick((n) => n + 1)
                 //
-                // 网易云那份不能只是重取：一天只有一份新歌，重发拿回同一个列表，按钮
-                // 看起来就是没反应。走 next 把游标往前推一页，主进程会换到下一个榜单。
-                void useDiscover.getState().next('newsongs').catch(() => {})
+                // 只往前挪一屏，不再重取：三家给的都是一天一份的新歌流，重发拿回同一个
+                // 列表，按钮看起来就是没反应；也不再轮榜单——那几排都是已经热过的歌。
+                // 池子够三四屏，挪到底会绕回开头。
               }}
             >
               换一批

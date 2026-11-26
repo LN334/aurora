@@ -1373,19 +1373,6 @@ function toDiscoverPlaylist(value: unknown): NeteaseDiscoverPlaylist | null {
 }
 
 /**
- * 换一批时轮换的公开榜单。
- *
- * 「推荐新歌」一个人一天只有一份：同一个账号连续请求两次，拿到的是同一个列表
- * （实测顺序都一致）。用户点两下「换一批」看到一模一样的歌，只会以为按钮坏了。
- * 所以第一批用真实推荐，之后按顺序换到热歌榜 / 说唱榜 / 飙升榜 / 原创榜，再往后
- * 在每个榜内部翻页。这四个榜都是公开接口，不需要登录。
- *
- * 新歌榜（3779629）故意不在这里：实测它前 24 首与 `personalized_newsong` 的
- * 30 首重叠 24/24，等于没换。下面四个榜与推荐的重叠依次是 3 / 3 / 11 / 9 首。
- */
-const DISCOVER_TOPLISTS = [3778678, 2809513713, 19723756, 2884035] as const
-
-/**
  * 分类歌单按风格轮换。
  *
  * `top_playlist_highquality` 没有 offset，翻不动；`top_playlist` 有分类和
@@ -1415,42 +1402,26 @@ export async function neteaseDiscover(
   const batch = Math.floor(start / size)
   await bootstrapOnce()
 
+  /*
+   * 「最近新歌」这一块。
+   *
+   * 平台按人给的推荐新歌只有一份，一天一份：同一个账号连续请求两次拿到的是同一个
+   * 列表（实测连顺序都一致）。所以「换一批」不可能靠重取换出新东西。
+   *
+   * 早先这里改成「第一批用推荐，之后依次轮热歌榜 / 说唱榜 / 飙升榜 / 原创榜」，那是
+   * 为了让按钮看起来有反应——可那四张榜里都是已经热过的歌，挂在「最近新歌」下面
+   * 名不副实，一眼就看出来不对。现在这一路只回平台给的那一份；换批交给渲染层：
+   * 四家的新歌流合成一个池子，按批次挪窗口。
+   *
+   * offset 照收但不参与查询——这条路上游没有能翻的第二页。
+   */
   if (kind === 'newsongs') {
-    if (batch === 0) {
-      const res = await call('personalized_newsong', { limit: DISCOVER_MAX_LIMIT })
-      const songs = discoverRows(res.body, ['result'])
-        .map(toDiscoverSong)
-        .filter((song): song is NeteaseSong => song !== null)
-        .slice(0, size)
-      return { kind, songs, playlists: [] }
-    }
-
-    const listIndex = (batch - 1) % DISCOVER_TOPLISTS.length
-    const round = Math.floor((batch - 1) / DISCOVER_TOPLISTS.length)
-
-    /*
-     * 一张榜单取回空是常有的事：上游按 id 做缓存，抖一次就整个 track 列表都不给。
-     * 早先这里直接返回空，前端「换一批」就变成「整块消失」。现在按顺序试下一张，
-     * 四张都空才算这次真的没有。
-     */
-    for (let attempt = 0; attempt < DISCOVER_TOPLISTS.length; attempt += 1) {
-      const id = DISCOVER_TOPLISTS[(listIndex + attempt) % DISCOVER_TOPLISTS.length]
-      const res = await call('playlist_detail', { id })
-      const tracks = asArray(asRecord(asRecord(res.body).playlist).tracks)
-      const songs = tracks
-        .map(toSong)
-        .filter((song): song is NeteaseSong => song !== null)
-      if (songs.length === 0) continue
-
-      // 榜单长度不固定（100 / 200 首都有），翻到底就绕回开头：按钮永远有东西可给，
-      // 不会变成一次空列表让页面闪一下空态。
-      const start = (round * size) % songs.length
-      const window = songs.slice(start, start + size)
-      const wrapped =
-        window.length === size ? window : window.concat(songs.slice(0, size - window.length))
-      return { kind, songs: wrapped, playlists: [] }
-    }
-    return { kind, songs: [], playlists: [] }
+    const res = await call('personalized_newsong', { limit: DISCOVER_MAX_LIMIT })
+    const songs = discoverRows(res.body, ['result'])
+      .map(toDiscoverSong)
+      .filter((song): song is NeteaseSong => song !== null)
+      .slice(0, size)
+    return { kind, songs, playlists: [] }
   }
 
   /*
