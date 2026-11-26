@@ -1,4 +1,4 @@
-import type { KugouAccount, KugouApi, KugouSong } from '../../env'
+import type { CommentPage, KugouAccount, KugouApi, KugouSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
@@ -22,6 +22,7 @@ import {
   providerArtistSongs
 } from './catalog-channel.ts'
 import { providerDailySongs } from './recommend-channel.ts'
+import { providerCommentSend, providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -95,7 +96,11 @@ const CAPABILITIES: ProviderCapabilities = {
   recommendations: true,
   userCloud: false,
   // 喜欢就是「把歌加进我喜欢那张云端歌单」，读也是读它——见 likes 的定义。
-  likes: true
+  likes: true,
+  // 评论能读能发，没有点赞。
+  comments: true,
+  commentSend: true,
+  commentLike: false
 }
 
 const kugouBackend: PlatformBackend = {
@@ -400,6 +405,12 @@ const kugouProvider: OnlineMusicProvider = {
       return rows.map((song) => normalizeSong(song))
     },
     set: async (songId, liked) => providerLike('kugou', songId, liked)
+  },
+
+  /** 评论：能读能发，没有点赞接口。 */
+  comments: {
+    list: (songId, cursor, limit) => providerComments<CommentPage>('kugou', songId, cursor, limit),
+    send: (songId, content) => providerCommentSend('kugou', songId, content)
   },
 
   recommendations: {

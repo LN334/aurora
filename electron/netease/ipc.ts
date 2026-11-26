@@ -374,6 +374,45 @@ function cloudSongsNetease(): Promise<NeteaseSong[]> {
   return guard<NeteaseSong[]>('cloudSongs', [], () => client.neteaseCloudSongs())
 }
 
+/*
+ * 评论三件事：读一页、发一条、赞一条。
+ *
+ * 三个判据各自独立，逐字照搬旧 handle：cursor 截 32 位、limit 夹 1..50 默认 20、
+ * 发评论要非空内容、点赞要布尔值。搬家不改语义，改的是「谁在调」——从页面直接
+ * 摸桥，变成登记到网关再由通道转过来。
+ */
+async function commentsNetease(args: unknown): Promise<CommentPage | null> {
+  const payload = asRecord(args)
+  const songId = asId(payload.songId)
+  if (songId === null) return null
+  const cursor = typeof payload.cursor === 'string' ? payload.cursor.slice(0, 32) : ''
+  const limit =
+    typeof payload.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(payload.limit))) : 20
+  return guard<CommentPage | null>('comments', null, () => client.neteaseComments(songId, cursor, limit))
+}
+
+async function commentSendNetease(args: unknown): Promise<CommentWriteResult> {
+  const payload = asRecord(args)
+  const songId = asId(payload.songId)
+  const content = asText(payload.content, MAX_COMMENT_TEXT)
+  const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+  if (songId === null || !content) return refused
+  return guard<CommentWriteResult>('commentSend', refused, () => client.neteaseCommentSend(songId, content))
+}
+
+async function commentLikeNetease(args: unknown): Promise<CommentWriteResult> {
+  const payload = asRecord(args)
+  const songId = asId(payload.songId)
+  const commentId = asId(payload.commentId)
+  const refused: CommentWriteResult = { ok: false, message: '评论 ID 无效' }
+  if (songId === null || commentId === null) return refused
+  if (typeof payload.liked !== 'boolean') return refused
+  const liked = payload.liked
+  return guard<CommentWriteResult>('commentLike', refused, () =>
+    client.neteaseCommentLike(songId, commentId, liked)
+  )
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -413,40 +452,14 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:lyrics', (_event, value: unknown) => lyricsNetease(value))
   registerProviderCapability('netease', 'lyrics', lyricsNetease)
 
-  ipcMain.handle('netease:commentSend', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asId(args.songId)
-    const content = asText(args.content, MAX_COMMENT_TEXT)
-    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
-    if (songId === null || !content) return refused
-    return guard<CommentWriteResult>('commentSend', refused, () =>
-      client.neteaseCommentSend(songId, content)
-    )
-  })
+  ipcMain.handle('netease:commentSend', (_event, payload: unknown) => commentSendNetease(payload))
+  registerProviderCapability('netease', 'commentSend', commentSendNetease)
 
-  ipcMain.handle('netease:commentLike', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asId(args.songId)
-    const commentId = asId(args.commentId)
-    const refused: CommentWriteResult = { ok: false, message: '评论 ID 无效' }
-    if (songId === null || commentId === null) return refused
-    if (typeof args.liked !== 'boolean') return refused
-    const liked = args.liked
-    return guard<CommentWriteResult>('commentLike', refused, () =>
-      client.neteaseCommentLike(songId, commentId, liked)
-    )
-  })
-  ipcMain.handle('netease:comments', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asId(args.songId)
-    if (songId === null) return null
-    const cursor = typeof args.cursor === 'string' ? args.cursor.slice(0, 32) : ''
-    const limit =
-      typeof args.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(args.limit))) : 20
-    return guard<CommentPage | null>('comments', null, () =>
-      client.neteaseComments(songId, cursor, limit)
-    )
-  })
+  ipcMain.handle('netease:commentLike', (_event, payload: unknown) => commentLikeNetease(payload))
+  registerProviderCapability('netease', 'commentLike', commentLikeNetease)
+
+  ipcMain.handle('netease:comments', (_event, payload: unknown) => commentsNetease(payload))
+  registerProviderCapability('netease', 'comments', commentsNetease)
 
   ipcMain.handle('netease:album', (_event, value: unknown) => albumNetease({ albumId: value }))
   registerProviderCapability('netease', 'album', albumNetease)

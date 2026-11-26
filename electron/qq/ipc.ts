@@ -253,6 +253,29 @@ function newSongsQq(args: unknown): Promise<QqSong[]> {
   return guard<QqSong[]>('newSongs', [], () => client.qqNewSongs(limit))
 }
 
+/*
+ * 评论两条：读一页、发一条。QQ 没有接点赞，所以那一条不登记——登记一个空壳
+ * 会让界面上多一枚点不动的按钮。
+ */
+async function commentsQq(args: unknown): Promise<CommentPage | null> {
+  const payload = asRecord(args)
+  const songId = asSongId(payload.songId)
+  if (songId === null) return null
+  const cursor = typeof payload.cursor === 'string' ? payload.cursor.slice(0, 32) : ''
+  const limit =
+    typeof payload.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(payload.limit))) : 20
+  return guard<CommentPage | null>('comments', null, () => client.qqComments(songId, cursor, limit))
+}
+
+async function commentSendQq(args: unknown): Promise<CommentWriteResult> {
+  const payload = asRecord(args)
+  const songId = asSongId(payload.songId)
+  const content = asText(payload.content, MAX_COMMENT_TEXT)
+  const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+  if (songId === null || content === null) return refused
+  return guard<CommentWriteResult>('commentSend', refused, () => client.qqCommentSend(songId, content))
+}
+
 export function registerQqIpc(): void {
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
@@ -293,28 +316,11 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:lyrics', (_event, value: unknown) => lyricsQq(value))
   registerProviderCapability('qq', 'lyrics', lyricsQq)
 
-  ipcMain.handle('qq:comments', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asSongId(args.songId)
-    if (songId === null) return null
-    const cursor = typeof args.cursor === 'string' ? args.cursor.slice(0, 32) : ''
-    const limit =
-      typeof args.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(args.limit))) : 20
-    return guard<CommentPage | null>('comments', null, () =>
-      client.qqComments(songId, cursor, limit)
-    )
-  })
+  ipcMain.handle('qq:comments', (_event, payload: unknown) => commentsQq(payload))
+  registerProviderCapability('qq', 'comments', commentsQq)
 
-  ipcMain.handle('qq:commentSend', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const songId = asSongId(args.songId)
-    const content = asText(args.content, MAX_COMMENT_TEXT)
-    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
-    if (songId === null || content === null) return refused
-    return guard<CommentWriteResult>('commentSend', refused, () =>
-      client.qqCommentSend(songId, content)
-    )
-  })
+  ipcMain.handle('qq:commentSend', (_event, payload: unknown) => commentSendQq(payload))
+  registerProviderCapability('qq', 'commentSend', commentSendQq)
 
   ipcMain.handle('qq:qrCreate', () => qrCreateQq())
   registerProviderCapability('qq', 'qrCreate', qrCreateQq)

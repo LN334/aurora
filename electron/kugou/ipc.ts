@@ -255,6 +255,34 @@ function newSongsKugou(args: unknown) {
   return guard('newSongs', [], async () => kugouNewSongs(limit))
 }
 
+/*
+ * 评论两条：读一页、发一条。酷狗没有接点赞。
+ *
+ * 判据照搬旧 handle：酷狗这边**不校验 songId**（旧代码只看内容非空就让上游去答），
+ * 移动时不顺手加一道，改了判据就不是搬家了。
+ */
+async function commentsKugou(args: unknown): Promise<CommentPage | null> {
+  const params = asRecord(args)
+  const songId = asId(params.songId)
+  const cursor = asText(params.cursor, MAX_ID)
+  const limit =
+    typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
+  return await guard<CommentPage | null>('comments', null, async () =>
+    kugouComments(songId, cursor, limit)
+  )
+}
+
+async function commentSendKugou(args: unknown): Promise<CommentWriteResult> {
+  const params = asRecord(args)
+  const songId = asId(params.songId)
+  const content = asText(params.content, MAX_COMMENT_TEXT)
+  const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
+  if (!content) return refused
+  return await guard<CommentWriteResult>('commentSend', refused, async () =>
+    kugouCommentSend(songId, content)
+  )
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -293,27 +321,11 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:lyrics', async (_event, songId: unknown) => lyricsKugou(songId))
   registerProviderCapability('kugou', 'lyrics', lyricsKugou)
 
-  ipcMain.handle('kugou:comments', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const songId = asId(params.songId)
-    const cursor = asText(params.cursor, MAX_ID)
-    const limit =
-      typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
-    return await guard<CommentPage | null>('comments', null, async () =>
-      kugouComments(songId, cursor, limit)
-    )
-  })
+  ipcMain.handle('kugou:comments', async (_event, input: unknown) => commentsKugou(input))
+  registerProviderCapability('kugou', 'comments', commentsKugou)
 
-  ipcMain.handle('kugou:commentSend', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const songId = asId(params.songId)
-    const content = asText(params.content, MAX_COMMENT_TEXT)
-    const refused: CommentWriteResult = { ok: false, message: '评论内容无效' }
-    if (!content) return refused
-    return await guard<CommentWriteResult>('commentSend', refused, async () =>
-      kugouCommentSend(songId, content)
-    )
-  })
+  ipcMain.handle('kugou:commentSend', async (_event, input: unknown) => commentSendKugou(input))
+  registerProviderCapability('kugou', 'commentSend', commentSendKugou)
 
   ipcMain.handle('kugou:qrCreate', async () => qrCreateKugou())
   registerProviderCapability('kugou', 'qrCreate', qrCreateKugou)

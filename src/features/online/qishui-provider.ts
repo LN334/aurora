@@ -1,4 +1,4 @@
-import type { QishuiApi, QishuiSong } from '../../env'
+import type { CommentPage, QishuiApi, QishuiSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { registerProvider } from './registry'
@@ -12,6 +12,7 @@ import {
 import { providerLike, providerLiked } from './likes-channel.ts'
 import { providerArtist, providerArtistSongs } from './catalog-channel.ts'
 import { providerDailySongs, providerPersonalFm } from './recommend-channel.ts'
+import { providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -79,7 +80,11 @@ const CAPABILITIES: ProviderCapabilities = {
   artists: true,
   recommendations: true,
   userCloud: false,
-  likes: true
+  likes: true,
+  // 汽水只接出了评论列表：发评论与点赞那两条上游没走通。
+  comments: true,
+  commentSend: false,
+  commentLike: false
 }
 
 /** 共享层的音质档位翻成汽水自己的四个名字（汽水把 256k 叫 high）。 */
@@ -321,6 +326,11 @@ const qishuiProvider: OnlineMusicProvider = {
       return rows.map((song) => asOnlineSong(song))
     },
     set: (songId, liked) => providerLike('qishui', songId, liked)
+  },
+
+  /** 评论：只读。发评论、点赞这两条汽水上游没接，方法不存在就等于界面不给入口。 */
+  comments: {
+    list: (songId, cursor, limit) => providerComments<CommentPage>('qishui', songId, cursor, limit)
   },
 
   /*

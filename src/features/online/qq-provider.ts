@@ -1,4 +1,4 @@
-import type { QqAccount, QqApi, QqPlaylistSummary, QqSong } from '../../env'
+import type { CommentPage, QqAccount, QqApi, QqPlaylistSummary, QqSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
@@ -17,6 +17,7 @@ import {
 import { providerCollectedAlbums, providerLike, providerLiked } from './likes-channel.ts'
 import { providerAlbum } from './catalog-channel.ts'
 import { providerDailySongs, providerNewSongs } from './recommend-channel.ts'
+import { providerCommentSend, providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -98,7 +99,11 @@ const CAPABILITIES: ProviderCapabilities = {
   artists: false,
   recommendations: true,
   userCloud: false,
-  likes: true
+  likes: true,
+  // QQ 能读能发，没有接点赞——所以 commentLike 这句声明也没有。
+  comments: true,
+  commentSend: true,
+  commentLike: false
 }
 
 const qqBackend: PlatformBackend = {
@@ -396,6 +401,12 @@ const qqBackend: PlatformBackend = {
   likes: {
     list: () => qqBackend.collection!('likes', 200),
     set: async (songId, liked) => providerLike('qq', songId, liked)
+  },
+
+  /** 评论：能读能发，没有点赞接口。 */
+  comments: {
+    list: (songId, cursor, limit) => providerComments<CommentPage>('qq', songId, cursor, limit),
+    send: (songId, content) => providerCommentSend('qq', songId, content)
   },
 
   /*

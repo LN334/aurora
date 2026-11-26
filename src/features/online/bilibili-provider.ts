@@ -175,7 +175,11 @@ const bilibiliProvider: OnlineMusicProvider = {
     artists: false,
     recommendations: false,
     userCloud: false,
-    likes: false
+    likes: false,
+    // 视频底下的评论是另一套 id 空间，接进来只会把 MV 的评论混成歌的。
+    comments: false,
+    commentSend: false,
+    commentLike: false
   },
   qualityTiers: TIERS,
   /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */

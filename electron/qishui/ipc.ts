@@ -226,6 +226,22 @@ function personalFmQishui(args: unknown) {
   return guard('personalFm', [], async () => await qishuiFeed(limit))
 }
 
+/*
+ * 读一页评论。汽水这边没有接发评论与点赞，所以只登记这一条。
+ *
+ * songId 是汽水的 alias（不是数字 id），空 alias 直接答 null——旧 handle 就是这个判据。
+ */
+async function commentsQishui(args: unknown): Promise<CommentPage | null> {
+  const params = asRecord(args)
+  const alias = asAlias(params.songId)
+  const cursor = asText(params.cursor, MAX_ID)
+  const limit =
+    typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
+  return await guard<CommentPage | null>('comments', null, async () =>
+    alias ? await qishuiComments(alias, cursor, limit) : null
+  )
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -278,16 +294,8 @@ export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:lyrics', async (_event, id: unknown) => lyricsQishui(id))
   registerProviderCapability('qishui', 'lyrics', lyricsQishui)
 
-  ipcMain.handle('qishui:comments', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const alias = asAlias(params.songId)
-    const cursor = asText(params.cursor, MAX_ID)
-    const limit =
-      typeof params.limit === 'number' ? Math.min(50, Math.max(1, Math.trunc(params.limit))) : 20
-    return await guard<CommentPage | null>('comments', null, async () =>
-      alias ? await qishuiComments(alias, cursor, limit) : null
-    )
-  })
+  ipcMain.handle('qishui:comments', async (_event, input: unknown) => commentsQishui(input))
+  registerProviderCapability('qishui', 'comments', commentsQishui)
 
   ipcMain.handle('qishui:myPlaylists', async (_event, limit: unknown) => myPlaylistsQishui(limit))
   registerProviderCapability('qishui', 'myPlaylists', myPlaylistsQishui)

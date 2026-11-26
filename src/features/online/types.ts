@@ -1,4 +1,4 @@
-import type { NeteaseFailureReason, NeteaseQuality } from '../../env'
+import type { CommentPage, CommentWriteResult, NeteaseFailureReason, NeteaseQuality } from '../../env'
 
 /**
  * The online-platform contract.
@@ -223,6 +223,12 @@ export interface ProviderCapabilities {
   recommendations: boolean
   userCloud: boolean
   likes: boolean
+  /** 读评论。四家都能读，所以这一项几乎总是真。 */
+  comments: boolean
+  /** 发一条评论。酷狗、QQ、网易云有；汽水没有。 */
+  commentSend: boolean
+  /** 赞一条评论。目前只有网易云接得上。 */
+  commentLike: boolean
 }
 
 /**
@@ -421,6 +427,28 @@ interface ProviderLikesApi {
 }
 
 /**
+ * 评论：读一页、发一条、赞一条。
+ *
+ * 三条各自可选，因为各家真的不一样：四家都能读，三家能发（汽水只能读），
+ * 只有网易云接得上点赞。界面据此决定画不画输入框与点赞按钮——画一个点了
+ * 只会说「不支持」的按钮，比不画更差。
+ *
+ * 写失败时主进程会给一句人话（「登录后才能发评论」「最多 140 字」），这里原样
+ * 透传，不另造一句。
+ */
+interface ProviderCommentsApi {
+  /**
+   * 一页评论。`cursor` 由上一页原样带回，首屏传空串；它究竟是页码还是偏移
+   * 由平台自己解释。返回 null 表示这家读不到（不是「没有评论」）。
+   */
+  list(songId: number, cursor: string, limit: number): Promise<CommentPage | null>
+  /** 可选：发一条。 */
+  send?(songId: number, content: string): Promise<CommentWriteResult>
+  /** 可选：赞（true）或取消赞（false）一条。 */
+  like?(songId: number, commentId: number, liked: boolean): Promise<CommentWriteResult>
+}
+
+/**
  * 平台账号里的歌单：写。
  *
  * 和「喜欢」同一条思路——账号动作单独成一支，界面上线哪一家就给哪一家。
@@ -483,6 +511,8 @@ export interface OnlineMusicProvider {
   recommendations?: ProviderRecommendationsApi
   /** 喜欢的读写。`capabilities.likes` 决定界面给不给入口，这里才是调用。 */
   likes?: ProviderLikesApi
+  /** 评论：读、发、赞。三条各自可选，见 ProviderCommentsApi。 */
+  comments?: ProviderCommentsApi
   /** 自己建的歌单的写。没有这一支的平台，歌单页不给编辑入口。 */
   playlists?: ProviderPlaylistWriteApi
 

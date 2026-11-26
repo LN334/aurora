@@ -1,4 +1,10 @@
-import type { NeteaseAccount, NeteaseApi, NeteaseQuality, NeteaseSong } from '../../env'
+import type {
+  CommentPage,
+  NeteaseAccount,
+  NeteaseApi,
+  NeteaseQuality,
+  NeteaseSong
+} from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
 import type { LyricBundle } from '../lyrics/align'
@@ -14,6 +20,11 @@ import {
   providerPlaylistTracks
 } from '../online/playlist-channel.ts'
 import { providerLike, providerLiked } from '../online/likes-channel.ts'
+import {
+  providerCommentLike,
+  providerCommentSend,
+  providerComments
+} from '../online/comment-channel.ts'
 import {
   providerAlbum,
   providerArtist,
@@ -116,7 +127,10 @@ const CAPABILITIES: ProviderCapabilities = {
   artists: true,
   recommendations: true,
   userCloud: true,
-  likes: true
+  likes: true,
+  comments: true,
+  commentSend: true,
+  commentLike: true
 }
 
 const neteaseBackend: PlatformBackend = {
@@ -349,6 +363,17 @@ const neteaseBackend: PlatformBackend = {
   likes: {
     list: () => providerLiked<OnlineSong>('netease'),
     set: (songId, liked) => providerLike('netease', songId, liked)
+  },
+
+  /*
+   * 评论三件事。四家里只有网易云三件齐全（QQ/酷狗能发不能赞，汽水只能读），
+   * 差的那几件不是在界面里藏按钮，而是这里不写方法——能力表由方法反推。
+   */
+  comments: {
+    list: (songId, cursor, limit) => providerComments<CommentPage>('netease', songId, cursor, limit),
+    send: (songId, content) => providerCommentSend('netease', songId, content),
+    like: (songId, commentId, liked) =>
+      providerCommentLike('netease', songId, commentId, liked)
   },
 
   /*

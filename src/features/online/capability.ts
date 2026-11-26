@@ -29,7 +29,10 @@ export const CAPABILITY_ORDER = [
   'artists',
   'recommendations',
   'userCloud',
-  'likes'
+  'likes',
+  'comments',
+  'commentSend',
+  'commentLike'
 ] as const satisfies readonly (keyof ProviderCapabilities)[]
 
 /** 能力与它落在哪个方法上的对应关系。加能力时只改这一处。 */
@@ -64,6 +67,13 @@ function implemented(provider: OnlineMusicProvider, capability: keyof ProviderCa
       return Boolean(provider.recommendations?.cloudSongs)
     case 'likes':
       return Boolean(provider.likes)
+    // 评论三件事各判各的：能读不等于能发，能发不等于能赞。
+    case 'comments':
+      return Boolean(provider.comments?.list)
+    case 'commentSend':
+      return Boolean(provider.comments?.send)
+    case 'commentLike':
+      return Boolean(provider.comments?.like)
     default: {
       // 新增了 capability 却忘了在这里映射：类型上不可达，运行期留个可查的痕迹。
       const exhaustive: never = capability

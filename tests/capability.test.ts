@@ -25,7 +25,10 @@ const NOTHING: ProviderCapabilities = {
   artists: false,
   recommendations: false,
   userCloud: false,
-  likes: false
+  likes: false,
+  comments: false,
+  commentSend: false,
+  commentLike: false
 }
 
 function caps(overrides: Partial<ProviderCapabilities> = {}): ProviderCapabilities {
@@ -52,7 +55,16 @@ const IMPLEMENTATIONS: Record<keyof ProviderCapabilities, Partial<OnlineMusicPro
   artists: { catalog: { artistTopSongs: async () => [], playlistTracks: async () => [] } },
   recommendations: { recommendations: { dailySongs: async () => [] } },
   userCloud: { recommendations: { cloudSongs: async () => [] } },
-  likes: { likes: { list: async () => [], set: async () => true } }
+  likes: { likes: { list: async () => [], set: async () => true } },
+  // 评论三件事各给一个方法：判据是「这条方法在不在」，所以每项只放一件。
+  // list 在类型上是必填，这里按能力反着造，故穿过类型断言。
+  comments: { comments: { list: async () => null } },
+  commentSend: {
+    comments: { send: async () => ({ ok: true, message: '' }) }
+  } as unknown as Partial<OnlineMusicProvider>,
+  commentLike: {
+    comments: { like: async () => ({ ok: true, message: '' }) }
+  } as unknown as Partial<OnlineMusicProvider>
 }
 
 test('每一项能力都指向自己的方法，不串门', () => {
@@ -108,7 +120,21 @@ test('没有 platform 就是都不能点', () => {
   assert.equal(implementsCapability(null, 'likes'), false)
 })
 
-test('一张干净的表：十项全对时为全空', () => {
+test('评论三件事各自独立：能读不等于能发、能发不等于能赞', () => {
+  // 汽水的形状：只挂了 list。
+  const reader = fake(IMPLEMENTATIONS.comments, { comments: true, commentSend: true, commentLike: true })
+  assert.equal(supportsCapability(reader, 'comments'), true)
+  assert.equal(supportsCapability(reader, 'commentSend'), false)
+  assert.equal(supportsCapability(reader, 'commentLike'), false)
+  assert.deepEqual(brokenClaims(reader), ['commentSend', 'commentLike'])
+
+  // 酷狗/QQ 的形状：list + send，没有 like。
+  const writer = fake(IMPLEMENTATIONS.commentSend, { comments: true, commentSend: true, commentLike: true })
+  assert.equal(supportsCapability(writer, 'commentSend'), true)
+  assert.equal(supportsCapability(writer, 'commentLike'), false)
+})
+
+test('一张干净的表：所有能力全对时为全空', () => {
   const shape: Partial<OnlineMusicProvider> = {
     search: IMPLEMENTATIONS.search.search,
     playback: IMPLEMENTATIONS.playback.playback,
@@ -124,6 +150,11 @@ test('一张干净的表：十项全对时为全空', () => {
     recommendations: {
       dailySongs: async () => [],
       cloudSongs: async () => []
+    },
+    comments: {
+      list: async () => null,
+      send: async () => ({ ok: true, message: '' }),
+      like: async () => ({ ok: true, message: '' })
     }
   }
   const declared = Object.fromEntries(CAPABILITY_ORDER.map((name) => [name, true])) as Partial<ProviderCapabilities>
