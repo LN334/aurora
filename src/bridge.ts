@@ -1,4 +1,11 @@
-import type { AppSettings, AuroraApi, DownloadPrefs, OverlayStatus, UpdatePrefs } from './env'
+import type {
+  AppSettings,
+  AuroraApi,
+  DownloadPrefs,
+  OverlayStatus,
+  ProviderAnswer,
+  UpdatePrefs
+} from './env'
 import { demoLibrary } from './features/library/demo'
 
 /**
@@ -110,6 +117,21 @@ function previewOverlayStatus(): OverlayStatus {
 }
 
 const webFallback: AuroraApi = {
+  /*
+   * 浏览器预览没有主进程，也就没有平台后端。这里不假装成功：调用如实带着
+   * 「调不通」的 code 回来，页面才会画它真实的空态，而不是把预览里的空列表
+   * 当成「这家平台没内容」。
+   */
+  provider: {
+    ids: ['netease', 'qq', 'kugou', 'qishui', 'bilibili'],
+    call: async <T,>(provider: string, capability: string): Promise<ProviderAnswer<T>> => ({
+      ok: false,
+      error: {
+        code: 'handler-failed',
+        message: `浏览器预览里没有主进程，${provider}.${capability} 调不通`
+      }
+    })
+  },
   info: async () => ({
     version: '0.1.0-web',
     electron: 'n/a',

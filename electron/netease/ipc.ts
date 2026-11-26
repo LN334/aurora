@@ -4,6 +4,7 @@ import { whenWindowVisible } from '../window-visible'
 import { loadSettings, saveSettings } from '../settings'
 import * as client from './client'
 import { describeFailure } from './reasons'
+import { registerProviderCapability } from '../provider-gateway.ts'
 import { isNeteaseQuality, isUsableId } from './types'
 import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
@@ -188,6 +189,21 @@ async function guard<T>(
   }
 }
 
+/**
+ * 搜索：旧通道与新的 `provider:call` 共用这一份实现。
+ *
+ * 搬家期间两条入口必须给出同一个答案，否则「切过去还坏着」的地方就看不出来。
+ */
+function searchNetease(args: unknown): Promise<NeteaseSearchResult> {
+  const record = asRecord(args)
+  const keywords = asText(record.keywords, MAX_KEYWORDS)
+  const type = asSearchType(record.type)
+  const limit = typeof record.limit === 'number' ? record.limit : 30
+  const empty: NeteaseSearchResult = { songs: [], albums: [], artists: [] }
+  if (!keywords) return Promise.resolve(empty)
+  return guard('search', empty, () => client.neteaseSearch(keywords, type, limit))
+}
+
 export function registerNeteaseIpc(): void {
   const statusFailure: NeteaseStatusResult = { ready: false, loggedIn: false }
 
@@ -215,15 +231,8 @@ export function registerNeteaseIpc(): void {
 
   ipcMain.handle('netease:status', () => guard('status', statusFailure, () => client.neteaseStatus()))
 
-  ipcMain.handle('netease:search', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const keywords = asText(args.keywords, MAX_KEYWORDS)
-    const type = asSearchType(args.type)
-    const limit = typeof args.limit === 'number' ? args.limit : 30
-    const empty: NeteaseSearchResult = { songs: [], albums: [], artists: [] }
-    if (!keywords) return empty
-    return guard('search', empty, () => client.neteaseSearch(keywords, type, limit))
-  })
+  ipcMain.handle('netease:search', (_event, payload: unknown) => searchNetease(payload))
+  registerProviderCapability('netease', 'search', searchNetease)
 
   ipcMain.handle('netease:streamUrl', (_event, payload: unknown) => {
     const args = asRecord(payload)

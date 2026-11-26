@@ -13,6 +13,7 @@ import { handleWallpaperProtocol, registerWallpaperScheme } from './wallpaper'
 import { handleCacheProtocol, registerCacheScheme } from './protocols/cache-protocol'
 import { mediaCache } from './media-cache-instance'
 import { registerNeteaseIpc } from './netease/ipc'
+import { openProviderGateway } from './provider-gateway'
 import { registerQqIpc } from './qq/ipc'
 import { registerKugouIpc } from './kugou/ipc'
 import { registerQishuiIpc } from './qishui/ipc'
@@ -768,6 +769,11 @@ const ipcHost: IpcHost = {
  * it.
  */
 function registerIpc(): void {
+  /*
+   * 跨平台通道先开：它只是一张分派表的外壳，真正的处理器由下面各家自己登记，
+   * 而窗口建好之后才有 invoke 过来——所以这里只要排在任何窗口之前。
+   */
+  openProviderGateway()
   registerAppIpc(ipcHost)
   registerLibraryIpc(ipcHost)
   registerWallpaperIpc()

@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { write } from '../startup-log'
 import * as client from './client'
 import { describeFailure } from './reasons'
+import { registerProviderCapability } from '../provider-gateway.ts'
 import { isQqQuality } from './types'
 import type { CommentPage, CommentWriteResult } from '../comments'
 import type {
@@ -109,6 +110,17 @@ async function guard<T>(
 }
 
 
+/** 搜索：旧通道 `qq:search` 与 `provider:call` 共用这一份实现（理由同网易云）。 */
+function searchQq(args: unknown): Promise<QqSearchResult> {
+  const record = asRecord(args)
+  const keywords = asText(record.keywords, MAX_KEYWORDS)
+  const type = asSearchType(record.type)
+  const limit = typeof record.limit === 'number' ? record.limit : 50
+  const empty: QqSearchResult = { songs: [], albums: [], artists: [] }
+  if (!keywords) return Promise.resolve(empty)
+  return guard('search', empty, () => client.qqSearch(keywords, type, limit))
+}
+
 export function registerQqIpc(): void {
   const statusFailure: QqStatusResult = { ready: false, loggedIn: false }
 
@@ -132,15 +144,8 @@ export function registerQqIpc(): void {
 
   ipcMain.handle('qq:status', () => guard('status', statusFailure, () => client.qqStatus()))
 
-  ipcMain.handle('qq:search', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const keywords = asText(args.keywords, MAX_KEYWORDS)
-    const type = asSearchType(args.type)
-    const limit = typeof args.limit === 'number' ? args.limit : 50
-    const empty: QqSearchResult = { songs: [], albums: [], artists: [] }
-    if (!keywords) return empty
-    return guard('search', empty, () => client.qqSearch(keywords, type, limit))
-  })
+  ipcMain.handle('qq:search', (_event, payload: unknown) => searchQq(payload))
+  registerProviderCapability('qq', 'search', searchQq)
 
   ipcMain.handle('qq:streamUrl', (_event, payload: unknown) => {
     const args = asRecord(payload)

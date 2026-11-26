@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { bilibiliSearch, bilibiliStreamUrl } from './client'
+import { registerProviderCapability } from '../provider-gateway.ts'
 import { loginStatus, logout, qrCheck, qrCreate, setLoginProfile } from './login'
 import type { BilibiliQuality } from './types'
 
@@ -27,6 +28,18 @@ function asQuality(value: unknown): BilibiliQuality {
 function asAid(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+/** 搜索：旧通道 `bilibili:search` 与 `provider:call` 共用这一份实现。 */
+async function searchBilibili(args: unknown) {
+  const raw = asRecord(args)
+  const keywords = typeof raw.keywords === 'string' ? raw.keywords : ''
+  const limit = typeof raw.limit === 'number' && raw.limit > 0 ? raw.limit : 30
+  try {
+    return await bilibiliSearch(keywords, limit)
+  } catch {
+    return { videos: [] }
+  }
 }
 
 export function registerBilibiliIpc(): void {
@@ -70,16 +83,8 @@ export function registerBilibiliIpc(): void {
     return true
   })
 
-  ipcMain.handle('bilibili:search', async (_event, args: unknown) => {
-    const raw = asRecord(args)
-    const keywords = typeof raw.keywords === 'string' ? raw.keywords : ''
-    const limit = typeof raw.limit === 'number' && raw.limit > 0 ? raw.limit : 30
-    try {
-      return await bilibiliSearch(keywords, limit)
-    } catch {
-      return { videos: [] }
-    }
-  })
+  ipcMain.handle('bilibili:search', (_event, args: unknown) => searchBilibili(args))
+  registerProviderCapability('bilibili', 'search', searchBilibili)
 
   ipcMain.handle('bilibili:streamUrl', async (_event, args: unknown) => {
     const raw = asRecord(args)

@@ -26,6 +26,7 @@ import {
   setActiveProfile
 } from './client'
 import { isQishuiQuality } from './types'
+import { registerProviderCapability } from '../provider-gateway.ts'
 import type { QishuiQuality } from './types'
 
 /**
@@ -79,6 +80,18 @@ async function guard<T>(
   }
 }
 
+/** 搜索：旧通道 `qishui:search` 与 `provider:call` 共用这一份实现。 */
+function searchQishui(input: unknown) {
+  const params = asRecord(input)
+  const keywords = asText(params.keywords, MAX_KEYWORDS)
+  const limit =
+    typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 60) : 50
+  return guard('search', { songs: [] }, async () => {
+    if (!keywords) return { songs: [] }
+    return await qishuiSearch(keywords, limit)
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -104,16 +117,8 @@ export function registerQishuiIpc(): void {
 
   ipcMain.handle('qishui:logout', async () => guard('logout', false, async () => qishuiLogout()))
 
-  ipcMain.handle('qishui:search', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const keywords = asText(params.keywords, MAX_KEYWORDS)
-    const limit =
-      typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 60) : 50
-    return await guard('search', { songs: [] }, async () => {
-      if (!keywords) return { songs: [] }
-      return await qishuiSearch(keywords, limit)
-    })
-  })
+  ipcMain.handle('qishui:search', (_event, input: unknown) => searchQishui(input))
+  registerProviderCapability('qishui', 'search', searchQishui)
 
   ipcMain.handle('qishui:searchPlaylists', async (_event, input: unknown) => {
     const params = asRecord(input)

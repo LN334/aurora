@@ -12,6 +12,7 @@ import type { WallpaperEntry, WallpaperInfo } from './wallpaper'
 import type { JunkId, JunkScan, MemoryRelease } from './maintenance'
 import type { BackupExportResult, BackupRestoreResult } from './backup'
 
+
 /**
  * The only surface the renderer gets. Everything crossing this bridge is an
  * explicit, named capability - no `ipcRenderer` handle ever reaches page code.
@@ -19,7 +20,52 @@ import type { BackupExportResult, BackupRestoreResult } from './backup'
  * The `library-scan` import is type-only, so it is erased at compile time and
  * does not pull main-process code into the preload bundle.
  */
+/**
+ * 跨平台调用的原始入口，以及旧方法在搬家期间的适配层。
+ *
+ * 新形状是 `{ ok, value }` 或 `{ ok: false, error }`：失败带着 code 回来，页面
+ * 分得清「这家没这个能力」和「这家这次没取到」。旧方法 `netease.search(...)`
+ * 这类暂时保留，内部走同一条通道、把失败折成空结果——现有页面不改也能跑；
+ * 改到哪一处，那里就开始看得见失败了。
+ */
+type ProviderAnswer =
+  | { ok: true; value: unknown }
+  | { ok: false; error: { code: string; message: string } }
+
+const callProvider = (provider: string, capability: string, args: unknown): Promise<ProviderAnswer> =>
+  ipcRenderer.invoke('provider:call', { provider, capability, args }) as Promise<ProviderAnswer>
+
+/** 旧方法用：失败折成给定的空结果，并留一句能查的日志。 */
+async function throughProvider<T>(
+  provider: string,
+  capability: string,
+  args: unknown,
+  empty: T
+): Promise<T> {
+  const answer = await callProvider(provider, capability, args)
+  if (answer.ok) return answer.value as T
+  console.warn(`[aurora] ${provider}.${capability} 未走通：${answer.error.code} ${answer.error.message}`)
+  return empty
+}
+
+const SONG_SHELF_EMPTY = { songs: [] as unknown[], albums: [] as unknown[], artists: [] as unknown[] }
+
 const api = {
+  /** 统一入口：`provider.call('netease', 'search', { keywords: '钻石' })`。 */
+  provider: {
+    call: callProvider,
+    /*
+     * 这份名单必须是字面量，不能从 pure 模块 import：preload 跑在沙箱里，只认
+     * electron/events 这类内置模块，require 一个本地文件会让整个 preload 崩掉
+     * ——崩掉的后果是 window.aurora 整个不存在，页面一句解释都没有。
+     *
+     * 主进程侧的白名单才是真源（electron/pure/provider-call.ts）。这两份写歪了
+     * 不会静默：多出的一家由主进程回 unsupported-provider，少掉的一家渲染层
+     * 调不到。tests/provider-call.test.ts 还盯着这两处是否同步。
+     */
+    ids: ['netease', 'qq', 'kugou', 'qishui', 'bilibili']
+  },
+
   info: () => ipcRenderer.invoke('app:info') as Promise<{
     version: string
     electron: string
@@ -482,7 +528,7 @@ const api = {
       ipcRenderer.invoke('netease:logoutProfile', profileId) as Promise<boolean>,
     status: () => ipcRenderer.invoke('netease:status'),
     search: (keywords: string, type: string, limit?: number) =>
-      ipcRenderer.invoke('netease:search', { keywords, type, limit }),
+      throughProvider('netease', 'search', { keywords, type, limit }, SONG_SHELF_EMPTY),
     streamUrl: (songId: number, quality?: string) =>
       ipcRenderer.invoke('netease:streamUrl', { songId, quality }),
     lyrics: (songId: number) => ipcRenderer.invoke('netease:lyrics', songId),
@@ -559,7 +605,7 @@ const api = {
 
     status: () => ipcRenderer.invoke('qq:status'),
     search: (keywords: string, type: string, limit?: number) =>
-      ipcRenderer.invoke('qq:search', { keywords, type, limit }),
+      throughProvider('qq', 'search', { keywords, type, limit }, SONG_SHELF_EMPTY),
     streamUrl: (songId: string | number, quality?: string) =>
       ipcRenderer.invoke('qq:streamUrl', { songId, quality }),
     lyrics: (songId: string | number) => ipcRenderer.invoke('qq:lyrics', songId),
@@ -614,7 +660,7 @@ const api = {
 
     status: () => ipcRenderer.invoke('kugou:status'),
     search: (keywords: string, type: string, limit?: number) =>
-      ipcRenderer.invoke('kugou:search', { keywords, type, limit }),
+      throughProvider('kugou', 'search', { keywords, type, limit }, SONG_SHELF_EMPTY),
     streamUrl: (songId: string | number, quality?: string) =>
       ipcRenderer.invoke('kugou:streamUrl', { songId, quality }),
     lyrics: (songId: string | number) => ipcRenderer.invoke('kugou:lyrics', songId),
@@ -661,7 +707,7 @@ const api = {
 
     status: () => ipcRenderer.invoke('qishui:status'),
     search: (keywords: string, limit?: number) =>
-      ipcRenderer.invoke('qishui:search', { keywords, limit }),
+      throughProvider('qishui', 'search', { keywords, limit }, { songs: [] as unknown[] }),
     song: (id: number) => ipcRenderer.invoke('qishui:song', id),
     streamUrl: (songId: number, quality?: string) =>
       ipcRenderer.invoke('qishui:streamUrl', { songId, quality }),
@@ -695,7 +741,7 @@ const api = {
    */
   bilibili: {
     search: (keywords: string, limit?: number) =>
-      ipcRenderer.invoke('bilibili:search', { keywords, limit }),
+      throughProvider('bilibili', 'search', { keywords, limit }, { videos: [] as unknown[] }),
     streamUrl: (songId: number, quality: string) =>
       ipcRenderer.invoke('bilibili:streamUrl', { songId, quality }),
     setProfile: (profileId: string) => ipcRenderer.invoke('bilibili:setProfile', profileId),

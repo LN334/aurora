@@ -648,7 +648,30 @@ interface WindowApi {
   isFullscreen(): Promise<boolean>
 }
 
+/** 一次跨平台调用的结果：要么有值，要么有一个能分辨的失败。 */
+export type ProviderAnswer<T> =
+  | { ok: true; value: T }
+  | {
+      ok: false
+      error: {
+        code: 'unsupported-provider' | 'invalid-capability' | 'unsupported-capability' | 'handler-failed'
+        message: string
+      }
+    }
+
+/**
+ * 所有平台共用的一条通道。
+ *
+ * 与 `netease.search(...)` 这类旧方法并存：旧方法失败时折成空结果，这里不折，
+ * 所以「这家没这个能力」能被界面如实说出来，而不是画成一个空列表。
+ */
+interface ProviderApi {
+  readonly ids: readonly ('netease' | 'qq' | 'kugou' | 'qishui' | 'bilibili')[]
+  call<T = unknown>(provider: string, capability: string, args?: unknown): Promise<ProviderAnswer<T>>
+}
+
 export interface AuroraApi {
+  provider: ProviderApi
   info(): Promise<{
     version: string
     electron: string

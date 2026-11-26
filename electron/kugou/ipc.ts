@@ -32,6 +32,7 @@ import {
   setActiveProfile
 } from './client'
 import { isKugouQuality } from './types'
+import { registerProviderCapability } from '../provider-gateway.ts'
 import type { KugouQuality } from './types'
 
 /**
@@ -94,6 +95,18 @@ async function guard<T>(
   }
 }
 
+/** 搜索：旧通道 `kugou:search` 与 `provider:call` 共用这一份实现。 */
+function searchKugou(input: unknown) {
+  const params = asRecord(input)
+  const keywords = asText(params.keywords, MAX_KEYWORDS)
+  const type = params.type === 'album' || params.type === 'artist' ? params.type : 'song'
+  const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 60) : 50
+  return guard('search', { songs: [], albums: [], artists: [] }, async () => {
+    if (!keywords) return { songs: [], albums: [], artists: [] }
+    return await kugouSearch(keywords, type, limit)
+  })
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
@@ -111,16 +124,8 @@ export function registerKugouIpc(): void {
     guard('status', { ready: false, loggedIn: false, detail: '酷狗接口不可用' }, async () => kugouStatus())
   )
 
-  ipcMain.handle('kugou:search', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const keywords = asText(params.keywords, MAX_KEYWORDS)
-    const type = params.type === 'album' || params.type === 'artist' ? params.type : 'song'
-    const limit = typeof params.limit === 'number' ? Math.min(Math.max(Math.trunc(params.limit), 1), 60) : 50
-    return await guard('search', { songs: [], albums: [], artists: [] }, async () => {
-      if (!keywords) return { songs: [], albums: [], artists: [] }
-      return await kugouSearch(keywords, type, limit)
-    })
-  })
+  ipcMain.handle('kugou:search', (_event, input: unknown) => searchKugou(input))
+  registerProviderCapability('kugou', 'search', searchKugou)
 
   ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 60) : 20
