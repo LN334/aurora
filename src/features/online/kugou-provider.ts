@@ -53,7 +53,7 @@ const COLLECTIONS: OnlineCollection[] = []
 const CAPABILITIES: ProviderCapabilities = {
   search: true,
   playback: true,
-  // 歌词接口要 accesskey（实测匿名拿不到），所以不声明，界面也就不会给入口。
+  // 歌词要 accesskey（实测匿名拿不到），这条通道没有接，界面也就不给入口。
   lyrics: false,
   auth: true,
   playlists: true,

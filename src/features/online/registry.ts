@@ -5,6 +5,7 @@ import type {
   ProviderCapabilities,
   ProviderId
 } from './types'
+import { brokenClaims, supportsCapability } from './capability.ts'
 
 /**
  * The provider registry: one `Map<ProviderId, OnlineMusicProvider>` and nothing
@@ -28,6 +29,18 @@ const providers = new Map<ProviderId, OnlineMusicProvider>()
  */
 export function registerProvider(provider: OnlineMusicProvider): void {
   providers.set(provider.id, provider)
+
+  /*
+   * 注册时核一次「声明与实现」：声明了能力却没有对应方法，界面就会给一个必然
+   * 失败的入口。这种错在类型上抓不到（capabilities 是普通布尔表），所以放在
+   * 这里，启动日志里一眼可见。
+   */
+  const broken = brokenClaims(provider)
+  if (broken.length > 0) {
+    console.error(
+      `[provider] ${provider.id} claims ${broken.join(', ')} but has no implementation`
+    )
+  }
 }
 
 export function getProvider(id: ProviderId): OnlineMusicProvider | null {
@@ -56,7 +69,7 @@ export function providerSupports(
   provider: OnlineMusicProvider | null | undefined,
   capability: keyof ProviderCapabilities
 ): boolean {
-  return Boolean(provider?.capabilities[capability])
+  return supportsCapability(provider, capability)
 }
 
 /**

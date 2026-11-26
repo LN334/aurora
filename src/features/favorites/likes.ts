@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import type { Track } from '../../types'
 import type { PlatformBackend } from '../online/store'
+import { supportsCapability } from '../online/capability'
 import { getProvider, listProviders } from '../online/registry'
 import { useOnlineStore } from '../online/store'
 import type { OnlineMusicProvider } from '../online/types'
@@ -121,7 +122,7 @@ function backendOf(provider: OnlineMusicProvider | null): PlatformBackend | null
 /** 有读、有写、且此刻可用的平台。收藏页的来源筛选和「全部刷新」都读它。 */
 export function likeProviders(): OnlineMusicProvider[] {
   return listProviders().filter(
-    (provider) => provider.available() && provider.capabilities.likes && Boolean(provider.likes)
+    (provider) => provider.available() && supportsCapability(provider, 'likes')
   )
 }
 

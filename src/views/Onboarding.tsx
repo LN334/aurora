@@ -9,6 +9,7 @@ import { setRoamPlatform, useRoamPlatforms } from '../features/player/roam-sourc
 import { setAccentFromArt, useAccentFromArt } from '../features/settings/accent'
 import { setPushSignedOnly, usePushSignedOnly } from '../features/settings/push-signed'
 import { Toggle } from './settings/parts'
+import { supportsCapability } from '../features/online/capability'
 import { openPlatformLogin } from './settings/panes/PlatformSignIn'
 
 /**
@@ -208,7 +209,7 @@ function OnboardPlatform({
         <span className="onb-plat__name">{name}</span>
         {meta ? <span className="onb-plat__meta">{meta}</span> : null}
       </div>
-      {!account && (ready || blocked) ? (
+      {!account && (ready || blocked) && supportsCapability(provider, 'auth') ? (
         <button className="btn btn--small" type="button" onClick={() => openPlatformLogin(provider.id)}>
           登录
         </button>

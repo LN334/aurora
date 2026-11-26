@@ -164,7 +164,12 @@ const bilibiliProvider: OnlineMusicProvider = {
     playback: true,
     // 视频没有结构化歌词，硬凑一份只会是错的。
     lyrics: false,
-    auth: true,
+    /*
+     * 没有登录这回事：搜索与播放都走公开接口（见 anonymousNote），B 站这块
+     * 也没有任何需要 cookie 的通道。曾经在这里写 true，于是界面给了一个点不动
+     * 的登录入口——声明与实现不一致，注册时的 brokenClaims 检查现在会报出来。
+     */
+    auth: false,
     playlists: false,
     albums: false,
     artists: false,

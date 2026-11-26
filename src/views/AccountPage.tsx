@@ -12,6 +12,7 @@ import type { OnlineMusicProvider } from '../features/online/types'
 import { remoteImageUrl, sizedImage } from '../features/player/urls'
 import { Artwork } from '../ui/Artwork'
 import { Check, Folder, Pencil, Plus, Trash } from '../ui/icons'
+import { supportsCapability } from '../features/online/capability'
 import { openPlatformLogin } from './settings/panes/PlatformSignIn'
 
 /**
@@ -295,7 +296,7 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
           <button className="btn btn--small" onClick={() => void logout()}>
             退出登录
           </button>
-        ) : (
+        ) : supportsCapability(provider, 'auth') ? (
           <button
             className="btn btn--small acct2-login"
             onClick={() => openPlatformLogin(provider.id)}
@@ -303,7 +304,7 @@ function PlatformCard({ provider }: { provider: OnlineMusicProvider }) {
           >
             登录
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   )

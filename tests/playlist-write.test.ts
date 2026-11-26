@@ -9,8 +9,21 @@ const { canWritePlaylist } = await import('../src/features/online/playlist-write
  * 不牵扯那一家怎么连上游。canWritePlaylist 只看 provider 有没有 playlists 写通道。
  */
 type Provider = Parameters<typeof registerProvider>[0]
+/* 能力表按真实形状填：注册时会核对「声明的都得有实现」，缺表就是没声明的怪对象。 */
 registerProvider({
   id: 'netease',
+  capabilities: {
+    search: false,
+    playback: false,
+    lyrics: false,
+    auth: false,
+    playlists: true,
+    albums: false,
+    artists: false,
+    recommendations: false,
+    userCloud: false,
+    likes: false
+  },
   playlists: { rename: async () => true, remove: async () => true }
 } as unknown as Provider)
 

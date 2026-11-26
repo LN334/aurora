@@ -1,5 +1,6 @@
 import type { Track } from '../../types.ts'
 import { albumKeyOf } from './album-merge.ts'
+import { supportsCapability } from './capability.ts'
 import { getProvider, listAvailableProviders, sourceLabelById } from './registry.ts'
 import type { PlatformBackend } from './store.ts'
 import type { ProviderId } from './types.ts'
@@ -137,7 +138,7 @@ export async function albumAcrossPlatforms(
   const reference = primary.tracks
 
   const providers = listAvailableProviders().filter(
-    (provider) => provider.id !== primary.providerId && provider.capabilities.search && Boolean(provider.search)
+    (provider) => provider.id !== primary.providerId && supportsCapability(provider, 'search')
   )
 
   const rounds = await Promise.all(

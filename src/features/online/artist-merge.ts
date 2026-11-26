@@ -1,4 +1,5 @@
 import type { Track } from '../../types'
+import { supportsCapability } from './capability'
 import { getProvider, listAvailableProviders } from './registry'
 import type { PlatformBackend } from './store'
 import type { ProviderId } from './types'
@@ -22,10 +23,7 @@ export async function songsAcrossPlatforms(
   if (!target) return []
   const providers = listAvailableProviders().filter(
     (provider) =>
-      provider.id !== exclude &&
-      provider.capabilities.search &&
-      Boolean(provider.search) &&
-      (!only || only.has(provider.id))
+      provider.id !== exclude && supportsCapability(provider, 'search') && (!only || only.has(provider.id))
   )
   const rounds = await Promise.all(
     providers.map(async (provider) => {

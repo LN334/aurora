@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
+import { supportsCapability } from '../features/online/capability'
 import { sourceLabelById, getProvider } from '../features/online/registry'
 import { songsAcrossPlatforms } from '../features/online/artist-merge'
 import { albumAcrossPlatforms, type AlbumOnPlatform } from '../features/online/album-unify'
@@ -300,7 +301,7 @@ function AlbumPage({ providerId, id }: { providerId: string; id: number }) {
        */
       const source = getProvider(providerId as ProviderId)
       const backend = source?.backend as PlatformBackend | undefined
-      if (!source?.catalog?.album || !backend) {
+      if (!backend || !source?.catalog?.album || !supportsCapability(source, 'albums')) {
         setError('这个平台还没有专辑页')
         return
       }
@@ -472,7 +473,7 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
        */
       const platform = getProvider(providerId as ProviderId)
       const backend = platform?.backend as PlatformBackend | undefined
-      if (!platform?.catalog?.artistTopSongs || !backend) {
+      if (!backend || !platform?.catalog?.artistTopSongs || !supportsCapability(platform, 'artists')) {
         setError('这个平台还没有艺人页')
         return
       }

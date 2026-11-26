@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { searchLocalTracks } from '../../features/library/search'
+import { supportsCapability } from '../../features/online/capability'
 import { getProvider, listAvailableProviders } from '../../features/online/registry'
 import { mergeVersions } from '../../features/online/unify'
 import { sourceOrder } from '../../features/settings/source-order'
@@ -45,7 +46,7 @@ export function searchSources(): SearchSourceTab[] {
   const tabs: SearchSourceTab[] = [
     { id: 'local', label: '本机曲库', note: '只搜这台电脑上已有的文件', remote: false }
   ]
-  const platforms = listAvailableProviders().filter((provider) => provider.search)
+  const platforms = listAvailableProviders().filter((provider) => supportsCapability(provider, 'search'))
   /*
    * 「全部平台」只在真的有两个以上在线平台时出现。
    *
