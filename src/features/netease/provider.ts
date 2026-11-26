@@ -1,4 +1,4 @@
-import type { NeteaseQuality, NeteaseSong } from '../../env'
+import type { NeteaseAccount, NeteaseQuality, NeteaseSong } from '../../env'
 import type { Track } from '../../types'
 import { netease, hasNeteaseBackend } from './api'
 import type { LyricBundle } from '../lyrics/align'
@@ -7,6 +7,7 @@ import { rememberNeteaseCover } from '../library/source'
 import { registerProvider } from '../online/registry'
 import { previewBackendsForced } from '../online/preview-harness'
 import { registerResumeHandler } from '../online/store'
+import { providerAccountFor, providerLoginStatus, providerLogout } from '../online/account-channel.ts'
 import type { PlatformBackend } from '../online/store'
 import {
   playable,
@@ -152,7 +153,7 @@ const neteaseBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    const account = await netease.loginStatus()
+    const account = await providerLoginStatus<NeteaseAccount>('netease')
     return account
       ? {
           id: account.userId,
@@ -165,7 +166,7 @@ const neteaseBackend: PlatformBackend = {
   },
 
   async logout() {
-    await netease.logout()
+    await providerLogout('netease')
   },
 
   async bindProfile(profileId) {
@@ -244,7 +245,7 @@ const neteaseBackend: PlatformBackend = {
     // The main process answers that question, and its shape is converted here so
     // the shared layer never sees a Netease-specific field name.
     accountFor: async (profileId) => {
-      const account = await (extras.accountFor?.(profileId) ?? Promise.resolve(null))
+      const account = await providerAccountFor<NeteaseAccount>('netease', profileId)
       return account
         ? {
             id: account.userId,

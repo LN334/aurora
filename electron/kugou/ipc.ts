@@ -114,22 +114,58 @@ function lyricsKugou(args: unknown) {
   return guard('lyrics', null, async () => kugouLyrics(songId))
 }
 
+/* 账号这一组：一份实现，旧通道与 `provider:call` 两个门（理由同网易云）。 */
+function statusKugou() {
+  return guard('status', { ready: false, loggedIn: false, detail: '酷狗接口不可用' }, async () =>
+    kugouStatus()
+  )
+}
+
+function accountForKugou(args: unknown) {
+  return guard('accountFor', null, async () =>
+    kugouAccountFor(asText(namedArgument(args, 'profileId'), MAX_ID) || 'default')
+  )
+}
+
+function logoutProfileKugou(args: unknown) {
+  return guard('logoutProfile', false, async () =>
+    kugouLogoutProfile(asText(namedArgument(args, 'profileId'), MAX_ID) || activeProfile())
+  )
+}
+
+function qrCreateKugou() {
+  return guard('qrCreate', { key: '', imageDataUrl: '' }, async () => kugouQrCreate())
+}
+
+function qrCheckKugou(args: unknown) {
+  return guard('qrCheck', { status: 'failed', message: '暂时无法完成登录' }, async () =>
+    kugouQrCheck(asText(namedArgument(args, 'key'), MAX_ID))
+  )
+}
+
+function loginStatusKugou() {
+  return guard('loginStatus', null, async () => kugouLoginStatus())
+}
+
+function logoutKugou() {
+  return guard('logout', false, async () => kugouLogout())
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
   )
 
-  ipcMain.handle('kugou:accountFor', async (_event, profileId: unknown) =>
-    guard('accountFor', null, async () => kugouAccountFor(asText(profileId, MAX_ID) || 'default'))
-  )
+  ipcMain.handle('kugou:accountFor', async (_event, profileId: unknown) => accountForKugou(profileId))
+  registerProviderCapability('kugou', 'accountFor', accountForKugou)
 
   ipcMain.handle('kugou:logoutProfile', async (_event, profileId: unknown) =>
-    guard('logoutProfile', false, async () => kugouLogoutProfile(asText(profileId, MAX_ID) || activeProfile()))
+    logoutProfileKugou(profileId)
   )
+  registerProviderCapability('kugou', 'logoutProfile', logoutProfileKugou)
 
-  ipcMain.handle('kugou:status', async () =>
-    guard('status', { ready: false, loggedIn: false, detail: '酷狗接口不可用' }, async () => kugouStatus())
-  )
+  ipcMain.handle('kugou:status', async () => statusKugou())
+  registerProviderCapability('kugou', 'status', statusKugou)
 
   ipcMain.handle('kugou:search', (_event, input: unknown) => searchKugou(input))
   registerProviderCapability('kugou', 'search', searchKugou)
@@ -177,19 +213,17 @@ export function registerKugouIpc(): void {
     )
   })
 
-  ipcMain.handle('kugou:qrCreate', async () =>
-    guard('qrCreate', { key: '', imageDataUrl: '' }, async () => kugouQrCreate())
-  )
+  ipcMain.handle('kugou:qrCreate', async () => qrCreateKugou())
+  registerProviderCapability('kugou', 'qrCreate', qrCreateKugou)
 
-  ipcMain.handle('kugou:qrCheck', async (_event, key: unknown) =>
-    guard('qrCheck', { status: 'failed', message: '暂时无法完成登录' }, async () =>
-      kugouQrCheck(asText(key, MAX_ID))
-    )
-  )
+  ipcMain.handle('kugou:qrCheck', async (_event, key: unknown) => qrCheckKugou(key))
+  registerProviderCapability('kugou', 'qrCheck', qrCheckKugou)
 
-  ipcMain.handle('kugou:loginStatus', async () => guard('loginStatus', null, async () => kugouLoginStatus()))
+  ipcMain.handle('kugou:loginStatus', async () => loginStatusKugou())
+  registerProviderCapability('kugou', 'loginStatus', loginStatusKugou)
 
-  ipcMain.handle('kugou:logout', async () => guard('logout', false, async () => kugouLogout()))
+  ipcMain.handle('kugou:logout', async () => logoutKugou())
+  registerProviderCapability('kugou', 'logout', logoutKugou)
 
   ipcMain.handle('kugou:getQuality', async () =>
     guard('getQuality', 'exhigh' satisfies KugouQuality, async () => kugouGetQuality())

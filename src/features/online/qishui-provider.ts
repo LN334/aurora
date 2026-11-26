@@ -2,6 +2,7 @@ import type { QishuiApi, QishuiSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { registerProvider } from './registry'
+import { providerLoginStatus, providerLogout, providerStatus } from './account-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   unknownAvailability,
@@ -29,6 +30,10 @@ function client(): QishuiApi | null {
   if (typeof window === 'undefined') return null
   return window.aurora?.qishui ?? null
 }
+
+/** 主进程报的就绪情况与账号，形状沿用桥的声明。 */
+type QishuiStatus = Awaited<ReturnType<QishuiApi['status']>>
+type QishuiAccount = NonNullable<Awaited<ReturnType<QishuiApi['loginStatus']>>>
 
 /**
  * 只声明标准档。
@@ -196,7 +201,7 @@ const qishuiBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    const account = await client()?.loginStatus()
+    const account = await providerLoginStatus<QishuiAccount>('qishui')
     if (!account) return null
     return {
       id: accountIdOf(account.id),
@@ -209,11 +214,11 @@ const qishuiBackend: PlatformBackend = {
   },
 
   async logout() {
-    await client()?.logout()
+    await providerLogout('qishui')
   },
 
   async status() {
-    const status = await client()?.status()
+    const status = await providerStatus<QishuiStatus>('qishui')
     return status ? { ready: status.ready, detail: status.detail } : { ready: false }
   },
 
@@ -362,6 +367,7 @@ const qishuiProvider: OnlineMusicProvider = {
        * client 的 setProfile 已经切过了，这里读当前账号即可。
        */
       void profileId
+      // 汽水只有一份会话，按档案问到的就是当前账号；走同一个入口，映射只有一份。
       return qishuiBackend.loginStatus()
     }
   }

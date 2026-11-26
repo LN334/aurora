@@ -99,30 +99,54 @@ function lyricsQishui(args: unknown) {
   return guard('lyrics', null, async () => (alias ? await qishuiLyrics(alias) : null))
 }
 
+/*
+ * 账号这一组：一份实现，旧通道与 `provider:call` 两个门（理由同网易云）。
+ *
+ * 汽水没有「按档案问账号」那两条：它的会话是单份的，切档案时分不到人身上。
+ */
+function statusQishui() {
+  return guard('status', { ready: false, loggedIn: false, detail: '汽水接口不可用' }, async () =>
+    qishuiStatus()
+  )
+}
+
+function loginStatusQishui() {
+  return guard('loginStatus', null, async () => qishuiLoginStatus())
+}
+
+function qrCreateQishui() {
+  return guard('qrCreate', { key: '', imageDataUrl: '' }, async () => qishuiQrCreate())
+}
+
+function qrCheckQishui(args: unknown) {
+  return guard('qrCheck', { status: 'failed', message: '暂时无法完成登录' }, async () =>
+    qishuiQrCheck(asText(namedArgument(args, 'key'), MAX_ID))
+  )
+}
+
+function logoutQishui() {
+  return guard('logout', false, async () => qishuiLogout())
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
     guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
   )
 
-  ipcMain.handle('qishui:status', async () =>
-    guard('status', { ready: false, loggedIn: false, detail: '汽水接口不可用' }, async () => qishuiStatus())
-  )
+  ipcMain.handle('qishui:status', async () => statusQishui())
+  registerProviderCapability('qishui', 'status', statusQishui)
 
-  ipcMain.handle('qishui:loginStatus', async () =>
-    guard('loginStatus', null, async () => qishuiLoginStatus())
-  )
+  ipcMain.handle('qishui:loginStatus', async () => loginStatusQishui())
+  registerProviderCapability('qishui', 'loginStatus', loginStatusQishui)
 
-  ipcMain.handle('qishui:qrCreate', async () =>
-    guard('qrCreate', { key: '', imageDataUrl: '' }, async () => qishuiQrCreate())
-  )
+  ipcMain.handle('qishui:qrCreate', async () => qrCreateQishui())
+  registerProviderCapability('qishui', 'qrCreate', qrCreateQishui)
 
-  ipcMain.handle('qishui:qrCheck', async (_event, key: unknown) =>
-    guard('qrCheck', { status: 'failed', message: '暂时无法完成登录' }, async () =>
-      qishuiQrCheck(asText(key, MAX_ID))
-    )
-  )
+  ipcMain.handle('qishui:qrCheck', async (_event, key: unknown) => qrCheckQishui(key))
+  registerProviderCapability('qishui', 'qrCheck', qrCheckQishui)
 
-  ipcMain.handle('qishui:logout', async () => guard('logout', false, async () => qishuiLogout()))
+  ipcMain.handle('qishui:logout', async () => logoutQishui())
+  registerProviderCapability('qishui', 'logout', logoutQishui)
 
   ipcMain.handle('qishui:search', (_event, input: unknown) => searchQishui(input))
   registerProviderCapability('qishui', 'search', searchQishui)

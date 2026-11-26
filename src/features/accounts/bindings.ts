@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { isNative } from '../../bridge'
 import type { NeteaseAccount } from '../../env'
-import { netease } from '../netease/api'
+import { providerAccountFor } from '../online/account-channel.ts'
 import type { Account } from './store'
 
 /**
@@ -10,7 +10,7 @@ import type { Account } from './store'
  * 以前只有档案页需要它，所以写在那个组件里；现在侧栏底部的档案入口也要显示
  * 同一个头像，两处各问一次会得到两个可能不同步的答案，抽出来共用。
  *
- * 只在有主进程（Electron）时问：浏览器预览里 netease.accountFor 不存在。
+ * 只在有主进程（Electron）时问：浏览器预览里没有 provider 通道。
  */
 export function useOnlineBindings(
   accounts: Account[]
@@ -18,12 +18,12 @@ export function useOnlineBindings(
   const [bindings, setBindings] = useState<Record<string, NeteaseAccount | null>>({})
 
   useEffect(() => {
-    if (!isNative || !netease.accountFor) return
+    if (!isNative) return
     let cancelled = false
     void (async () => {
       const next: Record<string, NeteaseAccount | null> = {}
       for (const account of accounts) {
-        next[account.id] = await netease.accountFor(account.id)
+        next[account.id] = await providerAccountFor<NeteaseAccount>('netease', account.id)
       }
       if (!cancelled) setBindings(next)
     })()

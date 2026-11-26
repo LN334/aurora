@@ -212,8 +212,66 @@ function lyricsNetease(args: unknown) {
   return guard('lyrics', null, () => client.neteaseLyrics(songId))
 }
 
+/*
+ * 账号这一组。
+ *
+ * 七个动作各一份实现，旧通道与 `provider:call` 都调它：不是两套逻辑，是两个
+ * 门。失败语义照旧—— `guard` 折回兜底值，界面继续看到「未登录」而不是「坏
+ * 了」。后者在 IPC 之外几乎无法区分，这是既有的取舍，不在这一支改。
+ */
+const statusFailure: NeteaseStatusResult = { ready: false, loggedIn: false }
+
+function statusNetease(): Promise<NeteaseStatusResult> {
+  return guard('status', statusFailure, () => client.neteaseStatus())
+}
+
+/** The profiles screen asks about profiles that are not active. */
+function accountForNetease(args: unknown): Promise<NeteaseAccount | null> {
+  const profileId = asText(namedArgument(args, 'profileId'), 64) ?? ''
+  return guard<NeteaseAccount | null>('accountFor', null, () =>
+    client.neteaseAccountFor(profileId)
+  )
+}
+
+function logoutProfileNetease(args: unknown): Promise<boolean> | boolean {
+  const profileId = asText(namedArgument(args, 'profileId'), 64)
+  if (!profileId) return false
+  return client.neteaseLogoutProfile(profileId)
+}
+
+function qrCreateNetease(): Promise<NeteaseQrSession> {
+  const empty: NeteaseQrSession = { key: '', url: '', imageDataUrl: '' }
+  return guard('qrCreate', empty, () => client.neteaseQrCreate())
+}
+
+function qrCheckNetease(args: unknown): Promise<NeteaseQrResult> {
+  const key = asText(namedArgument(args, 'key'), 128)
+  if (!key) return Promise.resolve({ status: 'failed', message: '二维码已失效，请重新获取' })
+  const failed: NeteaseQrResult = { status: 'failed', message: '登录状态查询失败，请重试' }
+  return guard('qrCheck', failed, () => client.neteaseQrCheck(key))
+}
+
+function loginCellphoneNetease(args: unknown): Promise<NeteaseLoginResult> {
+  const record = asRecord(args)
+  const phone = typeof record.phone === 'string' ? record.phone.trim() : ''
+  const password = typeof record.password === 'string' ? record.password : ''
+  // Length only: the values themselves never reach a log or an error message.
+  if (!/^\d{5,20}$/.test(phone) || password.length < 1 || password.length > 128) {
+    return Promise.resolve({ ok: false, message: '手机号或密码格式不正确' })
+  }
+  const failed: NeteaseLoginResult = { ok: false, message: '登录失败，请重试' }
+  return guard('loginCellphone', failed, () => client.neteaseLoginCellphone(phone, password))
+}
+
+function loginStatusNetease(): Promise<NeteaseAccount | null> {
+  return guard<NeteaseAccount | null>('loginStatus', null, () => client.neteaseLoginStatus())
+}
+
+function logoutNetease(): Promise<boolean> {
+  return guard('logout', false, () => client.neteaseLogout())
+}
+
 export function registerNeteaseIpc(): void {
-  const statusFailure: NeteaseStatusResult = { ready: false, loggedIn: false }
 
   /*
    * Which profile the following calls belong to.
@@ -227,17 +285,14 @@ export function registerNeteaseIpc(): void {
     return client.setActiveProfile(id)
   })
 
-  /** The profiles screen asks about profiles that are not active. */
-  ipcMain.handle('netease:accountFor', (_event, value: unknown) =>
-    guard('accountFor', null, () => client.neteaseAccountFor(typeof value === 'string' ? value : ''))
-  )
+  ipcMain.handle('netease:accountFor', (_event, value: unknown) => accountForNetease(value))
+  registerProviderCapability('netease', 'accountFor', accountForNetease)
 
-  ipcMain.handle('netease:logoutProfile', (_event, value: unknown) => {
-    if (typeof value !== 'string') return false
-    return client.neteaseLogoutProfile(value)
-  })
+  ipcMain.handle('netease:logoutProfile', (_event, value: unknown) => logoutProfileNetease(value))
+  registerProviderCapability('netease', 'logoutProfile', logoutProfileNetease)
 
-  ipcMain.handle('netease:status', () => guard('status', statusFailure, () => client.neteaseStatus()))
+  ipcMain.handle('netease:status', () => statusNetease())
+  registerProviderCapability('netease', 'status', statusNetease)
 
   ipcMain.handle('netease:search', (_event, payload: unknown) => searchNetease(payload))
   registerProviderCapability('netease', 'search', searchNetease)
@@ -334,37 +389,20 @@ export function registerNeteaseIpc(): void {
     return guard<NeteaseSong[]>('songDetail', [], () => client.neteaseSongDetail(ids))
   })
 
-  ipcMain.handle('netease:qrCreate', () => {
-    const empty: NeteaseQrSession = { key: '', url: '', imageDataUrl: '' }
-    return guard('qrCreate', empty, () => client.neteaseQrCreate())
-  })
+  ipcMain.handle('netease:qrCreate', () => qrCreateNetease())
+  registerProviderCapability('netease', 'qrCreate', qrCreateNetease)
 
-  ipcMain.handle('netease:qrCheck', (_event, value: unknown) => {
-    const key = asText(value, 128)
-    if (!key) {
-      return { status: 'failed', message: '二维码已失效，请重新获取' } satisfies NeteaseQrResult
-    }
-    const failed: NeteaseQrResult = { status: 'failed', message: '登录状态查询失败，请重试' }
-    return guard('qrCheck', failed, () => client.neteaseQrCheck(key))
-  })
+  ipcMain.handle('netease:qrCheck', (_event, value: unknown) => qrCheckNetease(value))
+  registerProviderCapability('netease', 'qrCheck', qrCheckNetease)
 
-  ipcMain.handle('netease:loginCellphone', (_event, payload: unknown) => {
-    const args = asRecord(payload)
-    const phone = typeof args.phone === 'string' ? args.phone.trim() : ''
-    const password = typeof args.password === 'string' ? args.password : ''
-    // Length only: the values themselves never reach a log or an error message.
-    if (!/^\d{5,20}$/.test(phone) || password.length < 1 || password.length > 128) {
-      return { ok: false, message: '手机号或密码格式不正确' } satisfies NeteaseLoginResult
-    }
-    const failed: NeteaseLoginResult = { ok: false, message: '登录失败，请重试' }
-    return guard('loginCellphone', failed, () => client.neteaseLoginCellphone(phone, password))
-  })
+  ipcMain.handle('netease:loginCellphone', (_event, payload: unknown) => loginCellphoneNetease(payload))
+  registerProviderCapability('netease', 'loginCellphone', loginCellphoneNetease)
 
-  ipcMain.handle('netease:loginStatus', () =>
-    guard<NeteaseAccount | null>('loginStatus', null, () => client.neteaseLoginStatus())
-  )
+  ipcMain.handle('netease:loginStatus', () => loginStatusNetease())
+  registerProviderCapability('netease', 'loginStatus', loginStatusNetease)
 
-  ipcMain.handle('netease:logout', () => guard('logout', false, () => client.neteaseLogout()))
+  ipcMain.handle('netease:logout', () => logoutNetease())
+  registerProviderCapability('netease', 'logout', logoutNetease)
 
   ipcMain.handle('netease:myPlaylists', () =>
     guard<NeteasePlaylistSummary[]>('myPlaylists', [], () => client.neteaseMyPlaylists())

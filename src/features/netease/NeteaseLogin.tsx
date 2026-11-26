@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
-import { hasNeteaseBackend, netease } from './api'
+import { providerLoginCellphone, providerQrCheck, providerQrCreate } from '../online/account-channel.ts'
+import type { NeteaseApi } from '../../env'
 import { useNetease } from './store'
 import { Check, Close, Lock, Refresh } from '../../ui/icons'
 // The dialog's own stylesheet, imported here rather than from the shell's: it is
 // this platform's interface, and a build that never renders it never loads it.
 import './NeteaseLogin.css'
+
+/** 二维码与手机登录的形状沿用桥的声明（主进程那侧是同一份实现）。 */
+type NeteaseQrSession = Awaited<ReturnType<NeteaseApi['qrCreate']>>
+type NeteaseQrResult = Awaited<ReturnType<NeteaseApi['qrCheck']>>
+type NeteaseLoginResult = Awaited<ReturnType<NeteaseApi['loginCellphone']>>
 
 interface NeteaseLoginProps {
   onClose(): void
@@ -61,7 +67,7 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
   /** Create a code and poll it until it is used, expires, or the dialog closes. */
   useEffect(() => {
     if (tab !== 'qr') return
-    if (!hasNeteaseBackend) {
+    if (!window.aurora?.provider) {
       setQr({ kind: 'failed', message: '浏览器预览模式没有主进程，无法显示二维码' })
       return
     }
@@ -71,7 +77,10 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
     setQr({ kind: 'loading' })
 
     const poll = async (key: string) => {
-      const result = await netease.qrCheck(key)
+      const result = await providerQrCheck<NeteaseQrResult>('netease', key, {
+        status: 'failed',
+        message: '暂时问不到扫码结果'
+      })
       if (!alive) return
 
       if (result.status === 'confirmed' && result.account) {
@@ -96,7 +105,11 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
 
     const start = async () => {
       try {
-        const created = await netease.qrCreate()
+        const created = await providerQrCreate<NeteaseQrSession>('netease', {
+          key: '',
+          url: '',
+          imageDataUrl: ''
+        })
         if (!alive) return
         // IPC 用空结果表示失败而不是抛错，所以空图片必须当成失败，否则只剩一个空白框。
         if (!created.imageDataUrl || !created.key) {
@@ -127,7 +140,12 @@ export function NeteaseLogin({ onClose }: NeteaseLoginProps) {
     setPhoneError(null)
     setPhoneBusy(true)
     try {
-      const result = await netease.loginCellphone(phone.trim(), password)
+      const result = await providerLoginCellphone<NeteaseLoginResult>(
+        'netease',
+        phone.trim(),
+        password,
+        { ok: false, message: '登录请求没通' }
+      )
       if (result.ok && result.account) {
         finish()
         return

@@ -129,8 +129,46 @@ function lyricsQq(args: unknown) {
   return guard('lyrics', null, () => client.qqLyrics(songId))
 }
 
+/* 账号这一组：一份实现，旧通道与 `provider:call` 两个门（理由同网易云）。 */
+const statusFailure: QqStatusResult = { ready: false, loggedIn: false }
+
+function statusQq(): Promise<QqStatusResult> {
+  return guard('status', statusFailure, () => client.qqStatus())
+}
+
+function accountForQq(args: unknown): Promise<QqAccount | null> {
+  const profileId = asText(namedArgument(args, 'profileId'), 64)
+  if (!profileId) return Promise.resolve(null)
+  return guard<QqAccount | null>('accountFor', null, () => client.qqAccountFor(profileId))
+}
+
+function logoutProfileQq(args: unknown): Promise<boolean> | boolean {
+  const profileId = asText(namedArgument(args, 'profileId'), 64)
+  if (!profileId) return false
+  return client.qqLogoutProfile(profileId)
+}
+
+function qrCreateQq(): Promise<QqQrSession> {
+  const empty: QqQrSession = { key: '', imageDataUrl: '' }
+  return guard('qrCreate', empty, () => client.qqQrCreate())
+}
+
+function qrCheckQq(args: unknown): Promise<QqQrResult> {
+  const key = asText(namedArgument(args, 'key'), 128)
+  if (!key) return Promise.resolve({ status: 'failed', message: '二维码已失效，请重新获取' })
+  const failed: QqQrResult = { status: 'failed', message: '登录状态查询失败，请重试' }
+  return guard('qrCheck', failed, () => client.qqQrCheck(key))
+}
+
+function loginStatusQq(): Promise<QqAccount | null> {
+  return guard<QqAccount | null>('loginStatus', null, () => client.qqLoginStatus())
+}
+
+function logoutQq(): Promise<boolean> {
+  return guard('logout', false, () => client.qqLogout())
+}
+
 export function registerQqIpc(): void {
-  const statusFailure: QqStatusResult = { ready: false, loggedIn: false }
 
   ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
     const id = asText(value, 64)
@@ -138,19 +176,14 @@ export function registerQqIpc(): void {
     return client.setActiveProfile(id)
   })
 
-  ipcMain.handle('qq:accountFor', (_event, value: unknown) => {
-    const id = asText(value, 64)
-    if (!id) return null
-    return guard<QqAccount | null>('accountFor', null, () => client.qqAccountFor(id))
-  })
+  ipcMain.handle('qq:accountFor', (_event, value: unknown) => accountForQq(value))
+  registerProviderCapability('qq', 'accountFor', accountForQq)
 
-  ipcMain.handle('qq:logoutProfile', (_event, value: unknown) => {
-    const id = asText(value, 64)
-    if (!id) return false
-    return client.qqLogoutProfile(id)
-  })
+  ipcMain.handle('qq:logoutProfile', (_event, value: unknown) => logoutProfileQq(value))
+  registerProviderCapability('qq', 'logoutProfile', logoutProfileQq)
 
-  ipcMain.handle('qq:status', () => guard('status', statusFailure, () => client.qqStatus()))
+  ipcMain.handle('qq:status', () => statusQq())
+  registerProviderCapability('qq', 'status', statusQq)
 
   ipcMain.handle('qq:search', (_event, payload: unknown) => searchQq(payload))
   registerProviderCapability('qq', 'search', searchQq)
@@ -198,25 +231,17 @@ export function registerQqIpc(): void {
     )
   })
 
-  ipcMain.handle('qq:qrCreate', () => {
-    const empty: QqQrSession = { key: '', imageDataUrl: '' }
-    return guard('qrCreate', empty, () => client.qqQrCreate())
-  })
+  ipcMain.handle('qq:qrCreate', () => qrCreateQq())
+  registerProviderCapability('qq', 'qrCreate', qrCreateQq)
 
-  ipcMain.handle('qq:qrCheck', (_event, value: unknown) => {
-    const key = asText(value, 128)
-    if (!key) {
-      return { status: 'failed', message: '二维码已失效，请重新获取' } satisfies QqQrResult
-    }
-    const failed: QqQrResult = { status: 'failed', message: '登录状态查询失败，请重试' }
-    return guard('qrCheck', failed, () => client.qqQrCheck(key))
-  })
+  ipcMain.handle('qq:qrCheck', (_event, value: unknown) => qrCheckQq(value))
+  registerProviderCapability('qq', 'qrCheck', qrCheckQq)
 
-  ipcMain.handle('qq:loginStatus', () =>
-    guard<QqAccount | null>('loginStatus', null, () => client.qqLoginStatus())
-  )
+  ipcMain.handle('qq:loginStatus', () => loginStatusQq())
+  registerProviderCapability('qq', 'loginStatus', loginStatusQq)
 
-  ipcMain.handle('qq:logout', () => guard('logout', false, () => client.qqLogout()))
+  ipcMain.handle('qq:logout', () => logoutQq())
+  registerProviderCapability('qq', 'logout', logoutQq)
 
   ipcMain.handle('qq:getQuality', () => client.qqGetQuality())
 

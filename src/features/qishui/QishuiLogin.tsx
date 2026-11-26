@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useOnlineStore } from '../online/store'
+import { providerQrCheck, providerQrCreate } from '../online/account-channel.ts'
+import type { QishuiApi } from '../../env'
 import './QishuiLogin.css'
+
+/** 二维码两次调用的形状沿用桥的声明（主进程那侧是同一份实现）。 */
+type QishuiQrSession = Awaited<ReturnType<QishuiApi['qrCreate']>>
+type QishuiQrResult = Awaited<ReturnType<QishuiApi['qrCheck']>>
 
 /**
  * 汽水音乐的登录对话框：一个二维码，就这些。
@@ -50,8 +56,7 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
   }, [])
 
   useEffect(() => {
-    const bridge = window.aurora?.qishui
-    if (!bridge) {
+    if (!window.aurora?.provider) {
       setQr({ kind: 'failed', message: '浏览器预览模式没有主进程，无法显示二维码' })
       return
     }
@@ -61,7 +66,10 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
     setQr({ kind: 'loading' })
 
     const poll = async (key: string): Promise<void> => {
-      const result = await bridge.qrCheck(key)
+      const result = await providerQrCheck<QishuiQrResult>('qishui', key, {
+        status: 'failed',
+        message: '暂时问不到扫码结果'
+      })
       if (!alive) return
 
       if (result.status === 'confirmed') {
@@ -78,7 +86,7 @@ export function QishuiLogin({ onClose }: { onClose(): void }) {
 
     void (async () => {
       try {
-        const created = await bridge.qrCreate()
+        const created = await providerQrCreate<QishuiQrSession>('qishui', { key: '', imageDataUrl: '' })
         if (!alive) return
         if (!created.imageDataUrl) {
           setQr({ kind: 'failed', message: '没有拿到二维码，请重试' })

@@ -1,8 +1,14 @@
-import type { KugouApi } from '../../env'
+import type { KugouAccount, KugouApi } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
 import { registerProvider } from './registry'
+import {
+  providerAccountFor,
+  providerLoginStatus,
+  providerLogout,
+  providerStatus
+} from './account-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -37,6 +43,9 @@ function client(): KugouApi | null {
   if (typeof window === 'undefined') return null
   return window.aurora?.kugou ?? null
 }
+
+/** 主进程报的就绪情况，形状沿用桥的声明。 */
+type KugouStatus = Awaited<ReturnType<KugouApi['status']>>
 
 /** 与另外两个平台同一套四档；具体能拿到哪一档由客户端逐档下降决定。 */
 const TIERS: QualityTier[] = ['standard', 'higher', 'exhigh', 'lossless']
@@ -156,7 +165,7 @@ const kugouBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    const account = await client()?.loginStatus()
+    const account = await providerLoginStatus<KugouAccount>('kugou')
     if (!account) return null
     return {
       id: account.id,
@@ -169,11 +178,11 @@ const kugouBackend: PlatformBackend = {
   },
 
   async logout() {
-    await client()?.logout()
+    await providerLogout('kugou')
   },
 
   async status() {
-    const status = await client()?.status()
+    const status = await providerStatus<KugouStatus>('kugou')
     return status ? { ready: status.ready, detail: status.detail } : { ready: false }
   },
 
@@ -184,7 +193,7 @@ const kugouBackend: PlatformBackend = {
    * 这一家挡在外面——否则快池「谁先回算谁的」会先端上一整批点了就跳的酷狗曲。
    */
   async canStream() {
-    const status = await client()?.status()
+    const status = await providerStatus<KugouStatus>('kugou')
     return Boolean(status?.loggedIn)
   },
 
@@ -209,7 +218,7 @@ const kugouBackend: PlatformBackend = {
      * 账号昵称一比就分得开：作者是自己的是自建的，别人的是收藏的。未登录时这
      * 张表是公开榜单，作者全不是你，所以不标归属。
      */
-    const account = await client()?.loginStatus()
+    const account = await providerLoginStatus<KugouAccount>('kugou')
     const nickname = account?.nickname ?? ''
     const rows = (await client()?.myPlaylists()) ?? []
     return rows.map((row) => {
@@ -385,7 +394,7 @@ const kugouProvider: OnlineMusicProvider = {
     loginStatus: () => kugouBackend.loginStatus(),
     logout: () => kugouBackend.logout(),
     accountFor: async (profileId) => {
-      const account = await client()?.accountFor(profileId)
+      const account = await providerAccountFor<KugouAccount>('kugou', profileId)
       return account
         ? {
             id: account.id,

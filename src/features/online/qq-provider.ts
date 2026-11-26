@@ -1,8 +1,14 @@
-import type { QqApi, QqSong } from '../../env'
+import type { QqAccount, QqApi, QqSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { normalizeSearchResult, normalizeSong } from './normalize'
 import { registerProvider } from './registry'
+import {
+  providerAccountFor,
+  providerLoginStatus,
+  providerLogout,
+  providerStatus
+} from './account-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -39,6 +45,9 @@ function client(): QqApi | null {
   if (typeof window === 'undefined') return null
   return window.aurora?.qq ?? null
 }
+
+/** 主进程报的就绪情况，形状沿用桥的声明。 */
+type QqStatus = Awaited<ReturnType<QqApi['status']>>
 
 
 /**
@@ -185,7 +194,7 @@ const qqBackend: PlatformBackend = {
   },
 
   async loginStatus() {
-    const account = await client()?.loginStatus()
+    const account = await providerLoginStatus<QqAccount>('qq')
     if (!account) return null
     return {
       id: account.id,
@@ -200,11 +209,11 @@ const qqBackend: PlatformBackend = {
   },
 
   async logout() {
-    await client()?.logout()
+    await providerLogout('qq')
   },
 
   async status() {
-    const status = await client()?.status()
+    const status = await providerStatus<QqStatus>('qq')
     return status ? { ready: status.ready, detail: status.detail } : { ready: false }
   },
 
@@ -424,7 +433,7 @@ const qqBackend: PlatformBackend = {
     loginStatus: () => qqBackend.loginStatus(),
     logout: () => qqBackend.logout(),
     accountFor: async (profileId) => {
-      const account = await client()?.accountFor(profileId)
+      const account = await providerAccountFor<QqAccount>('qq', profileId)
       return account
         ? {
             id: account.id,
