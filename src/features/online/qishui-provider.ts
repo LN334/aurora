@@ -248,7 +248,10 @@ const qishuiBackend: PlatformBackend = {
    */
   async collection(kind, limit) {
     if (kind !== 'likes') return []
-    const rows = (await client()?.liked(limit)) ?? []
+    const bridge = client()
+    // 桥没起来是「这次没读到」，不是「没有收藏」。
+    if (!bridge) throw new Error('qishui backend is not ready')
+    const rows = await bridge.liked(limit)
     return rows.map((song) => asOnlineSong(song))
   }
 }

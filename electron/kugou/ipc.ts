@@ -74,7 +74,13 @@ function asQuality(value: unknown): KugouQuality | undefined {
  * 记录 + 兜底。成功也记一行：酷狗的多数失败在契约上不是异常（`streamUrl` 返回
  * `ok:false`），所以「这个通道被调用过」本身就是要留在 startup.log 里的事实。
  */
-async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Promise<T> {
+async function guard<T>(
+  label: string,
+  fallback: T,
+  run: () => Promise<T>,
+  /* 见 netease/ipc.ts：读喜欢那条要分得清「空」与「没读到」。 */
+  strict = false
+): Promise<T> {
   try {
     const result = await run()
     write(`kugou:${label} ok`)
@@ -83,6 +89,7 @@ async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Prom
     const message = error instanceof Error ? error.message : String(error)
     write(`kugou:${label} FAILED ${message}`)
     console.error(`[aurora] kugou:${label} failed`, message)
+    if (strict) throw error
     return fallback
   }
 }
@@ -208,7 +215,7 @@ export function registerKugouIpc(): void {
 
   ipcMain.handle('kugou:likes', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 500) : 200
-    return await guard('likes', [], async () => kugouLikes(count))
+    return await guard('likes', [], async () => kugouLikes(count), true)
   })
 
   ipcMain.handle('kugou:like', async (_event, id: unknown, liked: unknown) =>

@@ -255,7 +255,8 @@ const qqBackend: PlatformBackend = {
 
   async collection(kind, limit) {
     const bridge = client()
-    if (!bridge) return []
+    // 桥没起来是「这次没读到」，不是「没有收藏」：见 platform-liked 的三分法。
+    if (!bridge) throw new Error('qq backend is not ready')
     const rows =
       kind === 'likes' ? await bridge.liked() : kind === 'daily' ? await bridge.daily() : []
     return rows.slice(0, limit).map((song) => normalizeSong(song))

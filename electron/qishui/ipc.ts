@@ -59,7 +59,13 @@ function asQuality(value: unknown): QishuiQuality {
   return isQishuiQuality(value) ? value : 'standard'
 }
 
-async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Promise<T> {
+async function guard<T>(
+  label: string,
+  fallback: T,
+  run: () => Promise<T>,
+  /* 见 netease/ipc.ts：读喜欢那条要分得清「空」与「没读到」。 */
+  strict = false
+): Promise<T> {
   try {
     const result = await run()
     write('qishui:' + label + ' ok')
@@ -68,6 +74,7 @@ async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Prom
     const message = error instanceof Error ? error.message : String(error)
     write('qishui:' + label + ' FAILED ' + message)
     console.error('[aurora] qishui:' + label + ' failed', message)
+    if (strict) throw error
     return fallback
   }
 }
@@ -204,7 +211,7 @@ export function registerQishuiIpc(): void {
 
   ipcMain.handle('qishui:liked', async (_event, limit: unknown) => {
     const count = typeof limit === 'number' ? Math.min(Math.max(Math.trunc(limit), 1), 300) : 200
-    return await guard('liked', [], async () => qishuiLiked(count))
+    return await guard('liked', [], async () => qishuiLiked(count), true)
   })
 
   // 上游一次只给 30 条，多要也没用。

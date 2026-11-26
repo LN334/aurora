@@ -231,7 +231,24 @@ const kugouBackend: PlatformBackend = {
   async playlistTracks(id) {
     const rows = (await client()?.playlistTracks(id)) ?? []
     return rows.map((song) => normalizeSong(song))
-  }
+  },
+
+    /*
+     * 收藏页读「我喜欢的」只认这一条口子。
+     *
+     * 酷狗的喜欢就是那张云端歌单，读它的方法挂在 provider.likes 上，与另外三家的
+     * collection 形状不同。不在这里接一下，收藏页就永远读不到酷狗那一份：其余三家
+     * 都在列表里，唯独少它，看着像「酷狗没有收藏」。
+     */
+    async collection(kind, limit) {
+      if (kind !== 'likes') return []
+      const bridge = client()
+      // 桥没起来是「这次没读到」，不是「没有收藏」。抛出去让收藏页说没读到。
+      if (!bridge) throw new Error('kugou backend is not ready')
+      const rows = await bridge.likes(limit)
+      return rows.map((song) => normalizeSong(song))
+    },
+
 }
 
 const kugouProvider: OnlineMusicProvider = {

@@ -87,7 +87,13 @@ function asSearchType(value: unknown): SearchType {
     : 'song'
 }
 
-async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Promise<T> {
+async function guard<T>(
+  label: string,
+  fallback: T,
+  run: () => Promise<T>,
+  /* 见 netease/ipc.ts：读喜欢那条要分得清「空」与「没读到」。 */
+  strict = false
+): Promise<T> {
   try {
     const value = await run()
     // 成功路径也记：失败时返回空结果与抛错在界面上一模一样。
@@ -97,6 +103,7 @@ async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Prom
     const message = error instanceof Error ? error.message : String(error)
     write(`qq:${label} FAILED ${message}`)
     console.error(`[aurora] qq:${label} failed`, message)
+    if (strict) throw error
     return fallback
   }
 }
@@ -248,7 +255,9 @@ export function registerQqIpc(): void {
 
   ipcMain.handle('qq:daily', () => guard<QqSong[]>('daily', [], () => client.qqDaily()))
 
-  ipcMain.handle('qq:liked', () => guard<QqSong[]>('liked', [], () => client.qqLiked()))
+  ipcMain.handle('qq:liked', () =>
+    guard<QqSong[]>('liked', [], () => client.qqLiked(), true)
+  )
 
   /*
    * 点红心是写操作。上游对扫码登录的 cookie 认得不稳（每日推荐一律 500003 就是

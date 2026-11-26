@@ -138,7 +138,19 @@ const unknownStream = (): NeteaseStreamResult => ({
   message: describeFailure('unknown')
 })
 
-async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Promise<T> {
+async function guard<T>(
+  label: string,
+  fallback: T,
+  run: () => Promise<T>,
+  /*
+   * 失败时把错误抛回去，而不是交一个空结果。
+   *
+   * 只有「读我喜欢的」这类通道要它：那里空列表与没读到是两件事，而 `guard`
+   * 把失败压成 `[]`，渲染层就永远分不出这两者——2026-11-26 冷启动看到的就是
+   * 上游一次抖动被画成「还没有喜欢的歌」。其余通道照旧吞掉，页面各自有话说。
+   */
+  strict = false
+): Promise<T> {
   try {
     const value = await run()
     // 成功路径也记（只记失败看不出是哪一步返回了空结果）。label 不含参数，避免密码进日志。
@@ -164,6 +176,7 @@ async function guard<T>(label: string, fallback: T, run: () => Promise<T>): Prom
     const message = detail(error)
     write(`netease:${label} FAILED ${message}`)
     console.error(`[aurora] netease:${label} failed`, message)
+    if (strict) throw error
     return fallback
   }
 }
@@ -394,7 +407,7 @@ export function registerNeteaseIpc(): void {
   )
 
   ipcMain.handle('netease:likeList', () =>
-    guard<NeteaseSong[]>('likeList', [], () => client.neteaseLikeList())
+    guard<NeteaseSong[]>('likeList', [], () => client.neteaseLikeList(), true)
   )
 
   /*

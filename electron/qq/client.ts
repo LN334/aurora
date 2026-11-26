@@ -938,7 +938,8 @@ export async function qqLiked(): Promise<QqSong[]> {
     return rememberAll(normalizePlaylistTracks(tracks))
   } catch (error) {
     console.error('[aurora] qq liked list failed', messageOf(error))
-    return []
+    // 登录着却读失败：交给上层报「没读到」，别伪装成「0 首」。
+    throw error
   }
 }
 

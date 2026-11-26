@@ -652,7 +652,14 @@ export async function qishuiLiked(limit = 200): Promise<QishuiSongShape[]> {
     data?: { items?: unknown[]; songs?: unknown[]; list?: unknown[] }
     error?: { code?: string }
   }
-  if (!result.ok) return []
+  /*
+   * 只有「未登录」能交空数组：那确实是没有可读的收藏。网络或上游故障得抛出去，
+   * 否则收藏页会把一次断网画成「我喜欢的 0 首」。
+   */
+  if (!result.ok) {
+    if (result.error?.code === 'auth-required') return []
+    throw new Error('qishui liked failed: ' + (result.error?.code ?? 'unknown'))
+  }
   const rows = list(result.data?.items ?? result.data?.songs ?? result.data?.list)
   const songs: QishuiSongShape[] = []
   for (const item of rows) {

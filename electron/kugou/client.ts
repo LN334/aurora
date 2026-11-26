@@ -523,7 +523,8 @@ async function favoritePlaylist(): Promise<{ listId: string; globalId: string } 
     return found
   } catch (error) {
     write(`[kugou] favorite playlist failed: ${messageOf(error)}`)
-    return null
+    // 登录着却问不到：这是「没读到」，不是「没有收藏」。让调用方分得开。
+    throw error
   }
 }
 
@@ -564,7 +565,11 @@ export async function kugouLikes(limit = 200): Promise<KugouSong[]> {
     return rememberAll(readPlaylistTracks(response.body))
   } catch (error) {
     write(`[kugou] likes failed: ${messageOf(error)}`)
-    return []
+    /*
+     * 抛出去，别交空数组。空列表在这里有两种意思——「读完了确实没有」与「没读到」，
+     * 收藏页要分得开：前者说「还没有喜欢的歌」，后者说「这家没读到」。
+     */
+    throw error
   }
 }
 
