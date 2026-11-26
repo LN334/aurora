@@ -93,3 +93,30 @@ export async function providerLoginCellphone<T>(
   warnChannel(provider, 'loginCellphone', answer.why)
   return failed
 }
+/** 关注的艺人。展示型读取：读不到就是空的，与收藏专辑同一条规矩。 */
+export async function providerFollowedArtists<T>(provider: ProviderId, limit?: number): Promise<T[]> {
+  const answer = await askProvider<T[]>(provider, 'followedArtists', { limit })
+  if (answer.ok) return Array.isArray(answer.value) ? answer.value : []
+  warnChannel(provider, 'followedArtists', answer.why)
+  return []
+}
+
+/*
+ * 音质档位是本地偏好，不在上游：主进程读写的都是 settings.json。
+ *
+ * 读不到返回 null，界面沿用上一档而不是跳回最低档——「没问到」不等于「你没有
+ * 无损权限」。写失败也返回 null，调用方据此知道刚才那次切换没有落地。
+ */
+export async function providerQuality<T>(provider: ProviderId): Promise<T | null> {
+  const answer = await askProvider<T>(provider, 'qualityGet')
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'qualityGet', answer.why)
+  return null
+}
+
+export async function providerSetQuality<T>(provider: ProviderId, quality: string): Promise<T | null> {
+  const answer = await askProvider<T>(provider, 'qualitySet', { quality })
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'qualitySet', answer.why)
+  return null
+}

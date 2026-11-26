@@ -2,7 +2,6 @@ import type {
   CommentPage,
   NeteaseAccount,
   NeteaseApi,
-  NeteaseQuality,
   NeteaseSong,
   NeteaseStreamResult
 } from '../../env'
@@ -14,13 +13,25 @@ import { rememberNeteaseCover } from '../library/source'
 import { registerProvider } from '../online/registry'
 import { previewBackendsForced } from '../online/preview-harness'
 import { registerResumeHandler } from '../online/store'
-import { providerAccountFor, providerLoginStatus, providerLogout } from '../online/account-channel.ts'
+import {
+  providerAccountFor,
+  providerFollowedArtists,
+  providerLoginStatus,
+  providerLogout,
+  providerQuality,
+  providerSetQuality
+} from '../online/account-channel.ts'
 import {
   providerMyPlaylists,
+  providerPlaylistAddTracks,
+  providerPlaylistCreate,
   providerPlaylistCreator,
+  providerPlaylistRemove,
+  providerPlaylistRemoveTracks,
+  providerPlaylistRename,
   providerPlaylistTracks
 } from '../online/playlist-channel.ts'
-import { providerLike, providerLiked } from '../online/likes-channel.ts'
+import { providerCollectedAlbums, providerLike, providerLiked } from '../online/likes-channel.ts'
 import { providerStreamUrl } from '../online/playback-channel.ts'
 import {
   providerCommentLike,
@@ -84,6 +95,8 @@ const extras = netease as unknown as NeteaseExtras
  * 不另抄一份接口——抄了就会在上游加字段时悄悄过期。
  */
 type NeteaseAlbumRow = NonNullable<Awaited<ReturnType<NeteaseApi['album']>>>
+type NeteaseCollectedAlbumRow = Awaited<ReturnType<NeteaseApi['albumSublist']>>[number]
+type NeteaseFollowedArtistRow = Awaited<ReturnType<NeteaseApi['artistSublist']>>[number]
 type NeteaseArtistRow = NonNullable<Awaited<ReturnType<NeteaseApi['artistDetail']>>>
 type NeteaseAlbumCardRow = Awaited<ReturnType<NeteaseApi['artistAlbums']>>[number]
 
@@ -139,8 +152,12 @@ const neteaseBackend: PlatformBackend = {
   id: 'netease',
   displayName: '网易云音乐',
 
-  getQuality: () => netease.getQuality() as Promise<QualityTier>,
-  setQuality: (quality) => netease.setQuality(quality as NeteaseQuality) as Promise<QualityTier>,
+  getQuality: async () => (await providerQuality<QualityTier>('netease')) ?? 'exhigh',
+  // 读回来的那一档才算数：写没落地时退回账号当前值，界面就不会显示一个假的新档位。
+  setQuality: async (quality) =>
+    (await providerSetQuality<QualityTier>('netease', quality)) ??
+    (await providerQuality<QualityTier>('netease')) ??
+    'exhigh',
 
   async search(keywords, _kind, limit) {
     /*
@@ -240,8 +257,8 @@ const neteaseBackend: PlatformBackend = {
   capabilities: CAPABILITIES,
   collections: COLLECTIONS,
   // 这两条是账号里的关系，不是「这一家支持不支持」的布尔项：有方法就有通道。
-  collectedAlbums: () => netease.albumSublist(),
-  followedArtists: () => netease.artistSublist(),
+  collectedAlbums: () => providerCollectedAlbums<NeteaseCollectedAlbumRow>('netease'),
+  followedArtists: () => providerFollowedArtists<NeteaseFollowedArtistRow>('netease'),
   qualityTiers: TIERS,
   /** 这几档要会员；账号明确是非会员时界面把它们藏起来。 */
   qualityNeedsVip: ['lossless', 'hires', 'jyeffect', 'sky', 'jymaster'],
@@ -389,11 +406,11 @@ const neteaseBackend: PlatformBackend = {
    * 页面不给编辑入口——而不是给一个点了没反应的按钮。
    */
   playlists: {
-    create: (name) => netease.playlistCreate(name),
-    addTracks: (id, songIds) => netease.playlistAddTracks(id, songIds),
-    removeTracks: (id, songIds) => netease.playlistRemoveTracks(id, songIds),
-    rename: (id, name) => netease.playlistRename(id, name),
-    remove: (id) => netease.playlistDelete(id)
+    create: (name) => providerPlaylistCreate<{ id: number; name: string }>('netease', name),
+    addTracks: (id, songIds) => providerPlaylistAddTracks('netease', id, songIds),
+    removeTracks: (id, songIds) => providerPlaylistRemoveTracks('netease', id, songIds),
+    rename: (id, name) => providerPlaylistRename('netease', id, name),
+    remove: (id) => providerPlaylistRemove('netease', id)
   }
 }
 

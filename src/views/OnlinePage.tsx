@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { bridge } from '../bridge'
 import type { ShellRoute } from '../app/shell'
 import { supportsCapability } from '../features/online/capability'
 import { sourceLabelById, getProvider } from '../features/online/registry'
@@ -536,13 +535,14 @@ function ArtistPage({ providerId, id }: { providerId: string; id: number }) {
           const singer = songs[0]?.artists.find((entry) => entry.id === id)
           setName(singer?.name ?? songs[0]?.artists[0]?.name ?? '艺人')
           /*
-           * 老接口不带头像，就把搜索里认出这个人当作头像来源——名字与 id 都对
-           * 上才算，认不到宁可留空，也不拿首曲的专辑封面冒充。
+           * 这家平台的艺人详情不带头像时，把搜索里认出这个人当作头像来源——名字
+           * 与 id 都对上才算，认不到宁可留空，也不拿首曲的专辑封面冒充。走平台
+           * 的 search 通道，不再点名网易云：哪家没有 search 就不补这一手。
            */
-          if (providerId === 'netease' && singer?.name) {
-            const found = await bridge.netease.search(singer.name, 'artist', 10)
+          if (platform?.search && singer?.name) {
+            const found = await platform.search.search(singer.name, 'artist', 10).catch(() => null)
             if (!live) return
-            setCover(found.artists.find((entry) => entry.id === id)?.picUrl ?? null)
+            setCover(found?.artists.find((entry) => entry.id === id)?.picUrl ?? null)
           }
         }
       } catch (failure) {

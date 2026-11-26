@@ -3,12 +3,15 @@ import test from 'node:test'
 
 import {
   providerAccountFor,
+  providerFollowedArtists,
   providerLoginCellphone,
   providerLoginStatus,
   providerLogout,
   providerLogoutProfile,
   providerQrCheck,
   providerQrCreate,
+  providerQuality,
+  providerSetQuality,
   providerStatus
 } from '../src/features/online/account-channel.ts'
 
@@ -127,4 +130,32 @@ test('调用本身抛错也算没走通，不把异常漏给界面', async () =>
     warnings.restore()
   }
   assert.match(warnings.lines[0], /ipc closed/)
+})
+
+test('关注艺人与音质各走自己那条通道，参数不夹带', async () => {
+  const calls = install(() => ({ ok: true, value: [] }))
+  await providerFollowedArtists('netease', 30)
+  await providerQuality('netease')
+  await providerSetQuality('netease', 'lossless')
+  assert.deepEqual(
+    calls.map((call) => call.capability),
+    ['followedArtists', 'qualityGet', 'qualitySet']
+  )
+  assert.deepEqual(calls[0].args, { limit: 30 })
+  assert.equal(calls[1].args, undefined)
+  assert.deepEqual(calls[2].args, { quality: 'lossless' })
+})
+
+test('关注艺人读不到是空的，音质读不到是 null —— 两者含义不同', async () => {
+  install(() => ({ ok: false, error: { code: 'handler-failed', message: '炸了' } }))
+  const warnings = collectWarnings()
+  try {
+    assert.deepEqual(await providerFollowedArtists('netease'), [])
+    assert.equal(await providerQuality('netease'), null)
+    assert.equal(await providerSetQuality('netease', 'lossless'), null)
+  } finally {
+    warnings.restore()
+  }
+  assert.equal(warnings.lines.length, 3)
+  assert.ok(warnings.lines.every((line) => line.includes('handler-failed 炸了')))
 })

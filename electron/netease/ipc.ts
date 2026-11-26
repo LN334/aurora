@@ -442,6 +442,84 @@ async function streamUrlNetease(args: unknown): Promise<NeteaseStreamResult> {
   return guard('streamUrl', unknownStream(), () => client.neteaseStreamUrl(songId, quality))
 }
 
+/*
+ * 账号里的两组关系：收藏的专辑、关注的艺人。
+ *
+ * 展示型读取，读不到就是空的——与旧通道一致。页面把空画成「还没收藏」，这一
+ * 版不改语义（那要连三条页面一起改）。
+ */
+function collectedAlbumsNetease(): Promise<NeteaseCollectedAlbum[]> {
+  return guard<NeteaseCollectedAlbum[]>('albumSublist', [], () => client.neteaseAlbumSublist())
+}
+
+function followedArtistsNetease(): Promise<NeteaseFollowedArtist[]> {
+  return guard<NeteaseFollowedArtist[]>('artistSublist', [], () => client.neteaseArtistSublist())
+}
+
+/*
+ * 音质：读、写本地偏好。
+ *
+ * 不套 guard：这两步不碰网络，写设置不会因为上游抖动失败。坏档位退回当前值
+ * ——渲染层那份档位表是唯一来源，给个不认识的值是 bug 或旧构建，往 settings
+ * 里写垃圾比保留原档更糟。
+ */
+function qualityGetNetease(): NeteaseQuality {
+  return currentQuality()
+}
+
+function qualitySetNetease(args: unknown): NeteaseQuality {
+  const quality = asQuality(namedArgument(args, 'quality'))
+  if (!quality) return currentQuality()
+  const saved = saveSettings({ neteaseQuality: quality }).neteaseQuality
+  return isNeteaseQuality(saved) ? saved : quality
+}
+
+/*
+ * 自己建的歌单：建、加减歌、改名、删单。
+ *
+ * 改动会落在这个账号上，所以每处先过类型闸门；失败回 false/null 让页面自己说。
+ * 参数从旧通道的 `{id, trackIds}` 换成 `{playlistId, songIds}`，两条入口由
+ * 下面的薄壳翻译——判据只有这一份。
+ */
+function playlistCreateNetease(args: unknown): Promise<{ id: number; name: string } | null> {
+  const name = asText(namedArgument(args, 'name'), 60)
+  if (!name) return Promise.resolve(null)
+  return guard<{ id: number; name: string } | null>('playlistCreate', null, () =>
+    client.neteasePlaylistCreate(name)
+  )
+}
+
+function playlistAddTracksNetease(args: unknown): Promise<boolean> {
+  const playlistId = asId(namedArgument(args, 'playlistId'))
+  const songIds = asIds(namedArgument(args, 'songIds'))
+  if (playlistId === null || songIds.length === 0) return Promise.resolve(false)
+  return guard<boolean>('playlistAddTracks', false, () =>
+    client.neteasePlaylistAddTracks(playlistId, songIds)
+  )
+}
+
+function playlistRemoveTracksNetease(args: unknown): Promise<boolean> {
+  const playlistId = asId(namedArgument(args, 'playlistId'))
+  const songIds = asIds(namedArgument(args, 'songIds'))
+  if (playlistId === null || songIds.length === 0) return Promise.resolve(false)
+  return guard<boolean>('playlistRemoveTracks', false, () =>
+    client.neteasePlaylistRemoveTracks(playlistId, songIds)
+  )
+}
+
+function playlistRenameNetease(args: unknown): Promise<boolean> {
+  const playlistId = asId(namedArgument(args, 'playlistId'))
+  const name = asText(namedArgument(args, 'name'), 60)
+  if (playlistId === null || !name) return Promise.resolve(false)
+  return guard<boolean>('playlistRename', false, () => client.neteasePlaylistRename(playlistId, name))
+}
+
+function playlistDeleteNetease(args: unknown): Promise<boolean> {
+  const playlistId = asId(namedArgument(args, 'playlistId'))
+  if (playlistId === null) return Promise.resolve(false)
+  return guard<boolean>('playlistDelete', false, () => client.neteasePlaylistDelete(playlistId))
+}
+
 export function registerNeteaseIpc(): void {
 
   /*
@@ -533,13 +611,11 @@ export function registerNeteaseIpc(): void {
   ipcMain.handle('netease:myPlaylists', () => myPlaylistsNetease())
   registerProviderCapability('netease', 'myPlaylists', myPlaylistsNetease)
 
-  ipcMain.handle('netease:albumSublist', () =>
-    guard<NeteaseCollectedAlbum[]>('albumSublist', [], () => client.neteaseAlbumSublist())
-  )
+  ipcMain.handle('netease:albumSublist', () => collectedAlbumsNetease())
+  registerProviderCapability('netease', 'collectedAlbums', collectedAlbumsNetease)
 
-  ipcMain.handle('netease:artistSublist', () =>
-    guard<NeteaseFollowedArtist[]>('artistSublist', [], () => client.neteaseArtistSublist())
-  )
+  ipcMain.handle('netease:artistSublist', () => followedArtistsNetease())
+  registerProviderCapability('netease', 'followedArtists', followedArtistsNetease)
 
   ipcMain.handle('netease:topAlbums', (_event, limit: unknown, offset: unknown) =>
     newAlbumsNetease({ limit, offset })
@@ -594,57 +670,44 @@ export function registerNeteaseIpc(): void {
    * 自己建的歌单：建、加歌、删歌、改名、删单。
    *
    * 和喜欢同一条规矩：不 reject，失败回 false/null 让页面自己说。不同之处是
-   * 这些改动会改到平台账号，所以每一处都先过 asId/asName 的类型闸门——歌单 id
+   * 这些改动会改到平台账号，所以每一处都先过 asId/asText 的类型闸门——歌单 id
    * 是用户点出来的，但代码路径上它仍然是 unknown。
    */
   ipcMain.handle('netease:playlistCreate', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const name = asText(args.name, 60)
-    if (!name) return null
-    return guard<{ id: number; name: string } | null>('playlistCreate', null, () =>
-      client.neteasePlaylistCreate(name)
-    )
+    return playlistCreateNetease({ name: args.name })
   })
+  registerProviderCapability('netease', 'playlistCreate', playlistCreateNetease)
 
   ipcMain.handle('netease:playlistAddTracks', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const ids = asIds(args.trackIds)
-    if (!id || ids.length === 0) return false
-    return guard<boolean>('playlistAddTracks', false, () => client.neteasePlaylistAddTracks(id, ids))
+    return playlistAddTracksNetease({ playlistId: args.id, songIds: args.trackIds })
   })
+  registerProviderCapability('netease', 'playlistAddTracks', playlistAddTracksNetease)
 
   ipcMain.handle('netease:playlistRemoveTracks', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const ids = asIds(args.trackIds)
-    if (!id || ids.length === 0) return false
-    return guard<boolean>('playlistRemoveTracks', false, () => client.neteasePlaylistRemoveTracks(id, ids))
+    return playlistRemoveTracksNetease({ playlistId: args.id, songIds: args.trackIds })
   })
+  registerProviderCapability('netease', 'playlistRemoveTracks', playlistRemoveTracksNetease)
 
   ipcMain.handle('netease:playlistRename', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    const name = asText(args.name, 60)
-    if (!id || !name) return false
-    return guard<boolean>('playlistRename', false, () => client.neteasePlaylistRename(id, name))
+    return playlistRenameNetease({ playlistId: args.id, name: args.name })
   })
+  registerProviderCapability('netease', 'playlistRename', playlistRenameNetease)
 
   ipcMain.handle('netease:playlistDelete', (_event, payload: unknown) => {
     const args = asRecord(payload)
-    const id = asId(args.id)
-    if (!id) return false
-    return guard<boolean>('playlistDelete', false, () => client.neteasePlaylistDelete(id))
+    return playlistDeleteNetease({ playlistId: args.id })
   })
+  registerProviderCapability('netease', 'playlistDelete', playlistDeleteNetease)
 
-  ipcMain.handle('netease:getQuality', () => currentQuality())
+  ipcMain.handle('netease:getQuality', () => qualityGetNetease())
+  registerProviderCapability('netease', 'qualityGet', qualityGetNetease)
 
-  ipcMain.handle('netease:setQuality', (_event, value: unknown) => {
-    const quality = asQuality(value)
-    // An unknown quality is not worth an error: the renderer's own list is the
-    // only source, so this is a bug or a stale build, and either way keeping
-    // the current value is better than writing nonsense into settings.
-    if (!quality) return currentQuality()
-    return saveSettings({ neteaseQuality: quality }).neteaseQuality
-  })
+  ipcMain.handle('netease:setQuality', (_event, value: unknown) =>
+    qualitySetNetease({ quality: value })
+  )
+  registerProviderCapability('netease', 'qualitySet', qualitySetNetease)
 }

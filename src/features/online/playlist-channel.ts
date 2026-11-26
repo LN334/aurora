@@ -86,3 +86,65 @@ export async function providerSearchPlaylists<T>(
   warnChannel(provider, 'searchPlaylists', answer.why)
   return []
 }
+
+/*
+ * 写侧：建单、加减歌、改名、删单。
+ *
+ * 与读侧同一条规矩——不抛，失败回 false/null。区别在于这些改动会落到平台账号
+ * 上：拿到 false 就是真的没改成，界面照实说，不假装成功再让用户刷新时发现。
+ *
+ * 只有自己建的歌单写得动（收藏来的别人的单上游也会拒），所以调用方要先看
+ * `OnlinePlaylistSummary.subscribed`，把编辑入口只给自建单。
+ */
+export async function providerPlaylistCreate<T>(
+  provider: ProviderId,
+  name: string
+): Promise<T | null> {
+  const answer = await askProvider<T>(provider, 'playlistCreate', { name })
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'playlistCreate', answer.why)
+  return null
+}
+
+export async function providerPlaylistAddTracks(
+  provider: ProviderId,
+  playlistId: number,
+  songIds: number[]
+): Promise<boolean> {
+  const answer = await askProvider<boolean>(provider, 'playlistAddTracks', { playlistId, songIds })
+  if (answer.ok) return answer.value === true
+  warnChannel(provider, 'playlistAddTracks', answer.why)
+  return false
+}
+
+export async function providerPlaylistRemoveTracks(
+  provider: ProviderId,
+  playlistId: number,
+  songIds: number[]
+): Promise<boolean> {
+  const answer = await askProvider<boolean>(provider, 'playlistRemoveTracks', { playlistId, songIds })
+  if (answer.ok) return answer.value === true
+  warnChannel(provider, 'playlistRemoveTracks', answer.why)
+  return false
+}
+
+export async function providerPlaylistRename(
+  provider: ProviderId,
+  playlistId: number,
+  name: string
+): Promise<boolean> {
+  const answer = await askProvider<boolean>(provider, 'playlistRename', { playlistId, name })
+  if (answer.ok) return answer.value === true
+  warnChannel(provider, 'playlistRename', answer.why)
+  return false
+}
+
+export async function providerPlaylistRemove(
+  provider: ProviderId,
+  playlistId: number
+): Promise<boolean> {
+  const answer = await askProvider<boolean>(provider, 'playlistDelete', { playlistId })
+  if (answer.ok) return answer.value === true
+  warnChannel(provider, 'playlistDelete', answer.why)
+  return false
+}
