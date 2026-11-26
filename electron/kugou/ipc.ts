@@ -304,10 +304,35 @@ async function streamUrlKugou(input: unknown) {
   )
 }
 
+/* 换档案：旧的 `kugou:setProfile` 与 `provider:call` 共用这一份实现。 */
+function setProfileKugou(args: unknown): Promise<boolean> {
+  const raw = namedArgument(args, 'profileId')
+  return guard('setProfile', false, async () => setActiveProfile(asText(raw, MAX_ID) || 'default'))
+}
+
+/* 音质：读回与写入各一条。坏档位不写，读回当前值就是答案。 */
+function qualityGetKugou(): Promise<KugouQuality> {
+  return guard('getQuality', 'exhigh' satisfies KugouQuality, async () => kugouGetQuality())
+}
+
+function qualitySetKugou(args: unknown): Promise<KugouQuality> {
+  return guard('setQuality', kugouGetQuality(), async () => {
+    const next = asQuality(namedArgument(args, 'quality'))
+    if (!next) return kugouGetQuality()
+    return kugouSetQuality(next)
+  })
+}
+
+/* 关注的歌手：酷狗只给 id / 名字 / 头像，没有专辑数与歌曲数。 */
+function followedArtistsKugou() {
+  return guard('followedArtists', [], async () => kugouFollowedArtists())
+}
+
 export function registerKugouIpc(): void {
   ipcMain.handle('kugou:setProfile', async (_event, profileId: unknown) =>
-    guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
+    setProfileKugou({ profileId })
   )
+  registerProviderCapability('kugou', 'setProfile', setProfileKugou)
 
   ipcMain.handle('kugou:accountFor', async (_event, profileId: unknown) => accountForKugou(profileId))
   registerProviderCapability('kugou', 'accountFor', accountForKugou)
@@ -326,9 +351,8 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:newSongs', async (_event, limit: unknown) => newSongsKugou({ limit }))
   registerProviderCapability('kugou', 'newSongs', newSongsKugou)
 
-  ipcMain.handle('kugou:followedArtists', async () =>
-    await guard('followedArtists', [], async () => kugouFollowedArtists())
-  )
+  ipcMain.handle('kugou:followedArtists', async () => await followedArtistsKugou())
+  registerProviderCapability('kugou', 'followedArtists', followedArtistsKugou)
 
   ipcMain.handle('kugou:streamUrl', async (_event, input: unknown) => await streamUrlKugou(input))
   registerProviderCapability('kugou', 'playback', streamUrlKugou)
@@ -354,17 +378,13 @@ export function registerKugouIpc(): void {
   ipcMain.handle('kugou:logout', async () => logoutKugou())
   registerProviderCapability('kugou', 'logout', logoutKugou)
 
-  ipcMain.handle('kugou:getQuality', async () =>
-    guard('getQuality', 'exhigh' satisfies KugouQuality, async () => kugouGetQuality())
-  )
+  ipcMain.handle('kugou:getQuality', async () => await qualityGetKugou())
+  registerProviderCapability('kugou', 'qualityGet', qualityGetKugou)
 
   ipcMain.handle('kugou:setQuality', async (_event, quality: unknown) =>
-    guard('setQuality', kugouGetQuality(), async () => {
-      const next = asQuality(quality)
-      if (!next) return kugouGetQuality()
-      return kugouSetQuality(next)
-    })
+    await qualitySetKugou({ quality })
   )
+  registerProviderCapability('kugou', 'qualitySet', qualitySetKugou)
 
   ipcMain.handle('kugou:myPlaylists', async (_event, limit: unknown) => myPlaylistsKugou(limit))
   registerProviderCapability('kugou', 'myPlaylists', myPlaylistsKugou)

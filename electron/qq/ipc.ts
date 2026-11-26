@@ -297,13 +297,75 @@ async function streamUrlQq(args: unknown): Promise<QqStreamResult> {
   return guard('streamUrl', unknown, () => client.qqStreamUrl(songId, quality ?? undefined))
 }
 
+/* 换档案：旧的 `qq:setProfile` 与 `provider:call` 共用这一份实现。 */
+function setProfileQq(args: unknown): boolean {
+  const id = asText(namedArgument(args, 'profileId'), 64)
+  if (!id) return false
+  return client.setActiveProfile(id)
+}
+
+/* 音质：读回与写入各一条。坏档位不写，读回当前值就是答案。 */
+function qualityGetQq(): QqQuality {
+  return client.qqGetQuality()
+}
+
+function qualitySetQq(args: unknown): QqQuality {
+  const quality = asQuality(namedArgument(args, 'quality'))
+  if (!quality) return client.qqGetQuality()
+  return client.qqSetQuality(quality)
+}
+
+/* 关注的歌手：上游只给 mid、名字、头像与粉丝数。 */
+function followedArtistsQq(args: unknown): Promise<QqFollowedArtist[]> {
+  const raw = namedArgument(args, 'limit')
+  const limit = typeof raw === 'number' && raw > 0 ? Math.min(raw, 200) : 100
+  return guard<QqFollowedArtist[]>('followedArtists', [], () => client.qqFollowedArtists(limit))
+}
+
+/*
+ * 歌单写四条。界面的歌单 id 是 tid（dissid）；上游真正认的是 dirId，由
+ * client→transport 现读现换，这里不缓存，免得用户刚在 QQ 里改过就写错单。
+ */
+function playlistCreateQq(args: unknown): Promise<{ id: number; name: string } | null> {
+  const raw = namedArgument(args, 'name')
+  const name = typeof raw === 'string' ? raw.trim().slice(0, 20) : ''
+  if (!name) return Promise.resolve(null)
+  return guard<{ id: number; name: string } | null>('playlistCreate', null, () =>
+    client.qqPlaylistCreate(name)
+  )
+}
+
+function playlistDeleteQq(args: unknown): Promise<boolean> {
+  const tid = asPositive(namedArgument(args, 'playlistId'))
+  if (!tid) return Promise.resolve(false)
+  return guard<boolean>('playlistDelete', false, () => client.qqPlaylistDelete(tid))
+}
+
+function playlistRenameQq(args: unknown): Promise<boolean> {
+  const raw = asRecord(args)
+  const tid = asPositive(raw.playlistId)
+  const title = typeof raw.name === 'string' ? raw.name.trim().slice(0, 20) : ''
+  if (!tid || !title) return Promise.resolve(false)
+  return guard<boolean>('playlistRename', false, () => client.qqPlaylistRename(tid, title))
+}
+
+/* 加 / 删歌共用一条实现；`add` 决定方向，两个能力各自固定它。 */
+function playlistTracksEditQq(args: unknown): Promise<boolean> {
+  const raw = asRecord(args)
+  const tid = asPositive(raw.playlistId)
+  const add = raw.add === true
+  if (!tid || !Array.isArray(raw.songIds)) return Promise.resolve(false)
+  const songIds = raw.songIds
+    .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
+    .slice(0, 200)
+  if (songIds.length === 0) return Promise.resolve(false)
+  return guard<boolean>('playlistTracks', false, () => client.qqPlaylistTracksEdit(tid, songIds, add))
+}
+
 export function registerQqIpc(): void {
 
-  ipcMain.handle('qq:setProfile', (_event, value: unknown) => {
-    const id = asText(value, 64)
-    if (!id) return false
-    return client.setActiveProfile(id)
-  })
+  ipcMain.handle('qq:setProfile', (_event, value: unknown) => setProfileQq({ profileId: value }))
+  registerProviderCapability('qq', 'setProfile', setProfileQq)
 
   ipcMain.handle('qq:accountFor', (_event, value: unknown) => accountForQq(value))
   registerProviderCapability('qq', 'accountFor', accountForQq)
@@ -341,16 +403,14 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:logout', () => logoutQq())
   registerProviderCapability('qq', 'logout', logoutQq)
 
-  ipcMain.handle('qq:getQuality', () => client.qqGetQuality())
+  ipcMain.handle('qq:getQuality', () => qualityGetQq())
+  registerProviderCapability('qq', 'qualityGet', qualityGetQq)
 
-  ipcMain.handle('qq:setQuality', (_event, value: unknown) => {
-    const quality = asQuality(value)
-    // An unknown tier is not worth an error: the renderer's own list is the only
-    // source, so this is a bug or a stale build, and either way keeping the
-    // current value beats writing nonsense into the profile.
-    if (!quality) return client.qqGetQuality()
-    return client.qqSetQuality(quality)
-  })
+  // An unknown tier is not worth an error: the renderer's own list is the only
+  // source, so this is a bug or a stale build, and either way keeping the
+  // current value beats writing nonsense into the profile.
+  ipcMain.handle('qq:setQuality', (_event, value: unknown) => qualitySetQq({ quality: value }))
+  registerProviderCapability('qq', 'qualitySet', qualitySetQq)
 
   // A library read is not a failure when it answers nothing: signed out, or an
   // upstream blip, both mean "nothing to list right now", and the interface shows
@@ -392,48 +452,38 @@ export function registerQqIpc(): void {
   ipcMain.handle('qq:playlistOwned', () => playlistOwnedQq())
   registerProviderCapability('qq', 'playlistOwned', playlistOwnedQq)
 
-  ipcMain.handle('qq:playlistCreate', (_event, value: unknown) => {
-    const name = typeof value === 'string' ? value.trim().slice(0, 20) : ''
-    if (!name) return Promise.resolve<null>(null)
-    return guard<{ id: number; name: string } | null>('playlistCreate', null, () => client.qqPlaylistCreate(name))
-  })
+  ipcMain.handle('qq:playlistCreate', (_event, value: unknown) => playlistCreateQq({ name: value }))
+  registerProviderCapability('qq', 'playlistCreate', playlistCreateQq)
 
-  ipcMain.handle('qq:playlistDelete', (_event, value: unknown) => {
-    const tid = asPositive(value)
-    if (!tid) return Promise.resolve(false)
-    return guard<boolean>('playlistDelete', false, () => client.qqPlaylistDelete(tid))
-  })
+  ipcMain.handle('qq:playlistDelete', (_event, value: unknown) => playlistDeleteQq({ playlistId: value }))
+  registerProviderCapability('qq', 'playlistDelete', playlistDeleteQq)
 
-  ipcMain.handle('qq:playlistRename', (_event, value: unknown, name: unknown) => {
-    const tid = asPositive(value)
-    const title = typeof name === 'string' ? name.trim().slice(0, 20) : ''
-    if (!tid || !title) return Promise.resolve(false)
-    return guard<boolean>('playlistRename', false, () => client.qqPlaylistRename(tid, title))
-  })
+  ipcMain.handle('qq:playlistRename', (_event, value: unknown, name: unknown) =>
+    playlistRenameQq({ playlistId: value, name })
+  )
+  registerProviderCapability('qq', 'playlistRename', playlistRenameQq)
 
   /*
    * 加 / 删歌。songIds 与红心共用一份「见过的歌」缓存（songIndex），列表里没出现
    * 过的 id 会被上游静默丢掉，所以一批最多带 200 首，且只接受正整数。
    */
-  ipcMain.handle('qq:playlistTracksEdit', (_event, value: unknown, ids: unknown, add: unknown) => {
-    const tid = asPositive(value)
-    if (!tid || !Array.isArray(ids)) return Promise.resolve(false)
-    const songIds = ids
-      .filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
-      .slice(0, 200)
-    if (songIds.length === 0) return Promise.resolve(false)
-    return guard<boolean>('playlistTracks', false, () => client.qqPlaylistTracksEdit(tid, songIds, add === true))
-  })
+  ipcMain.handle('qq:playlistTracksEdit', (_event, value: unknown, ids: unknown, add: unknown) =>
+    playlistTracksEditQq({ playlistId: value, songIds: ids, add })
+  )
+  registerProviderCapability('qq', 'playlistAddTracks', (args: unknown) =>
+    playlistTracksEditQq({ ...asRecord(args), add: true })
+  )
+  registerProviderCapability('qq', 'playlistRemoveTracks', (args: unknown) =>
+    playlistTracksEditQq({ ...asRecord(args), add: false })
+  )
 
   ipcMain.handle('qq:collectedAlbums', (_event, value: unknown) =>
     collectedAlbumsQq({ limit: value })
   )
   registerProviderCapability('qq', 'collectedAlbums', collectedAlbumsQq)
 
-  ipcMain.handle('qq:followedArtists', (_event, value: unknown) => {
-    const limit = typeof value === 'number' && value > 0 ? Math.min(value, 200) : 100
-    return guard<QqFollowedArtist[]>('followedArtists', [], () => client.qqFollowedArtists(limit))
-  })
+  ipcMain.handle('qq:followedArtists', (_event, value: unknown) => followedArtistsQq({ limit: value }))
+  registerProviderCapability('qq', 'followedArtists', followedArtistsQq)
 
   ipcMain.handle('qq:album', (_event, value: unknown) => albumQq({ albumId: value }))
   registerProviderCapability('qq', 'album', albumQq)

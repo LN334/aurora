@@ -83,6 +83,14 @@ export async function providerArtistAlbums<T>(
   return []
 }
 
+/** 按 id 取一首（汽水的 alias 单曲接口）。取不到返回 null。 */
+export async function providerSongById<T>(provider: ProviderId, songId: number): Promise<T | null> {
+  const answer = await askProvider<T | null>(provider, 'song', { songId })
+  if (answer.ok) return answer.value ?? null
+  warnChannel(provider, 'song', answer.why)
+  return null
+}
+
 /** 按 id 取若干首歌的完整记录（列表里没有的歌要靠它补）。 */
 export async function providerSongDetail<T>(provider: ProviderId, ids: number[]): Promise<T[]> {
   const answer = await askProvider<T[]>(provider, 'songDetail', { ids })

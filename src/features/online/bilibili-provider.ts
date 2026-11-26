@@ -1,8 +1,9 @@
 import type { BilibiliApi, BilibiliQuality, BilibiliVideo } from '../../env'
 import type { Track } from '../../types'
 import type { QualityTier } from './types'
-import { providerLoginStatus, providerLogout } from './account-channel.ts'
+import { providerLoginStatus, providerLogout, providerSetProfile } from './account-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
+import { providerSearch } from './search-channel.ts'
 import { registerProvider } from './registry'
 import type { PlatformBackend } from './store'
 import {
@@ -65,7 +66,13 @@ const bilibiliBackend: PlatformBackend = {
   },
 
   async search(keywords, _kind, limit) {
-    const result = await client()?.search(keywords, limit ?? 30)
+    const result = await providerSearch<{ videos: BilibiliVideo[] } | null>(
+      'bilibili',
+      keywords,
+      'song',
+      limit ?? 30,
+      null
+    )
     const videos = result?.videos ?? []
     return { songs: videos.map(asOnlineSong), albums: [], artists: [] }
   },
@@ -158,7 +165,7 @@ const bilibiliBackend: PlatformBackend = {
 
   async bindProfile(profileId) {
     // 登录态按档案分槽存：换档案时主进程要跟着换那份 cookie。
-    await client()?.setProfile(profileId)
+    await providerSetProfile('bilibili', profileId)
   }
 }
 

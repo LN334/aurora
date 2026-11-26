@@ -2,6 +2,9 @@ import type {
   CommentPage,
   KugouAccount,
   KugouApi,
+  KugouFollowedArtist,
+  KugouQuality,
+  KugouSearchResult,
   KugouSong,
   KugouStreamResult
 } from '../../env'
@@ -11,8 +14,12 @@ import { normalizeSearchResult, normalizeSong } from './normalize'
 import { registerProvider } from './registry'
 import {
   providerAccountFor,
+  providerFollowedArtists,
   providerLoginStatus,
   providerLogout,
+  providerQuality,
+  providerSetProfile,
+  providerSetQuality,
   providerStatus
 } from './account-channel.ts'
 import {
@@ -30,6 +37,7 @@ import {
 import { providerDailySongs } from './recommend-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerCommentSend, providerComments } from './comment-channel.ts'
+import { providerSearch } from './search-channel.ts'
 import type { PlatformBackend } from './store'
 import {
   playable,
@@ -115,15 +123,15 @@ const kugouBackend: PlatformBackend = {
   displayName: '酷狗音乐',
 
   async getQuality() {
-    return (await client()?.getQuality()) ?? 'exhigh'
+    return (await providerQuality<KugouQuality>('kugou')) ?? 'exhigh'
   },
 
   async setQuality(quality) {
-    return (await client()?.setQuality(quality)) ?? quality
+    return (await providerSetQuality<KugouQuality>('kugou', quality)) ?? quality
   },
 
   async search(keywords, kind, limit) {
-    const result = await client()?.search(keywords, kind, limit)
+    const result = await providerSearch<KugouSearchResult | null>('kugou', keywords, kind, limit, null)
     // 客户端已经整理成共享形状；这里过一遍容错读取器，接住它以后可能加的字段。
     return normalizeSearchResult(result)
   },
@@ -237,7 +245,7 @@ const kugouBackend: PlatformBackend = {
 
   async bindProfile(profileId) {
     if (!profileId) return
-    await client()?.setProfile(profileId)
+    await providerSetProfile('kugou', profileId)
   },
 
   /*
@@ -318,9 +326,7 @@ const kugouProvider: OnlineMusicProvider = {
    * `iden_type` 把歌手挑出来（见 `readFollowedSingers`）。上游不给专辑数与歌曲数。
    */
   followedArtists: async () => {
-    const api = client()
-    if (!api) return []
-    const list = await api.followedArtists()
+    const list = await providerFollowedArtists<KugouFollowedArtist>('kugou')
     // 酷狗只给 id / 名字 / 头像，没有专辑数与歌曲数——不填，别拿 0 冒充。
     return list.map((artist) => ({
       id: artist.id,

@@ -2,7 +2,10 @@ import type {
   CommentPage,
   QqAccount,
   QqApi,
+  QqFollowedArtist,
   QqPlaylistSummary,
+  QqQuality,
+  QqSearchResult,
   QqSong,
   QqStreamResult
 } from '../../env'
@@ -12,18 +15,29 @@ import { normalizeSearchResult, normalizeSong } from './normalize'
 import { registerProvider } from './registry'
 import {
   providerAccountFor,
+  providerFollowedArtists,
   providerLoginStatus,
   providerLogout,
+  providerQuality,
+  providerSetProfile,
+  providerSetQuality,
   providerStatus
 } from './account-channel.ts'
 import {
   providerMyPlaylists,
+  providerPlaylistAddTracks,
+  providerPlaylistCreate,
   providerPlaylistOwned,
+  providerPlaylistRemove,
+  providerPlaylistRemoveTracks,
+  providerPlaylistRename,
   providerPlaylistTracks
 } from './playlist-channel.ts'
 import { providerCollectedAlbums, providerLike, providerLiked } from './likes-channel.ts'
 import { providerAlbum } from './catalog-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
+import { providerSearch } from './search-channel.ts'
+import { providerLyrics } from './lyrics-channel.ts'
 import { providerDailySongs, providerNewSongs } from './recommend-channel.ts'
 import { providerCommentSend, providerComments } from './comment-channel.ts'
 import type { PlatformBackend } from './store'
@@ -119,15 +133,15 @@ const qqBackend: PlatformBackend = {
   displayName: 'QQ 音乐',
 
   async getQuality() {
-    return (await client()?.getQuality()) ?? 'exhigh'
+    return (await providerQuality<QqQuality>('qq')) ?? 'exhigh'
   },
 
   async setQuality(quality) {
-    return (await client()?.setQuality(quality)) ?? quality
+    return (await providerSetQuality<QqQuality>('qq', quality)) ?? quality
   },
 
   async search(keywords, kind, limit) {
-    const result = await client()?.search(keywords, kind, limit)
+    const result = await providerSearch<QqSearchResult | null>('qq', keywords, kind, limit, null)
     // The client already normalises into this shape; the tolerant reader is here
     // for the fields it may add later, and for a build whose client predates one.
     return normalizeSearchResult(result)
@@ -247,7 +261,7 @@ const qqBackend: PlatformBackend = {
 
   async bindProfile(profileId) {
     if (!profileId) return
-    await client()?.setProfile(profileId)
+    await providerSetProfile('qq', profileId)
   },
 
   /*
@@ -330,9 +344,7 @@ const qqBackend: PlatformBackend = {
   // 关注歌手走 `music.concern.RelationList` / `GetFollowSingerList`：上游只给
   // mid、名字、头像与粉丝数，没有专辑数/歌曲数，所以这两个字段不填。
   followedArtists: async () => {
-    const api = client()
-    if (!api) return []
-    const list = await api.followedArtists()
+    const list = await providerFollowedArtists<QqFollowedArtist>('qq')
     return list.map((artist) => ({
       id: artist.mid || artist.id,
       name: artist.name,
@@ -370,13 +382,7 @@ const qqBackend: PlatformBackend = {
   lyrics: {
     async lyrics(songId) {
       // 正文与译文分开回来，两份时间轴由渲染层对齐。
-      const hit = await client()?.lyrics(songId)
-      if (!hit) return null
-      const lrc = hit.lrc ?? ''
-      const translation = hit.translation?.trim() || null
-      // 两份都空等于没取到，不要让上层画一个空歌词页。
-      if (!lrc.trim() && !translation) return null
-      return { lrc, translation }
+      return providerLyrics('qq', songId)
     }
   },
 
@@ -428,11 +434,11 @@ const qqBackend: PlatformBackend = {
    * 每一条成功都意味着上游读回后确实变了；false 就是没成，界面照实提示。
    */
   playlists: {
-    create: async (name) => (await client()?.playlistCreate(name)) ?? null,
-    addTracks: async (id, songIds) => (await client()?.playlistTracksEdit(id, songIds, true)) ?? false,
-    removeTracks: async (id, songIds) => (await client()?.playlistTracksEdit(id, songIds, false)) ?? false,
-    rename: async (id, name) => (await client()?.playlistRename(id, name)) ?? false,
-    remove: async (id) => (await client()?.playlistDelete(id)) ?? false
+    create: (name) => providerPlaylistCreate<QqOwnedPlaylist>('qq', name),
+    addTracks: (id, songIds) => providerPlaylistAddTracks('qq', id, songIds),
+    removeTracks: (id, songIds) => providerPlaylistRemoveTracks('qq', id, songIds),
+    rename: (id, name) => providerPlaylistRename('qq', id, name),
+    remove: (id) => providerPlaylistRemove('qq', id)
   },
 
   recommendations: {

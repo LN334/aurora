@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { bilibiliSearch, bilibiliStreamUrl } from './client'
 import { registerProviderCapability } from '../provider-gateway.ts'
+import { namedArgument } from '../pure/provider-call.ts'
 import { loginStatus, logout, qrCheck, qrCreate, setLoginProfile } from './login'
 import type { BilibiliQuality } from './types'
 
@@ -91,16 +92,23 @@ async function streamUrlBilibili(args: unknown) {
   }
 }
 
+/* 换档案：登录态按档案分槽存，换档案时主进程要跟着换那份 cookie。 */
+function setProfileBilibili(args: unknown): boolean {
+  const raw = namedArgument(args, 'profileId')
+  setLoginProfile(typeof raw === 'string' && raw ? raw : 'default')
+  return true
+}
+
 export function registerBilibiliIpc(): void {
   /*
    * 账号相关的四条通道。B 站匿名也能搜能播，登录换来的是搜索不至于被风控挡下
    * 以及更高档的音轨——所以这里的失败一律回「没有登录」，界面显示未登录，
    * 而不是一个点不动却不说原因的按钮。
    */
-  ipcMain.handle('bilibili:setProfile', (_event, profileId: unknown) => {
-    setLoginProfile(typeof profileId === 'string' && profileId ? profileId : 'default')
-    return true
-  })
+  ipcMain.handle('bilibili:setProfile', (_event, profileId: unknown) =>
+    setProfileBilibili({ profileId })
+  )
+  registerProviderCapability('bilibili', 'setProfile', setProfileBilibili)
 
   ipcMain.handle('bilibili:loginQr', () => qrCreateBilibili())
   registerProviderCapability('bilibili', 'qrCreate', qrCreateBilibili)

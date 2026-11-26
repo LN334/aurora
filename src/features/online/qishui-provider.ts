@@ -2,15 +2,23 @@ import type { CommentPage, QishuiApi, QishuiSong } from '../../env'
 import type { QualityTier } from './types'
 import { previewBackendsForced } from './preview-harness'
 import { registerProvider } from './registry'
-import { providerLoginStatus, providerLogout, providerStatus } from './account-channel.ts'
+import {
+  providerLoginStatus,
+  providerLogout,
+  providerSetProfile,
+  providerStatus
+} from './account-channel.ts'
 import {
   providerMyPlaylists,
+  providerPlaylistAddTracks,
   providerPlaylistCreator,
   providerPlaylistOwned,
+  providerPlaylistRemoveTracks,
   providerPlaylistTracks
 } from './playlist-channel.ts'
 import { providerLike, providerLiked } from './likes-channel.ts'
-import { providerArtist, providerArtistSongs } from './catalog-channel.ts'
+import { providerArtist, providerArtistSongs, providerSongById } from './catalog-channel.ts'
+import { providerSearch } from './search-channel.ts'
 import { providerStreamUrl } from './playback-channel.ts'
 import { providerDailySongs, providerPersonalFm } from './recommend-channel.ts'
 import { providerComments } from './comment-channel.ts'
@@ -154,7 +162,7 @@ const qishuiBackend: PlatformBackend = {
 
   async search(keywords, kind, limit) {
     if (kind !== 'song') return { songs: [], albums: [], artists: [] }
-    const result = await client()?.search(keywords, limit)
+    const result = await providerSearch<{ songs: QishuiSong[] } | null>('qishui', keywords, 'song', limit, null)
     const songs = (result?.songs ?? []).map((song) => asOnlineSong(song))
     return { songs, albums: [], artists: [] }
   },
@@ -181,7 +189,7 @@ const qishuiBackend: PlatformBackend = {
   },
 
   async songById(songId) {
-    const song = await client()?.song(songId)
+    const song = await providerSongById<QishuiSong>('qishui', songId)
     return song ? asOnlineSong(song) : null
   },
 
@@ -249,7 +257,7 @@ const qishuiBackend: PlatformBackend = {
 
   async bindProfile(profileId) {
     if (!profileId) return
-    await client()?.setProfile(profileId)
+    await providerSetProfile('qishui', profileId)
   },
 
   /*
@@ -347,9 +355,8 @@ const qishuiProvider: OnlineMusicProvider = {
    * 按钮，而不是摆一个按下没反应的。
    */
   playlists: {
-    addTracks: (id, songIds) => client()?.playlistTracksEdit(id, songIds, true) ?? Promise.resolve(false),
-    removeTracks: (id, songIds) =>
-      client()?.playlistTracksEdit(id, songIds, false) ?? Promise.resolve(false)
+    addTracks: (id, songIds) => providerPlaylistAddTracks('qishui', id, songIds),
+    removeTracks: (id, songIds) => providerPlaylistRemoveTracks('qishui', id, songIds)
   },
 
   search: {

@@ -8,6 +8,7 @@ import {
   providerArtistSongs,
   providerArtistTopSongs,
   providerNewAlbums,
+  providerSongById,
   providerSongDetail
 } from '../src/features/online/catalog-channel.ts'
 
@@ -156,6 +157,28 @@ test('歌曲详情那条叫 songDetail，参数是 { ids }', async () => {
   assert.deepEqual(await providerSongDetail('netease', [9, 10]), [{ id: 9 }])
   assert.equal(calls[0].capability, 'songDetail')
   assert.deepEqual(calls[0].args, { ids: [9, 10] })
+})
+
+/**
+ * 单首。上游只有汽水给这个口子（19 位字符串 id 存成数字别名），其余几家按 id
+ * 批量取，走的是上面那条 songDetail。这里钉住名字与形状，别让它和 songDetail 混了。
+ */
+test('单首那条叫 song，参数是 { songId }', async () => {
+  const calls = install(() => ({ ok: true, value: { id: 7 } }))
+  assert.deepEqual(await providerSongById('qishui', 7), { id: 7 })
+  assert.equal(calls[0].capability, 'song')
+  assert.deepEqual(calls[0].args, { songId: 7 })
+})
+
+test('单首读失败折回 null，别编一首出来', async () => {
+  install(() => ({ ok: false, error: { code: 'handler-failed', message: 'boom' } }))
+  const warnings = collectWarnings()
+  try {
+    assert.equal(await providerSongById('qishui', 7), null)
+  } finally {
+    warnings.restore()
+  }
+  assert.ok(warnings.lines[0].includes('qishui.song'))
 })
 
 test('歌曲详情读失败折回空数组，补不到记录就当没有', async () => {

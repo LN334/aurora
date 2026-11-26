@@ -256,10 +256,36 @@ async function streamUrlQishui(input: unknown) {
   })
 }
 
+/* 换档案：旧的 `qishui:setProfile` 与 `provider:call` 共用这一份实现。 */
+function setProfileQishui(args: unknown): Promise<boolean> {
+  const raw = namedArgument(args, 'profileId')
+  return guard('setProfile', false, async () => setActiveProfile(asText(raw, MAX_ID) || 'default'))
+}
+
+/* 按 alias 取一首：旧 `qishui:song` 与 `provider:call` 共用。 */
+function songQishui(args: unknown) {
+  const alias = asAlias(namedArgument(args, 'songId'))
+  return guard('song', null, async () => (alias ? await qishuiSong(alias) : null))
+}
+
+/* 加 / 删歌共用一条实现；`add` 决定方向，两个能力各自固定它。 */
+function playlistTracksEditQishui(args: unknown): Promise<boolean> {
+  const params = asRecord(args)
+  const alias = asAlias(params.playlistId)
+  const add = params.add === true
+  const raw = Array.isArray(params.songIds) ? params.songIds : []
+  const ids = raw.map(asAlias).filter((value) => value > 0).slice(0, 200)
+  return guard('playlistTracksEdit', false, async () => {
+    if (!alias || ids.length === 0) return false
+    return await qishuiPlaylistTracksEdit(alias, ids, add)
+  })
+}
+
 export function registerQishuiIpc(): void {
   ipcMain.handle('qishui:setProfile', async (_event, profileId: unknown) =>
-    guard('setProfile', false, async () => setActiveProfile(asText(profileId, MAX_ID) || 'default'))
+    await setProfileQishui({ profileId })
   )
+  registerProviderCapability('qishui', 'setProfile', setProfileQishui)
 
   ipcMain.handle('qishui:status', async () => statusQishui())
   registerProviderCapability('qishui', 'status', statusQishui)
@@ -284,12 +310,8 @@ export function registerQishuiIpc(): void {
   )
   registerProviderCapability('qishui', 'searchPlaylists', searchPlaylistsQishui)
 
-  ipcMain.handle('qishui:song', async (_event, id: unknown) =>
-    guard('song', null, async () => {
-      const alias = asAlias(id)
-      return alias ? await qishuiSong(alias) : null
-    })
-  )
+  ipcMain.handle('qishui:song', async (_event, id: unknown) => await songQishui({ songId: id }))
+  registerProviderCapability('qishui', 'song', songQishui)
 
   ipcMain.handle('qishui:streamUrl', async (_event, input: unknown) => await streamUrlQishui(input))
   registerProviderCapability('qishui', 'playback', streamUrlQishui)
@@ -336,15 +358,13 @@ export function registerQishuiIpc(): void {
   )
   registerProviderCapability('qishui', 'like', likeQishui)
 
-  ipcMain.handle('qishui:playlistTracksEdit', async (_event, input: unknown) => {
-    const params = asRecord(input)
-    const alias = asAlias(params.playlistId)
-    const add = params.add === true
-    const raw = Array.isArray(params.songIds) ? params.songIds : []
-    const ids = raw.map(asAlias).filter((value) => value > 0).slice(0, 200)
-    return await guard('playlistTracksEdit', false, async () => {
-      if (!alias || ids.length === 0) return false
-      return await qishuiPlaylistTracksEdit(alias, ids, add)
-    })
-  })
+  ipcMain.handle('qishui:playlistTracksEdit', async (_event, input: unknown) =>
+    await playlistTracksEditQishui(input)
+  )
+  registerProviderCapability('qishui', 'playlistAddTracks', (args: unknown) =>
+    playlistTracksEditQishui({ ...asRecord(args), add: true })
+  )
+  registerProviderCapability('qishui', 'playlistRemoveTracks', (args: unknown) =>
+    playlistTracksEditQishui({ ...asRecord(args), add: false })
+  )
 }
