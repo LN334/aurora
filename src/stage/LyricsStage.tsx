@@ -73,6 +73,11 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
   const hRef = useRef(96)
   const dragRef = useRef<{ id: number; y: number; base: number; moved: boolean } | null>(null)
   /*
+   * true = 这一程跟着播放走，收尾不能过冲；用户自己拖过、滚过之后才换成带弹性的
+   * 那根弹簧。帧循环只挂一次，闭包里的 pinned 永远是最初的 null，所以走 ref。
+   */
+  const followRef = useRef(true)
+  /*
    * 内容也由帧循环直写，React 只在挂载时渲染九个空槽。
    *
    * 旧版把整列内容放在 JSX 里，跨行时 setState 会让九个槽同时换文本节点：
@@ -102,6 +107,7 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
    * 这里只负责「把画面挪到那个位置」——上下拖动、停手六秒自动交还，都在舞台和
    * 底栏那颗「回到正在唱」上。
    */
+  followRef.current = pinned === null
   if (!dragRef.current) {
     aimRef.current = Math.max(0, Math.min(last, pinned === null ? live : pinned))
   }
@@ -115,6 +121,14 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
     paintedRef.current = -1
     classRef.current = []
   }, [lyrics.lines])
+
+  /*
+   * 交还播放时清掉手动那下的速度：拖完停手六秒，弹簧可能还带着冲劲，直接切回
+   * 跟随会滑过目标一格。跟随模式自己从静止出发，才收得住。
+   */
+  useEffect(() => {
+    if (pinned === null) velRef.current = 0
+  }, [pinned])
 
   /*
    * 槽高由 CSS 变量给，窗口一变就换一套值，量一次不够用。
@@ -300,9 +314,12 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
   /*
    * 每帧推进。
    *
-   * 欠阻尼弹簧：拨一下会先冲过一格再被拉回来，停手才收住——这就是「有动画」和
-   * 「跳一格」的差别。整列位移是连续的，跨行时内容按整行换、位移补上半格，两件
-   * 事叠在一起看，就是一路滑过去，而不是一格一格闪。
+   * 跟着播放时用 1.1 × 临界阻尼的弹簧：从一行滑到下一行只减速、不越过目标，
+   * 看起来是「滑过去」，而不是先冲过半格再缩回来。用户自己拖过、滚过之后
+   * （pinned 非空）才换回原来那根欠阻尼弹簧，留一点回弹的手感。
+   *
+   * 整列位移是连续的，跨行时内容按整行换、位移补上半格，两件事叠在一起看，
+   * 就是一路滑过去，而不是一格一格闪。
    */
   useEffect(() => {
     let raf = 0
@@ -314,11 +331,20 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
       const height = hRef.current
       if (!dragRef.current) {
         const gap = aimRef.current - posRef.current
-        if (Math.abs(gap) < 0.002 && Math.abs(velRef.current) < 0.02) {
+        const follow = followRef.current
+        /*
+         * 跟随：190 / 30.3，阻尼比 1.1，60fps 下从静止出发也不会擦过目标。
+         * 手动：170 / 13，阻尼比 0.5，松手后回弹一次再站住。
+         */
+        const stiffness = follow ? 190 : 170
+        const damping = follow ? 30.3 : 13
+        const near = follow ? 0.004 : 0.002
+        const still = follow ? 0.03 : 0.02
+        if (Math.abs(gap) < near && Math.abs(velRef.current) < still) {
           posRef.current = aimRef.current
           velRef.current = 0
         } else {
-          velRef.current += (gap * 170 - velRef.current * 13) * dt
+          velRef.current += (gap * stiffness - velRef.current * damping) * dt
           posRef.current += velRef.current * dt
         }
       }
@@ -417,6 +443,8 @@ function LyricColumn({ lyrics, pinned, onPin, onSeek, typing }: LyricColumnProps
     dragRef.current = null
     event.currentTarget.classList.remove('is-drag')
     if (!drag.moved) return
+    /* 松手先朝最近一行收；render 之前 rAF 若先跑，也不会先朝「正在唱」那一行冲 */
+    aimRef.current = Math.round(posRef.current)
     onPin(Math.round(posRef.current))
   }
 

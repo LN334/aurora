@@ -168,9 +168,9 @@ function LyricRoll({
           velRef.current += (want - velRef.current) * Math.min(1, dt * 26)
           posRef.current += velRef.current * dt
         } else {
-          /* 收尾：跟着播放时用临界阻尼（2*sqrt(190)），一路滑过去不过冲；
-             用户自己拨完才用欠阻尼，留一点弹回来的手感。
-             跟着播放时要快一点：慢半拍会让「这一句」的提示看起来比唱得晚。 */
+          /* 收尾：跟着播放用 1.4 × 临界阻尼（2√190），从静止滑到下一行只减速、
+             不越过，换行不会先冲过去再缩回来；用户自己拨完才用欠阻尼（ζ≈0.5），
+             留一点弹回来的手感。跟随再慢半拍，这一句的提示会看起来比唱得晚。 */
           const damp = followRef.current ? 39.05 : 14
           const acc = gap * 190 - velRef.current * damp
           velRef.current += acc * dt
